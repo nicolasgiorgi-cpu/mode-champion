@@ -1,0 +1,241 @@
+/* =========================================================
+   Mode champion · M12 — connexion enfant, 1re connexion,
+   code oublié, connexion des adultes
+   ========================================================= */
+(function () {
+  var app = MC.app, ui = MC.ui, api = MC.api, C = MC.CONTENT, esc = ui.esc;
+
+  // ---------- pavé numérique partagé ----------
+  var pad = null; // { len, val, onDone, reveal, el }
+  function padHtml(withEye) {
+    var keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', withEye ? 'eye' : '', '0', 'del'];
+    return '<div class="pad">' + keys.map(function (k) {
+      if (!k) return '<span></span>';
+      if (k === 'del') return '<button type="button" class="fn" data-act="pad" data-k="del" aria-label="Effacer">' + ui.icon('del', 26) + '</button>';
+      if (k === 'eye') return '<button type="button" class="fn" data-act="pad" data-k="eye" aria-label="Montrer ou cacher le code">' + ui.icon('eye', 26) + '</button>';
+      return '<button type="button" data-act="pad" data-k="' + k + '">' + k + '</button>';
+    }).join('') + '</div>';
+  }
+  function digitsHtml(len, val, reveal, ok) {
+    var out = '<div class="digits" style="--nd:' + len + '" aria-live="polite" aria-label="' + val.length + ' chiffres sur ' + len + '">';
+    for (var i = 0; i < len; i++) {
+      var full = i < val.length, cur = !ok && i === val.length;
+      out += '<div class="digit' + (full ? ' full' : '') + (full && reveal ? ' show' : '') + (cur ? ' cur' : '') + (ok ? ' ok' : '') + '">' + (full && reveal ? esc(val.charAt(i)) : '') + '</div>';
+    }
+    return out + '</div>';
+  }
+  function paintDigits() {
+    if (!pad || !pad.el) return;
+    var d = pad.el.querySelector('.digits');
+    if (d) d.outerHTML = digitsHtml(pad.len, pad.val, pad.reveal);
+  }
+  function setMsg(text, err) {
+    if (!pad || !pad.el) return;
+    var m = pad.el.querySelector('.msg');
+    if (m) { m.textContent = text || ''; m.className = 'msg' + (err ? ' err' : ''); }
+  }
+  MC.act.pad = function (b) {
+    if (!pad || pad.busy) return;
+    var k = b.getAttribute('data-k');
+    if (k === 'del') { pad.val = pad.val.slice(0, -1); setMsg(pad.hint || ''); paintDigits(); return; }
+    if (k === 'eye') { pad.reveal = !pad.reveal; paintDigits(); return; }
+    if (pad.val.length >= pad.len) return;
+    pad.val += k;
+    paintDigits();
+    if (pad.val.length === pad.len) { var v = pad.val; setTimeout(function () { if (pad) pad.onDone(v); }, 120); }
+  };
+  document.addEventListener('keydown', function (e) {
+    if (!pad || !pad.el || !document.body.contains(pad.el)) return;
+    if (/^\d$/.test(e.key)) { var b = pad.el.querySelector('[data-k="' + e.key + '"]'); if (b) MC.act.pad(b); }
+    else if (e.key === 'Backspace') { var d = pad.el.querySelector('[data-k="del"]'); if (d) MC.act.pad(d); }
+  });
+
+  // ---------- Écran de connexion ----------
+  var rosterQuery = '';
+  app.route('/connexion', function () {
+    return api.call('roster').then(function (res) {
+      app.S.roster = res.joueurs;
+      return paintConnexion();
+    });
+  }, { bg: '#1B2552' });
+
+  function kidButton(k) {
+    return '<button type="button" class="kidbtn" data-act="pickKid" data-id="' + esc(k.id) + '"><span>' + ui.avatar(k.prenom, k.couleur, 40) + '<span class="nm">' + esc(k.prenom) + '</span></span></button>';
+  }
+  function paintConnexion() {
+    var list = app.S.roster || [];
+    var recents = (app.lsGet('mc-recents') || []).map(function (id) { return list.filter(function (k) { return k.id === id; })[0]; }).filter(Boolean);
+    var q = rosterQuery.toLowerCase();
+    var shown = list.filter(function (k) { return !q || k.prenom.toLowerCase().indexOf(q) >= 0; });
+    var demo = api.DEMO ? '<div class="demo-banner"><b>MODE DÉMO</b> · joueurs fictifs, rien n\'est envoyé. Code des enfants : <b>' + MC.demo.CODES.enfant + '</b> · Rose (1re connexion) : <b>' + MC.demo.CODES.nouveau + '</b> · Parent de Tom : <b>' + MC.demo.CODES.parent + '</b> · Éduc : <b>' + MC.demo.CODES.educ + '</b> <button type="button" class="btn2 sm grey" style="margin-top:8px" data-act="resetDemo">Remettre la démo à zéro</button></div>' : '';
+    return '<main class="screen nonav">' +
+      '<div class="between" style="align-items:center"><span class="kicker">' + esc(MC.CONFIG.CLUB) + '</span>' +
+      '<a class="tag" href="#/adultes" style="min-height:40px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--soft)">' + ui.icon('lock', 14) + 'Adultes</a></div>' +
+      '<div class="head"><h1 class="big">Mode<br>champion</h1><p class="lead">Touche ton avatar, puis tape ton code secret pour entrer dans l\'arène.</p></div>' +
+      demo +
+      (recents.length ? '<section class="sec"><h2 class="h2">Déjà venus ici</h2><div class="roster">' + recents.map(kidButton).join('') + '</div></section>' : '') +
+      '<section class="sec"><div class="between"><h2 class="h2">Qui s\'entraîne ?</h2><span class="small">' + list.length + ' joueurs</span></div>' +
+      (list.length > 12 ? '<label class="sr-only" for="q">Chercher mon prénom</label><input id="q" class="search" type="search" placeholder="Cherche ton prénom…" value="' + esc(rosterQuery) + '" autocomplete="off">' : '') +
+      '<div class="roster" id="roster">' + (shown.length ? shown.map(kidButton).join('') : '<div class="empty" style="grid-column:1/-1">Personne avec ce prénom. Demande à ton éduc de t\'ajouter.</div>') + '</div></section>' +
+      '</main>';
+  }
+  document.addEventListener('input', function (e) {
+    if (e.target && e.target.id === 'q') {
+      rosterQuery = e.target.value;
+      var list = app.S.roster || [], q = rosterQuery.toLowerCase();
+      var shown = list.filter(function (k) { return !q || k.prenom.toLowerCase().indexOf(q) >= 0; });
+      var r = document.getElementById('roster');
+      if (r) r.innerHTML = shown.length ? shown.map(kidButton).join('') : '<div class="empty" style="grid-column:1/-1">Personne avec ce prénom. Demande à ton éduc de t\'ajouter.</div>';
+    }
+  });
+  MC.act.resetDemo = function () {
+    ui.modal({ title: 'Remettre la démo à zéro ?', body: '<p class="lead">Toutes les séances notées pendant l\'essai seront effacées.</p>', actions: [{ label: 'Oui, remettre à zéro', value: true, cls: 'btn pink' }, { label: 'Annuler', value: false, cls: 'btn2 grey' }] }).then(function (ok) {
+      if (!ok) return;
+      api.resetDemo(); app.setKid(null); app.setAdult(null); app.lsSet('mc-recents', null); app.go('#/connexion'); app.render();
+    });
+  };
+
+  MC.act.pickKid = function (b) {
+    var id = b.getAttribute('data-id');
+    var k = (app.S.roster || []).filter(function (x) { return x.id === id; })[0];
+    if (!k) return;
+    pinSheet(k);
+  };
+
+  function pinSheet(k) {
+    var host = document.createElement('div');
+    host.className = 'modal';
+    host.setAttribute('role', 'dialog');
+    host.setAttribute('aria-modal', 'true');
+    host.setAttribute('aria-label', 'Code secret de ' + k.prenom);
+    host.innerHTML = '<div class="card pin-zone">' +
+      '<div class="row">' + ui.avatar(k.prenom, k.couleur, 48) + '<div style="flex:1"><div class="kicker">' + (k.nouveau ? 'Code provisoire de ton éduc' : 'Code secret') + '</div><div style="font:700 20px/1.1 var(--f-hud);letter-spacing:.04em;margin-top:5px">' + esc(k.prenom.toUpperCase()) + '</div></div>' +
+      '<button type="button" class="ibtn" data-close aria-label="Fermer">' + ui.icon('x') + '</button></div>' +
+      digitsHtml(4, '', false) + '<div class="msg" aria-live="polite"></div>' + padHtml(true) +
+      '<a href="#/oubli" class="btn2 grey" data-close>Code oublié ?</a></div>';
+    document.body.appendChild(host);
+    function close() { host.remove(); pad = null; }
+    host.addEventListener('click', function (e) {
+      if (e.target === host || e.target.closest('[data-close]')) { close(); }
+      var b = e.target.closest('[data-act="pad"]');
+      if (b) { e.stopPropagation(); MC.act.pad(b); }
+    });
+    pad = { len: 4, val: '', reveal: false, el: host, onDone: function (v) {
+      pad.busy = true;
+      setMsg('Vérification…');
+      ui.unlockAudio();
+      api.call('login', { joueurId: k.id, pin: v }).then(function (res) {
+        close();
+        app.setKid({ token: res.token, joueur: res.joueur });
+        if (res.joueur.mustChange) app.go('#/premiere');
+        else { app.go('#/semaine'); ui.toast('Salut ' + res.joueur.prenom + ' ! Prêt pour ta mission ?'); }
+      }).catch(function (e) {
+        if (!pad) return;
+        pad.busy = false;
+        pad.val = '';
+        paintDigits();
+        var m = e.message;
+        if (e.code === 'code' && e.data && e.data.reste !== undefined && e.data.reste <= 2) m += ' Encore ' + e.data.reste + ' essai' + (e.data.reste > 1 ? 's' : '') + '.';
+        setMsg(m, true);
+        var dg = host.querySelector('.digits');
+        if (dg && dg.animate) dg.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-8px)' }, { transform: 'translateX(8px)' }, { transform: 'translateX(0)' }], { duration: 260 });
+      });
+    } };
+  }
+
+  // ---------- 1re connexion / changer son code ----------
+  var first = null;
+  app.route('/premiere', function (p, q, cur) {
+    var k = app.S.kid;
+    if (!first || first.id !== k.joueur.id) first = { id: k.joueur.id, step: q.change ? 'code' : 'color', couleur: k.joueur.couleur || '#38E8FF', code: '', change: !!q.change };
+    cur.cleanup = function () { pad = null; };
+    cur.after = function (el) { setupFirstPad(el); };
+    return paintFirst();
+  }, { kid: true, first: true });
+
+  function paintFirst() {
+    var k = app.S.kid.joueur, st = first.step;
+    var title = { color: 'Choisis\nta couleur', code: 'Choisis ton\ncode secret', confirm: 'Tape-le\nencore une fois', done: 'Code\nenregistré !' }[st];
+    var sub = {
+      color: 'C\'est la couleur de ton bouclier de champion.',
+      code: '4 chiffres faciles à retenir pour toi, mais pas pour les autres.',
+      confirm: 'Pour être sûr que tu ne t\'es pas trompé.',
+      done: 'La prochaine fois, touche ton avatar et tape ce code.'
+    }[st];
+    var stepLabel = { color: 'ÉTAPE 1/3', code: first.change ? 'ÉTAPE 1/2' : 'ÉTAPE 2/3', confirm: first.change ? 'ÉTAPE 2/2' : 'ÉTAPE 3/3', done: 'C\'EST BON' }[st];
+    var body = '';
+    if (st === 'color') {
+      body = '<div class="swatches" role="radiogroup" aria-label="Couleur">' + C.COULEURS.map(function (c) {
+        var on = c.toLowerCase() === String(first.couleur).toLowerCase();
+        return '<button type="button" class="swatch' + (on ? ' on' : '') + '" role="radio" aria-checked="' + on + '" aria-label="Couleur ' + c + '" data-act="pickColor" data-c="' + c + '">' + ui.avatar(k.prenom, c, 38) + '</button>';
+      }).join('') + '</div><button type="button" class="btn" data-act="firstNext">C\'est ma couleur ' + ui.icon('right', 18) + '</button>';
+    } else if (st === 'code' || st === 'confirm') {
+      body = digitsHtml(4, '', false) + '<div class="msg" aria-live="polite">' + (st === 'code' ? 'Astuce : le numéro de maillot de ton joueur préféré + ton âge ?' : '') + '</div>' + padHtml(true);
+    } else {
+      body = '<div class="note green">' + ui.icon('check', 28) + '<div><div class="hud" style="color:var(--green)">' + (first.change ? 'Nouveau code' : 'Tu es Recrue · c\'est parti !') + '</div><div style="margin-top:4px">Ton code est à toi seul. Ne le donne à personne, même pas à tes copains.</div></div></div>' +
+        '<a class="btn" href="#/semaine">' + ui.icon('play', 18) + ' Entrer dans l\'arène</a>';
+    }
+    return '<main class="screen nonav" id="firstzone">' +
+      '<div class="row">' + ui.avatar(k.prenom, first.couleur, 48) + '<div><div class="kicker">' + (first.change ? 'CHANGER MON CODE' : '1RE CONNEXION') + ' · ' + stepLabel + '</div><div style="font:700 16px/1.2 var(--f-hud);margin-top:5px">' + (first.change ? '' : 'Bienvenue ') + esc(k.prenom) + (first.change ? '' : ' !') + '</div></div></div>' +
+      '<div class="head"><h1 class="big md" style="white-space:pre-line">' + title + '</h1><p class="lead">' + sub + '</p></div>' +
+      '<div class="sec pin-zone" style="width:100%;margin:0 auto">' + body + '</div></main>';
+  }
+  function setupFirstPad(el) {
+    if (first.step !== 'code' && first.step !== 'confirm') { pad = null; return; }
+    pad = { len: 4, val: '', reveal: false, el: el.querySelector('#firstzone'), hint: '', onDone: function (v) {
+      if (first.step === 'code') {
+        if (Core._pinFaible(v)) { pad.val = ''; paintDigits(); setMsg('Trop facile à deviner ! Évite 1234, 0000 ou 1212.', true); return; }
+        first.code = v; first.step = 'confirm'; app.render(); return;
+      }
+      if (v !== first.code) { first.step = 'code'; first.code = ''; app.render(); setTimeout(function () { setMsg('Les deux codes sont différents. On recommence !', true); }, 30); return; }
+      pad.busy = true;
+      setMsg('Enregistrement…');
+      app.kidCall('setPin', { pin: v, couleur: first.couleur }).then(function (res) {
+        app.S.kid.token = res.token; app.S.kid.joueur = res.joueur; app.setKid(app.S.kid);
+        first.step = 'done'; app.render();
+      }).catch(function (e) { if (pad) { pad.busy = false; pad.val = ''; paintDigits(); setMsg(e.message, true); } });
+    } };
+  }
+  MC.act.pickColor = function (b) { first.couleur = b.getAttribute('data-c'); app.render(); };
+  MC.act.firstNext = function () { first.step = 'code'; app.render(); };
+
+  // ---------- Code oublié ----------
+  app.route('/oubli', function () {
+    function step(n, t) { return '<li><span class="num" style="--sc:var(--cyan)">' + n + '</span><span class="tx">' + t + '</span></li>'; }
+    return '<main class="screen nonav"><a class="back" href="#/connexion">' + ui.icon('left', 18) + 'Retour</a>' +
+      '<div style="align-self:center">' + ui.avatar('?', '#FF4FA3', 110) + '</div>' +
+      '<div class="head" style="text-align:center"><h1 class="big md">Code oublié ?</h1><p class="lead">Pas de panique, ça arrive même aux pros. Tes étoiles et ton XP ne sont pas perdus.</p></div>' +
+      '<ol class="steps">' + step(1, 'Demande à <b>un parent</b> ou à <b>ton éduc</b> un code provisoire. Ils le créent en 2 secondes dans leur espace.') +
+      step(2, 'Touche ton avatar et tape ce code provisoire.') + step(3, 'Choisis un nouveau code secret, rien qu\'à toi.') + '</ol>' +
+      '<div class="note yellow">' + ui.icon('lock', 20) + '<span>Après 5 codes faux, ton profil se bloque 10 minutes. C\'est pour que personne ne devine ton code.</span></div>' +
+      '<a class="btn" href="#/connexion">J\'ai mon code provisoire</a></main>';
+  }, { bg: '#2A1640' });
+
+  // ---------- Connexion des adultes ----------
+  var adultWho = 'f';
+  app.route('/adultes', function (p, q, cur) {
+    if (app.S.adult) { setTimeout(function () { app.go(app.S.adult.role === 'e' ? '#/educ' : '#/parent', true); }, 0); return ''; }
+    cur.cleanup = function () { pad = null; };
+    cur.after = function (el) {
+      pad = { len: 6, val: '', reveal: false, el: el.querySelector('#adultzone'), onDone: function (v) {
+        pad.busy = true; setMsg('Vérification…');
+        api.call('adultLogin', { code: v }).then(function (res) {
+          pad = null;
+          app.setAdult({ token: res.token, role: res.role, nom: res.nom, admin: res.admin });
+          app.go(res.role === 'e' ? '#/educ' : '#/parent');
+        }).catch(function (e) { if (pad) { pad.busy = false; pad.val = ''; paintDigits(); setMsg(e.message, true); } });
+      } };
+    };
+    var help = adultWho === 'f'
+      ? 'Un seul code pour tous vos enfants inscrits, donné par l\'éducateur à l\'inscription. Perdu ? L\'éducateur vous en crée un nouveau.'
+      : 'Code personnel créé par l\'administrateur du site. Perdu ? L\'administrateur vous en génère un nouveau.';
+    return '<main class="screen nonav" id="adultzone"><a class="back" href="#/connexion">' + ui.icon('left', 18) + 'Espace joueurs</a>' +
+      '<div class="head"><span class="kicker">' + esc(MC.CONFIG.CLUB) + '</span><h1 class="big md">Espace<br>adultes</h1></div>' +
+      '<div class="grid2" role="tablist" aria-label="Je suis" style="border:1px solid var(--line2);padding:4px;gap:4px">' +
+      '<button type="button" role="tab" aria-selected="' + (adultWho === 'f') + '" class="opt' + (adultWho === 'f' ? ' on' : '') + '" data-act="adultWho" data-w="f" style="min-height:44px">Je suis parent</button>' +
+      '<button type="button" role="tab" aria-selected="' + (adultWho === 'e') + '" class="opt' + (adultWho === 'e' ? ' on' : '') + '" data-act="adultWho" data-w="e" style="min-height:44px">Je suis éduc</button></div>' +
+      '<div class="sec pin-zone" style="width:100%;margin:0 auto"><span class="lab">' + (adultWho === 'f' ? 'Code famille' : 'Code éduc') + ' · 6 chiffres</span>' + digitsHtml(6, '', false) +
+      '<div class="msg" aria-live="polite"></div>' + padHtml(true) + '<p class="small" style="margin:0">' + help + ' Vous restez connecté sur cet appareil.</p></div></main>';
+  }, { bg: '#16223F' });
+  MC.act.adultWho = function (b) { adultWho = b.getAttribute('data-w'); app.render(); };
+})();
