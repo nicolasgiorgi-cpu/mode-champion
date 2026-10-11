@@ -263,7 +263,7 @@
       var t = L.today(), def = q.type || L.dayType(t);
       if (def === 'repos') def = 'cros';
       if (!form || form.key !== (q.type || '') + L.today()) {
-        form = { key: (q.type || '') + L.today(), quand: 'auj', date: t, type: def, niveau: L.dayLevel(me.joueur.niveaux || {}, def), ressenti: 'bien', clubMer: false, match: false, adv: '', score: '', check: [false, false, false], jambes: '' };
+        form = { key: (q.type || '') + L.today(), quand: 'auj', date: t, type: def, niveau: L.dayLevel(me.joueur.niveaux || {}, def), ressenti: 'bien', clubMer: false, match: false, adv: '', score: '', sA: '', sB: '', check: [false, false, false], jambes: '' };
       }
       return paintNoter(me);
     });
@@ -295,7 +295,7 @@
       if (f.type === 'dupont') rest += '<button type="button" class="switch" role="switch" aria-checked="' + f.clubMer + '" data-act="nClub"><span><span class="t1" style="display:block">J\'ai aussi fait le club le soir</span><span class="t2" style="display:block">+' + C.XP.club + ' XP</span></span><span class="k"></span></button>';
     } else if (f.type === 'club') {
       rest += '<fieldset><legend><b>3 ·</b> C\'était…</legend><div class="grid2">' + opt('nMatch', '0', !f.match, 'Un entraînement') + opt('nMatch', '1', f.match, 'Un match') + '</div>' +
-        (f.match ? '<div class="grid2"><div><label class="lab" for="nadv">Contre qui ?</label><input id="nadv" class="txt" maxlength="30" value="' + esc(f.adv) + '" data-input="nAdv"></div><div><label class="lab" for="nscore">Score</label><input id="nscore" class="txt" maxlength="12" placeholder="ex. 25-20" value="' + esc(f.score) + '" data-input="nScore"></div></div>' : '') + '</fieldset>';
+        (f.match ? '<div class="grid2"><div><label class="lab" for="nadv">Contre qui ?</label><input id="nadv" class="txt" maxlength="30" value="' + esc(f.adv) + '" data-input="nAdv"></div><div><label class="lab" for="nsa">Score</label><div class="row" style="gap:6px">' + ui.numInput({ id: 'nsa', kind: 'int', max: 3, cls: 'txt', style: 'width:64px;text-align:center;padding:0 4px', label: 'Score de ton équipe', placeholder: 'Nous', value: f.sA, attrs: 'data-input="nScoreA"' }) + '<span class="unit">–</span>' + ui.numInput({ id: 'nsb', kind: 'int', max: 3, cls: 'txt', style: 'width:64px;text-align:center;padding:0 4px', label: 'Score de l\'adversaire', placeholder: 'Eux', value: f.sB, attrs: 'data-input="nScoreB"' }) + '</div></div></div>' : '') + '</fieldset>';
     } else if (f.type === 'recup') {
       rest += '<fieldset><legend><b>3 ·</b> Ma récup</legend>' + C.JOURS.recup.check.map(function (c, i) {
         return '<button type="button" class="switch" role="switch" aria-checked="' + !!f.check[i] + '" data-act="nCheck" data-v="' + i + '"><span class="t1">' + esc(c) + '</span><span class="k"></span></button>';
@@ -327,7 +327,12 @@
     var k = e.target && e.target.getAttribute && e.target.getAttribute('data-input');
     if (!k || !form) return;
     if (k === 'nAdv') form.adv = e.target.value;
-    if (k === 'nScore') form.score = e.target.value;
+    if (k === 'nScoreA' || k === 'nScoreB') {
+      var c = e.target.value.replace(/[^0-9]/g, '');
+      if (c !== e.target.value) e.target.value = c;
+      if (k === 'nScoreA') form.sA = c; else form.sB = c;
+      form.score = form.sA || form.sB ? (form.sA || '0') + '-' + (form.sB || '0') : '';
+    }
   });
   MC.act.nSave = function (b) {
     var f = form, j = C.JOURS[f.type];

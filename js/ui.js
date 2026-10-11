@@ -121,11 +121,132 @@ MC.ui = (function () {
     return JOURS_C[d.getDay()] + ' ' + d.getDate() + ' ' + MOIS_C[d.getMonth()];
   }
   function fmtNum(n) { return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
+  // les temps d'une minute ou plus s'écrivent « 1 min 15 s »
+  function minSec(v) { var a = Math.round(Math.abs(v)); return { neg: v < 0, m: Math.floor(a / 60), s: a % 60 }; }
   function fmtVal(v, unite, dec) {
     if (v === null || v === undefined || v === '') return '—';
+    if (unite === 's' && !dec && Math.abs(v) >= 60) { var t = minSec(v); return (t.neg ? '-' : '') + t.m + ' min' + (t.s ? ' ' + t.s + ' s' : ''); }
     var s = dec ? String(Math.round(v * 10) / 10).replace('.', ',') : String(Math.round(v));
     return s + (unite ? ' ' + unite : '');
   }
+  // même chose en HTML, chiffres en gros et unités en petit (tuiles de records)
+  function valHtml(v, unite, dec) {
+    if (v === null || v === undefined || v === '') return '—';
+    if (unite === 's' && !dec && v >= 60) { var t = minSec(v); return t.m + '<small> min </small>' + t.s + '<small> s</small>'; }
+    return fmtVal(v, '', dec) + (unite ? '<small> ' + esc(unite) + '</small>' : '');
+  }
+
+  // ---------- Champs chiffrés + pavé numérique ----------
+  // Sur écran tactile (iPad, téléphone), les champs chiffrés n'ouvrent pas le clavier du système :
+  // un pavé numérique du site s'affiche en bas (chiffres, virgule si besoin, effacer, Suivant).
+  var TOUCH = (navigator.maxTouchPoints || 0) > 0 || ('ontouchstart' in window);
+  function numInput(o) {
+    // o : id, kind ('int' | 'dec'), max (nb de caractères), value, cls, style, label, placeholder, attrs, auto (passe au champ suivant quand il est plein)
+    var dec = o.kind === 'dec', v = o.value === undefined || o.value === null ? '' : String(o.value);
+    return '<input type="text" id="' + esc(o.id) + '" class="' + (o.cls || 'num') + (v ? ' has' : '') + '"' + (o.style ? ' style="' + o.style + '"' : '') +
+      ' inputmode="' + (dec ? 'decimal' : 'numeric') + '"' + (dec ? '' : ' pattern="[0-9]*"') + ' autocomplete="off" enterkeyhint="next" data-num="' + (dec ? 'dec' : 'int') + '"' +
+      (o.max ? ' maxlength="' + o.max + '"' : '') + (o.auto ? ' data-auto="1"' : '') + (o.label ? ' aria-label="' + esc(o.label) + '"' : '') + (TOUCH ? ' readonly' : '') +
+      ' placeholder="' + esc(o.placeholder === undefined ? '—' : o.placeholder) + '" value="' + esc(v) + '"' + (o.attrs ? ' ' + o.attrs : '') + '>';
+  }
+  var np = { el: null, cur: null };
+  function npBuild() {
+    if (np.el) return np.el;
+    var d = document.createElement('div');
+    d.className = 'numpad'; d.id = 'numpad'; d.hidden = true;
+    d.setAttribute('role', 'group'); d.setAttribute('aria-label', 'Pavé numérique');
+    d.innerHTML = '<div class="np-top"><span class="np-lab" id="np_lab"></span><button type="button" class="np-ok" data-np="ok">Fermer</button></div>' +
+      '<div class="np-body"><div class="pad np-keys">' + ['1', '2', '3', '4', '5', '6', '7', '8', '9', ',', '0', 'del'].map(function (k) {
+        if (k === 'del') return '<button type="button" class="fn" data-np="del" aria-label="Effacer">' + icon('del', 26) + '</button>';
+        if (k === ',') return '<button type="button" class="fn np-dec" data-np="," aria-label="Virgule">,</button>';
+        return '<button type="button" data-np="' + k + '">' + k + '</button>';
+      }).join('') + '</div><button type="button" class="np-next" data-np="next"><span id="np_next">Suivant</span>' + icon('right', 24) + '</button></div>';
+    document.body.appendChild(d);
+    d.addEventListener('click', function (e) { var b = e.target.closest('[data-np]'); if (b) npKey(b.getAttribute('data-np')); });
+    np.el = d;
+    return d;
+  }
+  function npFields() {
+    return Array.prototype.filter.call(document.querySelectorAll('#app input[data-num]'), function (x) { return x.offsetParent !== null && !x.disabled; });
+  }
+  function npLabel(el) {
+    var l = el.getAttribute('aria-label');
+    if (!l && el.id) { var lab = document.querySelector('label[for="' + el.id + '"]'); if (lab) l = lab.textContent; }
+    return (l || '').replace(/\s+/g, ' ').trim();
+  }
+  function npOpen(el) {
+    npBuild();
+    if (np.cur && np.cur !== el) { np.cur.classList.remove('np-on'); np.cur.classList.remove('np-fresh'); }
+    np.cur = el;
+    np.fresh = !!el.value; // la 1re touche remplace la valeur déjà là (comme un champ sélectionné)
+    el.classList.add('np-on');
+    el.classList.toggle('np-fresh', np.fresh);
+    try { el.blur(); } catch (e) { }
+    document.getElementById('np_lab').textContent = npLabel(el);
+    np.el.querySelector('.np-dec').style.visibility = el.getAttribute('data-num') === 'dec' ? '' : 'hidden';
+    var all = npFields();
+    document.getElementById('np_next').textContent = all.indexOf(el) < all.length - 1 ? 'Suivant' : 'OK';
+    np.el.hidden = false;
+    document.body.classList.add('np-open');
+    document.documentElement.style.setProperty('--np-h', np.el.offsetHeight + 'px');
+    requestAnimationFrame(function () {
+      var r = el.getBoundingClientRect(), top = np.el.getBoundingClientRect().top;
+      if (r.bottom > top - 16) window.scrollBy({ top: r.bottom - top + 70, behavior: 'smooth' });
+      else if (r.top < 60) window.scrollBy({ top: r.top - 100, behavior: 'smooth' });
+    });
+  }
+  function npClose() {
+    if (np.cur) { np.cur.classList.remove('np-on'); np.cur.classList.remove('np-fresh'); }
+    np.cur = null;
+    if (np.el) np.el.hidden = true;
+    document.body.classList.remove('np-open');
+  }
+  function npNext() {
+    var all = npFields(), i = all.indexOf(np.cur);
+    if (i >= 0 && i < all.length - 1) npOpen(all[i + 1]); else npClose();
+  }
+  function npKey(k) {
+    var el = np.cur;
+    if (el && !document.body.contains(el)) { el = el.id ? document.getElementById(el.id) : null; if (el) { np.cur = el; el.classList.add('np-on'); } }
+    if (!el || k === 'ok') return npClose();
+    if (k === 'next') return npNext();
+    var v = el.value, max = Number(el.getAttribute('maxlength')) || 6, dec = el.getAttribute('data-num') === 'dec';
+    if (np.fresh && k !== 'del') v = '';
+    np.fresh = false; el.classList.remove('np-fresh');
+    if (k === 'del') v = v.slice(0, -1);
+    else if (k === ',') { if (!dec || v.indexOf(',') >= 0 || v.length >= max - 1) return; v = (v || '0') + ','; }
+    else {
+      if (v.length >= max) return;
+      if (dec && v.indexOf(',') >= 0 && v.split(',')[1].length >= 1) return;
+      v = v === '0' && !el.getAttribute('data-auto') ? k : v + k;
+    }
+    el.value = v;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    if (k !== 'del' && el.getAttribute('data-auto') && v.length >= max) npNext();
+  }
+  document.addEventListener('click', function (e) {
+    var t = e.target && e.target.closest && e.target.closest('input[data-num]');
+    if (t && TOUCH) { e.preventDefault(); if (np.cur !== t || !np.el || np.el.hidden) npOpen(t); }
+  });
+  document.addEventListener('focusin', function (e) {
+    var t = e.target;
+    if (TOUCH && t && t.matches && t.matches('input[data-num]') && np.cur !== t) npOpen(t);
+  });
+  // toucher ailleurs ferme le pavé (le geste continue normalement : un bouton « Envoyer » marche du 1er coup)
+  document.addEventListener('pointerdown', function (e) {
+    if (!np.el || np.el.hidden) return;
+    var t = e.target;
+    if (np.el.contains(t) || (t.closest && t.closest('input[data-num]'))) return;
+    npClose();
+  }, true);
+  document.addEventListener('keydown', function (e) {
+    if (!np.el || np.el.hidden) return;
+    if (/^[0-9]$/.test(e.key)) { npKey(e.key); e.preventDefault(); }
+    else if (e.key === ',' || e.key === '.') { npKey(','); e.preventDefault(); }
+    else if (e.key === 'Backspace') { npKey('del'); e.preventDefault(); }
+    else if (e.key === 'Enter' || e.key === 'Tab') { npNext(); e.preventDefault(); }
+    else if (e.key === 'Escape') npClose();
+  });
+  window.addEventListener('hashchange', npClose);
 
   // ---------- Toast et fenêtres ----------
   var toastTimer = null;
@@ -244,7 +365,8 @@ MC.ui = (function () {
 
   return {
     esc: esc, icon: icon, starSvg: starSvg, lvl: lvl, levelIcon: levelIcon, avatar: avatar, hexa: hexa, rgba: hexToRgba,
-    doseLabel: doseLabel, doseInfo: doseInfo, fmtDate: fmtDate, fmtNum: fmtNum, fmtVal: fmtVal,
+    doseLabel: doseLabel, doseInfo: doseInfo, fmtDate: fmtDate, fmtNum: fmtNum, fmtVal: fmtVal, valHtml: valHtml,
+    numInput: numInput, numpadClose: npClose, TOUCH: TOUCH,
     toast: toast, modal: modal, codeBox: codeBox,
     unlockAudio: unlockAudio, beep: beep, setMuted: setMuted, isMuted: isMuted, keepAwake: keepAwake,
     demoHtml: demoHtml, mountAnims: mountAnims, videoIframe: videoIframe

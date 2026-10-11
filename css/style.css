@@ -202,6 +202,25 @@ legend b{color:var(--cyan)}
 .feel i.on{background:currentColor}
 input.num{width:72px;height:46px;padding:0 6px;text-align:center;background:#070A12;border:1px dashed var(--line2);color:var(--ink);font:700 19px/1 var(--f-hud)}
 input.num.has{border:1.5px solid var(--ic,var(--cyan))}
+input.num.sm{width:48px;padding:0 2px}
+input[data-num][readonly]{cursor:pointer;-webkit-user-select:none;user-select:none}
+input[data-num].np-fresh{color:#070A12;background:var(--cyan)}
+input[data-num].np-on{border:2px solid var(--cyan);box-shadow:0 0 0 3px rgba(56,232,255,.28),0 0 14px rgba(56,232,255,.35);outline:none}
+.unit{font:600 11px/1 var(--f-hud);color:var(--dim);letter-spacing:.04em}
+/* pavé numérique du site (écrans tactiles) */
+.numpad{position:fixed;left:0;right:0;bottom:0;z-index:45;background:#0A0F1F;border-top:1px solid var(--line2);padding:10px 12px calc(12px + var(--safe-b));box-shadow:0 -14px 40px rgba(0,0,0,.65)}
+.numpad[hidden]{display:none}
+.np-top{max-width:520px;margin:0 auto 8px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.np-lab{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:600 12px/1.2 var(--f-hud);letter-spacing:.12em;text-transform:uppercase;color:var(--cyan)}
+.np-ok{flex:none;min-height:40px;padding:0 14px;background:none;border:1px solid var(--line2);color:var(--soft);font:700 12px/1 var(--f-hud);letter-spacing:.1em;text-transform:uppercase}
+.np-body{max-width:520px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) 96px;gap:10px}
+.numpad .pad{gap:8px}
+.numpad .pad button{height:54px}
+.np-next{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;border:0;background:var(--cyan);color:#070A12;font:700 13px/1.1 var(--f-hud);letter-spacing:.08em;text-transform:uppercase;clip-path:polygon(0 0,calc(100% - 14px) 0,100% 14px,100% 100%,14px 100%,0 calc(100% - 14px))}
+.np-next:active{filter:brightness(.85)}
+body.np-open .screen{padding-bottom:calc(var(--np-h,300px) + 48px)}
+body.np-open .nav{visibility:hidden}
+body.np-open .toast{bottom:calc(var(--np-h,300px) + 16px)}
 input.txt,select.txt{width:100%;height:48px;padding:0 12px;background:#0C1120;border:1px solid var(--line2);color:var(--ink);font-size:16px}
 label.lab{font:600 11px/1.2 var(--f-hud);letter-spacing:.14em;color:var(--dim);text-transform:uppercase}
 .trow{min-height:64px;padding:8px 10px;display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line)}
@@ -408,6 +427,8 @@ label.lab{font:600 11px/1.2 var(--f-hud);letter-spacing:.14em;color:var(--dim);t
   .feelpick button{min-height:88px;font-size:14px}
   .digit{height:68px}
   .pad button{height:70px}
+  .numpad .pad button{height:60px}
+  .np-body{grid-template-columns:minmax(0,1fr) 120px}
   .pin-zone{max-width:420px}
 }
 

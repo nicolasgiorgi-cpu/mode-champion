@@ -61,6 +61,7 @@ MC.app = (function () {
     var seq = ++renderSeq;
     var same = lastPath === ph.path;
     lastPath = ph.path;
+    if (!same && ui.numpadClose) ui.numpadClose();
     var po = { keep: same };
     document.body.classList.toggle('has-nav', !!o.nav);
     navEl.hidden = !o.nav;

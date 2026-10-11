@@ -76,7 +76,7 @@
     }).join('') + '</ul>';
     var bests = st.bestsOk, recs = C.TESTS.map(function (t) {
       var b = bests[t.id] || bests[t.id + ':sm'];
-      return '<div class="rec"><span class="v">' + (b ? ui.fmtVal(b.valeur, '', t.decimales) + (t.unite ? '<small> ' + esc(t.unite) + '</small>' : '') : '—') + '</span><span class="l">' + esc(t.court) + '</span></div>';
+      return '<div class="rec"><span class="v">' + (b ? ui.valHtml(b.valeur, t.unite, t.decimales) : '—') + '</span><span class="l">' + esc(t.court) + '</span></div>';
     }).join('');
     return { tiles: tiles, week: '<div class="grid4" style="grid-template-columns:repeat(7,minmax(0,1fr));gap:5px">' + days + '</div>', last: lastHtml, pending: pendHtml, levels: levels, recs: '<div class="recgrid">' + recs + '</div>', st: st };
   }

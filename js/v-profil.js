@@ -62,7 +62,7 @@
       var sm = t.sm && k.materiel === 'mini';
       var b = st.bests[t.id + (sm ? ':sm' : '')];
       var wait = b && b.statut === 'attente';
-      return '<div class="rec' + (wait ? ' wait' : '') + '"><span class="v">' + (b ? ui.fmtVal(b.valeur, '', t.decimales) + (t.unite ? '<small> ' + esc(t.unite) + '</small>' : '') : '—') + '</span><span class="l">' + esc(sm ? t.sm.nom : t.court) + (wait ? ' · à confirmer' : '') + '</span></div>';
+      return '<div class="rec' + (wait ? ' wait' : '') + '"><span class="v">' + (b ? ui.valHtml(b.valeur, t.unite, t.decimales) : '—') + '</span><span class="l">' + esc(sm ? t.sm.nom : t.court) + (wait ? ' · à confirmer' : '') + '</span></div>';
     }).join('');
     var propN = st.proposals.length;
     return '<main class="screen">' +
@@ -145,13 +145,17 @@
     return app.loadMe().then(function (me) {
       var t = L.testDef(b.test), mini = me.joueur.materiel === 'mini';
       var sm = !!(t.sm && mini && (b.id === 'accroche' || b.id === 'cros'));
-      if (defi.id !== b.id) defi = { id: b.id, v: '', g: '', d: '' };
+      if (defi.id !== b.id) defi = { id: b.id, v: '', g: '', d: '', m: '', s: '' };
       var input;
+      function field(id, lab, o) { return '<div class="sec" style="gap:6px"><label class="lab" for="' + id + '">' + esc(lab) + '</label>' + ui.numInput(Object.assign({ id: id, kind: 'int', cls: 'txt', placeholder: '' }, o)) + '</div>'; }
       if (b.id === 'flamant') {
-        input = '<div class="grid2"><div class="sec" style="gap:6px"><label class="lab" for="dg">Pied gauche (s)</label><input id="dg" class="txt" inputmode="numeric" data-defi="g" value="' + esc(defi.g) + '"></div><div class="sec" style="gap:6px"><label class="lab" for="dd">Pied droit (s)</label><input id="dd" class="txt" inputmode="numeric" data-defi="d" value="' + esc(defi.d) + '"></div></div>';
+        input = '<div class="grid2">' + field('dg', 'Pied gauche (s)', { max: 2, value: defi.g, attrs: 'data-defi="g"' }) + field('dd', 'Pied droit (s)', { max: 2, value: defi.d, attrs: 'data-defi="d"' }) + '</div>';
+      } else if (t.mmss) {
+        input = '<span class="lab">' + esc((sm ? t.sm.nom : t.nom) + ' : ton temps') + '</span><div class="grid2">' +
+          field('dm', 'Minutes', { max: 1, auto: true, placeholder: '0', value: defi.m, attrs: 'data-defi="m"' }) + field('ds', 'Secondes', { max: 2, placeholder: '0', value: defi.s, attrs: 'data-defi="s"' }) + '</div>';
       } else {
-        var unit = t.unite ? ' (' + t.unite + ')' : '';
-        input = '<label class="lab" for="dv">' + esc((sm ? t.sm.nom : t.nom) + unit) + '</label><input id="dv" class="txt" inputmode="decimal" data-defi="v" value="' + esc(defi.v) + '" placeholder="' + (b.id === 'dupont' ? 'ex. 15,4' : '') + '">';
+        var unit = t.unite ? ' (' + t.unite + ')' : '', dec = !!t.decimales;
+        input = field('dv', (sm ? t.sm.nom : t.nom) + unit, { kind: dec ? 'dec' : 'int', max: dec ? 4 : 3, value: defi.v, placeholder: b.id === 'dupont' ? 'ex. 15,4' : '', attrs: 'data-defi="v"' });
       }
       var prev = '';
       if (b.id === 'dupont') {
@@ -167,7 +171,10 @@
   }, { kid: true, nav: 'profil' });
   document.addEventListener('input', function (e) {
     var k = e.target && e.target.getAttribute && e.target.getAttribute('data-defi');
-    if (k) defi[k] = e.target.value;
+    if (!k) return;
+    var clean = e.target.value.replace(e.target.getAttribute('data-num') === 'int' ? /[^0-9]/g : /[^0-9.,]/g, '');
+    if (clean !== e.target.value) e.target.value = clean;
+    defi[k] = clean;
   });
   function num(s) { var n = parseFloat(String(s || '').replace(',', '.')); return isFinite(n) ? n : null; }
   MC.act.sendDefi = function (btn) {
@@ -178,6 +185,9 @@
       var g = num(defi.g), d = num(defi.d);
       if (g === null || d === null) return ui.toast('Note le temps des deux pieds.', true);
       val = Math.min(g, d); extra = { g: g, d: d };
+    } else if (L.testDef(b.test).mmss) {
+      if (!defi.m && !defi.s) return ui.toast('Note ton temps.', true);
+      val = (num(defi.m) || 0) * 60 + (num(defi.s) || 0);
     } else {
       val = num(defi.v);
       if (val === null) return ui.toast('Note ton résultat.', true);
@@ -249,8 +259,9 @@
         bil = { n: B.n, kid: me.joueur.id, v: {} };
         var ex = L.bilanRecords(me.records, B.n);
         Object.keys(ex).forEach(function (tid) {
-          var r = ex[tid];
-          bil.v[tid] = String(r.valeur).replace('.', ',');
+          var r = ex[tid], td = L.testDef(tid);
+          if (td && td.mmss) { bil.v[tid + '_m'] = String(Math.floor(r.valeur / 60)); bil.v[tid + '_s'] = String(Math.round(r.valeur % 60)); }
+          else bil.v[tid] = String(r.valeur).replace('.', ',');
           if (r.extra) {
             if (r.extra.g !== undefined) { bil.v.flamant_g = String(r.extra.g); bil.v.flamant_d = String(r.extra.d); }
             if (r.extra.elastique) { bil.v.tract_el = r.extra.elastique; bil.v.tract_nb = String(r.extra.nbElastique || ''); }
@@ -278,7 +289,12 @@
         if (g !== null && d !== null) out.push({ test: t.id, valeur: Math.min(g, d), extra: { g: g, d: d } });
         return;
       }
-      var v = num(bil.v[t.id]);
+      var v;
+      if (t.mmss) {
+        var mm = bil.v[t.id + '_m'], ss = bil.v[t.id + '_s'];
+        if (!mm && !ss) return;
+        v = (num(mm) || 0) * 60 + (num(ss) || 0);
+      } else v = num(bil.v[t.id]);
       if (v === null) return;
       var extra = sm ? { sm: true } : null;
       if (t.special === 'tract' && !sm && v < 5 && bil.v.tract_el) extra = { elastique: bil.v.tract_el, nbElastique: num(bil.v.tract_nb) || 0 };
@@ -300,14 +316,19 @@
         var isRec = cur && b && b.bilan !== String(B.n) && L.better(t, cur.valeur, b.valeur);
         if (isRec) recs++;
         var inputs;
+        var ic = '--ic:' + f.color;
         if (t.parPied) {
-          inputs = '<span class="row" style="gap:6px"><label class="sr-only" for="b_fg">Pied gauche</label><input id="b_fg" class="num' + (bil.v.flamant_g ? ' has' : '') + '" style="--ic:' + f.color + ';width:58px" inputmode="numeric" placeholder="G" data-bil="flamant_g" value="' + esc(bil.v.flamant_g || '') + '">' +
-            '<label class="sr-only" for="b_fd">Pied droit</label><input id="b_fd" class="num' + (bil.v.flamant_d ? ' has' : '') + '" style="--ic:' + f.color + ';width:58px" inputmode="numeric" placeholder="D" data-bil="flamant_d" value="' + esc(bil.v.flamant_d || '') + '"></span>';
+          inputs = '<span class="row" style="gap:6px">' + ui.numInput({ id: 'b_fg', kind: 'int', max: 2, style: ic + ';width:58px', label: nom + ' : pied gauche (s)', placeholder: 'G', value: bil.v.flamant_g, attrs: 'data-bil="flamant_g"' }) +
+            ui.numInput({ id: 'b_fd', kind: 'int', max: 2, style: ic + ';width:58px', label: nom + ' : pied droit (s)', placeholder: 'D', value: bil.v.flamant_d, attrs: 'data-bil="flamant_d"' }) + '</span>';
+        } else if (t.mmss) {
+          inputs = '<span class="row" style="gap:4px">' + ui.numInput({ id: 'b_' + t.id + '_m', kind: 'int', max: 1, auto: true, cls: 'num sm', style: ic, label: nom + ' : minutes', placeholder: '0', value: bil.v[t.id + '_m'], attrs: 'data-bil="' + t.id + '_m"' }) + '<span class="unit">min</span>' +
+            ui.numInput({ id: 'b_' + t.id + '_s', kind: 'int', max: 2, cls: 'num sm', style: ic, label: nom + ' : secondes', placeholder: '00', value: bil.v[t.id + '_s'], attrs: 'data-bil="' + t.id + '_s"' }) + '<span class="unit">s</span></span>';
         } else {
-          inputs = '<span class="row" style="gap:4px"><input id="b_' + t.id + '" class="num' + (bil.v[t.id] ? ' has' : '') + '" style="--ic:' + f.color + '" inputmode="decimal" data-bil="' + t.id + '" value="' + esc(bil.v[t.id] || '') + '" placeholder="—"><span style="width:22px;font:600 11px/1 var(--f-hud);color:var(--dim)">' + esc(t.unite) + '</span></span>';
+          var dec = !!t.decimales;
+          inputs = '<span class="row" style="gap:4px">' + ui.numInput({ id: 'b_' + t.id, kind: dec ? 'dec' : 'int', max: dec ? 4 : 3, style: ic, label: nom + (t.unite ? ' (' + t.unite + ')' : ''), value: bil.v[t.id], attrs: 'data-bil="' + t.id + '"' }) + '<span class="unit" style="width:22px">' + esc(t.unite) + '</span></span>';
         }
         var extraRow = t.special === 'tract' ? tractExtra(sm) : '';
-        return '<div class="trow' + (isRec ? ' rec' : '') + '" id="row_' + t.id + '"><label class="grow" for="' + (t.parPied ? 'b_fg' : 'b_' + t.id) + '"><span class="t1">' + t.n + '. ' + esc(nom) + (sm ? ' <span class="small">(SM)</span>' : '') + '</span><span class="t2">' + (prev ? 'Bilan ' + esc(prev.bilan) + ' : ' + recVal(prev, t) : (t.parPied ? 'gauche · droit' : esc(t.comment.split('.')[0]))) + '</span></label>' +
+        return '<div class="trow' + (isRec ? ' rec' : '') + '" id="row_' + t.id + '"><label class="grow" for="' + (t.parPied ? 'b_fg' : 'b_' + t.id + (t.mmss ? '_m' : '')) + '"><span class="t1">' + t.n + '. ' + esc(nom) + (sm ? ' <span class="small">(SM)</span>' : '') + '</span><span class="t2">' + (prev ? 'Bilan ' + esc(prev.bilan) + ' : ' + recVal(prev, t) : (t.parPied ? 'gauche · droit' : esc(t.comment.split('.')[0]))) + '</span></label>' +
           '<span class="badge-rec" id="rb_' + t.id + '"' + (isRec ? '' : ' hidden') + '>Record</span>' + inputs + '</div>' + (t.special === 'tract' ? '<div id="tract_extra">' + extraRow + '</div>' : '');
       }).join('') + '</section>';
     }).join('');
@@ -327,7 +348,7 @@
     if (sm || v === null || v >= 5) return '';
     return '<div class="box" style="display:flex;flex-direction:column;gap:8px;margin-top:-2px"><span class="small">Moins de 5 : avec quel élastique en fais-tu 5 ou plus ?</span><div class="grid3">' + ['fin', 'moyen', 'fort'].map(function (e) {
       return '<button type="button" class="opt' + (bil.v.tract_el === e ? ' on' : '') + '" data-act="bilEl" data-v="' + e + '">' + e + '</button>';
-    }).join('') + '</div>' + (bil.v.tract_el ? '<label class="row small" for="b_tnb">Combien avec l\'élastique ' + esc(bil.v.tract_el) + ' ? <input id="b_tnb" class="num' + (bil.v.tract_nb ? ' has' : '') + '" inputmode="numeric" data-bil="tract_nb" value="' + esc(bil.v.tract_nb || '') + '"></label>' : '') + '</div>';
+    }).join('') + '</div>' + (bil.v.tract_el ? '<label class="row small" for="b_tnb">Combien avec l\'élastique ' + esc(bil.v.tract_el) + ' ? ' + ui.numInput({ id: 'b_tnb', kind: 'int', max: 2, label: 'Tractions avec l\'élastique ' + bil.v.tract_el, value: bil.v.tract_nb, attrs: 'data-bil="tract_nb"' }) + '</label>' : '') + '</div>';
   }
   // mise à jour sans redessiner la page (le clavier reste ouvert)
   function refreshBilan() {
@@ -350,7 +371,7 @@
   document.addEventListener('input', function (e) {
     var k = e.target && e.target.getAttribute && e.target.getAttribute('data-bil');
     if (!k || !bil) return;
-    var clean = e.target.value.replace(/[^0-9.,]/g, '');
+    var clean = e.target.value.replace(e.target.getAttribute('data-num') === 'int' ? /[^0-9]/g : /[^0-9.,]/g, '');
     if (clean !== e.target.value) e.target.value = clean;
     bil.v[k] = clean;
     e.target.classList.toggle('has', !!clean);
