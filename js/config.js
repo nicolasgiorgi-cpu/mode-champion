@@ -6,7 +6,7 @@ window.MC = window.MC || {};
 MC.CONFIG = {
   // Adresse du « web app » Google Apps Script (voir README, étape « Google Sheets »).
   // Vide = MODE DÉMO : tout reste dans ce navigateur, avec des joueurs fictifs.
-  API_URL: '',
+  API_URL: 'https://script.google.com/macros/s/AKfycbzeUymcxVaYsENKbVL2e6BMtwrQ_IRbjeCMQ3A_VJAgK1M4__ujnjc6wOb2DLdCZIg/exec',
 
   // Nom affiché
   CLUB: 'M12 · PRÉPA PHYSIQUE · 2026-27',

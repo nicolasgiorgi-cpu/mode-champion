@@ -110,19 +110,29 @@
       }).join('');
       function badgeCard(b) {
         var res = st.badges[b.id], on = res.earned;
-        var pend = (me.records || []).some(function (r) { return r.bilan === 'defi' && r.statut === 'attente' && (r.test === b.test); });
+        var pend = b.test && (me.records || []).some(function (r) { return r.bilan === 'defi' && r.statut === 'attente' && (r.test === b.test); });
         var status = on ? (res.date ? 'Gagné · ' + ui.fmtDate(res.date) : 'Gagné') : pend ? 'À confirmer par un adulte' : (res.prog || (b.defi ? 'Tenter le défi' : 'À débloquer'));
+        var pips = '';
+        if (b.paliers) {
+          var P = C.PALIERS[(res.tier || 1) - 1];
+          status = on ? P.nom + (res.next ? ' · ' + res.count + ' / ' + res.next : ' · ' + res.count + ' séances') : res.prog;
+          pips = '<span class="pips" aria-label="Palier ' + (res.tier || 0) + ' sur 3">' + C.PALIERS.map(function (p, i) { return '<i class="' + (i < res.tier ? 'on' : '') + '" style="--pc:' + p.color + '"></i>'; }).join('') + '</span>';
+        }
         var tag = b.defi && !on ? 'a' : 'div';
-        return '<' + tag + ' class="bdg' + (on ? ' on' : '') + '" style="--bc:' + b.color + '"' + (tag === 'a' ? ' href="#/defi/' + b.id + '"' : '') + '>' + MC.badgeIcon(b, on, 56) + '<span class="nm">' + esc(b.nom) + '</span><span class="cd">' + esc(b.cond) + '</span><span class="st">' + esc(status) + '</span></' + tag + '>';
+        var col = b.paliers && on ? C.PALIERS[res.tier - 1].color : b.color;
+        return '<' + tag + ' class="bdg' + (on ? ' on' : '') + '" style="--bc:' + col + '"' + (tag === 'a' ? ' href="#/defi/' + b.id + '"' : '') + '>' + MC.badgeIcon({ icon: b.icon, color: col }, on, 56) + '<span class="nm">' + esc(b.nom) + '</span><span class="cd">' + esc(b.paliers ? b.paliers.join(' / ') + ' ' + b.cond : b.cond) + '</span>' + pips + '<span class="st">' + esc(status) + '</span></' + tag + '>';
       }
-      var champ = C.BADGES.filter(function (b) { return !b.regularite; }), reg = C.BADGES.filter(function (b) { return b.regularite; });
+      var familles = C.FAMILLES_BADGES.map(function (f) {
+        var list = C.BADGES.filter(function (b) { return b.famille === f.id; });
+        var n = list.filter(function (b) { return st.badges[b.id].earned; }).length;
+        return '<section class="sec"><div class="between"><h2 class="h2">' + esc(f.nom) + '</h2><span class="hud" style="color:var(--gold)">' + n + ' / ' + list.length + '</span></div>' +
+          (f.intro ? '<p class="small" style="margin:0">' + esc(f.intro) + '</p>' : '') + '<div class="badges">' + list.map(badgeCard).join('') + '</div></section>';
+      }).join('');
       return '<main class="screen"><a class="back" href="#/profil">' + icon('left', 18) + 'Mon profil</a>' +
         '<div class="head"><span class="kicker" style="color:var(--gold)">Salle des trophées</span><h1 class="big md">Grades<br>et badges</h1></div>' +
         '<div class="cols2"><section class="sec"><div class="between"><h2 class="h2">Ma carrière</h2><span class="small">1 séance = ' + C.XP.seance + ' XP</span></div><ol class="grades">' + grades + '</ol>' +
-        '<div class="box small" style="line-height:1.5">Séance à la maison +' + C.XP.seance + ' · club +' + C.XP.club + ' · récup +' + C.XP.recup + ' · semaine parfaite +' + C.XP.bonus + ' · badge +' + C.XP.badge + ' · record battu +' + C.XP.record + ' · niveau monté +' + C.XP.niveau + '</div></section>' +
-        '<div class="sec" style="gap:20px"><section class="sec"><div class="between"><h2 class="h2">Badges de champion</h2><span class="hud" style="color:var(--gold)">' + champ.filter(function (b) { return st.badges[b.id].earned; }).length + ' / ' + champ.length + '</span></div>' +
-        '<p class="small" style="margin:0">Au bilan, ou un jour où tu te sens fort, avec un adulte qui compte. Touche un badge pour tenter le défi.</p><div class="badges">' + champ.map(badgeCard).join('') + '</div></section>' +
-        '<section class="sec"><div class="between"><h2 class="h2">Badges de régularité</h2><span class="hud" style="color:var(--gold)">' + reg.filter(function (b) { return st.badges[b.id].earned; }).length + ' / ' + reg.length + '</span></div><div class="badges">' + reg.map(badgeCard).join('') + '</div></section></div></div></main>';
+        '<div class="box small" style="line-height:1.5">Séance à la maison +' + C.XP.seance + ' · club +' + C.XP.club + ' · récup +' + C.XP.recup + ' · semaine parfaite +' + C.XP.bonus + ' · badge ou palier +' + C.XP.badge + ' · record battu +' + C.XP.record + ' · niveau monté +' + C.XP.niveau + '</div></section>' +
+        '<div class="sec" style="gap:20px">' + familles + '</div></div></main>';
     });
   }, { kid: true, nav: 'profil', bg: '#2E2612' });
 

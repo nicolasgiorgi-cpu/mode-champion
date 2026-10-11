@@ -230,6 +230,18 @@ MC.logic = (function () {
   }
 
   // ---------- Badges ----------
+  // Champion : la 1re séance où un exercice a été réussi en niveau 4 (version complète, pas la mini)
+  function n4Exploit(data) {
+    var hit = null;
+    (data.seances || []).forEach(function (s) {
+      var d = s.details || {}, ok = false;
+      var enMini = !!(d.options && d.options.mini);
+      if (s.mode === 'guidee' && d.exos) ok = d.exos.some(function (e) { return Number(e.niveau) === 4 && e.fait && !(enMini && e.mini); });
+      else if (isMaison(s.type) && Number(d.niveau) === 4) ok = true;
+      if (ok && (!hit || s.date < hit.date)) hit = s;
+    });
+    return hit;
+  }
   function badgesOf(data, W, st) {
     var recs = (data.records || []).filter(function (r) { return r.statut === 'ok'; });
     var res = {};
@@ -249,13 +261,28 @@ MC.logic = (function () {
       else if (b.id === 'dupont') {
         var nav = recs.filter(function (r) { return r.test === 'navette'; }).sort(function (a, c) { return a.date < c.date ? -1 : a.date > c.date ? 1 : (a.cree < c.cree ? -1 : 1); });
         if (nav.length >= 2) { var f = nav[0].valeur; for (var i = 1; i < nav.length; i++) if (nav[i].valeur < f) { ok = nav[i]; break; } }
+      } else if (b.id === 'champion') {
+        ok = n4Exploit(data);
+      } else if (b.paliers) {
+        // nombre de jours différents avec une séance de ce type
+        var jours = {}, dates = [];
+        (data.seances || []).forEach(function (s) { if (s.type === b.jour && !jours[s.date]) { jours[s.date] = 1; dates.push(s.date); } });
+        dates.sort();
+        var n = dates.length, tier = 0;
+        b.paliers.forEach(function (p, i) { if (n >= p) tier = i + 1; });
+        var nxt = b.paliers[tier] || null;
+        res[b.id] = {
+          earned: tier > 0, tier: tier, count: n, date: tier ? dates[b.paliers[tier - 1] - 1] : '',
+          next: nxt, prog: nxt ? Math.min(n, nxt) + ' / ' + nxt : n + ' séances'
+        };
+        return;
       } else if (b.id === 'legende') {
         CFG.CYCLES.forEach(function (c) { var cy = cycleAt(c.debut); if (board(W, cy).total >= 56) ok = { date: c.debut }; });
       } else if (b.id === 'premiere') { if (st.totalStars >= 1) ok = { date: st.firstDate }; }
       else if (b.id === 'parfaite') { if (st.perfectWeeks >= 1) ok = { date: st.firstPerfect }; }
       else if (b.id === 'serie7') { if (st.bestStreak >= 7) ok = { date: '' }; }
       else if (b.id === 'fidele') { if (st.maison >= 25) ok = { date: '' }; }
-      res[b.id] = ok ? { earned: true, date: ok.date || '' } : { earned: false };
+      res[b.id] = ok ? { earned: true, tier: 1, date: ok.date || '' } : { earned: false, tier: 0 };
     });
     // progression pour les badges de régularité
     res.serie7.prog = Math.min(st.bestStreak, 7) + ' / 7';
@@ -305,9 +332,9 @@ MC.logic = (function () {
     var sk = streaks(W, seances);
     var st = { totalStars: totalStars, perfectWeeks: perfectWeeks, maison: maison, bestStreak: sk.best, firstDate: firstDate, firstPerfect: firstPerfect };
     var badges = badgesOf(data, W, st);
-    var nbBadges = 0;
-    Object.keys(badges).forEach(function (k) { if (badges[k].earned) nbBadges++; });
-    xp += nbBadges * X.badge;
+    var nbBadges = 0, nbPaliers = 0;
+    Object.keys(badges).forEach(function (k) { if (badges[k].earned) { nbBadges++; nbPaliers += badges[k].tier || 1; } });
+    xp += nbPaliers * X.badge; // chaque palier (bronze, argent, or) rapporte comme un badge
     var cy = cycleAt(today());
     var bd = board(W, cy);
     var thisWeek = weekInfo(W, monday(today()));

@@ -334,20 +334,38 @@ window.MC = window.MC || {};
 
   // Dates des bilans (une séance de tests toutes les ~8 semaines). Modifiable dans config.js.
   // ---------- Badges ----------
-  // Les 8 badges du tableau du mur + 4 badges de régularité.
+  // 17 badges en 3 familles :
+  //  - exploit    : au bilan ou en défi (un adulte confirme) + Champion (un exo réussi en N4)
+  //  - seances    : 10 / 25 / 40 séances d'un même jour → bronze, argent, or
+  //  - regularite : automatiques (étoiles, séries)
+  var FAMILLES_BADGES = [
+    { id: 'exploit', nom: 'Badges d\'exploit', intro: 'Au bilan, ou un jour où tu te sens fort, avec un adulte qui compte. Touche un badge pour tenter le défi.' },
+    { id: 'seances', nom: 'Badges de séances', intro: '10 séances = bronze, 25 = argent, 40 = or. Chaque palier rapporte des XP.' },
+    { id: 'regularite', nom: 'Badges de régularité', intro: '' }
+  ];
+  var PALIERS = [
+    { nom: 'Bronze', color: '#E0894A' },
+    { nom: 'Argent', color: '#CFD8E6' },
+    { nom: 'Or', color: '#FFC23D' }
+  ];
   var BADGES = [
-    { id: 'accroche', nom: 'Accroché', cond: '30 s de suspension (ou de Superman tenu)', test: 'susp', seuil: 30, icon: 'hang', color: '#4D9BFF', defi: true },
-    { id: 'cros', nom: 'Cros', cond: '5 tractions sans élastique (ou 15 tirages)', test: 'tract', seuil: 5, seuilSm: 15, icon: 'bar', color: '#4D9BFF', defi: true },
-    { id: 'capuozzo', nom: 'Capuozzo', cond: '50 sauts de corde d\'affilée', test: 'corde', seuil: 50, icon: 'bolt', color: '#FF8A3D', defi: true },
-    { id: 'roc', nom: 'Roc', cond: '45 s de planche parfaite', test: 'planche', seuil: 45, icon: 'house', color: '#4D9BFF', defi: true },
-    { id: 'dupont', nom: 'Dupont', cond: 'Navette plus rapide qu\'à ton 1er bilan', test: 'navette', progres: true, icon: 'heart', color: '#FF4F6D', defi: true },
-    { id: 'flamant', nom: 'Flamant', cond: '20 s yeux fermés sur chaque pied', test: 'flamant', seuil: 20, icon: 'flamingo', color: '#3DFFB0', defi: true },
-    { id: 'meafou', nom: 'Meafou', cond: '20 squats parfaits d\'affilée', test: 'squats_affilee', seuil: 20, icon: 'spring', color: '#3DFFB0', defi: true },
-    { id: 'legende', nom: 'Légende', cond: '56 étoiles sur un cycle de 8 semaines', icon: 'star', color: '#FFC23D' },
-    { id: 'premiere', nom: 'Première étoile', cond: 'Ta 1re séance validée', icon: 'star', color: '#FFC23D', regularite: true },
-    { id: 'parfaite', nom: 'Semaine parfaite', cond: 'Les 6 étoiles d\'une semaine', icon: 'calendar', color: '#38E8FF', regularite: true },
-    { id: 'serie7', nom: 'Série de 7', cond: '7 étoiles d\'affilée sans en rater', icon: 'flame', color: '#FF8A3D', regularite: true },
-    { id: 'fidele', nom: 'Fidèle', cond: '25 séances à la maison', icon: 'shield', color: '#B48CFF', regularite: true }
+    { id: 'accroche', famille: 'exploit', nom: 'Accroché', cond: '30 s de suspension (ou de Superman tenu)', test: 'susp', seuil: 30, icon: 'hang', color: '#4D9BFF', defi: true },
+    { id: 'cros', famille: 'exploit', nom: 'Cros', cond: '5 tractions sans élastique (ou 15 tirages)', test: 'tract', seuil: 5, seuilSm: 15, icon: 'bar', color: '#4D9BFF', defi: true },
+    { id: 'capuozzo', famille: 'exploit', nom: 'Capuozzo', cond: '50 sauts de corde d\'affilée', test: 'corde', seuil: 50, icon: 'bolt', color: '#FF8A3D', defi: true },
+    { id: 'roc', famille: 'exploit', nom: 'Roc', cond: '45 s de planche parfaite', test: 'planche', seuil: 45, icon: 'house', color: '#4D9BFF', defi: true },
+    { id: 'dupont', famille: 'exploit', nom: 'Dupont', cond: 'Navette plus rapide qu\'à ton 1er bilan', test: 'navette', progres: true, icon: 'heart', color: '#FF4F6D', defi: true },
+    { id: 'flamant', famille: 'exploit', nom: 'Flamant', cond: '20 s yeux fermés sur chaque pied', test: 'flamant', seuil: 20, icon: 'flamingo', color: '#3DFFB0', defi: true },
+    { id: 'meafou', famille: 'exploit', nom: 'Meafou', cond: '20 squats parfaits d\'affilée', test: 'squats_affilee', seuil: 20, icon: 'spring', color: '#3DFFB0', defi: true },
+    { id: 'champion', famille: 'exploit', nom: 'Champion', cond: 'Réussir un exercice en niveau 4', icon: 'crown', color: '#FFC23D' },
+    { id: 'bras', famille: 'seances', nom: 'Bras d\'acier', cond: 'séances Cros (lundi, haut du corps)', jour: 'cros', paliers: [10, 25, 40], icon: 'arm', color: '#4D9BFF' },
+    { id: 'turbo', famille: 'seances', nom: 'Turbo', cond: 'séances Capuozzo (mardi, explosivité)', jour: 'capuozzo', paliers: [10, 25, 40], icon: 'gauge', color: '#FF8A3D' },
+    { id: 'infatigable', famille: 'seances', nom: 'Infatigable', cond: 'séances Dupont (mercredi, cardio)', jour: 'dupont', paliers: [10, 25, 40], icon: 'infinity', color: '#FF4F6D' },
+    { id: 'jambes', famille: 'seances', nom: 'Jambes de fer', cond: 'séances Meafou (jeudi, jambes)', jour: 'meafou', paliers: [10, 25, 40], icon: 'boot', color: '#3DFFB0' },
+    { id: 'premiere', famille: 'regularite', nom: 'Première étoile', cond: 'Ta 1re séance validée', icon: 'star', color: '#FFC23D' },
+    { id: 'parfaite', famille: 'regularite', nom: 'Semaine parfaite', cond: 'Les 6 étoiles d\'une semaine', icon: 'calendar', color: '#38E8FF' },
+    { id: 'serie7', famille: 'regularite', nom: 'Série de 7', cond: '7 étoiles d\'affilée sans en rater', icon: 'flame', color: '#FF8A3D' },
+    { id: 'fidele', famille: 'regularite', nom: 'Fidèle', cond: '25 séances à la maison', icon: 'shield', color: '#B48CFF' },
+    { id: 'legende', famille: 'regularite', nom: 'Légende', cond: '56 étoiles sur un cycle de 8 semaines', icon: 'trophy', color: '#FFC23D' }
   ];
   // Défi « Meafou » : un test qui n'est pas dans le bilan
   var DEFI_TESTS = {
@@ -375,7 +393,7 @@ window.MC = window.MC || {};
 
   MC.CONTENT = {
     NIVEAUX: NIVEAUX, CLES: CLES, FAMILLES: FAMILLES, EXOS: EXOS, REVEIL: REVEIL, CALME: CALME,
-    JOURS: JOURS, SEMAINE: SEMAINE, SLOTS: SLOTS, TESTS: TESTS, BADGES: BADGES, DEFI_TESTS: DEFI_TESTS,
+    JOURS: JOURS, SEMAINE: SEMAINE, SLOTS: SLOTS, TESTS: TESTS, BADGES: BADGES, FAMILLES_BADGES: FAMILLES_BADGES, PALIERS: PALIERS, DEFI_TESTS: DEFI_TESTS,
     GRADES: GRADES, XP: XP,
     COULEURS: ['#38E8FF', '#FF4FA3', '#3DFFB0', '#FFC23D', '#B48CFF', '#FF8A3D', '#4D9BFF', '#FF4F6D', '#7CFF6B', '#F5F7FF']
   };

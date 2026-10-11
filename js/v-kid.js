@@ -364,13 +364,16 @@
   function paintBravo(R, me) {
     var a = R.after, b = R.before || a, s0 = R.seances[0] || {}, j = C.JOURS[s0.type] || C.JOURS.cros;
     var dxp = Math.max(0, a.xp - b.xp), dstars = Math.max(0, a.stars - b.stars);
-    var newBadges = C.BADGES.filter(function (bd) { return a.badges[bd.id].earned && !(b.badges[bd.id] && b.badges[bd.id].earned); });
+    var newBadges = C.BADGES.filter(function (bd) { return (a.badges[bd.id].tier || 0) > ((b.badges[bd.id] && b.badges[bd.id].tier) || 0); });
     var gradeUp = a.grade.i > b.grade.i;
     var conf = '';
     var cols = ['#FF4FA3', '#38E8FF', '#3DFFB0', '#FFC23D'];
     for (var i = 0; i < 10; i++) conf += '<span class="confetti" style="left:' + (8 + i * 9) + '%;top:' + (10 + (i * 37) % 60) + '%;background:' + cols[i % 4] + ';animation-delay:' + (i * 0.07) + 's;transform:rotate(' + (i * 30) + 'deg)"></span>';
     var newB = newBadges.map(function (bd) {
-      return '<section class="newbadge" style="--bc:' + bd.color + '"><div>' + badgeIcon(bd, true, 64) + '<div style="display:flex;flex-direction:column;gap:4px"><span class="hud" style="color:' + bd.color + '">Nouveau badge !</span><span style="font:italic 900 26px/.95 var(--f-title);text-transform:uppercase">' + esc(bd.nom) + '</span><span class="small" style="color:var(--muted)">' + esc(bd.cond) + '</span></div></div></section>';
+      var t = a.badges[bd.id].tier || 1, col = bd.paliers ? C.PALIERS[t - 1].color : bd.color;
+      var titre = bd.paliers ? 'Badge ' + C.PALIERS[t - 1].nom.toLowerCase() + ' !' : 'Nouveau badge !';
+      var cond = bd.paliers ? bd.paliers[t - 1] + ' ' + bd.cond : bd.cond;
+      return '<section class="newbadge" style="--bc:' + col + '"><div>' + badgeIcon({ icon: bd.icon, color: col }, true, 64) + '<div style="display:flex;flex-direction:column;gap:4px"><span class="hud" style="color:' + col + '">' + titre + '</span><span style="font:italic 900 26px/.95 var(--f-title);text-transform:uppercase">' + esc(bd.nom) + '</span><span class="small" style="color:var(--muted)">' + esc(cond) + '</span></div></div></section>';
     }).join('');
     var recap = '';
     if (R.recap && R.recap.length) {
