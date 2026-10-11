@@ -189,12 +189,13 @@ MC.app = (function () {
     var fig = b.closest('.demo');
     var mode = b.getAttribute('data-mode');
     var holder = document.createElement('div');
-    holder.innerHTML = ui.demoHtml({ anim: fig.getAttribute('data-anim-key'), video: fig.getAttribute('data-video'), color: fig.getAttribute('data-color'), label: fig.getAttribute('data-label'), mode: mode });
+    holder.innerHTML = ui.demoHtml({ anim: fig.getAttribute('data-anim-key'), video: fig.getAttribute('data-video'), color: fig.getAttribute('data-color'), label: fig.getAttribute('data-label'), vite: !!fig.getAttribute('data-vite'), mode: mode });
     var nf = holder.firstChild;
     fig.parentNode.replaceChild(nf, fig);
     ui.mountAnims(nf.parentNode);
     if (mode === 'video') { var go2 = nf.querySelector('[data-act="playVideo"]'); if (go2) go2.focus(); }
   };
+  MC.act.info = function (b) { ui.showInfo(b.getAttribute('data-k'), b.getAttribute('data-t'), b.getAttribute('data-s')); };
   MC.act.playVideo = function (b) {
     var fig = b.closest('.demo');
     b.outerHTML = ui.videoIframe(b.getAttribute('data-video'));

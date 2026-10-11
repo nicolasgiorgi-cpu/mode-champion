@@ -34,7 +34,7 @@
     var t = L.testDef(r.test) || { unite: '' };
     var val = ui.fmtVal(r.valeur, t.unite, t.decimales);
     if (r.extra && r.extra.g !== undefined) val = 'G ' + r.extra.g + ' s · D ' + r.extra.d + ' s';
-    if (r.extra && r.extra.elastique) val += ' (élastique ' + r.extra.elastique + ' : ' + (r.extra.nbElastique || 0) + ')';
+    if (r.extra && r.extra.elastique) val += ' (élastique ' + ({ fin: '10 kg', moyen: '20 kg', fort: '30 kg', '10': '10 kg', '20': '20 kg', '30': '30 kg' }[r.extra.elastique] || r.extra.elastique) + ' : ' + (r.extra.nbElastique || 0) + ')';
     return '<li class="li" style="flex-wrap:wrap"><span class="grow"><span class="t1">' + (prenom ? esc(prenom.toUpperCase()) + ' · ' : '') + esc(testName(r)) + '</span><span class="t2">' + (r.bilan === 'defi' ? 'Défi' : 'Bilan ' + esc(r.bilan)) + ' · ' + ui.fmtDate(r.date) + (r.statut === 'refuse' ? ' · <b style="color:var(--red)">refusé</b>' + (r.parQui ? ' par ' + esc(r.parQui) : '') : '') + '</span></span>' +
       '<span style="font:700 16px/1 var(--f-hud);color:' + (r.statut === 'refuse' ? 'var(--dim)' : 'var(--gold)') + '">' + esc(val) + '</span>' +
       (withActions ? decBtns(r) : '') + '</li>';
@@ -48,9 +48,10 @@
       '<button type="button" class="dbtn dok' + (d === 'ok' ? ' on' : '') + '" aria-pressed="' + (d === 'ok') + '" data-act="decide" data-v="ok" data-id="' + esc(r.id) + '">' + icon('check', 16) + (refused ? ' Rétablir (confirmer)' : ' Confirmer') + '</button>' +
       (refused ? '' : '<button type="button" class="dbtn dno' + (d === 'refuse' ? ' on' : '') + '" aria-pressed="' + (d === 'refuse') + '" data-act="decide" data-v="refuse" data-id="' + esc(r.id) + '">' + icon('x', 16) + ' Refuser</button>') + '</span>';
   }
+  // juste sous la liste des résultats à confirmer (et sous « Tout confirmer »)
   function decBar() {
     var n = Object.keys(dec).length;
-    return '<div class="decbar" id="decbar"' + (n ? '' : ' hidden') + '><span class="decn" id="decn">' + decCount() + '</span>' +
+    return '<div class="decbar" data-decbar' + (n ? '' : ' hidden') + '><span class="decn">' + decCount() + '</span>' +
       '<button type="button" class="btn2 sm grey" data-act="decCancel">Annuler</button><button type="button" class="btn sm" data-act="decSend">' + icon('check', 18) + ' Valider mes choix</button></div>';
   }
   function decCount() {
@@ -66,9 +67,10 @@
         b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on));
       });
     });
-    var bar = document.getElementById('decbar'), n = Object.keys(dec).length;
-    if (bar) { bar.hidden = !n; document.getElementById('decn').textContent = decCount(); }
-    document.body.classList.toggle('dec-open', !!n);
+    var n = Object.keys(dec).length;
+    Array.prototype.forEach.call(document.querySelectorAll('[data-decbar]'), function (bar) {
+      bar.hidden = !n; bar.querySelector('.decn').textContent = decCount();
+    });
   }
   MC.act.decide = function (b) {
     var id = b.getAttribute('data-id'), v = b.getAttribute('data-v');
@@ -133,11 +135,11 @@
     }).join('') + '</ul>' : '<div class="empty">Aucune séance notée pour l\'instant.</div>';
     var pending = (d.records || []).filter(function (r) { return r.statut === 'attente'; });
     var refused = (d.records || []).filter(function (r) { return r.statut === 'refuse'; }).sort(function (a, b) { return a.date < b.date ? 1 : -1; }).slice(0, 12);
-    var pendHtml = pending.length ? '<section class="note pink" style="flex-direction:column;gap:10px"><div><div class="hud" style="color:var(--pink)">' + pending.length + ' résultat' + (pending.length > 1 ? 's' : '') + ' à confirmer</div><div class="small" style="color:var(--soft);margin-top:4px">' + esc(k.prenom) + ' les a notés. Vous étiez là ? Choisissez <b>Confirmer</b> ou <b>Refuser</b> pour chacun (vous pouvez changer d\'avis), puis touchez <b>Valider mes choix</b>.</div></div>' +
+    var pendHtml = pending.length ? '<section class="note pink" style="flex-direction:column;gap:10px"><div><div class="hud" style="color:var(--pink)">' + pending.length + ' résultat' + (pending.length > 1 ? 's' : '') + ' à confirmer</div><div class="small" style="color:var(--soft);margin-top:4px">' + esc(k.prenom) + ' les a notés. Vous étiez là ? Choisissez <b>Confirmer</b> ou <b>Refuser</b> pour chacun (vous pouvez changer d\'avis), puis touchez <b>Valider mes choix</b> juste en dessous.</div></div>' +
       '<ul class="list" style="width:100%">' + pending.map(function (r) { return recLine(r, '', true); }).join('') + '</ul>' +
-      (pending.length > 1 ? '<button type="button" class="btn2 pink" data-act="decAll" data-ids="' + esc(pending.map(function (r) { return r.id; }).join(',')) + '">' + icon('check', 16) + ' Tout confirmer</button>' : '') + '</section>' : '';
+      (pending.length > 1 ? '<button type="button" class="btn2 pink" data-act="decAll" data-ids="' + esc(pending.map(function (r) { return r.id; }).join(',')) + '">' + icon('check', 16) + ' Tout confirmer</button>' : '') + decBar() + '</section>' : '';
     if (refused.length) pendHtml += '<details class="note" style="flex-direction:column;gap:8px;display:block"><summary style="cursor:pointer;min-height:32px"><span class="hud" style="color:var(--muted)">' + refused.length + ' résultat' + (refused.length > 1 ? 's' : '') + ' refusé' + (refused.length > 1 ? 's' : '') + '</span> <span class="small">· refusé par erreur ? Rétablissez-le.</span></summary>' +
-      '<ul class="list" style="width:100%;margin-top:8px">' + refused.map(function (r) { return recLine(r, '', true); }).join('') + '</ul></details>';
+      '<ul class="list" style="width:100%;margin-top:8px">' + refused.map(function (r) { return recLine(r, '', true); }).join('') + '</ul>' + (pending.length ? '' : decBar()) + '</details>';
     var niv = k.niveaux || {};
     var levels = '<ul class="list">' + C.FAMILLES.map(function (f) {
       return f.cles.map(function (cle) {
@@ -211,7 +213,7 @@
         '<button type="button" class="switch" data-act="kidCode" data-id="' + esc(k.id) + '" data-p="' + esc(k.prenom) + '"><span><span class="t1" style="display:block">Nouveau code secret pour ' + esc(k.prenom) + '</span><span class="t2" style="display:block">S\'il a oublié le sien</span></span>' + icon('right', 18) + '</button>' +
         '</section></div></div>' +
         '<div class="note">' + icon('info', 20) + '<span>Le programme est fait pour 9-11 ans : poids du corps, pas de charge. Une douleur qui revient (talon, genou) = pause des sauts et avis médical. Le vendredi reste un jour de repos.</span></div>' +
-        decBar() + '</main>';
+        '</main>';
     });
   }, { adult: 'f', bg: '#16223F' });
   MC.act.parentKid = function (b) { parentSel = b.getAttribute('data-id'); app.rerender(); };
@@ -262,7 +264,7 @@
       '<div class="tile" style="border-color:rgba(255,138,61,.5);background:rgba(255,138,61,.08)"><span class="v" style="color:var(--orange)">' + late.length + '</span><span class="l" style="text-transform:none;font-family:var(--f-body);letter-spacing:0;font-size:12px">rien depuis 7 jours</span></div></div>' +
       '<div class="cols2"><div class="sec" style="gap:20px">' +
       '<section class="sec"><div class="between"><h2 class="h2">Résultats à valider</h2><span class="hud" style="color:var(--pink)">' + pending.length + '</span></div>' +
-      (pending.length ? '<p class="small" style="margin:0">Choisissez Confirmer ou Refuser (vous pouvez changer d\'avis), puis <b>Valider mes choix</b> en bas.</p><ul class="list">' + pend + '</ul>' + (pending.length > 1 ? '<button type="button" class="btn2 pink" data-act="decAll" data-ids="' + esc(pending.map(function (x) { return x.r.id; }).join(',')) + '">' + icon('check', 16) + ' Tout confirmer (' + pending.length + ')</button>' : '') : '<div class="empty">Tout est validé. Bravo !</div>') + '</section>' +
+      (pending.length ? '<p class="small" style="margin:0">Choisissez Confirmer ou Refuser (vous pouvez changer d\'avis), puis <b>Valider mes choix</b> juste en dessous.</p><ul class="list">' + pend + '</ul>' + (pending.length > 1 ? '<button type="button" class="btn2 pink" data-act="decAll" data-ids="' + esc(pending.map(function (x) { return x.r.id; }).join(',')) + '">' + icon('check', 16) + ' Tout confirmer (' + pending.length + ')</button>' : '') + decBar() : '<div class="empty">Tout est validé. Bravo !</div>') + '</section>' +
       '<section class="sec"><h2 class="h2">Outils</h2>' +
       '<a class="switch" href="#/educ/ajouter" style="text-decoration:none">' + '<span class="row">' + icon('plus', 20, 'style="color:var(--cyan)"') + '<span class="t1">Ajouter un joueur</span></span>' + icon('right', 16) + '</a>' +
       '<a class="switch" href="#/educ/familles" style="text-decoration:none"><span class="row">' + icon('key', 20, 'style="color:var(--cyan)"') + '<span class="t1">Familles et codes parents</span></span>' + icon('right', 16) + '</a>' +
@@ -272,7 +274,7 @@
       '<section class="sec"><div class="between"><h2 class="h2">Les joueurs</h2><span class="small">' + players.length + '</span></div>' +
       '<label class="sr-only" for="edq">Chercher un joueur</label><input id="edq" class="search" type="search" placeholder="Chercher un prénom…" value="' + esc(edQ) + '">' +
       '<div class="grid2"><button type="button" class="opt' + (edFilter === 'all' ? ' on' : '') + '" data-act="edFilter" data-v="all">Tous · ' + players.length + '</button><button type="button" class="opt' + (edFilter === 'late' ? ' on' : '') + '" style="--oc:var(--orange)" data-act="edFilter" data-v="late">À relancer · ' + late.length + '</button></div>' +
-      '<ul class="list" id="edlist">' + (rows || '<li class="empty">Personne.</li>') + '</ul></section></div>' + decBar() + '</main>';
+      '<ul class="list" id="edlist">' + (rows || '<li class="empty">Personne.</li>') + '</ul></section></div>' + '</main>';
   }
   MC.act.edFilter = function (b) { edFilter = b.getAttribute('data-v'); app.rerender(); };
   var edTimer = null;
@@ -327,7 +329,7 @@
           '<button type="button" class="switch" role="switch" aria-checked="' + !!k.visible + '" data-act="kidVisible" data-id="' + esc(k.id) + '"><span><span class="t1" style="display:block">Visible au classement</span><span class="t2" style="display:block">Les parents peuvent aussi le régler</span></span><span class="k"></span></button>' +
           '<label class="lab" for="kfam">Famille</label><select id="kfam" class="txt" data-act-change="kidFamily" data-id="' + esc(k.id) + '">' + g.familles.map(function (f) { return '<option value="' + esc(f.id) + '"' + (f.id === k.familleId ? ' selected' : '') + '>' + esc(f.nom) + '</option>'; }).join('') + '</select>' +
           '<button type="button" class="btn2 ' + (k.actif ? 'grey' : '') + '" data-act="kidActive" data-id="' + esc(k.id) + '" data-on="' + (k.actif ? 0 : 1) + '">' + (k.actif ? 'Désactiver (a quitté le groupe)' : 'Réactiver') + '</button>' +
-          '</section></div></div>' + decBar() + '</main>';
+          '</section></div></div>' + '</main>';
   }
   MC.act.edLevel = function (b) {
     var id = app.current().params.id, cle = b.getAttribute('data-cle'), v = Number(b.getAttribute('data-v')), nv = {};

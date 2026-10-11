@@ -5,6 +5,7 @@
 (function () {
   var app = MC.app, ui = MC.ui, L = MC.logic, C = MC.CONTENT, esc = ui.esc, icon = ui.icon;
   var R = null, timer = null, KEY = 'mc-run';
+  var H = [];   // historique pour le bouton « Retour » (annule le dernier clic)
 
   // ---------- construction ----------
   function build(type, me, saved) {
@@ -20,6 +21,7 @@
       r.phase = saved.phase === 'feel' ? 'feel' : 'start';
     }
     enterPhase(r, r.phase === 'feel' ? 'feel' : null);
+    H = [];
     return r;
   }
   function persist() {
@@ -62,6 +64,7 @@
     r.t = null;
     if (forced) { r.phase = forced; return; }
     if (s.kind !== 'exo') { r.phase = 'list'; return; }
+
     var k = s.it.dose.k;
     if (k === 'time' || k === 'inter') r.phase = 'ready';
     else r.phase = 'work';
@@ -96,7 +99,10 @@
     var rem = remaining(), sec = Math.ceil(rem - 0.001);
     var t = R.t;
     if (t.lastSec !== sec) {
-      if (!t.paused && sec <= 3 && sec >= 1 && t.lastSec !== null) ui.beep(t.kind === 'count3' ? 660 : 720, 0.1);
+      if (!t.paused && t.lastSec !== null) {
+        if (t.kind === 'count3') { if (sec >= 1 && sec <= 3) ui.beep(660, 0.1); }
+        else ui.countBeep(sec, t.dur);
+      }
       t.lastSec = sec;
     }
     var el = document.querySelector('[data-tl]');
@@ -105,7 +111,7 @@
     if (ring) ring.setAttribute('stroke-dashoffset', String(ringLen * (1 - rem / t.dur)));
     if (rem <= 0 && !t.ended) {
       t.ended = true;
-      ui.beep(t.kind === 'count3' ? 1040 : 990, t.kind === 'count3' ? 0.18 : 0.45, 0.22);
+      if (t.kind === 'count3') ui.beep(1040, 0.18, 0.22); else ui.endBeep();
       var fn = t.onEnd;
       R.t = null;
       if (fn) fn();
@@ -114,9 +120,31 @@
   function fmtClock(s) { s = Math.ceil(s); var m = Math.floor(s / 60), r = s % 60; return m + ':' + (r < 10 ? '0' : '') + r; }
   var ringLen = 2 * Math.PI * 210;
 
+  // ---------- retour en arrière ----------
+  function snap() {
+    H.push(R._pre || JSON.stringify({ i: R.i, set: R.set, phase: R.phase, vals: R.vals, feels: R.feels, cur: R.cur, round: R.round }));
+    R._pre = null;
+    if (H.length > 40) H.shift();
+  }
+  MC.act.runBack = function () {
+    if (!R || !H.length) return;
+    var o = JSON.parse(H.pop());
+    if (R.rt) { MC.routine.stop(R.rt); R.rt = null; }
+    R.i = o.i; R.set = o.set; R.vals = o.vals || {}; R.feels = o.feels || {}; R.cur = o.cur; R.round = o.round || 0; R.t = null;
+    var s = step(), ph = o.phase;
+    if (s.kind !== 'exo') ph = 'list';
+    else if (ph === 'count3' || ph === 'iwork' || ph === 'ipause' || (ph === 'work' && (s.it.dose.k === 'time'))) ph = 'ready';
+    R.phase = ph;
+    if (ph === 'rest') startTimer('rest', restFor(s.it), function () { startSetPhase(); repaint(); });
+    persist();
+    repaint();
+    ui.toast('Retour en arrière');
+  };
+
   // ---------- transitions ----------
   function nextSet() {
     var s = step(), it = s.it;
+    snap();
     R.set++;
     if (R.set >= nSets(it)) { R.phase = 'feel'; R.t = null; }
     else {
@@ -135,13 +163,16 @@
     R.t = null;
   }
   function record(v) {
+    if (R.phase !== 'feel') R._pre = JSON.stringify({ i: R.i, set: R.set, phase: R.phase, vals: R.vals, feels: R.feels, cur: R.cur, round: R.round });
     var key = String(R.i);
     (R.vals[key] = R.vals[key] || [])[R.set] = v;
   }
   function goNextStep() {
+    if (R.i + 1 >= R.steps.length) { finish(); return; }
+    snap();
+    if (R.rt) { MC.routine.stop(R.rt); R.rt = null; }
     R.i++;
     R.set = 0;
-    if (R.i >= R.steps.length) { finish(); return; }
     enterPhase(R);
     persist();
     repaint();
@@ -171,7 +202,7 @@
     R.phase = 'iwork';
     startTimer('work', d.w, function () {
       R.round++;
-      if (R.round >= d.n) { record(R.round); R.phase = 'feel'; persist(); repaint(); return; }
+      if (R.round >= d.n) { record(R.round); snap(); R.phase = 'feel'; persist(); repaint(); return; }
       R.phase = 'ipause';
       startTimer('rest', d.p, function () { interWork(); repaint(); });
       repaint();
@@ -183,40 +214,45 @@
     record(e);
     nextSet();
   };
-  MC.act.runInterStop = function () { R.t = null; record(R.round); R.phase = 'feel'; persist(); repaint(); };
+  MC.act.runInterStop = function () { R.t = null; record(R.round); snap(); R.phase = 'feel'; persist(); repaint(); };
   MC.act.runPause = function () { togglePause(); };
-  MC.act.runSkipRest = function () { R.t = null; startSetPhase(); repaint(); };
+  MC.act.runSkipRest = function () { snap(); R.t = null; startSetPhase(); repaint(); };
   MC.act.runTour = function () { record(1); nextSet(); };
   MC.act.runFeel = function (b) {
     R.feels[String(R.i)] = b.getAttribute('data-v');
     goNextStep();
   };
   MC.act.runNextStep = function () { R.t = null; goNextStep(); };
-  MC.act.runWarmTimer = function () {
-    if (R.t) { togglePause(); return; }
-    ui.unlockAudio();
-    var dur = step().kind === 'warmup' ? C.REVEIL.duree : C.CALME.duree;
-    startTimer('warm', dur, function () { repaint(); });
-    repaint();
-  };
+
   MC.act.runMute = function () { ui.setMuted(!ui.isMuted()); if (!ui.isMuted()) { ui.unlockAudio(); ui.beep(880, 0.08); } repaint(); };
   MC.act.runQuit = function () {
     var anyDone = Object.keys(R.vals).length > 0;
     var actions = [{ label: 'Continuer la séance', value: 'continue', cls: 'btn green' }];
     if (anyDone) actions.push({ label: 'Enregistrer ce que j\'ai fait', value: 'save', cls: 'btn2' });
     actions.push({ label: 'Quitter sans enregistrer', value: 'quit', cls: 'btn2 grey' });
-    var wasPaused = R.t && R.t.paused;
+    var wasPaused = R.t && R.t.paused, rtWas = R.rt && R.rt.t && !R.rt.t.paused;
     if (R.t && !R.t.paused) togglePause();
+    if (rtWas) MC.routine.pause(R.rt, true);
     ui.modal({ title: 'Tu arrêtes ?', body: '<p class="lead">' + (anyDone ? 'Tu peux enregistrer ce que tu as déjà fait.' : 'Rien n\'est encore enregistré pour cette séance.') + '</p>', actions: actions, cancelValue: 'continue' }).then(function (v) {
       if (v === 'save') finish(true);
-      else if (v === 'quit') { R = null; persist(); ui.keepAwake(false); app.go('#/semaine'); }
-      else if (R && R.t && R.t.paused && !wasPaused) togglePause();
+      else if (v === 'quit') { if (R.rt) MC.routine.stop(R.rt); R = null; H = []; persist(); ui.keepAwake(false); app.go('#/semaine'); }
+      else {
+        if (R && R.t && R.t.paused && !wasPaused) togglePause();
+        if (R && R.rt && rtWas) MC.routine.pause(R.rt, false);
+      }
     });
   };
 
   // ---------- fin ----------
+  function errText(e) {
+    if (e && typeof e.message === 'string' && e.message) return e.message;
+    if (typeof e === 'string' && e) return e;
+    return 'Le serveur n\'a pas répondu.';
+  }
   function finish(partial) {
+    if (!R || R.sending) return;
     stopTick();
+    if (R.rt) { MC.routine.stop(R.rt); R.rt = null; }
     var exos = [], recap = [], feels = [];
     R.steps.forEach(function (s, i) {
       if (s.kind !== 'exo') return;
@@ -232,16 +268,26 @@
     feels.forEach(function (f) { count[f]++; });
     var ress = count.dur > count.facile && count.dur >= count.bien ? 'dur' : (count.facile > count.bien && count.facile >= count.dur ? 'facile' : 'bien');
     var details = { exos: exos, options: R.opts, duree: Math.round((Date.now() - R.startedAt) / 1000), partiel: !!partial };
-    var payload = { type: R.type, date: R.date, mode: 'guidee', ressenti: feels.length ? ress : '', details: details };
+    R.sending = true; R.sendErr = '';
+    R.payload = { type: R.type, date: R.date, mode: 'guidee', ressenti: feels.length ? ress : '', details: details };
+    R.recap = recap;
+    send();
+  }
+  function send() {
     var main = document.querySelector('.run .main');
-    if (main) main.innerHTML = '<div class="loading" role="status"><i></i><i></i><i></i><span class="sr-only">Enregistrement</span></div>';
-    MC.saveSessions([payload], recap).then(function () {
-      R = null; persist(); ui.keepAwake(false);
+    if (main) main.innerHTML = '<div class="loading" role="status"><i></i><i></i><i></i><span class="sr-only">Enregistrement</span></div><p class="next">Enregistrement de ta séance…</p>';
+    var r = R;
+    MC.saveSessions([r.payload], r.recap).then(function () {
+      if (R === r) { R = null; H = []; persist(); }
+      ui.keepAwake(false);
     }).catch(function (e) {
-      ui.toast(e.message + ' Ta séance est gardée : réessaie.', true);
-      repaint();
+      try { console.error(e); } catch (x) { }
+      r.sending = false;
+      r.sendErr = errText(e);
+      if (R === r) { persist(); repaint(); }
     });
   }
+  MC.act.runResend = function () { if (R && R.payload && !R.sending) { R.sending = true; R.sendErr = ''; send(); } };
 
   // ---------- affichage ----------
   app.route('/go/:type', function (p, q, cur) {
@@ -250,7 +296,7 @@
     return app.loadMe().then(function (me) {
       if (!R || R.type !== p.type) R = build(p.type, me, restore(p.type));
       ui.keepAwake(true);
-      cur.cleanup = function () { stopTick(); setTimeout(function () { if (location.hash.indexOf('#/go/') !== 0) ui.keepAwake(false); }, 0); };
+      cur.cleanup = function () { stopTick(); if (R && R.rt) MC.routine.detach(R.rt); setTimeout(function () { if (location.hash.indexOf('#/go/') !== 0) ui.keepAwake(false); }, 0); };
       cur.after = function () { startTick(); };
       return view();
     });
@@ -284,6 +330,7 @@
     }).join('');
     var s = step(), label = s.kind === 'warmup' ? 'ÉCHAUFFEMENT' : s.kind === 'calme' ? 'RETOUR AU CALME' : 'EXO ' + R.i + '/' + exoSteps;
     return '<div class="top"><button type="button" class="ibtn" data-act="runQuit" aria-label="Quitter la séance">' + icon('x', 20) + '</button>' +
+      (H.length ? '<button type="button" class="ibtn backbtn" data-act="runBack" aria-label="Revenir en arrière (annuler le dernier clic)">' + icon('undo', 18) + '<span>Retour</span></button>' : '') +
       '<div class="prog" style="--n:' + R.steps.length + '">' + segs + '</div><span class="hud" style="color:var(--rc)">' + label + '</span>' +
       '<button type="button" class="ibtn" data-act="runMute" aria-label="' + (ui.isMuted() ? 'Activer le son' : 'Couper le son') + '">' + icon(ui.isMuted() ? 'mute' : 'sound', 20) + '</button></div>';
   }
@@ -316,40 +363,36 @@
   function view() {
     var s = step(), col = color();
     var html = '<main class="run" style="--rc:' + col + '">' + topBar();
-    if (s.kind === 'warmup' || s.kind === 'calme') html += routineStep(s);
+    if (R.sendErr) html += sendErrView();
+    else if (s.kind === 'warmup' || s.kind === 'calme') html += routineStep(s);
     else html += exoStep(s.it);
     return html + '</main>';
   }
 
+  function sendErrView() {
+    return '<div class="main single"><div class="hd"><span class="kicker" style="color:var(--rc)">Séance terminée</span><h1>Pas encore envoyée</h1>' +
+      '<p class="lead">L\'envoi n\'a pas marché (' + esc(R.sendErr) + '). Ta séance est gardée sur cet appareil : vérifie la connexion internet et réessaie.</p></div>' +
+      '<div class="right"><button type="button" class="btn xl green glow" data-act="runResend">' + icon('send', 22) + ' Réessayer l\'envoi</button></div></div>';
+  }
   function routineStep(s) {
-    var Rt = s.kind === 'warmup' ? C.REVEIL : C.CALME;
-    var fl = (app.S.me.joueur.niveaux || {}).flamant || 1;
-    var mini = R.opts.mini;
-    var items = Rt.items.map(function (it) {
-      var dose = it.exo ? ui.doseLabel(C.EXOS.flamant.doses[fl]) : it.dose;
-      var det = it.detail;
-      if (it.exo) det += ' À ton niveau (N' + fl + ') : ' + ui.doseInfo(C.EXOS.flamant.doses[fl]) + '.';
-      if (it.mini && mini) det = it.mini;
-      return '<li><span class="ds">' + esc(dose) + '</span><span><b>' + esc(it.nom) + '</b><small>' + esc(det) + '</small></span></li>';
-    }).join('');
-    var running = !!(R.t && R.t.kind === 'warm');
-    var rem = running ? remaining() : Rt.duree;
-    var last = s.kind === 'calme';
-    return '<div class="main routine"><div class="left"><h1>' + esc(Rt.nom) + '</h1><p class="lead">' + esc(Rt.intro) + '</p><ul class="wulist">' + items + '</ul></div>' +
-      '<div class="right"><div class="minitimer"><span class="hud" style="color:var(--muted)">Minuteur</span><span class="t" data-tl>' + fmtClock(rem) + '</span>' +
-      '<button type="button" class="btn2 sm" data-act="runWarmTimer">' + icon(running && !R.t.paused ? 'pause' : 'play', 16) + (running ? (R.t.paused ? ' Reprendre' : ' Pause') : ' Lancer') + '</button></div>' +
-      '<button type="button" class="btn xl green" data-act="runNextStep">' + icon('check', 22) + (last ? ' Terminer la séance' : ' Échauffement fait') + '</button>' +
-      (last ? '' : '<p class="next">Ensuite : ' + esc(R.steps[1].it.nom.toLowerCase()) + '</p>') + '</div></div>';
+    if (!R.rt || R.rt.kind !== s.kind) R.rt = MC.routine.create(s.kind === 'calme' ? 'calme' : 'warmup', app.S.me, R.opts.mini, repaint);
+    var last = s.kind === 'calme', nx = R.steps[R.i + 1];
+    return MC.routine.html(R.rt, {
+      kicker: last ? C.CALME.nom : C.REVEIL.nom, color: color(),
+      doneAct: 'runNextStep', doneLabel: last ? 'Terminer la séance' : 'Échauffement fait',
+      after: last ? '' : 'Ensuite : ' + (nx && nx.it ? nx.it.nom.toLowerCase() : 'les exercices')
+    });
   }
 
   function exoStep(it) {
     var col = color(), d = it.dose;
-    var left = ui.demoHtml({ anim: it.anim, video: it.video, color: col, label: it.nom });
+    var left = ui.demoHtml({ anim: it.anim, video: it.video, color: col, label: it.nom, vite: !!(it.ex && it.ex.vite && !it.mini) || (it.mini && it.id === 'montees_marche') });
     if (d.k === 'circuit') {
       left = '<ul class="circuitsteps">' + it.ex.tour.map(function (t) { return '<li><span class="mini" data-anim="' + esc(t.anim) + '" data-color="' + col + '"></span><span>' + esc(t.nom) + (t.detail ? ' <span class="small">(' + esc(t.detail) + ')</span>' : '') + '</span></li>'; }).join('') + '</ul>';
     }
+    var vite = it.ex && it.ex.vite ? '<span class="vitetag">' + icon('bolt', 14) + ' ' + esc(it.ex.vite) + '</span>' : '';
     var hd = '<div class="hd"><h1>' + esc(it.nom) + '</h1><div class="row" style="flex-wrap:wrap">' + ui.lvl(it.niveau) + '<span class="hud">' + setLabel(it) + '</span>' + setDots(it) + '</div>' +
-      (ui.doseInfo(d) ? '<span class="small">' + esc(ui.doseInfo(d)) + '</span>' : '') + '</div>';
+      (ui.doseInfo(d) ? '<span class="small">' + esc(ui.doseInfo(d)) + '</span>' : '') + vite + ui.infoBtn(MC.fiche.key.exo(it.id, it.mini), it.nom) + '</div>';
     var head = '';
     var right = '';
     var ph = R.phase;

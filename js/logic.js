@@ -156,8 +156,9 @@ MC.logic = (function () {
       if (extra && extra.sm) { var s = t.sm.seuils; return v <= s[0] ? 1 : v <= s[1] ? 2 : 3; }
       if (v >= 5) return 3;
       var el = extra && extra.elastique, nb = extra && Number(extra.nbElastique);
-      if (el === 'fin' || el === 'moyen') return 3;
-      if (el === 'fort' && nb >= 5) return 2;
+      // élastiques Decathlon 10 / 20 / 30 kg (anciennement fin / moyen / fort)
+      if (el === 'fin' || el === 'moyen' || el === '10' || el === '20') return 3;
+      if ((el === 'fort' || el === '30') && nb >= 5) return 2;
       return 1;
     }
     if (!t.seuils) return null;

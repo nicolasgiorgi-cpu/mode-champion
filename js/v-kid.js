@@ -156,7 +156,7 @@
     function sw(key, on, t1, t2, act) {
       return '<button type="button" class="switch" role="switch" aria-checked="' + on + '" data-act="' + act + '" data-k="' + key + '"><span><span class="t1" style="display:block">' + t1 + '</span>' + (t2 ? '<span class="t2" style="display:block">' + t2 + '</span>' : '') + '</span><span class="k"></span></button>';
     }
-    var switches = sw('son', !ui.isMuted(), icon('sound', 18) + ' Bip du chrono', 'Un bip à 3-2-1 et à la fin', 'togglePref') +
+    var switches = sw('son', !ui.isMuted(), icon('sound', 18) + ' Bip du chrono', 'Un bip 10 s avant la fin, puis 5-4-3-2-1 et le son de fin', 'togglePref') +
       sw('mini', mini, 'Mode mini matériel', 'Tapis + élastiques : pas de barre, pas de corde, pas de marche', 'toggleMini') +
       (type === 'meafou' ? sw('leger', !!pr.leger, 'Match samedi : version légère', j.leger.texte, 'togglePref') + sw('lourdes', !!pr.lourdes, 'Jambes lourdes', j.lourdes, 'togglePref') : '');
 
@@ -193,10 +193,12 @@
   function routineView(R) {
     return '<main class="screen"><button type="button" class="back" data-act="back">' + icon('left', 18) + 'Retour</button>' +
       '<div class="head"><span class="kicker">' + Math.round(R.duree / 60) + ' minutes · avant / après chaque séance</span><h1 class="big md">' + esc(R.nom) + '</h1><p class="lead">' + esc(R.intro) + '</p></div>' +
+      '<p class="small" style="margin:0">Pendant la séance guidée, touche <b>GO</b> : chaque étape s\'affiche en grand avec son chrono et sa démo.</p>' +
       '<ul class="wulist">' + R.items.map(function (it) {
         var dose = it.dose;
         if (it.exo) { var n = (app.S.me && app.S.me.joueur.niveaux.flamant) || 1; dose = ui.doseLabel(C.EXOS.flamant.doses[n]); }
-        return '<li><span class="ds">' + esc(dose) + '</span><span><b>' + esc(it.nom) + '</b><small>' + esc(it.detail) + (it.mini ? ' ' + esc(it.mini) : '') + '</small></span></li>';
+        var mini = it.mini ? ' Sans matériel : ' + it.mini.nom.toLowerCase() + (it.mini.detail ? ' (' + it.mini.detail.replace(/\.$/, '') + ')' : '') + '.' : '';
+        return '<li>' + (it.anim ? '<span class="wuanim" data-anim="' + esc(it.anim) + '" data-color="#3DFFB0"></span>' : '') + '<span class="ds">' + esc(dose) + '</span><span><b>' + esc(it.nom) + '</b><small>' + esc(it.detail) + esc(mini) + '</small>' + ui.infoBtn(it.id, it.nom) + '</span></li>';
       }).join('') + '</ul></main>';
   }
   app.route('/echauffement', function () { return app.loadMe().then(function () { return routineView(C.REVEIL); }); }, { kid: true, nav: 'semaine' });
@@ -246,8 +248,10 @@
     return '<main class="screen">' + back +
       '<div class="head"><div class="row" style="flex-wrap:wrap;gap:6px"><span class="pill" style="--pc:' + color + '">' + esc(C.CLES[ex.cle].nom) + '</span>' + (idx >= 0 ? '<span class="tag">Exo ' + (idx + 1) + ' / ' + j.exos.length + '</span>' : '') + (mini ? '<span class="tag" style="color:var(--yellow);border-color:var(--yellow)">Mini matériel</span>' : '') + '</div>' +
       '<h1 class="big md" style="text-shadow:3px 3px 0 ' + ui.rgba(color, 0.3) + ',-2px -2px 0 ' + color + '">' + esc(mini ? ex.mini.nom : ex.nom) + '</h1></div>' +
-      '<div class="cols2"><div class="sec">' + ui.demoHtml({ anim: anim, video: video, color: color, label: mini ? ex.mini.nom : ex.nom }) +
+      '<div class="cols2"><div class="sec">' + ui.demoHtml({ anim: anim, video: video, color: color, label: mini ? ex.mini.nom : ex.nom, vite: !!ex.vite && !mini }) +
       '<section class="sec"><h2 class="h2">Les secrets</h2><ol class="steps">' + etapes.map(function (s, i) { return '<li><span class="num" style="--sc:' + color + '">' + (i + 1) + '</span><span class="tx">' + esc(s) + '</span></li>'; }).join('') + '</ol>' +
+      ui.infoBtn(MC.fiche.key.exo(id, mini), mini ? ex.mini.nom : ex.nom) +
+      (ex.vite && !mini ? '<span class="vitetag">' + icon('bolt', 14) + ' ' + esc(ex.vite) + '</span>' : '') +
       (ex.attention ? '<div class="warn">' + icon('warn', 16) + '<span>' + esc(ex.attention) + '</span></div>' : '') +
       (ex.mini && !mini ? '<div class="note yellow">' + icon('home', 20) + '<span><b>Mini matériel :</b> ' + esc(ex.mini.nom) + '. ' + esc(ex.mini.etapes.join(' ')) + '</span></div>' : '') +
       (ex.tour ? '<ul class="circuitsteps">' + ex.tour.map(function (s) { return '<li><span class="mini" data-anim="' + esc(s.anim) + '" data-color="' + color + '"></span><span>' + esc(s.nom) + (s.detail ? ' <span class="small">(' + esc(s.detail) + ')</span>' : '') + '</span></li>'; }).join('') + '</ul>' : '') +

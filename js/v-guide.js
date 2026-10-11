@@ -61,9 +61,9 @@
         ]), true) +
       card('seance', 'play', '#3DFFB0', 'Faire une séance', 'Guidée exo par exo, ou notée en 10 secondes',
         ul([
-          '<b>Séance guidée</b> : le site te montre chaque exercice (animation ou vidéo), lance le chrono, compte avec toi et bipe à 3, 2, 1. À la fin de chaque exo, tu dis si c\'était <b>facile</b>, <b>pile bien</b> ou <b>dur</b>.',
+          '<b>Séance guidée</b> : le site te montre chaque exercice (animation ou vidéo), lance le chrono, compte avec toi et bipe 10 s avant la fin puis à 5, 4, 3, 2, 1. Un clic de trop ? Le bouton <b>Retour</b> en haut annule le dernier choix, et <b>Détails et sécurité</b> explique chaque exercice. À la fin de chaque exo, tu dis si c\'était <b>facile</b>, <b>pile bien</b> ou <b>dur</b>.',
           '<b>« J\'ai fait ma séance »</b> : si tu l\'as faite sans le site (avec le carnet), tu notes juste le jour, ton niveau et comment c\'était.',
-          'Toujours <b>l\'échauffement</b> avant (' + esc(C.REVEIL.nom) + ', ' + Math.round(C.REVEIL.duree / 60) + ' min) et <b>le retour au calme</b> après.',
+          'Toujours <b>l\'échauffement</b> avant (' + esc(C.REVEIL.nom) + ', ' + Math.round(C.REVEIL.duree / 60) + ' min) et <b>le retour au calme</b> après. Touche <b>GO</b> : chaque étape s\'affiche en grand avec le chrono, l\'animation et la vidéo.',
           'Peu de matériel ? Active le <b>mode mini matériel</b> dans Réglages : les exercices s\'adaptent (tapis + élastiques).',
           'Tu as mal (pas juste fatigué) ? Tu arrêtes l\'exercice et tu en parles à un adulte.'
         ])) +

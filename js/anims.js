@@ -127,7 +127,7 @@
     function off(p, k) { return front ? [p[0] + pp[0] * k, p[1] + pp[1] * k] : p; }
     var J = {
       front: front, hip: hip, sh: sh, nk: nk, head: head, ha: ha,
-      o: spec.o == null ? 1 : spec.o,
+      o: spec.o == null ? 1 : spec.o, bow: spec.bow || 0,
       hipN: off(hip, 3.5), hipF: off(hip, -3.5), shN: off(sh, 5), shF: off(sh, -5)
     };
     var lN = normLimb(spec.lN), lF = normLimb(spec.lF);
@@ -165,6 +165,7 @@
       x: lerp(A.x, B.x, s), y: lerp(A.y, B.y, s),
       t: lerp(A.t == null ? 180 : A.t, B.t == null ? 180 : B.t, s),
       h: lerp(A.h || 0, B.h || 0, s),
+      bow: lerp(A.bow || 0, B.bow || 0, s),
       o: lerp(A.o == null ? 1 : A.o, B.o == null ? 1 : B.o, s)
     };
     for (var i = 0; i < 4; i++) {
@@ -370,9 +371,9 @@
     props: function (P) { mat(P, 40, 160); },
     pose: function (t) {
       var k = kv([[0, 0], [0.08, 0], [0.48, 1], [0.56, 1], [0.86, 0]], t);
-      var an = [58, 134], phi = plankFrom(an, 75, lerp(108.6, 127.5, k));
+      var an = [58, 130.5], phi = plankFrom(an, 75, lerp(106.5, 122.5, k));
       var hip = along(an, phi, 46);
-      return { x: hip[0], y: hip[1], t: phi, h: 10, lN: [phi - 180, phi - 180], lF: [phi - 180, phi - 180],
+      return { x: hip[0], y: hip[1], t: phi, h: 10, lN: [phi - 180, phi - 180, 4], lF: [phi - 180, phi - 180, 4],
         aN: { ik: [129, CY] }, aF: { ik: [125, CY] } };
     }
   };
@@ -387,6 +388,21 @@
       var hip = along(kn, phi, L.thigh);
       return { x: hip[0], y: hip[1], t: phi, h: 10, lN: [phi - 180, -112, -60], lF: [phi - 180, -124, -70],
         aN: { ik: [129, CY] }, aF: { ik: [125, CY] } };
+    }
+  };
+
+  /* --- pompes mains surelevees (sur une marche / un canape) ------------ */
+  var PI_ = { x1: 132, x2: 182, top: 110 };
+  function piFloor(x) { return x >= PI_.x1 && x <= PI_.x2 ? PI_.top - 3 : CY; }
+  A.pompes_inclinees = {
+    dur: 2.4, still: 0.3, floor: piFloor,
+    props: function (P) { stepBox(P, PI_.x1, PI_.x2, PI_.top); },
+    pose: function (t) {
+      var k = kv([[0, 0], [0.08, 0], [0.48, 1], [0.56, 1], [0.86, 0]], t);
+      var an = [84, 131], phi = plankFrom(an, 75, lerp(80, 95, k));
+      var hip = along(an, phi, 46);
+      return { x: hip[0], y: hip[1], t: phi, h: 8, lN: [phi - 180, phi - 180, 4], lF: [phi - 180, phi - 180, 4],
+        aN: { ik: [143, PI_.top - 3] }, aF: { ik: [139, PI_.top - 3] } };
     }
   };
 
@@ -422,8 +438,8 @@
   };
 
   /* --- superman ------------------------------------------------------ */
-  var smDown = { x: 104, y: CY, t: 90, h: 12, aN: [93, 93], aF: [90, 90], lN: [-90, -90, -92], lF: [-91, -91, -93] };
-  var smUp = { x: 104, y: CY, t: 103, h: 10, aN: [114, 114], aF: [110, 110], lN: [-108, -108, -110], lF: [-104, -104, -106] };
+  var smDown = { x: 104, y: CY, t: 90, h: 12, aN: [93, 93], aF: [90, 90], lN: [-90, -99, -20], lF: [-91, -100, -22] };
+  var smUp = { x: 104, y: CY, t: 103, h: 10, aN: [114, 114], aF: [110, 110], lN: [-108, -108, -52], lF: [-104, -104, -50] };
   A.superman = {
     dur: 3, still: 0.5, chrono: true,
     props: function (P) { mat(P, 50, 185); },
@@ -528,7 +544,7 @@
   };
 
   /* --- departs (allonge -> sprint) ----------------------------------- */
-  var dpProne = { x: 64, y: CY, t: 90, h: 14, aN: { ik: [86, CY] }, aF: { ik: [84, CY] }, lN: [-90, -90, -90], lF: [-91, -91, -92] };
+  var dpProne = { x: 64, y: CY, t: 90, h: 14, aN: { ik: [86, CY] }, aF: { ik: [84, CY] }, lN: [-90, -99, -20], lF: [-91, -100, -22] };
   var dpPlank = (function () {
     var an = [20, 134.5], phi = plankFrom(an, 75, 108.6), hip = along(an, phi, 46);
     return { x: hip[0], y: hip[1], t: phi, h: 10, aN: { ik: [90, CY] }, aF: { ik: [87, CY] }, lN: [phi - 180, phi - 180], lF: [phi - 180, phi - 180] };
@@ -555,14 +571,24 @@
   /* --- montees sur une marche ---------------------------------------- */
   var MK = { x1: 112, x2: 172, top: 118 };
   function stepFloor(x) { return x >= MK.x1 - 1 && x <= MK.x2 ? MK.top - 3 : CY; }
-  var mmBase = { x: 96, y: 93, t: 177, h: 2, aN: [4, 20], aF: [-6, 10], lN: { ik: [120, MK.top - 3] }, lF: { ik: [94, CY] } };
-  var mmPush = { x: 107, y: 82, t: 172, h: 6, aN: [30, 100], aF: [-30, 30], lN: { ik: [120, MK.top - 3] }, lF: [-14, -64] };
-  var mmTop = { x: 120, y: 69, t: 180, h: 0, aN: [55, 140], aF: [-35, 40], lN: { ik: [120, MK.top - 3] }, lF: [92, 0, 60] };
-  var mmDown = { x: 108, y: 79, t: 176, h: 2, aN: [20, 60], aF: [-10, 20], lN: { ik: [120, MK.top - 3] }, lF: [-16, -72] };
+  function swapLegs(sp) { var r = ext(sp, { lN: sp.lF, lF: sp.lN, aN: sp.aF, aF: sp.aN }); return r; }
+  var mmS0 = { x: 92, y: 93, t: 179, h: 0, aN: [6, 14], aF: [-6, 2], lN: { ik: [95, CY] }, lF: { ik: [90, CY] } };
+  var mmS1 = { x: 97, y: 92, t: 176, h: 2, aN: [-12, 8], aF: [22, 44], lN: { ik: [121, MK.top - 3] }, lF: { ik: [90, CY] } };
+  var mmS2 = { x: 108, y: 82, t: 172, h: 6, aN: [30, 100], aF: [-30, 30], lN: { ik: [121, MK.top - 3] }, lF: [-14, -64] };
+  var mmS3 = { x: 120, y: 69, t: 180, h: 0, aN: [55, 140], aF: [-35, 40], lN: { ik: [121, MK.top - 3] }, lF: [92, 0, 60] };
+  var mmS4 = { x: 110, y: 80, t: 177, h: 2, aN: [20, 60], aF: [-10, 20], lN: { ik: [121, MK.top - 3] }, lF: { ik: [99, CY] } };
+  var mmS5 = { x: 99, y: 92, t: 178, h: 0, aN: [10, 24], aF: [-4, 8], lN: { ik: [108, 126] }, lF: { ik: [99, CY] } };
+  var mmHalf = [[0, mmS0], [0.04, mmS0, 'si'], [0.1, mmS1], [0.18, mmS2, 'so'], [0.27, mmS3], [0.32, mmS3], [0.4, mmS4], [0.46, mmS5]];
+  var mmKeys = [];
+  (function () {
+    var i;
+    for (i = 0; i < mmHalf.length; i++) { mmKeys.push(mmHalf[i]); }
+    for (i = 0; i < mmHalf.length; i++) { mmKeys.push([mmHalf[i][0] + 0.5, swapLegs(mmHalf[i][1]), mmHalf[i][2]]); }
+  })();
   A.montees_marche = {
-    dur: 2.6, still: 0.42, floor: stepFloor,
+    dur: 5.2, still: 0.27, floor: stepFloor,
     props: function (P) { stepBox(P, MK.x1, MK.x2, MK.top); },
-    pose: kf([[0, mmBase], [0.06, mmBase, 'si'], [0.18, mmPush, 'so'], [0.36, mmTop], [0.5, mmTop], [0.66, mmDown], [0.8, mmBase]])
+    pose: kf(mmKeys)
   };
 
   /* --- montees de genou explosives ----------------------------------- */
@@ -661,25 +687,29 @@
 
   /* --- squat sur chaise ---------------------------------------------- */
   var sqTop = { x: 97.5, y: 93.5, t: 176, h: 0, aN: [82, 88], aF: [78, 84], lN: { ik: [100, CY] }, lF: { ik: [97, CY] } };
-  var sqBot = { x: 80, y: 107.5, t: 140, h: 12, aN: [88, 92], aF: [84, 88], lN: { ik: [100, CY] }, lF: { ik: [97, CY] } };
+  var sqBot = { x: 81, y: 109, t: 142, h: 12, aN: [92, 94], aF: [88, 90], lN: { ik: [100, CY] }, lF: { ik: [97, CY] } };
   A.squat = {
     dur: 2.6, still: 0.5,
-    props: function (P) {
-      P.line(58, 112, 58, 76, { c: DIM, w: 3 });
-      P.line(60, GY, 60, 112, { c: DIM, w: 3 });
-      P.line(84, GY, 84, 112, { c: DIM, w: 3 });
-      P.line(55, 112, 88, 112, { c: LITE, w: 3.5 });
-    },
     pose: kf([[0, sqTop], [0.06, sqTop], [0.46, sqBot], [0.54, sqBot], [0.92, sqTop]])
   };
 
   /* --- fentes avant -------------------------------------------------- */
-  var fnTop = { x: 86, y: 93.1, t: 180, h: 0, aN: { ik: [90, 92] }, aF: { ik: [87, 93] }, lN: { ik: [88, CY] }, lF: { ik: [85, CY] } };
-  var fnLift = { x: 92, y: 95, t: 180, h: 0, aN: { ik: [96, 94] }, aF: { ik: [93, 95] }, lN: { ik: [110, 126] }, lF: { ik: [85, CY] } };
-  var fnBot = { x: 104, y: 111, t: 180, h: 0, aN: { ik: [108, 110] }, aF: { ik: [105, 111] }, lN: { ik: [126, CY] }, lF: { ik: [85, 135] } };
+  function fnSp(x, y, n, f, lean) {
+    return { x: x, y: y, t: 180 - (lean || 0), h: 0, aN: { ik: [x + 4.5, y - 1] }, aF: { ik: [x + 1.5, y] }, lN: n, lF: f };
+  }
+  var fnP0 = fnSp(50, 93.1, { ik: [52, CY] }, { ik: [49, CY] });
+  var fnP1 = fnSp(57, 95, { ik: [74, 126] }, { ik: [49, CY] });
+  var fnP2 = fnSp(68, 111, { ik: [90, CY] }, { ik: [49, 135] });
+  var fnP4 = fnSp(82, 97, { ik: [90, CY] }, { ik: [76, 127] }, 2);
+  var fnP5 = fnSp(88, 93.1, { ik: [90, CY] }, { ik: [87, CY] });
+  var fnP6 = fnSp(95, 95, { ik: [90, CY] }, { ik: [112, 126] });
+  var fnP7 = fnSp(109, 111, { ik: [90, 135] }, { ik: [131, CY] });
+  var fnP9 = fnSp(123, 97, { ik: [117, 127] }, { ik: [131, CY] }, 2);
+  var fnP10 = fnSp(129, 93.1, { ik: [128, CY] }, { ik: [131, CY] });
   A.fentes = {
-    dur: 2.8, still: 0.5,
-    pose: kf([[0, fnTop], [0.06, fnTop], [0.2, fnLift, 'lin'], [0.42, fnBot], [0.56, fnBot], [0.74, fnLift, 'lin'], [0.88, fnTop]])
+    dur: 5.6, still: 0.23,
+    pose: kf([[0, ext(fnP0, { o: 0 })], [0.03, fnP0], [0.06, fnP0, 'si'], [0.12, fnP1, 'lin'], [0.21, fnP2], [0.27, fnP2], [0.36, fnP4, 'lin'], [0.42, fnP5],
+      [0.48, fnP5, 'si'], [0.54, fnP6, 'lin'], [0.63, fnP7], [0.69, fnP7], [0.78, fnP9, 'lin'], [0.84, fnP10], [0.94, fnP10, 'lin'], [0.999, ext(fnP10, { o: 0 })]])
   };
 
   /* --- pont fessier -------------------------------------------------- */
@@ -701,7 +731,7 @@
     return { x: k + e, lift: u < 0.5 ? Math.sin(Math.PI * u / 0.5) : 0 };
   }
   A.pas_crabe = {
-    dur: 3, still: 0.0625, view: 'front',
+    dur: 4.2, still: 0.04, view: 'front',
     props: function (P) {
       var band = P.path('', { layer: 'ffront', c: LITE, w: 2.6 });
       return function (J) {
@@ -711,14 +741,14 @@
       };
     },
     pose: function (t) {
-      // 2 pas vers la droite puis 2 pas vers la gauche ; le pied "meneur" s'ecarte, l'autre se rapproche
-      var S = 22, W = 24, x0 = 86, c, lead, trail, nx, fx, nl, fl;
+      // 3 pas vers la droite puis 3 pas vers la gauche (peu de place) ; le pied "meneur" s'ecarte, l'autre se rapproche
+      var S = 18, W = 24, x0 = 81, c, lead, trail, nx, fx, nl, fl;
       if (t < 0.5) {
-        c = 4 * t; lead = stepTrack(c, 0); trail = stepTrack(c, 0.5);
+        c = 6 * t; lead = stepTrack(c, 0); trail = stepTrack(c, 0.5);
         nx = x0 + W + S * lead.x; nl = lead.lift; fx = x0 + S * trail.x; fl = trail.lift;
       } else {
-        c = 4 * (t - 0.5); lead = stepTrack(c, 0); trail = stepTrack(c, 0.5);
-        fx = x0 + 2 * S - S * lead.x; fl = lead.lift; nx = x0 + W + 2 * S - S * trail.x; nl = trail.lift;
+        c = 6 * (t - 0.5); lead = stepTrack(c, 0); trail = stepTrack(c, 0.5);
+        fx = x0 + 3 * S - S * lead.x; fl = lead.lift; nx = x0 + W + 3 * S - S * trail.x; nl = trail.lift;
       }
       var hx = (nx + fx) / 2, hy = 107 - 1.5 * Math.max(nl, fl);
       return { x: hx, y: hy, t: 180, h: 0,
@@ -797,6 +827,128 @@
     }
   };
 
+  /* ================================================================== */
+  /* Echauffement et retour au calme                                     */
+  /* ================================================================== */
+
+  /* --- cercles des articulations : cercles de hanches, mains sur les hanches (de face) */
+  A.cercles = {
+    dur: 2.4, still: 0.1, view: 'front',
+    pose: function (t) {
+      var a = 2 * Math.PI * t, dx = 5.5 * Math.cos(a), dy = 1.6 * Math.sin(a);
+      var hx = 120 + dx, hy = 93 + dy;
+      return { x: hx, y: hy, t: 180 - dx * 1.7, h: dx * 0.9,
+        aN: { ik: [hx + 8, hy - 1], b: 1 }, aF: { ik: [hx - 8, hy - 1], b: -1 },
+        lN: { ik: [123.5, CY] }, lF: { ik: [116.5, CY] } };
+    }
+  };
+
+  /* --- talons-fesses (course sur place, talons qui touchent les fesses) */
+  function heelLeg(q) {
+    var s = Math.sin(2 * Math.PI * q), l = s > 0 ? Math.pow(s, 0.8) : 0;
+    var sh = -150 * l;
+    return [4 - 10 * l, sh, sh + 90];
+  }
+  A.talons_fesses = {
+    dur: 1.6, still: 0.125,
+    pose: function (t) {
+      var q = 2 * t, s = Math.sin(2 * Math.PI * q);
+      var un = 8 - 34 * s, uf = 8 + 34 * s;
+      return { x: 118, y: 92.2 - 1.4 * Math.abs(s), t: 178, h: 0,
+        lN: heelLeg(q), lF: heelLeg(q + 0.5), aN: [un, un + 96], aF: [uf, uf + 96] };
+    }
+  };
+
+  /* --- bras de moulin : grands cercles vers l'avant puis vers l'arriere */
+  A.moulin = {
+    dur: 3.2, still: 0.15,
+    pose: function (t) {
+      var a = t < 0.5 ? 720 * t : 360 - 720 * (t - 0.5);
+      return { x: 118, y: 93, t: 180, h: 0, aN: [a, a], aF: [a + 180, a + 180],
+        lN: { ik: [122, CY] }, lF: { ik: [116, CY] } };
+    }
+  };
+
+  /* --- respiration du ballon : assis en tailleur, le ventre gonfle */
+  A.respiration = {
+    dur: 5, still: 0.4,
+    props: function (P, color) {
+      mat(P, 70, 170);
+      var b = P.circle(0, 0, 4, { layer: 'ffront', c: color, w: 2, fill: color });
+      b.setAttribute('fill-opacity', '0.18');
+      return function (J, t) {
+        var k = t < 0.4 ? io(t / 0.4) : 1 - io((t - 0.4) / 0.6);
+        var c = along(J.hip, 180, 11);
+        P.attr(b, { cx: f1(c[0] + 6 + 4 * k), cy: f1(c[1]), r: f1(3 + 5.5 * k) });
+      };
+    },
+    pose: function (t) {
+      var k = t < 0.4 ? io(t / 0.4) : 1 - io((t - 0.4) / 0.6);
+      return { x: 96, y: CY - 1, t: 178 - 3 * k, h: 5 * k,
+        lN: [90, 90, 172], lF: [91, 91, 170],
+        aN: { ik: [122, 131] }, aF: { ik: [119, 132] } };
+    }
+  };
+
+  /* --- le chat : a 4 pattes, dos rond puis dos creux */
+  var chRond = { x: 90, y: 116, t: 106, h: -38, bow: 9, aN: [1, 1], aF: [-2, -2], lN: [0, -90, -90], lF: [2, -91, -91] };
+  var chCreux = ext(chRond, { h: 28, bow: -6 });
+  A.chat = {
+    dur: 4.4, still: 0.1,
+    props: function (P) { mat(P, 50, 150); },
+    pose: kf([[0, chRond], [0.12, chRond], [0.46, chCreux], [0.62, chCreux], [0.96, chRond]])
+  };
+
+  /* --- mollets contre le mur : jambe arriere tendue, talon au sol */
+  A.etirement_mollet = {
+    dur: 3.4, still: 0.3,
+    props: function (P) {
+      P.line(180, 8, 180, GY, { c: LITE, w: 3 });
+      for (var y = 16; y < GY; y += 14) { P.line(181.5, y, 187, y + 6, { c: DIM, w: 1.5 }); }
+    },
+    pose: function (t) {
+      var b = 1.4 * Math.sin(2 * Math.PI * t);
+      return { x: 128 + b, y: 100 + 0.4 * b, t: 150 + b, h: 6,
+        aN: { ik: [178, 73] }, aF: { ik: [178, 77] },
+        lN: { ik: [104, CY], f: 90 }, lF: { ik: [150, CY] } };
+    }
+  };
+
+  /* --- genou contre la poitrine (allonge sur le dos) */
+  A.genou_poitrine = {
+    dur: 4, still: 0.4,
+    props: function (P) { mat(P, 40, 190); },
+    pose: function (t) {
+      var k = kv([[0, 0], [0.1, 0], [0.4, 1], [0.8, 1], [0.95, 0]], t);
+      var th = lerp(-138, -157, k), kn = along([124, CY], th, L.thigh);
+      return { x: 124, y: CY, t: -90, h: 0,
+        lN: [th, lerp(124, 140, k), 200], lF: [90, 90, 180],
+        aN: { ik: [kn[0] + 5, kn[1] + 2] }, aF: { ik: [kn[0] + 3, kn[1] + 3] } };
+    }
+  };
+
+  /* --- posture de l'enfant : assis sur les talons, buste et bras allonges devant */
+  A.posture_enfant = {
+    dur: 4, still: 0.3,
+    props: function (P) { mat(P, 70, 190); },
+    pose: function (t) {
+      var k = 0.5 - 0.5 * Math.cos(2 * Math.PI * t);
+      return { x: 99, y: 124.5 - 0.8 * k, t: 76 + 2 * k, h: 16,
+        lN: [61, -90, -96], lF: [63, -91, -97], aN: [93, 91], aF: [95, 92] };
+    }
+  };
+
+  /* --- pieds rapides en position de plaqueur (sur place) */
+  A.pieds_rapides = {
+    dur: 2, still: 0.06,
+    pose: function (t) {
+      var s = Math.sin(2 * Math.PI * 4 * t), l1 = Math.max(0, s), l2 = Math.max(0, -s);
+      return { x: 108, y: 104 + 0.6 * Math.abs(s), t: 156, h: 14,
+        aN: [52, 132], aF: [40, 122],
+        lN: { ik: [118, CY - 6 * l1] }, lF: { ik: [102, CY - 6 * l2] } };
+    }
+  };
+
   /* --- alias --------------------------------------------------------- */
   A.circuit = A.burpees;
   A.intervalles_corde = A.corde;
@@ -810,11 +962,14 @@
     skipping: 'Skipping', departs: 'Départ allongé puis sprint', montees_marche: 'Montées sur une marche',
     montees_genoux: 'Montées de genou explosives', burpees: 'Burpees', jumping_jacks: 'Jumping jacks',
     mountain_climbers: 'Mountain climbers', navette_plaquage: 'Navette avec passage au sol',
-    debout: 'Se relever vite depuis le dos', squat: 'Squat jusqu’à la chaise', fentes: 'Fentes avant',
+    debout: 'Se relever vite depuis le dos', squat: 'Squat', fentes: 'Fentes marchées',
     pont: 'Pont fessier', pont_une_jambe: 'Pont fessier sur une jambe', pas_crabe: 'Pas de crabe avec élastique',
     mollets: 'Mollets sur une marche', dead_bug: 'Dead bug', marche_ours: 'Marche de l’ours',
     flamant: 'Équilibre du flamant', chaise_mur: 'Chaise contre le mur', circuit: 'Circuit',
-    intervalles_corde: 'Intervalles à la corde'
+    intervalles_corde: 'Intervalles à la corde', pompes_inclinees: 'Pompes mains sur un appui',
+    cercles: 'Cercles des hanches', talons_fesses: 'Talons-fesses', moulin: 'Bras de moulin',
+    respiration: 'Respiration du ballon', chat: 'Étirement du chat', etirement_mollet: 'Étirement des mollets contre le mur',
+    genou_poitrine: 'Genou contre la poitrine', posture_enfant: 'Posture de l’enfant', pieds_rapides: 'Pieds rapides en position de plaqueur'
   };
 
   /* ------------------------------------------------------------------ */
@@ -831,6 +986,12 @@
     var s = 'M' + f1(pts[0][0]) + ' ' + f1(pts[0][1]);
     for (var i = 1; i < pts.length; i++) { s += 'L' + f1(pts[i][0]) + ' ' + f1(pts[i][1]); }
     return s;
+  }
+  /* buste droit, ou arrondi (bow > 0 : dos rond vers le haut, < 0 : dos creux) */
+  function torsoD(J) {
+    if (!J.bow) { return pd([J.hip, J.nk]); }
+    var m = lerp2(J.hip, J.sh, 0.5), tt = angTo(J.hip, J.sh), c = along(m, tt + 90, 2 * J.bow);
+    return 'M' + f1(J.hip[0]) + ' ' + f1(J.hip[1]) + 'Q' + f1(c[0]) + ' ' + f1(c[1]) + ' ' + f1(J.nk[0]) + ' ' + f1(J.nk[1]);
   }
   function legD(root, lg) {
     var d = pd([root, lg.j, lg.e, lg.t]);
@@ -908,7 +1069,7 @@
       parts.lN.setAttribute('d', legD(J.hipN, J.lN));
       parts.aN.setAttribute('d', pd([J.shN, J.aN.j, J.aN.e]));
       parts.torso.setAttribute('d', J.front ?
-        pd([J.hip, J.nk]) + pd([J.hipF, J.hipN]) + pd([J.shF, J.shN]) : pd([J.hip, J.nk]));
+        pd([J.hip, J.nk]) + pd([J.hipF, J.hipN]) + pd([J.shF, J.shN]) : torsoD(J));
       parts.head.setAttribute('cx', f1(J.head[0]));
       parts.head.setAttribute('cy', f1(J.head[1]));
       gMov.setAttribute('opacity', f1(clamp(J.o, 0, 1)));

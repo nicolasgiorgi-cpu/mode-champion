@@ -7,6 +7,9 @@
   var app = MC.app, ui = MC.ui, L = MC.logic, C = MC.CONTENT, esc = ui.esc, icon = ui.icon;
   var G = null, timer = null, KEY = 'mc-bilrun', REPOS = 120, COL = '#FFC23D';
   var NB = C.TESTS.length;
+  var H = [];   // historique pour le bouton « Retour »
+  var ELAS = [['10', '10 kg'], ['20', '20 kg'], ['30', '30 kg']];   // élastiques Decathlon (30 kg = celui qui aide le plus)
+  function elasNom(e) { var m = { fin: '10 kg', moyen: '20 kg', fort: '30 kg', '10': '10 kg', '20': '20 kg', '30': '30 kg' }; return m[e] || e; }
   var RING = 2 * Math.PI * 210;
 
   // animation de chaque test (et de sa version « mini matériel »)
@@ -45,7 +48,7 @@
   function persist() {
     if (!G) { app.lsSet(KEY, null); return; }
     var c = {};
-    for (var k in G) if (k !== 't') c[k] = G[k];
+    for (var k in G) if (k !== 't' && k !== 'rt') c[k] = G[k];
     if (c.phase === 'count3' || c.phase === 'run' || c.phase === 'rest') { c.phase = 'ready'; c.f = {}; }
     app.lsSet(KEY, c);
   }
@@ -85,14 +88,17 @@
     if (countsDown(t.kind)) {
       var rem = remaining(), sec = Math.ceil(rem - 0.001);
       if (t.last !== sec) {
-        if (!t.paused && sec <= 3 && sec >= 1 && t.last !== null && t.kind !== 'warm') ui.beep(t.kind === 'count3' ? 660 : 720, 0.1);
+        if (!t.paused && t.last !== null) {
+          if (t.kind === 'count3') { if (sec >= 1 && sec <= 3) ui.beep(660, 0.1); }
+          else ui.countBeep(sec, t.dur);
+        }
         t.last = sec;
       }
       if (tl) tl.textContent = t.kind === 'count3' ? String(sec) : clock(rem);
       if (ring) ring.setAttribute('stroke-dashoffset', String(RING * (1 - rem / t.dur)));
       if (rem <= 0 && !t.ended) {
         t.ended = true;
-        ui.beep(t.kind === 'count3' ? 1040 : 990, t.kind === 'count3' ? 0.25 : 0.5, 0.22);
+        if (t.kind === 'count3') ui.beep(1040, 0.25, 0.22); else ui.endBeep();
         var fn = t.onEnd;
         G.t = null;
         if (fn) fn();
@@ -124,9 +130,30 @@
     if (!v) return '';
     if (v.extra && v.extra.g !== undefined) return 'gauche ' + ui.fmtVal(v.extra.g, 's') + ' · droit ' + ui.fmtVal(v.extra.d, 's');
     var s = ui.fmtVal(v.valeur, t.unite, t.decimales);
-    if (v.extra && v.extra.elastique) s += ' · ' + v.extra.nbElastique + ' avec l\'élastique ' + v.extra.elastique;
+    if (v.extra && v.extra.elastique) s += ' · ' + v.extra.nbElastique + ' avec l\'élastique ' + elasNom(v.extra.elastique);
     return s;
   }
+
+  // ---------- retour en arrière ----------
+  function snap() {
+    var c = {};
+    for (var k in G) if (k !== 't' && k !== 'rt') c[k] = G[k];
+    H.push(JSON.stringify({ g: c, v: MC.bilan.ensure(me()).v }));
+    if (H.length > 40) H.shift();
+  }
+  MC.act.brBack = function () {
+    if (!G || !H.length) return;
+    var o = JSON.parse(H.pop());
+    if (G.rt) { MC.routine.stop(G.rt); G.rt = null; }
+    G = o.g; G.t = null;
+    var b = MC.bilan.ensure(me());
+    b.v = o.v || {};
+    MC.bilan.save();
+    if (G.phase === 'count3' || G.phase === 'run') { G.phase = 'ready'; G.f = {}; }
+    if (G.phase === 'rest') startT('rest', REPOS, function () { G.phase = 'ready'; persist(); repaint(); });
+    persist(); repaint(); window.scrollTo(0, 0);
+    ui.toast('Retour en arrière');
+  };
 
   // ---------- transitions ----------
   function enterTest(i) {
@@ -179,13 +206,7 @@
   // ---------- actions ----------
   MC.act.brMute = function () { ui.setMuted(!ui.isMuted()); if (!ui.isMuted()) { ui.unlockAudio(); ui.beep(880, 0.08); } repaint(); };
   MC.act.brPause = function () { togglePause(); };
-  MC.act.brWarm = function () {
-    if (G.t) { togglePause(); return; }
-    ui.unlockAudio();
-    startT('warm', C.REVEIL.duree, function () { repaint(); });
-    repaint();
-  };
-  MC.act.brWarmDone = function () { enterTest(1); persist(); repaint(); window.scrollTo(0, 0); };
+  MC.act.brWarmDone = function () { snap(); if (G.rt) { MC.routine.stop(G.rt); G.rt = null; } enterTest(1); persist(); repaint(); window.scrollTo(0, 0); };
   MC.act.brGo = function () {
     var c = cfg(test());
     ui.unlockAudio();
@@ -202,29 +223,31 @@
   };
   MC.act.brStop = function () {
     var t = test(), e = elapsed(), kind = G.t && G.t.kind;
+    snap();
     G.t = null;
     if (kind === 'course') G.f = { v: tenths(e) };
     else { var s = Math.floor(e); G.f = t.mmss ? { m: String(Math.floor(s / 60)), s: String(s % 60) } : { v: String(s) }; }
     ui.beep(880, 0.15);
     G.phase = 'res'; persist(); repaint();
   };
-  MC.act.brStopMin = function () { G.t = null; G.phase = 'res'; persist(); repaint(); };
+  MC.act.brStopMin = function () { snap(); G.t = null; G.phase = 'res'; persist(); repaint(); };
   MC.act.brPlus = function () { setCount((parseInt(G.f.v, 10) || 0) + 1); };
   MC.act.brMinus = function () { setCount((parseInt(G.f.v, 10) || 0) - 1); };
   MC.act.brRedo = function () { G.t = null; G.f = {}; G.phase = 'ready'; persist(); repaint(); };
   MC.act.brOk = function () {
     var t = test(), c = cfg(t);
+    snap();
     if (G.phase === 'elas') {
       var b = MC.bilan.ensure(me()), nb = num(G.f.v);
-      if (!G.f.el) return ui.toast('Choisis l\'élastique.', true);
-      if (nb === null) return ui.toast('Note combien avec l\'élastique.', true);
+      if (!G.f.el) { H.pop(); return ui.toast('Choisis l\'élastique.', true); }
+      if (nb === null) { H.pop(); return ui.toast('Note combien avec l\'élastique.', true); }
       b.v.tract_el = G.f.el; b.v.tract_nb = String(Math.round(nb));
       MC.bilan.save();
       afterTest();
       return;
     }
     var v = readVal(t, c);
-    if (v === null) return ui.toast('Note le résultat, ou passe ce test.', true);
+    if (v === null) { H.pop(); return ui.toast('Note le résultat, ou passe ce test.', true); }
     if (c.mode === 'dist') G.tr[t.id] = v;
     else (G.tr[t.id] = G.tr[t.id] || [])[G.e] = v;
     if (c.mode !== 'dist' && G.e + 1 < c.essais.length) { nextEssai(); return; }
@@ -232,23 +255,26 @@
   };
   MC.act.brSkipEssai = function () {
     var t = test(), c = cfg(t);
+    snap();
     (G.tr[t.id] = G.tr[t.id] || [])[G.e] = null;
     if (G.e + 1 < c.essais.length) nextEssai(); else endTest();
   };
   MC.act.brSkip = function () {
+    snap();
     G.t = null;
     if (G.back || G.i >= NB) { toFin(); return; }
     enterTest(G.i + 1); persist(); repaint(); window.scrollTo(0, 0);
   };
-  MC.act.brRestSkip = function () { G.t = null; G.phase = 'ready'; persist(); repaint(); };
+  MC.act.brRestSkip = function () { snap(); G.t = null; G.phase = 'ready'; persist(); repaint(); };
   MC.act.brEl = function (btn) { G.f.el = btn.getAttribute('data-v'); persist(); repaint(); };
-  MC.act.brGoto = function (btn) { enterTest(Number(btn.getAttribute('data-i'))); G.back = true; persist(); repaint(); window.scrollTo(0, 0); };
+  MC.act.brGoto = function (btn) { snap(); enterTest(Number(btn.getAttribute('data-i'))); G.back = true; persist(); repaint(); window.scrollTo(0, 0); };
   MC.act.brSend = function (btn) {
-    MC.bilan.submit(btn).then(function (ok) { if (ok) { G = null; persist(); } });
+    MC.bilan.submit(btn).then(function (ok) { if (ok) { G = null; H = []; persist(); } });
   };
   MC.act.brQuit = function () {
-    var wasPaused = G.t && G.t.paused;
+    var wasPaused = G.t && G.t.paused, rtWas = G.rt && G.rt.t && !G.rt.t.paused;
     if (G.t && !G.t.paused) togglePause();
+    if (rtWas) MC.routine.pause(G.rt, true);
     var any = MC.bilan.values(me()).length > 0;
     ui.modal({
       title: 'Tu fais une pause ?',
@@ -257,7 +283,10 @@
       cancelValue: 'go'
     }).then(function (v) {
       if (v === 'pause') { G.t = null; persist(); ui.keepAwake(false); app.go('#/bilan'); }
-      else if (G && G.t && G.t.paused && !wasPaused) togglePause();
+      else {
+        if (G && G.t && G.t.paused && !wasPaused) togglePause();
+        if (G && G.rt && rtWas) MC.routine.pause(G.rt, false);
+      }
     });
   };
   document.addEventListener('input', function (e) {
@@ -277,9 +306,9 @@
     return app.loadMe().then(function (m) {
       var B = L.currentBilan(), kid = m.joueur.id;
       MC.bilan.ensure(m);
-      if (!G || G.n !== B.n || G.kid !== kid) G = restore(B, kid) || fresh(B, kid);
+      if (!G || G.n !== B.n || G.kid !== kid) { G = restore(B, kid) || fresh(B, kid); H = []; }
       ui.keepAwake(true);
-      cur.cleanup = function () { stopTick(); setTimeout(function () { if (location.hash.indexOf('#/bilan/go') !== 0) ui.keepAwake(false); }, 0); };
+      cur.cleanup = function () { stopTick(); if (G && G.rt) MC.routine.detach(G.rt); setTimeout(function () { if (location.hash.indexOf('#/bilan/go') !== 0) ui.keepAwake(false); }, 0); };
       cur.after = function () { startTick(); };
       return view();
     });
@@ -304,6 +333,7 @@
     for (var i = 0; i <= NB + 1; i++) segs += '<i><b style="width:' + (i < G.i ? 100 : 0) + '%"></b></i>';
     var label = G.i === 0 ? 'ÉCHAUFFEMENT' : G.i > NB ? 'RÉCAP' : 'TEST ' + G.i + '/' + NB;
     return '<div class="top"><button type="button" class="ibtn" data-act="brQuit" aria-label="Faire une pause">' + icon('x', 20) + '</button>' +
+      (H.length ? '<button type="button" class="ibtn backbtn" data-act="brBack" aria-label="Revenir en arrière (annuler le dernier clic)">' + icon('undo', 18) + '<span>Retour</span></button>' : '') +
       '<div class="prog" style="--n:' + (NB + 2) + '">' + segs + '</div><span class="hud" style="color:var(--rc)">' + label + '</span>' +
       '<button type="button" class="ibtn" data-act="brMute" aria-label="' + (ui.isMuted() ? 'Activer le son' : 'Couper le son') + '">' + icon(ui.isMuted() ? 'mute' : 'sound', 20) + '</button></div>';
   }
@@ -332,17 +362,13 @@
   }
 
   function warmView() {
-    var Rt = C.REVEIL, mini = me().joueur.materiel === 'mini', B = L.currentBilan();
-    var items = Rt.items.map(function (it) {
-      return '<li><span class="ds">' + esc(it.dose) + '</span><span><b>' + esc(it.nom) + '</b><small>' + esc(it.mini && mini ? it.mini : it.detail) + '</small></span></li>';
-    }).join('');
-    var running = !!(G.t && G.t.kind === 'warm'), rem = running ? remaining() : Rt.duree;
-    return '<div class="main routine"><div class="left"><span class="kicker" style="color:var(--rc)">' + esc(B.nom) + ' · bilan guidé</span><h1>' + esc(Rt.nom) + '</h1><p class="lead">' + esc(Rt.intro) + '</p><ul class="wulist">' + items + '</ul></div>' +
-      '<div class="right"><div class="note">' + icon('group', 22) + '<span>Ensuite les 12 tests, toujours dans le même ordre, avec 2 min de repos entre deux tests. Un adulte reste à côté pour regarder et compter.</span></div>' +
-      '<div class="minitimer"><span class="hud" style="color:var(--muted)">Minuteur</span><span class="t" data-tl>' + clock(rem) + '</span>' +
-      '<button type="button" class="btn2 sm" data-act="brWarm">' + icon(running && !G.t.paused ? 'pause' : 'play', 16) + (running ? (G.t.paused ? ' Reprendre' : ' Pause') : ' Lancer') + '</button></div>' +
-      '<button type="button" class="btn xl green glow" data-act="brWarmDone">' + icon('check', 22) + ' Échauffement fait</button>' +
-      '<p class="next">Ensuite : test 1, ' + esc(nomT(C.TESTS[0]).toLowerCase()) + '</p></div></div>';
+    var B = L.currentBilan();
+    if (!G.rt) G.rt = MC.routine.create('warmup', me(), me().joueur.materiel === 'mini', repaint);
+    return MC.routine.html(G.rt, {
+      kicker: B.nom + ' · ' + C.REVEIL.nom, color: COL,
+      doneAct: 'brWarmDone', doneLabel: 'Échauffement fait',
+      after: 'Ensuite : test 1, ' + nomT(C.TESTS[0]).toLowerCase() + ' (puis les 12 tests, 2 min de repos entre deux)'
+    });
   }
 
   function restView(t) {
@@ -362,14 +388,14 @@
     var focus = ph === 'count3' || ph === 'run';
     var essai = ph !== 'elas' && c.essais[G.e] ? c.essais[G.e] : '';
     var hd = '<div class="hd"><span class="kicker" style="color:var(--rc)">Test ' + t.n + ' / ' + NB + (isSm(t) ? ' · version SM' : '') + '</span><h1>' + esc(nomT(t)) + '</h1>' +
-      (essai ? '<span class="hud" style="color:var(--ink)">' + esc(essai) + '</span>' : '') + '</div>';
+      (essai ? '<span class="hud" style="color:var(--ink)">' + esc(essai) + '</span>' : '') + (focus ? '' : ui.infoBtn(MC.fiche.key.test(t.id, isSm(t)), nomT(t), commentT(t))) + '</div>';
     var left = focus ? '' : ui.demoHtml({ anim: an, video: videoFor(an), color: COL, label: nomT(t) }) + '<p class="small" style="margin:0">' + esc(commentT(t)) + '</p>';
     var right = '', stopQ = (isSm(t) && STOP_QUAND_SM[t.id]) || STOP_QUAND[t.id] || '';
 
     if (ph === 'elas') {
-      right = '<p class="lead" style="color:var(--ink)">Moins de 5 tractions : avec quel élastique en fais-tu 5 ou plus ?</p><div class="grid3">' + ['fin', 'moyen', 'fort'].map(function (e) {
-        return '<button type="button" class="opt' + (G.f.el === e ? ' on' : '') + '" data-act="brEl" data-v="' + e + '">' + e + '</button>';
-      }).join('') + '</div>' + (G.f.el ? counterHtml('Combien avec l\'élastique ' + G.f.el + ' ?') + okBtn('Valider') : '');
+      right = '<p class="lead" style="color:var(--ink)">Moins de 5 tractions : avec quel élastique en fais-tu 5 ou plus ? Commence par le 10 kg (celui qui aide le moins).</p><div class="grid3">' + ELAS.map(function (e) {
+        return '<button type="button" class="opt' + (elasNom(G.f.el) === e[1] ? ' on' : '') + '" data-act="brEl" data-v="' + e[0] + '">' + e[1] + '</button>';
+      }).join('') + '</div>' + (G.f.el ? counterHtml('Combien avec l\'élastique ' + elasNom(G.f.el) + ' ?') + okBtn('Valider') : '');
     } else if (ph === 'count3') {
       right = ringHtml(Math.max(1, Math.ceil(remaining() - 0.001)), 'Prêt ?', 'work', remaining() / 3);
     } else if (ph === 'run' && c.mode === 'minute') {

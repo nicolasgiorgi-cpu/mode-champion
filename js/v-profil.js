@@ -379,9 +379,12 @@
   function tractExtra(sm) {
     var v = num(bil.v.tract);
     if (sm || v === null || v >= 5) return '';
-    return '<div class="box" style="display:flex;flex-direction:column;gap:8px;margin-top:-2px"><span class="small">Moins de 5 : avec quel élastique en fais-tu 5 ou plus ?</span><div class="grid3">' + ['fin', 'moyen', 'fort'].map(function (e) {
-      return '<button type="button" class="opt' + (bil.v.tract_el === e ? ' on' : '') + '" data-act="bilEl" data-v="' + e + '">' + e + '</button>';
-    }).join('') + '</div>' + (bil.v.tract_el ? '<label class="row small" for="b_tnb">Combien avec l\'élastique ' + esc(bil.v.tract_el) + ' ? ' + ui.numInput({ id: 'b_tnb', kind: 'int', max: 2, label: 'Tractions avec l\'élastique ' + bil.v.tract_el, value: bil.v.tract_nb, attrs: 'data-bil="tract_nb"' }) + '</label>' : '') + '</div>';
+    var el = elasNom(bil.v.tract_el);
+    return '<div class="box" style="display:flex;flex-direction:column;gap:8px;margin-top:-2px"><span class="small">Moins de 5 : avec quel élastique en fais-tu 5 ou plus ? (10 kg aide le moins, 30 kg aide le plus)</span><div class="grid3">' + [['10', '10 kg'], ['20', '20 kg'], ['30', '30 kg']].map(function (e) {
+      return '<button type="button" class="opt' + (el === e[1] ? ' on' : '') + '" data-act="bilEl" data-v="' + e[0] + '">' + e[1] + '</button>';
+    }).join('') + '</div>' + (bil.v.tract_el ? '<label class="row small" for="b_tnb">Combien avec l\'élastique ' + esc(el) + ' ? ' + ui.numInput({ id: 'b_tnb', kind: 'int', max: 2, label: 'Tractions avec l\'élastique ' + el, value: bil.v.tract_nb, attrs: 'data-bil="tract_nb"' }) + '</label>' : '') + '</div>';
+  }
+  function elasNom(e) { return { fin: '10 kg', moyen: '20 kg', fort: '30 kg', '10': '10 kg', '20': '20 kg', '30': '30 kg' }[e] || e || '';
   }
   // mise à jour sans redessiner la page (le clavier reste ouvert)
   function refreshBilan() {
@@ -453,7 +456,7 @@
       return '<main class="screen"><a class="back" href="#/profil">' + icon('left', 18) + 'Mon profil</a>' +
         '<div class="head"><span class="kicker">' + esc(k.prenom) + '</span><h1 class="big md">Réglages</h1></div>' +
         '<div class="sec">' + sw(mini, 'Mode mini matériel', 'Tapis + élastiques : les exercices et les tests s\'adaptent', 'toggleMini') +
-        sw(!ui.isMuted(), 'Bips du chrono', 'Un bip à 3-2-1 et à la fin de chaque série', 'togglePrefSon') +
+        sw(!ui.isMuted(), 'Bips du chrono', 'Un bip 10 s avant la fin, puis 5-4-3-2-1 et le son de fin', 'togglePrefSon') +
         '<a class="switch" href="#/guide?de=profil" style="text-decoration:none"><span><span class="t1" style="display:block">Comment ça marche ?</span><span class="t2" style="display:block">Étoiles, niveaux, badges, bilan, classement</span></span>' + icon('right', 18) + '</a>' +
         '<a class="switch" href="#/premiere?change=1" style="text-decoration:none"><span><span class="t1" style="display:block">Changer mon code secret</span><span class="t2" style="display:block">Et ma couleur reste la même</span></span>' + icon('right', 18) + '</a>' +
         '<div class="box"><span class="t2 small">' + (k.visible ? 'Tu apparais dans le classement de ta ligue.' : 'Tes parents ont choisi de ne pas t\'afficher dans le classement des autres.') + '</span></div></div>' +

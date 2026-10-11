@@ -45,6 +45,8 @@ window.MC = window.MC || {};
   function R(s, r, txt) { return { k: 'reps', s: s, r: r, txt: txt || '' }; }
   function T(s, t, txt) { return { k: 'time', s: s, t: t, txt: txt || '' }; }
   function C(s, r, cote, txt) { return { k: 'reps', s: s, r: r, cote: cote, txt: txt || '' }; }
+  // pas de crabe : r allers-retours de 3 pas (3 à droite + 3 à gauche) par série
+  function U(s, r) { return { k: 'reps', s: s, r: r, u: 'allers-retours', txt: '1 aller-retour = 3 pas à droite + 3 pas à gauche' }; }
 
   // ---------- Exercices ----------
   var EXOS = {
@@ -58,24 +60,24 @@ window.MC = window.MC || {};
     },
     tractions: {
       nom: 'Tractions avec élastique', cle: 'tract', anim: 'tractions', video: 'kmUO-ie6ys4',
-      etapes: ['Élastique en boucle sur la barre, un genou dedans.', 'Tire le menton vers la barre.', 'Descends lentement en comptant 3.'],
+      etapes: ['Élastique en boucle sur la barre, un genou dedans (30 kg = l\'élastique qui aide le plus).', 'Tire le menton vers la barre.', 'Descends lentement en comptant 3.'],
       attention: 'Pas de balancement, pas de secousse. Un adulte à côté les premières fois.',
       mini: { nom: 'Tirage élastique', anim: 'tirage_elastique', video: 'gebMl23Fw_4', etapes: ['Élastique fixé en haut d\'une porte fermée (ou tenu par un parent sur une chaise).', 'À genoux, tire les poignées vers la poitrine, coudes vers le bas et l\'arrière.', 'Reviens lentement.'],
         doses: [null, R(3, 8), R(3, 10), R(3, 12), R(3, 15)] },
-      doses: [null, R(3, 3, 'élastique fort'), R(3, 5, 'élastique fort'), R(3, 5, 'élastique moyen'), R(3, 5, '+ 1 série sans élastique')]
+      doses: [null, R(3, 3, 'élastique 30 kg'), R(3, 5, 'élastique 30 kg'), R(3, 5, 'élastique 20 kg'), R(3, 5, '+ 1 série sans élastique')]
     },
     pompes: {
       nom: 'Pompes', cle: 'pompes', anim: 'pompes', video: '50Yr6Mm78u0',
-      etapes: ['Mains sous les épaules, corps en planche, fesses serrées.', 'Descends la poitrine vers le sol, coudes en flèche vers l\'arrière.', 'Remonte.'],
-      attention: 'Si le dos se creuse, reviens sur les genoux.',
-      doses: [null, R(3, 6, 'sur les genoux'), R(3, 8, 'genoux, ou 3 × 5 complètes'), R(3, 8, 'complètes'), R(3, 10, 'ou pieds sur une marche')],
-      animNiveau: [null, 'pompes_genoux', 'pompes_genoux', 'pompes', 'pompes']
+      etapes: ['Mains sous les épaules, sur la pointe des pieds : les genoux ne touchent pas le sol.', 'Corps en planche, fesses serrées. Descends la poitrine, coudes en flèche vers l\'arrière.', 'Remonte. Trop dur ? Mains sur un appui (canapé, marche) : le corps reste droit.'],
+      attention: 'Si le dos se creuse, mets les mains plus haut (canapé, marche) plutôt que les genoux au sol.',
+      doses: [null, R(3, 6, 'mains sur le canapé ou une marche haute'), R(3, 8, 'mains sur une marche, ou 3 × 5 au sol'), R(3, 8, 'au sol'), R(3, 10, 'ou pieds sur une marche')],
+      animNiveau: [null, 'pompes_inclinees', 'pompes_inclinees', 'pompes', 'pompes']
     },
     rowing: {
       nom: 'Rowing élastique', cle: 'pompes', anim: 'rowing', video: 'BI647VkG0iY',
       etapes: ['Assis jambes tendues, élastique autour des pieds.', 'Tire les coudes vers l\'arrière en serrant les omoplates.', 'Reviens lentement.'],
       attention: 'Dos droit, pas de mouvement du buste.',
-      doses: [null, R(2, 10), R(3, 10), R(3, 12, 'élastique plus fort'), R(3, 15, 'élastique fort')]
+      doses: [null, R(2, 10, 'élastique 10 kg'), R(3, 10, 'élastique 10 kg'), R(3, 12, 'élastique 20 kg'), R(3, 15, 'élastique 30 kg')]
     },
     planche: {
       nom: 'Planche', cle: 'planche', anim: 'planche', video: '4HDEV8B_8KE',
@@ -108,24 +110,28 @@ window.MC = window.MC || {};
     sauts_lateraux: {
       nom: 'Sauts latéraux par-dessus la ligne', cle: 'corde', anim: 'sauts_lateraux', video: 'zcSsJVLsbjk',
       etapes: ['Corde posée au sol ou ligne tracée.', 'Saute de gauche à droite pieds joints, le plus vite possible.', 'Genoux souples, regarde devant.'],
+      vite: 'Petits sauts ultra-rapides : la ligne est en lave !',
       doses: [null, T(3, 8), T(3, 10), T(3, 12), T(3, 15)]
     },
     skipping: {
       nom: 'Skipping genoux hauts', cle: 'corde', anim: 'skipping', video: 'kRaMa-8yU8s',
-      etapes: ['Sur place, monte les genoux à la hauteur des hanches.', 'Très vite, les bras bougent.', 'Reste grand, ne te penche pas en arrière.'],
+      etapes: ['Sur place, monte les genoux à la hauteur des hanches.', 'Pieds de feu : le plus de montées possible, comme si le sol était brûlant !', 'Les bras bougent avec les jambes. Reste grand, ne te penche pas en arrière.'],
+      vite: 'Pieds de feu : le plus vite possible, le sol est brûlant !',
       doses: [null, T(3, 8), T(3, 10), T(3, 12), T(3, 15)]
     },
     departs: {
       nom: 'Départs de sprint 10 m', cle: 'navette', anim: 'departs', video: 'YuxiWOecNBs',
       etapes: ['Pars comme après un plaquage : debout, à genoux, assis ou à plat ventre.', 'Quelqu\'un dit « Go ! » (ou tu comptes 3) et tu sprintes 10 m.', 'Retour en marchant = repos.'],
       attention: 'Échauffé obligatoire. Sol non glissant, pas d\'obstacle à l\'arrivée.',
+      vite: 'Fusée : tu te relèves et tu sprintes à fond !',
       doses: [null, { k: 'count', s: 1, r: 4, unite: 'départs' }, { k: 'count', s: 1, r: 5, unite: 'départs' }, { k: 'count', s: 1, r: 6, unite: 'départs' }, { k: 'count', s: 1, r: 6, unite: 'départs', txt: 'comme N3 : la qualité, pas le nombre' }]
     },
     montees_marche: {
       nom: 'Montées de marche rapides', cle: 'navette', anim: 'montees_marche', video: 'dTmjWVoa0oo',
-      etapes: ['Un pied sur une marche (20-30 cm).', 'Pousse fort pour monter en levant le genou opposé.', 'Redescends en contrôle.'],
+      etapes: ['Un pied sur une marche (20-30 cm).', 'Pousse fort pour monter en levant le genou opposé.', 'Redescends en contrôle et change de jambe : droite, gauche, droite…'],
+      vite: 'Explosif : chaque montée le plus vite possible, en contrôle !',
       attention: 'Le pied entier sur la marche, pas seulement la pointe.',
-      mini: { nom: 'Montées de genoux explosives', anim: 'montees_genoux', etapes: ['Sur place, pousse fort sur une jambe.', 'Le genou opposé monte vite.', 'Redescends en contrôle.'] },
+      mini: { nom: 'Montées de genoux explosives', anim: 'montees_genoux', etapes: ['Sur place, pousse fort sur une jambe.', 'Le genou opposé monte vite.', 'Redescends en contrôle et change de jambe.'] },
       doses: [null, C(2, 6, 'jambe'), C(2, 8, 'jambe'), C(3, 8, 'jambe'), C(3, 10, 'jambe')]
     },
 
@@ -139,13 +145,13 @@ window.MC = window.MC || {};
     },
     circuit: {
       nom: 'Circuit rugby', cle: 'burpees', anim: 'burpees', video: 'UBYhfk53igE',
-      etapes: ['Enchaîne les 5 ateliers = 1 tour.', 'Repose-toi entre les tours.'],
-      attention: 'Tapis pour les plaquages au sol. Genoux souples sur les jumping jacks.',
+      etapes: ['Enchaîne les 5 ateliers = 1 tour. Tout se fait sur place : un tapis suffit.', 'Repose-toi entre les tours.'],
+      attention: 'Tapis pour les burpees et les « debout ». Genoux souples sur les jumping jacks.',
       tour: [
-        { nom: 'Navette 4 × 5 m avec « plaquage » au sol à chaque bout', anim: 'navette_plaquage', detail: 'couché sur le ventre, relevé vite' },
+        { nom: '10 s de pieds rapides en position de plaqueur', anim: 'pieds_rapides', detail: 'à fond, sur place', video: 'mR2SO9UXPN8' },
         { nom: '8 jumping jacks', anim: 'jumping_jacks', video: 'zE7dBRlshSU' },
         { nom: '5 burpees', anim: 'burpees', detail: 'le gage du club !', video: 'UBYhfk53igE' },
-        { nom: '10 s de mountain climbers', anim: 'mountain_climbers', video: 'UNBiOYnQLRo' },
+        { nom: '10 s de mountain climbers', anim: 'mountain_climbers', detail: 'à fond', video: 'UNBiOYnQLRo' },
         { nom: '5 « debout ! »', anim: 'debout', detail: 'allongé sur le dos, lève-toi le plus vite possible' }
       ],
       doses: [null, { k: 'circuit', tours: 2, p: 60 }, { k: 'circuit', tours: 3, p: 60 }, { k: 'circuit', tours: 3, p: 45 }, { k: 'circuit', tours: 4, p: 45 }]
@@ -160,7 +166,7 @@ window.MC = window.MC || {};
     },
     fentes: {
       nom: 'Fentes marchées', cle: 'squats', anim: 'fentes', video: 'Frfms16Fv4I',
-      etapes: ['Grand pas en avant, le genou arrière frôle le sol.', 'Buste droit.', 'Pousse pour avancer et enchaîne.'],
+      etapes: ['Grand pas en avant, le genou arrière frôle le sol.', 'Buste droit, mains sur les hanches.', 'Relève-toi en ramenant la jambe arrière devant : l\'autre jambe fait le pas suivant. On alterne.'],
       attention: 'Le genou avant reste au-dessus du pied.',
       doses: [null, C(2, 6, 'jambe'), C(2, 8, 'jambe'), C(3, 8, 'jambe'), C(3, 10, 'jambe')]
     },
@@ -174,8 +180,8 @@ window.MC = window.MC || {};
     },
     pas_crabe: {
       nom: 'Pas de crabe', cle: 'chaise', anim: 'pas_crabe', video: 'FIKTyi4VIak',
-      etapes: ['Élastique au-dessus des genoux, demi-squat.', 'Fais des pas de côté sans que les genoux se touchent.', 'Reste bas pendant tout le déplacement.'],
-      doses: [null, C(2, 8, 'côté'), C(2, 10, 'côté'), C(3, 10, 'côté'), C(3, 12, 'côté')]
+      etapes: ['Élastique au-dessus des genoux, demi-squat.', '3 pas de côté vers la droite, puis 3 pas vers la gauche = 1 aller-retour.', 'Reste bas tout le temps, les pieds ne se touchent pas.'],
+      doses: [null, U(2, 3), U(2, 4), U(3, 4), U(3, 5)]
     },
     mollets: {
       nom: 'Mollets sur la marche', cle: 'squats', anim: 'mollets', video: 'WRNofIcnyP0',
@@ -204,28 +210,33 @@ window.MC = window.MC || {};
   };
 
   // ---------- Échauffement et retour au calme ----------
+  // Chaque étape a une durée (dur, en s) : le site enchaîne les étapes avec un chrono.
+  // cotes : l'étape se fait d'un côté puis de l'autre (2 étapes de dur secondes).
   var REVEIL = {
     nom: 'Le Réveil du guerrier', duree: 240,
     intro: 'Enchaîne sans traîner : tu dois avoir un peu chaud à la fin.',
     items: [
-      { nom: 'Corde à sauter tranquille', dose: '1 min', detail: 'Petits sauts pieds joints. Sans corde : corde imaginaire.', anim: 'corde' },
-      { nom: 'Cercles des articulations', dose: '1 min', detail: '10 cercles : chevilles, genoux, hanches, épaules, poignets, cou (doucement).' },
-      { nom: 'Montées de genoux + talons-fesses', dose: '30 s', detail: 'Sur place, 15 s de chaque, en rythme.', anim: 'skipping' },
-      { nom: 'Squats lents', dose: '10', detail: 'Descends comme pour t\'asseoir, talons au sol, remonte.', anim: 'squat' },
-      { nom: 'Marche de l\'araignée', dose: '6 pas', detail: 'À 4 pattes, fesses basses, un bras et la jambe opposée avancent ensemble.', anim: 'marche_ours' },
-      { nom: 'Bras de moulin', dose: '10 + 10', detail: 'Grands cercles vers l\'avant puis vers l\'arrière.' }
+      { id: 'r_corde', nom: 'Corde à sauter tranquille', dose: '1 min', dur: 60, detail: 'Petits sauts pieds joints, sans forcer.', anim: 'corde', video: 'H0r3EatR8bg',
+        mini: { nom: 'Corde imaginaire', detail: 'Petits sauts pieds joints, les poignets tournent une corde imaginaire.', anim: 'corde_imaginaire' } },
+      { id: 'r_cercles', nom: 'Cercles des articulations', dose: '1 min', dur: 60, detail: '10 cercles de chaque : chevilles, genoux, hanches, épaules, poignets, puis le cou tout doucement.', anim: 'cercles', video: 'RJTezdqvB2A' },
+      { id: 'r_genoux', nom: 'Montées de genoux', dose: '15 s', dur: 15, detail: 'Sur place, en rythme : les genoux montent à hauteur des hanches.', anim: 'skipping', video: 'kRaMa-8yU8s' },
+      { id: 'r_talons', nom: 'Talons-fesses', dose: '15 s', dur: 15, detail: 'Sur place, les talons viennent toucher les fesses.', anim: 'talons_fesses', video: 'oMW59TKZvaI' },
+      { id: 'r_squats', nom: 'Squats lents', dose: '10 squats', dur: 30, detail: 'Descends comme pour t\'asseoir, talons au sol, et remonte.', anim: 'squat', video: '_8LiJL61A5g' },
+      { id: 'r_araignee', nom: 'Marche de l\'araignée', dose: '6 pas', dur: 30, detail: 'À 4 pattes, fesses basses, un bras et la jambe opposée avancent ensemble.', anim: 'marche_ours', video: 'IxhlN_tkKcA' },
+      { id: 'r_moulin', nom: 'Bras de moulin', dose: '10 + 10', dur: 30, detail: 'Grands cercles de bras vers l\'avant, puis vers l\'arrière.', anim: 'moulin', video: 'tYo5ghpLksg' }
     ]
   };
   var CALME = {
     nom: 'Le Retour au calme', duree: 180,
     intro: 'Sans forcer : on étire un peu, on respire, on tient son équilibre.',
     items: [
-      { nom: 'Respiration du ballon', dose: '5 fois', detail: 'Assis, inspire par le nez 4 s (le ventre gonfle), souffle par la bouche 6 s.' },
-      { nom: 'Étirement du chat', dose: '20 s', detail: 'À 4 pattes, dos rond puis dos creux, tout doucement.' },
-      { nom: 'Mollets contre le mur', dose: '15 s / jambe', detail: 'Une jambe en arrière tendue, talon au sol, pousse le mur.' },
-      { nom: 'Cuisses et fesses', dose: '15 s / jambe', detail: 'Allongé sur le dos, ramène un genou vers la poitrine.' },
-      { nom: 'Le flamant rose', exo: 'flamant', detail: 'Debout sur un pied, l\'autre genou levé, bras écartés, regarde un point fixe.', anim: 'flamant' },
-      { nom: 'Suspension douce à la barre', dose: '10 s', detail: 'Laisse-toi pendre, épaules détendues.', mini: 'Sans barre : posture de l\'enfant (à genoux, bras loin devant, front au sol).' }
+      { id: 'c_respi', nom: 'Respiration du ballon', dose: '5 respirations', dur: 50, detail: 'Assis, inspire par le nez 4 s (le ventre gonfle comme un ballon), souffle par la bouche 6 s.', anim: 'respiration', video: '2PcCmxEW5WA' },
+      { id: 'c_chat', nom: 'Étirement du chat', dose: '20 s', dur: 20, detail: 'À 4 pattes : dos rond en rentrant la tête, puis dos creux en levant la tête, tout doucement.', anim: 'chat', video: 'Toc5--Smm4E' },
+      { id: 'c_mollets', nom: 'Mollets contre le mur', dose: '15 s / jambe', dur: 15, cotes: ['jambe gauche', 'jambe droite'], detail: 'Mains au mur, une jambe tendue en arrière, talon collé au sol : pousse le mur.', anim: 'etirement_mollet', video: 'YTYQo4WvJHA' },
+      { id: 'c_genou', nom: 'Cuisses et fesses', dose: '15 s / jambe', dur: 15, cotes: ['jambe gauche', 'jambe droite'], detail: 'Allongé sur le dos, ramène un genou contre la poitrine avec les mains, l\'autre jambe reste allongée.', anim: 'genou_poitrine', video: 'Yd9wY25koVk' },
+      { id: 'c_flamant', nom: 'Le flamant rose', exo: 'flamant', cotes: ['pied gauche', 'pied droit'], detail: 'Debout sur un pied, l\'autre genou levé, bras écartés, regarde un point fixe.', anim: 'flamant', video: '3ygYjZ3Oo6I' },
+      { id: 'c_susp', nom: 'Suspension douce à la barre', dose: '10 s', dur: 10, detail: 'Monte avec la chaise, laisse-toi pendre, épaules détendues, puis repose les pieds.', anim: 'suspension', video: 'HUuXawco7UY',
+        mini: { nom: 'Posture de l\'enfant', dose: '20 s', dur: 20, detail: 'À genoux, assis sur les talons, bras loin devant, front au sol. Respire.', anim: 'posture_enfant', video: 'tYQjzSel2h4' } }
     ]
   };
 
@@ -258,7 +269,7 @@ window.MC = window.MC || {};
       modele: 'Le meilleur joueur du monde est surtout celui qui est encore partout à la 80e minute.',
       intro: 'Le demi de mêlée est partout : il plaque, se relève, court soutenir, repart. Ce soir il y a club : fais ta séance l\'après-midi, au moins 2 h avant. Bois de l\'eau.',
       terrain: 'Le joueur qui a du souffle est encore lucide et rapide à la fin, quand les autres sont fatigués : c\'est souvent là que se jouent les essais.',
-      materiel: 'Corde à sauter, espace de 5 m, tapis', materielMini: 'Espace de 5 m et un tapis, pas de corde',
+      materiel: 'Corde à sauter, tapis (tout se fait sur place)', materielMini: 'Un tapis, pas de corde',
       exos: ['intervalles_corde', 'circuit'],
       club: true,
       icon: 'heart'
@@ -312,8 +323,8 @@ window.MC = window.MC || {};
       comment: 'Monte avec la chaise, lâche les pieds, corps droit. Chrono jusqu\'à ce que les mains lâchent.',
       sm: { nom: 'Superman tenu', comment: 'À plat ventre, bras et jambes décollés : chrono jusqu\'à ce qu\'un pied ou une main touche le sol.' } },
     { id: 'tract', n: 5, nom: 'Tractions sans élastique', court: 'Tractions', unite: '', cle: 'tract', seuils: null, special: 'tract',
-      comment: 'D\'abord SANS élastique : combien ? Menton au-dessus de la barre, descente complète, sans balancement. Si moins de 5 : élastique fin, puis moyen, puis fort, jusqu\'à en faire 5.',
-      sm: { nom: 'Tirages élastique', comment: 'Élastique fort fixé en haut, à genoux : le plus possible d\'affilée, retour lent.', seuils: [8, 15] } },
+      comment: 'D\'abord SANS élastique : combien ? Menton au-dessus de la barre, descente complète, sans balancement. Si moins de 5 : élastique 10 kg, puis 20 kg, puis 30 kg (celui qui aide le plus), jusqu\'à en faire 5.',
+      sm: { nom: 'Tirages élastique', comment: 'Élastique 30 kg fixé en haut, à genoux : le plus possible d\'affilée, retour lent.', seuils: [8, 15] } },
     { id: 'pompes', n: 6, nom: 'Pompes complètes', court: 'Pompes', unite: '', cle: 'pompes', seuils: [3, 9],
       comment: 'Corps en planche, poitrine à 5 cm du sol, bras tendus en haut. Le plus possible d\'affilée.' },
     { id: 'planche', n: 7, nom: 'Planche', court: 'Planche', unite: 's', max: 120, mmss: true, cle: 'planche', seuils: [40, 70],

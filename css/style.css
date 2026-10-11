@@ -373,14 +373,11 @@ html.net-busy::before{content:'';position:fixed;top:0;left:0;right:0;height:3px;
 .decis .dbtn:only-child{grid-column:1/-1}
 .decis .dok.on{background:var(--green);border-color:var(--green);color:#070A12;box-shadow:0 0 14px rgba(61,255,176,.35)}
 .decis .dno.on{background:var(--red);border-color:var(--red);color:#fff;box-shadow:0 0 14px rgba(255,79,109,.35)}
-.decbar{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;align-items:center;gap:10px;padding:10px 16px calc(10px + var(--safe-b));background:rgba(10,15,31,.97);border-top:1px solid var(--line2);box-shadow:0 -10px 30px rgba(0,0,0,.5)}
+.decbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;width:100%;padding:12px;background:#0A0F1F;border:1.5px solid var(--cyan);box-shadow:0 0 18px rgba(56,232,255,.18)}
 .decbar[hidden]{display:none}
-.decbar{flex-wrap:wrap}
 .decbar .decn{flex:1 1 100%;min-width:0;font:700 12px/1.25 var(--f-hud);letter-spacing:.06em;color:var(--ink);text-transform:uppercase}
-.decbar .btn{flex:1}
-.decbar .btn{width:auto;min-height:48px;padding:0 16px;font-size:13px}
+.decbar .btn{flex:1;width:auto;min-height:48px;padding:0 16px;font-size:13px}
 .decbar .btn2{min-height:48px}
-body.dec-open .screen{padding-bottom:150px}
 /* guide « Comment ça marche ? » */
 .gtabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;border:1px solid var(--line2);padding:4px}
 .gtabs .opt{min-height:44px}
@@ -536,3 +533,37 @@ body.dec-open .screen{padding-bottom:150px}
 @media (prefers-reduced-motion:reduce){
   *{animation:none !important;transition:none !important}
 }
+
+/* ---------- échauffement / retour au calme guidés, retour en arrière, fiches ---------- */
+.dosebig{font:700 clamp(22px,6vw,30px)/1 var(--f-hud);color:var(--rc,var(--green));text-shadow:0 0 14px rgba(255,255,255,.12)}
+.sidetag{padding:6px 9px;border:1.5px solid var(--rc,var(--green));color:var(--ink);font:700 12px/1 var(--f-hud);letter-spacing:.1em;text-transform:uppercase}
+.btn.xl.ghostxl{background:transparent;color:var(--ink);border:1.5px solid var(--line2);box-shadow:none}
+.rtctl{gap:8px}
+.rtctl .btn2{min-height:52px;padding:0 6px;font-size:12px}
+.rtctl .btn2[disabled]{opacity:.35}
+.backbtn{width:auto;padding:0 10px;gap:6px;display:inline-flex;align-items:center;font:700 11px/1 var(--f-hud);letter-spacing:.1em;text-transform:uppercase;color:var(--ink)}
+.infobtn{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 12px;background:rgba(56,232,255,.08);border:1px solid rgba(56,232,255,.45);color:var(--cyan);font:700 12px/1 var(--f-hud);letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
+.vitetag{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;padding:7px 10px;background:rgba(255,138,61,.12);border:1px solid rgba(255,138,61,.6);color:var(--orange);font:700 13px/1.2 var(--f-body)}
+.demo{position:relative}
+.demo .vite{position:absolute;left:8px;bottom:8px;display:inline-flex;align-items:center;gap:5px;padding:5px 8px;background:rgba(7,10,18,.85);border:1px solid rgba(255,138,61,.7);color:var(--orange);font:700 11px/1 var(--f-hud);letter-spacing:.06em;text-transform:uppercase;pointer-events:none}
+.fiche{display:flex;flex-direction:column;gap:10px;text-align:left;max-height:62vh;overflow:auto;-webkit-overflow-scrolling:touch;padding-right:4px}
+.fiche h3{margin:6px 0 0;display:flex;align-items:center;gap:7px;font:700 13px/1.2 var(--f-hud);letter-spacing:.08em;text-transform:uppercase;color:var(--cyan)}
+.fiche h3.warn{color:var(--yellow)}
+.fiche h3.secu{color:var(--green)}
+.fiche .fl{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:6px;font-size:15px;line-height:1.4;color:var(--soft)}
+.fiche ol.fl li::marker{color:var(--cyan);font-weight:700}
+.wulist .wuanim{width:72px;height:48px;flex:none;align-self:center}
+.wulist .infobtn{margin-top:8px;min-height:34px;font-size:11px}
+.run .main.rt h1{font-size:clamp(30px,9vw,46px)}
+.run .main.rt .demo{height:clamp(130px,21vh,210px)}
+.run .main.rt .ring{width:min(54vw,230px)}
+.run .main.rt .ring .sec{font-size:clamp(56px,16vw,120px)}
+.run .main.rt .hd{gap:8px}
+@media (min-width:1000px) and (orientation:landscape){
+  .run .main.rt h1{font-size:clamp(40px,4.4vw,68px)}
+  .run .main.rt .demo{height:auto;min-height:300px}
+  .run .main.rt .ring{width:min(30vw,40vh)}
+  .run .main.rt .ring .sec{font-size:min(120px,14vh)}
+}
+.run .main.rt .ring.clock .sec{font-size:clamp(44px,12vw,92px)}
+@media (min-width:1000px) and (orientation:landscape){ .run .main.rt .ring.clock .sec{font-size:min(84px,10vh)} }

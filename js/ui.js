@@ -38,6 +38,10 @@ MC.ui = (function () {
     up: '<path d="M6 15l6-6 6 6M6 20l6-6 6 6"/>',
     down: '<path d="M6 9l6 6 6-6M6 4l6 6 6-6"/>',
     info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/>',
+    list: '<path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/>',
+    undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 010 11H11"/>',
+    skipb: '<path d="M18 6L10 12l8 6zM6 6v12"/>',
+    skipf: '<path d="M6 6l8 6-8 6zM18 6v12"/>',
     warn: '<path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/>',
     home: '<path d="M3 21h18M5 21V10l7-5 7 5v11M10 21v-6h4v6"/>',
     group: '<circle cx="9" cy="7" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c.8-3.5 3-5.5 6-5.5s5.2 2 6 5.5M14.5 15c2.8-.3 5 1.5 6 5"/>',
@@ -95,7 +99,7 @@ MC.ui = (function () {
   // ---------- Doses ----------
   function doseLabel(d) {
     if (!d) return '';
-    if (d.k === 'reps') return d.s + ' × ' + d.r + (d.cote ? ' / ' + d.cote : '');
+    if (d.k === 'reps') return d.s + ' × ' + d.r + (d.u ? ' ' + d.u : '') + (d.cote ? ' / ' + d.cote : '');
     if (d.k === 'time') return (d.s > 1 ? d.s + ' × ' : '') + d.t + ' s' + (d.s === 1 && d.txt && d.txt.indexOf('par pied') === 0 ? ' / pied' : '');
     if (d.k === 'count') return d.r + ' ' + (d.unite || '');
     if (d.k === 'inter') return d.n + ' × (' + d.w + ' s / ' + d.p + ' s)';
@@ -299,19 +303,48 @@ MC.ui = (function () {
   }
 
   // ---------- Bips (Web Audio) ----------
-  var audioCtx = null, muted = false;
+  // Sur iPhone, le son du web est coupé par le bouton « silencieux » : on demande à iOS (17 et plus)
+  // une session « lecture », comme une appli de musique, pour que les bips passent quand même.
+  // Sur les iOS plus anciens, un son muet joué en boucle produit le même effet.
+  var audioCtx = null, muted = false, silentEl = null;
   try { muted = localStorage.getItem('mc-mute') === '1'; } catch (e) { }
+  var IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  function silentWav() {
+    var n = 2000, b = new Uint8Array(44 + n), v = new DataView(b.buffer), i;
+    function str(o, t) { for (var k = 0; k < t.length; k++) b[o + k] = t.charCodeAt(k); }
+    str(0, 'RIFF'); v.setUint32(4, 36 + n, true); str(8, 'WAVEfmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, 8000, true); v.setUint32(28, 8000, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true); str(36, 'data'); v.setUint32(40, n, true);
+    for (i = 44; i < 44 + n; i++) b[i] = 128;
+    var bin = ''; for (i = 0; i < b.length; i++) bin += String.fromCharCode(b[i]);
+    return 'data:audio/wav;base64,' + btoa(bin);
+  }
+  function audioSession() {
+    try { if (navigator.audioSession && navigator.audioSession.type !== 'playback') navigator.audioSession.type = 'playback'; } catch (e) { }
+    if (IOS && !navigator.audioSession) {
+      try {
+        if (!silentEl) { silentEl = document.createElement('audio'); silentEl.setAttribute('playsinline', ''); silentEl.loop = true; silentEl.src = silentWav(); }
+        if (silentEl.paused) { var pr = silentEl.play(); if (pr && pr.catch) pr.catch(function () { }); }
+      } catch (e) { }
+    }
+  }
   function unlockAudio() {
     try {
+      audioSession();
       if (!audioCtx) { var AC = window.AudioContext || window.webkitAudioContext; if (AC) audioCtx = new AC(); }
-      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+      if (audioCtx && audioCtx.state !== 'running') audioCtx.resume();
       if (audioCtx) { var o = audioCtx.createOscillator(), g = audioCtx.createGain(); g.gain.value = 0.0001; o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + 0.02); }
     } catch (e) { }
   }
+  // iOS met parfois le son en veille (écran verrouillé, autre appli) : on le relance au moindre toucher
+  function wake() { if (audioCtx && audioCtx.state !== 'running') { try { audioSession(); audioCtx.resume(); } catch (e) { } } }
+  document.addEventListener('touchend', wake, true);
+  document.addEventListener('click', wake, true);
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') wake(); });
   function beep(freq, dur, vol) {
     if (muted || !audioCtx) return;
     try {
-      var t = audioCtx.currentTime, o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      if (audioCtx.state !== 'running') audioCtx.resume();
+      var t = audioCtx.currentTime + 0.01, o = audioCtx.createOscillator(), g = audioCtx.createGain();
       o.type = 'square'; o.frequency.value = freq || 880;
       g.gain.setValueAtTime(0.0001, t);
       g.gain.exponentialRampToValueAtTime(vol || 0.18, t + 0.01);
@@ -320,6 +353,13 @@ MC.ui = (function () {
       o.start(t); o.stop(t + (dur || 0.12) + 0.02);
     } catch (e) { }
   }
+  // Bips des chronos (tous les mêmes) : 1 bip à 10 s de la fin, puis 1 bip par seconde de 5 à 1, puis le son de fin.
+  // sec = seconde affichée (arrondie au-dessus), total = durée du chrono.
+  function countBeep(sec, total) {
+    if (sec === 10 && total > 10) beep(600, 0.22, 0.2);
+    else if (sec >= 1 && sec <= 5) beep(760, 0.09);
+  }
+  function endBeep() { beep(990, 0.5, 0.22); }
   function setMuted(m) { muted = !!m; try { localStorage.setItem('mc-mute', m ? '1' : '0'); } catch (e) { } }
   function isMuted() { return muted; }
 
@@ -356,7 +396,8 @@ MC.ui = (function () {
     else if (hasV && MC.CONFIG.VIDEOS_EN_LIEN) inner = '<a class="ytgo" href="https://www.youtube.com/watch?v=' + encodeURIComponent(opts.video) + '" target="_blank" rel="noopener"><span class="pl">' + icon('play', 26) + '</span>Voir la vidéo sur YouTube</a>';
     else if (hasV) inner = '<button type="button" class="ytgo" data-act="playVideo" data-video="' + esc(opts.video) + '"><span class="pl">' + icon('play', 26) + '</span>Voir la vidéo</button>';
     else inner = '<div class="ytgo">Démo bientôt</div>';
-    return '<figure class="demo" style="margin:0;--dc:' + esc(opts.color || '#3DFFB0') + ';--dg:' + hexToRgba(opts.color || '#3DFFB0', 0.16) + '" data-anim-key="' + esc(opts.anim || '') + '" data-video="' + esc(opts.video || '') + '" data-color="' + esc(opts.color || '') + '" data-label="' + esc(opts.label || '') + '">' + seg + inner + '</figure>';
+    if (opts.vite && mode === 'anim' && hasA) inner += '<span class="vite">' + icon('bolt', 14) + ' Au ralenti · en vrai : à fond !</span>';
+    return '<figure class="demo" style="margin:0;--dc:' + esc(opts.color || '#3DFFB0') + ';--dg:' + hexToRgba(opts.color || '#3DFFB0', 0.16) + '" data-anim-key="' + esc(opts.anim || '') + '" data-video="' + esc(opts.video || '') + '" data-color="' + esc(opts.color || '') + '" data-label="' + esc(opts.label || '') + '"' + (opts.vite ? ' data-vite="1"' : '') + '>' + seg + inner + '</figure>';
   }
   function mountAnims(root) {
     if (!MC.anim) return;
@@ -368,6 +409,25 @@ MC.ui = (function () {
       try { MC.anim.mount(el, el.getAttribute('data-anim'), { color: el.getAttribute('data-color') || '#3DFFB0', label: el.getAttribute('data-label') || '' }); } catch (e) { }
     }
   }
+  // ---------- Fiche détaillée (bouton « Détails ») ----------
+  function infoBtn(key, title, sub) {
+    if (!key || !MC.fiche || !MC.fiche.get(key)) return '';
+    return '<button type="button" class="infobtn" data-act="info" data-k="' + esc(key) + '" data-t="' + esc(title || '') + '"' + (sub ? ' data-s="' + esc(sub) + '"' : '') + '>' + icon('info', 16) + ' Détails et sécurité</button>';
+  }
+  function infoHtml(key, sub) {
+    var f = MC.fiche.get(key);
+    if (!f) return '';
+    function list(a, tag) { return '<' + tag + ' class="fl">' + a.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</' + tag + '>'; }
+    return '<div class="fiche">' + (sub ? '<p class="small" style="margin:0">' + esc(sub) + '</p>' : '') +
+      (f.but ? '<p class="lead" style="margin:0">' + esc(f.but) + '</p>' : '') +
+      '<h3>' + icon('list', 16) + ' Comment faire</h3>' + list(f.etapes || [], 'ol') +
+      (f.erreurs && f.erreurs.length ? '<h3 class="warn">' + icon('x', 16) + ' Les erreurs à éviter</h3>' + list(f.erreurs, 'ul') : '') +
+      '<h3 class="secu">' + icon('shield', 16) + ' Sécurité</h3>' + list((f.securite || []).concat(MC.fiche.regles), 'ul') + '</div>';
+  }
+  function showInfo(key, title, sub) {
+    return modal({ title: esc(title || 'Détails'), body: infoHtml(key, sub), actions: [{ label: 'J\'ai compris', value: true, cls: 'btn' }], cancelValue: true });
+  }
+
   function videoIframe(id) {
     return '<iframe src="https://www.youtube-nocookie.com/embed/' + encodeURIComponent(id) + '?autoplay=1&rel=0&modestbranding=1&playsinline=1" title="Vidéo de démonstration" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>';
   }
@@ -377,7 +437,8 @@ MC.ui = (function () {
     doseLabel: doseLabel, doseInfo: doseInfo, fmtDate: fmtDate, fmtNum: fmtNum, fmtVal: fmtVal, valHtml: valHtml,
     numInput: numInput, numpadClose: npClose, TOUCH: TOUCH,
     toast: toast, modal: modal, codeBox: codeBox,
-    unlockAudio: unlockAudio, beep: beep, setMuted: setMuted, isMuted: isMuted, keepAwake: keepAwake,
+    unlockAudio: unlockAudio, beep: beep, countBeep: countBeep, endBeep: endBeep, setMuted: setMuted, isMuted: isMuted, keepAwake: keepAwake,
+    infoBtn: infoBtn, infoHtml: infoHtml, showInfo: showInfo,
     demoHtml: demoHtml, mountAnims: mountAnims, videoIframe: videoIframe
   };
 })();

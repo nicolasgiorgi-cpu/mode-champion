@@ -48,7 +48,7 @@ MC.demo = (function () {
         { test: 'saut', valeur: Math.round(110 + f * 45) },
         { test: 'navette', valeur: Math.round((18.5 - f * 4.5) * 10) / 10 },
         { test: 'susp', valeur: Math.round(15 + f * 45) },
-        { test: 'tract', valeur: Math.max(0, Math.round(f * 5) - 1), extra: { elastique: f > 0.8 ? 'moyen' : 'fort', nbElastique: Math.round(3 + f * 4) } },
+        { test: 'tract', valeur: Math.max(0, Math.round(f * 5) - 1), extra: { elastique: f > 0.8 ? '20' : '30', nbElastique: Math.round(3 + f * 4) } },
         { test: 'pompes', valeur: Math.round(2 + f * 13) },
         { test: 'planche', valeur: Math.round(30 + f * 60) },
         { test: 'squats', valeur: Math.round(18 + f * 22) },
