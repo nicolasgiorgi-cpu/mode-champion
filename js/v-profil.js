@@ -67,14 +67,14 @@
     var propN = st.proposals.length;
     return '<main class="screen">' +
       '<div class="between" style="align-items:center"><span class="kicker">Mon profil · saison 2026-27</span><a class="tag" href="#/reglages" style="min-height:40px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--soft)">' + icon('settings', 14) + 'Réglages</a></div>' +
-      '<div class="profile-grid"><div class="sec" style="gap:14px">' + card + xp + '</div>' +
+      '<div class="profile-grid"><div class="sec" style="gap:14px">' + card + xp +
+      '<a class="btn2" href="#/bilan">' + icon('plus', 16) + ' Saisir mon ' + esc(bl.nom.toLowerCase()) + ' · ' + esc(bl.quand) + '</a></div>' +
       '<div class="sec" style="gap:20px">' + tiles + boardHtml(st) + '</div>' +
       '<div class="sec" style="gap:20px">' +
       '<section class="sec"><div class="between"><h2 class="h2">Mes niveaux</h2><a class="small" href="#/niveaux" style="color:var(--cyan)">Tout voir</a></div>' +
       (propN ? '<a class="note pink" href="#/niveaux" style="text-decoration:none;color:var(--soft)">' + icon('up', 20) + '<span>' + propN + ' changement' + (propN > 1 ? 's' : '') + ' de niveau à décider</span></a>' : '') +
       '<a class="btn2 grey" href="#/niveaux">' + icon('up', 16) + ' Mes niveaux exercice par exercice</a></section>' +
-      '<section class="sec"><div class="between"><h2 class="h2">Mes records</h2><span class="small">bilans et défis</span></div><div class="recgrid">' + recs + '</div>' +
-      '<a class="btn2" href="#/bilan">' + icon('plus', 16) + ' Saisir mon ' + esc(bl.nom.toLowerCase()) + ' · ' + esc(bl.quand) + '</a></section>' +
+      '<section class="sec"><div class="between"><h2 class="h2">Mes records</h2><span class="small">bilans et défis</span></div><div class="recgrid">' + recs + '</div></section>' +
       '<a class="btn2 gold" href="#/trophees">' + icon('trophy', 18) + ' Mes trophées · ' + st.nbBadges + ' / ' + C.BADGES.length + ' badges</a>' +
       '</div></div></main>';
   }
