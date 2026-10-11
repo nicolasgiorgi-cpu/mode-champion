@@ -19,6 +19,7 @@ Site statique (HTML/CSS/JS, rien à installer) + une Google Sheet qui sert de ba
 | `js/logic.js` | Les règles du jeu (étoiles, série, XP, badges, niveaux, ligues) |
 | `js/anims.js` | Les animations des exercices |
 | `js/v-*.js` | Les écrans |
+| `js/v-bilan.js` | Le bilan guidé (test par test) |
 | `apps-script/serveur-mode-champion.gs` | **Le serveur à coller dans Google Apps Script** (un seul fichier) |
 
 ## 1. Brancher la Google Sheet (10 minutes, une seule fois)
@@ -49,14 +50,14 @@ La feuille contient ensuite un onglet par table (`joueurs`, `familles`, `educs`,
 
 Le site n'est pas référencé par les moteurs de recherche (`noindex`). Pour les mises à jour : modifiez les fichiers, **Commit** puis **Push** dans GitHub Desktop.
 
-Sur iPad et téléphone : **Partager › Sur l'écran d'accueil** pour l'ouvrir en plein écran comme une appli.
+Sur iPad et téléphone : **Partager › Sur l'écran d'accueil** pour l'ouvrir en plein écran comme une appli. Sur ces écrans tactiles, les champs chiffrés ouvrent le pavé numérique du site (pas le clavier du système).
 
 ## 3. Démarrer avec le groupe
 
 1. Espace adultes › **Je suis éduc** › code administrateur.
 2. **Ajouter un joueur** pour chaque enfant : le site donne un **code provisoire** à l'enfant (valable 45 jours) et, pour une nouvelle famille, un **code parent** (6 chiffres). Bouton **Copier / partager** pour l'envoyer par WhatsApp. Frères et sœurs : choisissez la famille existante.
 3. À la 1re connexion, l'enfant choisit sa couleur et son propre code à 4 chiffres (les codes trop faciles comme 1234 sont refusés).
-4. L'enfant saisit son **bilan 0** (profil › Saisir mon bilan) : ses niveaux N1-N3 se règlent tout seuls. Un parent ou un éduc confirme les résultats pour qu'ils comptent au classement.
+4. L'enfant fait son **bilan 0** (profil › Saisir mon bilan › **Lancer le bilan guidé** : échauffement puis les 12 tests un par un, avec démo, chrono, compteur et 2 min de repos ; ou le formulaire pour noter directement). Ses niveaux N1-N3 se règlent tout seuls. Un parent ou un éduc confirme les résultats pour qu'ils comptent au classement.
 5. Autres éducs : **Les éducs (admin)** › Ajouter un éduc.
 
 Code oublié : le parent (espace parent) ou l'éduc (fiche du joueur) crée un **code provisoire** valable 48 h ; l'enfant choisit ensuite un nouveau code. Ses séances et ses étoiles sont gardées. Après 5 codes faux, le profil se bloque 10 minutes.

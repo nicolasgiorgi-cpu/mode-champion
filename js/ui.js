@@ -173,10 +173,11 @@ MC.ui = (function () {
     if (!l && el.id) { var lab = document.querySelector('label[for="' + el.id + '"]'); if (lab) l = lab.textContent; }
     return (l || '').replace(/\s+/g, ' ').trim();
   }
-  function npOpen(el) {
+  function npOpen(el, fromTap) {
     npBuild();
     if (np.cur && np.cur !== el) { np.cur.classList.remove('np-on'); np.cur.classList.remove('np-fresh'); }
     np.cur = el;
+    np.openedAt = fromTap ? Date.now() : 0;
     np.fresh = !!el.value; // la 1re touche remplace la valeur déjà là (comme un champ sélectionné)
     el.classList.add('np-on');
     el.classList.toggle('np-fresh', np.fresh);
@@ -188,11 +189,16 @@ MC.ui = (function () {
     np.el.hidden = false;
     document.body.classList.add('np-open');
     document.documentElement.style.setProperty('--np-h', np.el.offsetHeight + 'px');
-    requestAnimationFrame(function () {
-      var r = el.getBoundingClientRect(), top = np.el.getBoundingClientRect().top;
-      if (r.bottom > top - 16) window.scrollBy({ top: r.bottom - top + 70, behavior: 'smooth' });
-      else if (r.top < 60) window.scrollBy({ top: r.top - 100, behavior: 'smooth' });
-    });
+    requestAnimationFrame(function () { npReveal(el); });
+  }
+  // fait apparaître le champ au-dessus du pavé, et le gros bouton qui suit (Valider…) s'il tient aussi
+  function npReveal(el) {
+    var top = np.el.getBoundingClientRect().top, r = el.getBoundingClientRect(), bottom = r.bottom + 12;
+    var btns = document.querySelectorAll('#app .btn.xl'), nb = null;
+    for (var i = 0; i < btns.length; i++) if (el.compareDocumentPosition(btns[i]) & 4) { nb = btns[i]; break; }
+    if (nb) { var rb = nb.getBoundingClientRect(); if (rb.bottom - r.top < top - 90) bottom = rb.bottom + 12; }
+    if (bottom > top) window.scrollBy({ top: bottom - top, behavior: 'smooth' });
+    else if (r.top < 60) window.scrollBy({ top: r.top - 100, behavior: 'smooth' });
   }
   function npClose() {
     if (np.cur) { np.cur.classList.remove('np-on'); np.cur.classList.remove('np-fresh'); }
@@ -225,19 +231,22 @@ MC.ui = (function () {
   }
   document.addEventListener('click', function (e) {
     var t = e.target && e.target.closest && e.target.closest('input[data-num]');
-    if (t && TOUCH) { e.preventDefault(); if (np.cur !== t || !np.el || np.el.hidden) npOpen(t); }
+    if (t && TOUCH) { e.preventDefault(); if (np.cur !== t || !np.el || np.el.hidden) npOpen(t, true); }
   });
   document.addEventListener('focusin', function (e) {
     var t = e.target;
-    if (TOUCH && t && t.matches && t.matches('input[data-num]') && np.cur !== t) npOpen(t);
+    if (TOUCH && t && t.matches && t.matches('input[data-num]') && np.cur !== t) npOpen(t, true);
   });
-  // toucher ailleurs ferme le pavé (le geste continue normalement : un bouton « Envoyer » marche du 1er coup)
-  document.addEventListener('pointerdown', function (e) {
+  // toucher ailleurs ferme le pavé, APRÈS le clic : un bouton « Valider » sous le doigt marche du 1er coup
+  // (fermer au moment de l'appui changerait la mise en page sous le doigt et le clic serait perdu)
+  document.addEventListener('click', function (e) {
     if (!np.el || np.el.hidden) return;
     var t = e.target;
     if (np.el.contains(t) || (t.closest && t.closest('input[data-num]'))) return;
+    // le clic du toucher qui vient d'ouvrir le pavé (la page a pu bouger sous le doigt) ne le referme pas
+    if (np.cur && document.body.contains(np.cur) && Date.now() - (np.openedAt || 0) < 500) return;
     npClose();
-  }, true);
+  });
   document.addEventListener('keydown', function (e) {
     if (!np.el || np.el.hidden) return;
     if (/^[0-9]$/.test(e.key)) { npKey(e.key); e.preventDefault(); }

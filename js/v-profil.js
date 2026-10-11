@@ -251,11 +251,13 @@
   }
 
   // ---------- BILAN ----------
-  var bil = null;
-  app.route('/bilan', function () {
-    return app.loadMe().then(function (me) {
-      var B = L.currentBilan();
-      if (!bil || bil.n !== B.n || bil.kid !== me.joueur.id) {
+  // Les valeurs du bilan en cours (formulaire et bilan guidé partagent le même état, gardé sur l'appareil)
+  var bil = null, BIL_KEY = 'mc-bil';
+  function saveBil() { app.lsSet(BIL_KEY, bil); }
+  function ensureBil(me) {
+    var B = L.currentBilan();
+    if (!bil) bil = app.lsGet(BIL_KEY);
+    if (!bil || bil.n !== B.n || bil.kid !== me.joueur.id) {
         bil = { n: B.n, kid: me.joueur.id, v: {} };
         var ex = L.bilanRecords(me.records, B.n);
         Object.keys(ex).forEach(function (tid) {
@@ -267,8 +269,13 @@
             if (r.extra.elastique) { bil.v.tract_el = r.extra.elastique; bil.v.tract_nb = String(r.extra.nbElastique || ''); }
           }
         });
-      }
-      return paintBilan(me, B);
+    }
+    return bil;
+  }
+  app.route('/bilan', function () {
+    return app.loadMe().then(function (me) {
+      ensureBil(me);
+      return paintBilan(me, L.currentBilan());
     });
   }, { kid: true, nav: 'profil' });
 
@@ -337,11 +344,18 @@
     return '<main class="screen"><a class="back" href="#/profil">' + icon('left', 18) + 'Mon profil</a>' +
       '<div class="head"><span class="kicker">' + esc(B.nom) + ' · ' + esc(B.quand) + '</span><h1 class="big md">Mon bilan<br>de champion</h1></div>' +
       '<div class="note">' + icon('group', 22) + '<span>Fais les 12 tests avec un adulte à côté, toujours dans le même ordre, 2 min de repos entre deux tests. Tes records entrent au classement quand un adulte les a confirmés. Tes niveaux se mettent à jour tout seuls.</span></div>' +
+      guidedCta() +
       (mini ? '<div class="note yellow">' + icon('home', 20) + '<span>Mode mini matériel : les tests 4, 5, 10 et 11 sont en version « SM ».</span></div>' : '') +
       '<div class="sec" style="gap:6px"><div class="between"><span class="hud" id="bil_done">' + done + ' / 12 tests notés</span><span class="hud" style="color:var(--gold)" id="bil_recs">' + recs + ' record' + (recs > 1 ? 's' : '') + '</span></div><div class="xpbar" style="height:8px"><i id="bil_bar" style="width:' + pct + '%"></i></div></div>' +
+      '<h2 class="h2" style="margin-bottom:-8px">' + (MC.bilanGuide && MC.bilanGuide.started() ? 'Mes résultats' : 'Ou note tes résultats ici') + '</h2>' +
       '<div class="cols2"><div class="sec" style="gap:18px">' + groups.split('</section>').slice(0, 2).join('</section>') + '</section></div><div class="sec" style="gap:18px">' + groups.split('</section>').slice(2, 4).join('</section>') + '</section>' +
       '<button type="button" class="btn xl" id="bil_send" data-act="sendBilan"' + (done ? '' : ' disabled') + '>' + icon('send', 20) + ' Envoyer mon bilan</button>' +
       '<p class="small" style="text-align:center;margin:0">Tu peux revenir le compléter plus tard.' + (nb && nb.n !== B.n ? ' Prochain : ' + esc(nb.nom.toLowerCase()) + ', ' + esc(nb.quand) + '.' : '') + '</p></div></div></main>';
+  }
+  function guidedCta() {
+    var g = MC.bilanGuide && MC.bilanGuide.progress();
+    return '<a class="btn xl gold" href="#/bilan/go" style="box-shadow:0 0 24px rgba(255,194,61,.35)">' + icon('play', 22) + (g ? ' Reprendre le bilan guidé · ' + esc(g) : ' Lancer le bilan guidé') + '</a>' +
+      '<p class="small" style="margin:-8px 0 0;text-align:center">Test par test, comme une séance : la démo, le chrono, et tu notes au fur et à mesure.</p>';
   }
   function tractExtra(sm) {
     var v = num(bil.v.tract);
@@ -374,6 +388,7 @@
     var clean = e.target.value.replace(e.target.getAttribute('data-num') === 'int' ? /[^0-9]/g : /[^0-9.,]/g, '');
     if (clean !== e.target.value) e.target.value = clean;
     bil.v[k] = clean;
+    saveBil();
     e.target.classList.toggle('has', !!clean);
     refreshBilan();
     if (k === 'tract') {
@@ -381,14 +396,17 @@
       if (box) { var show = !!tractExtra(app.S.me.joueur.materiel === 'mini'); if (show !== !!box.innerHTML) box.innerHTML = tractExtra(app.S.me.joueur.materiel === 'mini'); }
     }
   });
-  MC.act.bilEl = function (b) { bil.v.tract_el = b.getAttribute('data-v'); var box = document.getElementById('tract_extra'); if (box) box.innerHTML = tractExtra(false); refreshBilan(); };
-  MC.act.sendBilan = function (btn) {
-    var me = app.S.me, B = L.currentBilan(), vals = bilanValues(me);
-    if (!vals.length) return;
-    btn.disabled = true;
+  MC.act.bilEl = function (b) { bil.v.tract_el = b.getAttribute('data-v'); saveBil(); var box = document.getElementById('tract_extra'); if (box) box.innerHTML = tractExtra(false); refreshBilan(); };
+  MC.act.sendBilan = function (btn) { submitBilan(btn); };
+  function submitBilan(btn) {
+    var me = app.S.me, B = L.currentBilan();
+    ensureBil(me);
+    var vals = bilanValues(me);
+    if (!vals.length) { ui.toast('Aucun résultat à envoyer.', true); return Promise.resolve(false); }
+    if (btn) btn.disabled = true;
     var newLv = L.levelsFromBilan(vals, me.joueur.niveaux || {});
     var old = me.joueur.niveaux || {};
-    app.kidCall('submitRecords', { bilan: String(B.n), valeurs: vals }).then(function () {
+    return app.kidCall('submitRecords', { bilan: String(B.n), valeurs: vals }).then(function () {
       return app.kidCall('updateMe', { niveaux: newLv, journal: [{ type: 'bilan_niveaux', data: { bilan: B.n, niveaux: newLv } }] });
     }).then(function (res) {
       app.S.me = res; app.S.stats = L.compute(res); app.S.kid.joueur = res.joueur;
@@ -396,8 +414,13 @@
       var body = '<p class="lead">' + vals.length + ' test' + (vals.length > 1 ? 's' : '') + ' envoyé' + (vals.length > 1 ? 's' : '') + '. Un parent ou ton éduc doit les confirmer.</p>' +
         (changes.length ? '<ul class="list">' + changes.map(function (k) { return '<li class="li"><span class="grow t1">' + esc(C.CLES[k].nom) + '</span>' + ui.lvl(old[k] || 1) + icon('right', 16) + ui.lvl(newLv[k]) + '</li>'; }).join('') + '</ul>' : '<p class="small">Tes niveaux ne changent pas.</p>');
       return ui.modal({ title: 'Bilan envoyé !', body: body, actions: [{ label: 'Voir mon profil', value: 1, cls: 'btn' }] });
-    }).then(function () { bil = null; app.go('#/profil'); })
-      .catch(function (e) { btn.disabled = false; ui.toast(e.message, true); });
+    }).then(function () { bil = null; saveBil(); app.go('#/profil'); return true; })
+      .catch(function (e) { if (btn) btn.disabled = false; ui.toast(e.message, true); return false; });
+  }
+  // utilisé par le bilan guidé (v-bilan.js)
+  MC.bilan = {
+    ensure: ensureBil, save: saveBil, submit: submitBilan,
+    values: function (me) { ensureBil(me); return bilanValues(me); }
   };
 
   // ---------- RÉGLAGES ----------
