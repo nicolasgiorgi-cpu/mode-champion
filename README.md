@@ -18,6 +18,9 @@ Site statique (HTML/CSS/JS, rien à installer) + une Google Sheet qui sert de ba
 | `js/core.js` | Le cœur du serveur (codes, séances, records), utilisé aussi par le mode démo |
 | `js/logic.js` | Les règles du jeu (étoiles, série, XP, badges, niveaux, ligues) |
 | `js/anims.js` | Les animations des exercices |
+| `js/fiches.js` | Les fiches **Détails et sécurité** (comment faire, erreurs, sécurité) de chaque exo, test et étape |
+| `js/routine.js` | L'échauffement et le retour au calme guidés (GO, chrono par étape) |
+| `js/suivi.js` | Le suivi : progression d'un bilan à l'autre, détail des séances, progrès du groupe |
 | `js/v-*.js` | Les écrans |
 | `js/v-bilan.js` | Le bilan guidé (test par test) |
 | `js/v-guide.js` | Le guide « Comment ça marche ? » (joueur, parents, éducs) |
@@ -63,6 +66,8 @@ Sur iPad et téléphone : **Partager › Sur l'écran d'accueil** pour l'ouvrir 
 4. L'enfant fait son **bilan 0** (profil › Saisir mon bilan › **Lancer le bilan guidé** : échauffement puis les 12 tests un par un, avec démo, chrono, compteur et 2 min de repos ; ou le formulaire pour noter directement). Ses niveaux N1-N3 se règlent tout seuls. Un parent ou un éduc confirme les résultats pour qu'ils comptent au classement.
 5. Autres éducs : **Les éducs (admin)** › Ajouter un éduc.
 
+Un éduc qui est aussi parent : dans le vestiaire, **Mon enfant › Choisir**. Son enfant apparaît en haut du vestiaire avec tout le suivi (séances, progression, niveaux, code), sans changer de code. Outils › **Progrès du groupe aux bilans** classe les joueurs test par test selon leur progrès.
+
 Code oublié : le parent (espace parent) ou l'éduc (fiche du joueur) crée un **code provisoire** valable 48 h ; l'enfant choisit ensuite un nouveau code. Ses séances et ses étoiles sont gardées. Après 5 codes faux, le profil se bloque 10 minutes.
 
 Le guide **« Comment ça marche ? »** (bouton **Aide** sur l'écran d'accueil, dans le profil, les réglages et les espaces parent et éduc) explique tout cela aux enfants, aux parents et aux éducs. Ses chiffres (XP, grades, badges, dates) viennent de `js/content.js` et `js/config.js` : il reste juste si on les modifie.
@@ -71,7 +76,9 @@ Le guide **« Comment ça marche ? »** (bouton **Aide** sur l'écran d'accueil,
 
 - **Étoiles** : 1 par jour de la semaine (Cros, Capuozzo, Dupont, Meafou, club du samedi, récup du dimanche), le vendredi est repos. Les 6 étoiles = +1 étoile bonus. Jauge de 56 étoiles par cycle de 8 semaines (14 Espoir · 28 Titulaire · 42 Capitaine · 56 Légende), comme le tableau du mur.
 - **XP et grades** : séance à la maison +150, club +50, récup +30, semaine parfaite +200, badge ou palier +100, record battu +50, niveau monté +100. Grades : Recrue, Espoir (1 500), Titulaire (4 000), Capitaine (8 000), International (14 000), Légende (22 000).
-- **Niveaux** : réglés par le bilan (seuils de la page 4 du carnet). Le site propose de monter quand c'est « facile » 2 séances de suite, de redescendre quand c'est « dur » 2 fois. Le N4 ne vient jamais du bilan. Les éducs peuvent ajuster un niveau dans la fiche du joueur.
+- **Niveaux** : réglés par le bilan (seuils de la page 4 du carnet). Le site propose de monter quand c'est « facile » 2 séances de suite, de redescendre quand c'est « dur » 2 fois. Le N4 ne vient jamais du bilan. Les parents (espace parent) et les éducs (fiche du joueur) peuvent les ajuster : bouton **Modifier les niveaux**, puis **Enregistrer** (le changement est noté dans le journal, sans XP).
+- **Chronos** : un bip 10 s avant la fin, puis 5-4-3-2-1 et le son de fin. Sur iPhone, les bips passent même en mode silencieux (iOS 17 et plus).
+- **Retour** : dans la séance et le bilan guidés, le bouton **Retour** en haut annule le dernier clic (série validée, exo passé, test validé par erreur).
 - **Badges** (17, en 3 familles) : **exploit** (les 7 défis du tableau du mur, au bilan ou en « défi » avec un adulte qui confirme, + Champion : un exo réussi en N4) ; **séances** (Bras d'acier, Turbo, Infatigable, Jambes de fer : 10 / 25 / 40 séances du même jour = bronze / argent / or) ; **régularité** (Première étoile, Semaine parfaite, Série de 7, Fidèle, Légende). Chaque badge ou palier rapporte +100 XP.
 - **Classement** : par épreuve du bilan, entre joueurs du même niveau sur cette épreuve (ligue élargie aux niveaux voisins s'il y a moins de 5 joueurs), en « meilleur score » ou « plus gros progrès ». Seuls les résultats confirmés par un adulte comptent. Les parents peuvent masquer leur enfant du classement.
 
