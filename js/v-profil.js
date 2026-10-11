@@ -24,7 +24,7 @@
   // ---------- PROFIL ----------
   app.route('/profil', function () {
     return app.loadMe().then(function (me) { return paintProfil(me, app.S.stats); });
-  }, { kid: true, nav: 'profil' });
+  }, { kid: true, nav: 'profil', live: true });
 
   function boardHtml(st) {
     var b = st.board, cells = '';
@@ -97,7 +97,7 @@
         props + '<div class="cols2"><div class="sec" style="gap:20px">' + fams.split('</section>').slice(0, 2).join('</section>') + '</section></div><div class="sec" style="gap:20px">' + fams.split('</section>').slice(2, 4).join('</section>') + '</section></div></div>' +
         '<div class="note">' + icon('info', 20) + '<span>Un niveau ne te va pas du tout ? Demande à ton éduc : il peut le changer.</span></div></main>';
     });
-  }, { kid: true, nav: 'profil' });
+  }, { kid: true, nav: 'profil', live: true });
 
   // ---------- TROPHÉES ----------
   app.route('/trophees', function () {
@@ -134,7 +134,7 @@
         '<div class="box small" style="line-height:1.5">Séance à la maison +' + C.XP.seance + ' · club +' + C.XP.club + ' · récup +' + C.XP.recup + ' · semaine parfaite +' + C.XP.bonus + ' · badge ou palier +' + C.XP.badge + ' · record battu +' + C.XP.record + ' · niveau monté +' + C.XP.niveau + '</div></section>' +
         '<div class="sec" style="gap:20px">' + familles + '</div></div></main>';
     });
-  }, { kid: true, nav: 'profil', bg: '#2E2612' });
+  }, { kid: true, nav: 'profil', bg: '#2E2612', live: true });
 
   // ---------- DÉFI (badge) ----------
   var defi = {};
@@ -193,8 +193,9 @@
       if (val === null) return ui.toast('Note ton résultat.', true);
     }
     btn.disabled = true;
-    app.kidCall('submitRecords', { bilan: 'defi', valeurs: [{ test: b.test, valeur: val, extra: extra }] }).then(function () {
+    app.kidCall('submitRecords', { bilan: 'defi', valeurs: [{ test: b.test, valeur: val, extra: extra }], avecDossier: true }).then(function (r) {
       defi = {};
+      if (r.me) { app.setMe(r.me); return r.me; }
       return app.loadMe(true);
     }).then(function () {
       ui.toast('Envoyé ! Un adulte doit confirmer.');
@@ -258,10 +259,11 @@
     var B = L.currentBilan();
     if (!bil) bil = app.lsGet(BIL_KEY);
     if (!bil || bil.n !== B.n || bil.kid !== me.joueur.id) {
-        bil = { n: B.n, kid: me.joueur.id, v: {} };
+        bil = { n: B.n, kid: me.joueur.id, v: {}, date: '' };
         var ex = L.bilanRecords(me.records, B.n);
         Object.keys(ex).forEach(function (tid) {
           var r = ex[tid], td = L.testDef(tid);
+          if (!bil.date && r.date) bil.date = r.date;
           if (td && td.mmss) { bil.v[tid + '_m'] = String(Math.floor(r.valeur / 60)); bil.v[tid + '_s'] = String(Math.round(r.valeur % 60)); }
           else bil.v[tid] = String(r.valeur).replace('.', ',');
           if (r.extra) {
@@ -270,8 +272,25 @@
           }
         });
     }
+    if (!bil.date) {
+      var ex2 = L.bilanRecords(me.records, B.n), k2 = Object.keys(ex2)[0];
+      if (k2 && ex2[k2].date) bil.date = ex2[k2].date;
+    }
     return bil;
   }
+  // date de réalisation du bilan (aujourd'hui par défaut, modifiable)
+  function dateField(id) {
+    var t = L.today();
+    return '<div class="sec" style="gap:6px"><label class="lab" for="' + id + '">' + icon('calendar', 14) + ' Date du bilan : le jour où tu as fait les tests</label>' +
+      '<input id="' + id + '" class="txt" type="date" max="' + t + '" min="' + L.addDays(t, -150) + '" value="' + esc(bil.date || t) + '" data-bildate></div>';
+  }
+  function onBilDate(e) {
+    if (!e.target || !e.target.hasAttribute || !e.target.hasAttribute('data-bildate') || !bil) return;
+    bil.date = e.target.value || '';
+    saveBil();
+  }
+  document.addEventListener('change', onBilDate);
+  document.addEventListener('input', onBilDate);
   app.route('/bilan', function () {
     return app.loadMe().then(function (me) {
       ensureBil(me);
@@ -344,7 +363,7 @@
     return '<main class="screen"><a class="back" href="#/profil">' + icon('left', 18) + 'Mon profil</a>' +
       '<div class="head"><span class="kicker">' + esc(B.nom) + ' · ' + esc(B.quand) + '</span><h1 class="big md">Mon bilan<br>de champion</h1></div>' +
       '<div class="note">' + icon('group', 22) + '<span>Fais les 12 tests avec un adulte à côté, toujours dans le même ordre, 2 min de repos entre deux tests. Tes records entrent au classement quand un adulte les a confirmés. Tes niveaux se mettent à jour tout seuls.</span></div>' +
-      guidedCta() +
+      guidedCta() + dateField('bil_date') +
       (mini ? '<div class="note yellow">' + icon('home', 20) + '<span>Mode mini matériel : les tests 4, 5, 10 et 11 sont en version « SM ».</span></div>' : '') +
       '<div class="sec" style="gap:6px"><div class="between"><span class="hud" id="bil_done">' + done + ' / 12 tests notés</span><span class="hud" style="color:var(--gold)" id="bil_recs">' + recs + ' record' + (recs > 1 ? 's' : '') + '</span></div><div class="xpbar" style="height:8px"><i id="bil_bar" style="width:' + pct + '%"></i></div></div>' +
       '<h2 class="h2" style="margin-bottom:-8px">' + (MC.bilanGuide && MC.bilanGuide.started() ? 'Mes résultats' : 'Ou note tes résultats ici') + '</h2>' +
@@ -406,10 +425,13 @@
     if (btn) btn.disabled = true;
     var newLv = L.levelsFromBilan(vals, me.joueur.niveaux || {});
     var old = me.joueur.niveaux || {};
-    return app.kidCall('submitRecords', { bilan: String(B.n), valeurs: vals }).then(function () {
-      return app.kidCall('updateMe', { niveaux: newLv, journal: [{ type: 'bilan_niveaux', data: { bilan: B.n, niveaux: newLv } }] });
+    var journal = [{ type: 'bilan_niveaux', data: { bilan: B.n, niveaux: newLv } }];
+    // un seul appel : résultats datés + niveaux + profil à jour en retour
+    return app.kidCall('submitRecords', { bilan: String(B.n), valeurs: vals, date: bil.date || L.today(), niveaux: newLv, journal: journal, avecDossier: true }).then(function (r) {
+      if (r.me) return r.me;
+      return app.kidCall('updateMe', { niveaux: newLv, journal: journal }); // serveur pas encore à jour
     }).then(function (res) {
-      app.S.me = res; app.S.stats = L.compute(res); app.S.kid.joueur = res.joueur;
+      app.setMe(res);
       var changes = Object.keys(newLv).filter(function (k) { return (old[k] || 1) !== newLv[k]; });
       var body = '<p class="lead">' + vals.length + ' test' + (vals.length > 1 ? 's' : '') + ' envoyé' + (vals.length > 1 ? 's' : '') + '. Un parent ou ton éduc doit les confirmer.</p>' +
         (changes.length ? '<ul class="list">' + changes.map(function (k) { return '<li class="li"><span class="grow t1">' + esc(C.CLES[k].nom) + '</span>' + ui.lvl(old[k] || 1) + icon('right', 16) + ui.lvl(newLv[k]) + '</li>'; }).join('') + '</ul>' : '<p class="small">Tes niveaux ne changent pas.</p>');
@@ -419,7 +441,7 @@
   }
   // utilisé par le bilan guidé (v-bilan.js)
   MC.bilan = {
-    ensure: ensureBil, save: saveBil, submit: submitBilan,
+    ensure: ensureBil, save: saveBil, submit: submitBilan, dateField: dateField,
     values: function (me) { ensureBil(me); return bilanValues(me); }
   };
 

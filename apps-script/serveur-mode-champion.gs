@@ -357,7 +357,8 @@ var Core = (function () {
       j = find(ctx.db.rows('joueurs'), j.id);
       return {
         token: makeToken(ctx.secret, 'p', j.id, Number(j.pinV || 0), ctx.now + TOKEN_JOUEUR),
-        joueur: pubJoueur(j)
+        joueur: pubJoueur(j),
+        me: j.mustChange ? null : dossier(ctx, j, true)
       };
     }
   };
@@ -373,7 +374,7 @@ var Core = (function () {
       if (req.couleur && /^#[0-9A-Fa-f]{6}$/.test(req.couleur)) patch.couleur = req.couleur;
       ctx.db.update('joueurs', j.id, patch);
       j = find(ctx.db.rows('joueurs'), j.id);
-      return { token: makeToken(ctx.secret, 'p', j.id, Number(j.pinV), ctx.now + TOKEN_JOUEUR), joueur: pubJoueur(j) };
+      return { token: makeToken(ctx.secret, 'p', j.id, Number(j.pinV), ctx.now + TOKEN_JOUEUR), joueur: pubJoueur(j), me: dossier(ctx, j, true) };
     }
   };
 
@@ -397,7 +398,7 @@ var Core = (function () {
       if (details && JSON.stringify(details).length > 20000) fail('invalide', 'Trop de données.');
       var row = { id: genId(ctx.env), joueurId: ctx.auth.id, date: date, type: type, mode: mode, ressenti: ress, details: details, cree: isoNow(ctx.now) };
       ctx.db.insert('seances', row);
-      return { seance: pubSeance(row, true) };
+      return { seance: pubSeance(row, true), me: req.avecDossier ? dossier(ctx, find(ctx.db.rows('joueurs'), ctx.auth.id), true) : null };
     }
   };
 
@@ -423,9 +424,7 @@ var Core = (function () {
     return out;
   }
 
-  A.updateMe = {
-    auth: ['p'],
-    run: function (req, ctx) {
+  function majJoueur(req, ctx) {
       var j = ctx.auth.row, patch = {};
       if (req.niveaux) {
         var cur = j.niveaux || {}, nv = cleanNiveaux(req.niveaux);
@@ -440,7 +439,12 @@ var Core = (function () {
         if (!e || ['niveau', 'niveau_refus', 'bilan_niveaux'].indexOf(e.type) < 0) continue;
         ctx.db.insert('journal', { id: genId(ctx.env), joueurId: j.id, type: e.type, data: e.data || null, date: isoDate(ctx.now), cree: isoNow(ctx.now) });
       }
-      return dossier(ctx, find(ctx.db.rows('joueurs'), j.id), true);
+  }
+  A.updateMe = {
+    auth: ['p'],
+    run: function (req, ctx) {
+      majJoueur(req, ctx);
+      return dossier(ctx, find(ctx.db.rows('joueurs'), ctx.auth.id), true);
     }
   };
 
@@ -449,6 +453,14 @@ var Core = (function () {
     run: function (req, ctx) {
       var bilan = String(req.bilan === undefined ? '' : req.bilan);
       if (!/^(\d|defi)$/.test(bilan)) fail('invalide', 'Bilan inconnu.');
+      // date de réalisation : aujourd'hui par défaut, sinon la date choisie (pas dans le futur, pas plus de 150 jours avant)
+      var date = isoDate(ctx.now);
+      if (req.date !== undefined && req.date !== null && req.date !== '') {
+        if (!validDate(String(req.date))) fail('invalide', 'Date invalide.');
+        var td = Date.parse(req.date + 'T12:00:00');
+        if (td > ctx.now + 2 * DAY || td < ctx.now - 150 * DAY) fail('invalide', 'Date trop éloignée.');
+        date = String(req.date);
+      }
       var vals = Array.isArray(req.valeurs) ? req.valeurs.slice(0, 20) : [];
       var mine = where(ctx.db.rows('records'), 'joueurId', ctx.auth.id), saved = [];
       for (var i = 0; i < vals.length; i++) {
@@ -462,16 +474,26 @@ var Core = (function () {
           for (var k = 0; k < mine.length; k++) if (mine[k].bilan === bilan && mine[k].test === v.test) existing = mine[k];
         }
         if (existing) {
-          if (existing.valeur === n && JSON.stringify(existing.extra || null) === JSON.stringify(extra)) { saved.push(pubRecord(existing)); continue; }
-          ctx.db.update('records', existing.id, { valeur: n, extra: extra, statut: 'attente', parQui: '', date: isoDate(ctx.now) });
+          if (existing.valeur === n && JSON.stringify(existing.extra || null) === JSON.stringify(extra)) {
+            // même résultat : seule la date peut changer, la confirmation est gardée
+            if (existing.date !== date) ctx.db.update('records', existing.id, { date: date });
+            saved.push(pubRecord(find(ctx.db.rows('records'), existing.id)));
+            continue;
+          }
+          ctx.db.update('records', existing.id, { valeur: n, extra: extra, statut: 'attente', parQui: '', date: date });
           saved.push(pubRecord(find(ctx.db.rows('records'), existing.id)));
         } else {
-          var row = { id: genId(ctx.env), joueurId: ctx.auth.id, bilan: bilan, test: String(v.test), valeur: n, extra: extra, statut: 'attente', parQui: '', date: isoDate(ctx.now), cree: isoNow(ctx.now) };
+          var row = { id: genId(ctx.env), joueurId: ctx.auth.id, bilan: bilan, test: String(v.test), valeur: n, extra: extra, statut: 'attente', parQui: '', date: date, cree: isoNow(ctx.now) };
           ctx.db.insert('records', row);
           saved.push(pubRecord(row));
         }
       }
-      return { records: saved };
+      // la date vaut pour tout le bilan : les tests déjà envoyés de ce bilan prennent la nouvelle date
+      if (bilan !== 'defi' && req.date) {
+        mine.forEach(function (r) { if (r.bilan === bilan && r.date !== date) ctx.db.update('records', r.id, { date: date }); });
+      }
+      if (req.niveaux || req.journal) majJoueur(req, ctx);
+      return { records: saved, me: req.avecDossier ? dossier(ctx, find(ctx.db.rows('joueurs'), ctx.auth.id), true) : null };
     }
   };
 
@@ -526,18 +548,20 @@ var Core = (function () {
   A.confirm = {
     auth: ['f', 'e'],
     run: function (req, ctx) {
-      var ids = Array.isArray(req.ids) ? req.ids : [];
-      var statut = req.statut === 'refuse' ? 'refuse' : 'ok';
       var qui = ctx.auth.r === 'e' ? 'Éduc ' + ctx.auth.row.nom : 'Parent';
-      var done = 0;
-      for (var i = 0; i < ids.length; i++) {
-        var r = find(ctx.db.rows('records'), String(ids[i]));
+      var dec = Array.isArray(req.decisions) ? req.decisions.slice(0, 200) : (Array.isArray(req.ids) ? req.ids.map(function (id) { return { id: id, statut: req.statut }; }) : []);
+      var done = 0, ok = 0, refus = 0, out = [];
+      for (var i = 0; i < dec.length; i++) {
+        if (!dec[i]) continue;
+        var statut = dec[i].statut === 'refuse' ? 'refuse' : 'ok';
+        var r = find(ctx.db.rows('records'), String(dec[i].id));
         if (!r) continue;
         kidFor(ctx, r.joueurId);
         ctx.db.update('records', r.id, { statut: statut, parQui: qui });
-        done++;
+        done++; if (statut === 'ok') ok++; else refus++;
+        out.push(pubRecord(find(ctx.db.rows('records'), r.id)));
       }
-      return { faits: done };
+      return { faits: done, confirmes: ok, refuses: refus, records: out };
     }
   };
 
@@ -776,19 +800,39 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Core;
 
 var TABLES = ['joueurs', 'familles', 'educs', 'seances', 'records', 'journal'];
 
+/*
+ * Cache des onglets (CacheService). Lire un onglet de la feuille coûte 0,2 à 0,5 s ;
+ * le cache évite ces lectures d'une demande à l'autre. Toutes les demandes passent sous
+ * le verrou, donc le cache reste juste : une écriture le met à jour à la fin de la demande.
+ * Une modification faite À LA MAIN dans la feuille est vue au plus tard après CACHE_TTL
+ * secondes, ou tout de suite en lançant la fonction viderCache dans l'éditeur.
+ */
+var CACHE_TTL = 1200;      // 20 min
+var CACHE_PART = 24000;    // caractères par morceau (une valeur du cache est limitée à 100 Ko)
+var CACHE_MAX_PARTS = 90;  // au-delà, l'onglet est lu dans la feuille à chaque fois
+
 /** Petit adaptateur : les onglets de la feuille servent de tables. Tout est stocké en texte. */
 function SheetDB_() {
-  this.ss = SpreadsheetApp.getActiveSpreadsheet();
-  this.cache = {};
+  this.ss = null;           // la feuille n'est ouverte que si on en a besoin
+  this.cache = {};          // onglets lus pendant cette demande
+  this.dirty = {};          // onglets modifiés pendant cette demande
   this.props = PropertiesService.getScriptProperties();
+  this.cs = CacheService.getScriptCache();
 }
 SheetDB_.prototype.sheet = function (table) {
+  if (!this.ss) this.ss = SpreadsheetApp.getActiveSpreadsheet();
   var sh = this.ss.getSheetByName(table);
   if (!sh) throw new Error('Onglet « ' + table + ' » introuvable : lance la fonction installer.');
   return sh;
 };
 SheetDB_.prototype.rows = function (table) {
   if (this.cache[table]) return this.cache[table];
+  var out = this.cacheGet_(table);
+  if (!out) { out = this.readSheet_(table); this.cachePut_(table, out); }
+  this.cache[table] = out;
+  return out;
+};
+SheetDB_.prototype.readSheet_ = function (table) {
   var sh = this.sheet(table);
   var n = Core.SCHEMA[table].length;
   var last = sh.getLastRow();
@@ -802,8 +846,38 @@ SheetDB_.prototype.rows = function (table) {
       out.push(o);
     }
   }
-  this.cache[table] = out;
   return out;
+};
+SheetDB_.prototype.cacheGet_ = function (table) {
+  try {
+    var meta = this.cs.get('t:' + table);
+    if (!meta) return null;
+    var n = Number(meta), keys = [], i;
+    for (i = 0; i < n; i++) keys.push('t:' + table + ':' + i);
+    var got = this.cs.getAll(keys), s = '';
+    for (i = 0; i < n; i++) { if (typeof got[keys[i]] !== 'string') return null; s += got[keys[i]]; }
+    return JSON.parse(s);
+  } catch (e) { return null; }
+};
+SheetDB_.prototype.cachePut_ = function (table, rows) {
+  try {
+    var s = JSON.stringify(rows), n = Math.ceil(s.length / CACHE_PART) || 1;
+    if (n > CACHE_MAX_PARTS) { this.cs.remove('t:' + table); return; }
+    var parts = {}, k = 0;
+    for (var i = 0; i < n; i++) {
+      parts['t:' + table + ':' + i] = s.slice(i * CACHE_PART, (i + 1) * CACHE_PART);
+      if (++k === 30 || i === n - 1) { this.cs.putAll(parts, CACHE_TTL); parts = {}; k = 0; }
+    }
+    this.cs.put('t:' + table, String(n), CACHE_TTL);
+  } catch (e) { try { this.cs.remove('t:' + table); } catch (e2) { /* rien */ } }
+};
+/** À la fin de chaque demande : le cache reprend l'état des onglets modifiés. */
+SheetDB_.prototype.flush_ = function () {
+  for (var t in this.dirty) {
+    if (this.cache[t]) this.cachePut_(t, this.cache[t]);
+    else { try { this.cs.remove('t:' + t); } catch (e) { /* rien */ } }
+  }
+  this.dirty = {};
 };
 SheetDB_.prototype.writeRow_ = function (table, rowIndex, obj) {
   var sh = this.sheet(table);
@@ -813,12 +887,14 @@ SheetDB_.prototype.writeRow_ = function (table, rowIndex, obj) {
   rg.setValues([cells]);
 };
 SheetDB_.prototype.insert = function (table, obj) {
+  this.rows(table); // pour que le cache contienne aussi la nouvelle ligne
   var sh = this.sheet(table);
   var rowIndex = Math.max(sh.getLastRow(), 1) + 1;
   this.writeRow_(table, rowIndex, obj);
   var copy = JSON.parse(JSON.stringify(obj));
   copy._row = rowIndex;
-  if (this.cache[table]) this.cache[table].push(copy);
+  this.cache[table].push(copy);
+  this.dirty[table] = true;
 };
 SheetDB_.prototype.update = function (table, id, patch) {
   var rows = this.rows(table);
@@ -826,6 +902,7 @@ SheetDB_.prototype.update = function (table, id, patch) {
     if (rows[i].id === id) {
       for (var k in patch) rows[i][k] = patch[k];
       this.writeRow_(table, rows[i]._row, rows[i]);
+      this.dirty[table] = true;
       return;
     }
   }
@@ -837,6 +914,7 @@ SheetDB_.prototype.remove = function (table, id) {
     if (rows[i].id === id) {
       this.sheet(table).deleteRow(rows[i]._row);
       delete this.cache[table];
+      this.dirty[table] = true;
       return;
     }
   }
@@ -869,9 +947,11 @@ function doPost(e) {
   } catch (err) {
     return json_({ ok: false, error: 'occupe', message: 'Le serveur est occupé, réessaie dans un instant.' });
   }
+  var db = new SheetDB_();
   try {
-    return json_(Core.handle(req, new SheetDB_(), env_()));
+    return json_(Core.handle(req, db, env_()));
   } finally {
+    try { db.flush_(); } catch (err) { /* le cache sera relu depuis la feuille */ }
     lock.releaseLock();
   }
 }
@@ -903,7 +983,10 @@ function installer() {
   if (first && TABLES.indexOf(first.getName()) < 0 && first.getLastRow() === 0) {
     try { ss.deleteSheet(first); } catch (e) { /* on garde l'onglet s'il ne peut pas être supprimé */ }
   }
-  var res = Core.install(new SheetDB_(), env_(), 'Admin');
+  viderCache();
+  var idb = new SheetDB_();
+  var res = Core.install(idb, env_(), 'Admin');
+  idb.flush_();
   if (res.code) {
     Logger.log('✅ Installation terminée.');
     Logger.log('👉 Code administrateur (espace adultes › Je suis éduc) : ' + res.code);
@@ -928,5 +1011,13 @@ function nouveauCodeAdmin() {
     if (!used) break;
   }
   db.update('educs', admins[0].id, { codeHash: Core._hashAdulte(sec, code), codeV: Number(admins[0].codeV || 0) + 1 });
+  db.flush_();
   Logger.log('👉 Nouveau code administrateur pour « ' + admins[0].nom + ' » : ' + code);
+}
+
+/** Après une modification faite à la main dans la feuille : lance cette fonction pour que le site la voie tout de suite. */
+function viderCache() {
+  var cs = CacheService.getScriptCache();
+  TABLES.forEach(function (t) { cs.remove('t:' + t); });
+  Logger.log('Cache vidé : le site relit la feuille.');
 }

@@ -53,10 +53,21 @@
   // ---------- Écran de connexion ----------
   var rosterQuery = '';
   app.route('/connexion', function () {
-    return api.call('roster').then(function (res) {
+    // la liste gardée sur l'appareil s'affiche tout de suite, puis se met à jour
+    if (!app.S.roster) app.S.roster = app.lsGet('mc-roster');
+    var had = !!app.S.roster, before = JSON.stringify(app.S.roster);
+    var fresh = api.call('roster', {}, { silent: had }).then(function (res) {
       app.S.roster = res.joueurs;
-      return paintConnexion();
+      app.lsSet('mc-roster', res.joueurs);
+      return JSON.stringify(res.joueurs) !== before;
     });
+    if (had) {
+      fresh.then(function (changed) {
+        if (changed && location.hash.indexOf('#/connexion') === 0 && !document.querySelector('.modal')) app.rerender();
+      }).catch(function () { });
+      return paintConnexion();
+    }
+    return fresh.then(function () { return paintConnexion(); });
   }, { bg: '#1B2552' });
 
   function kidButton(k) {
@@ -128,6 +139,7 @@
       api.call('login', { joueurId: k.id, pin: v }).then(function (res) {
         close();
         app.setKid({ token: res.token, joueur: res.joueur });
+        if (res.me) app.setMe(res.me);
         if (res.joueur.mustChange) app.go('#/premiere');
         else { app.go('#/semaine'); ui.toast('Salut ' + res.joueur.prenom + ' ! Prêt pour ta mission ?'); }
       }).catch(function (e) {
@@ -193,6 +205,7 @@
       setMsg('Enregistrement…');
       app.kidCall('setPin', { pin: v, couleur: first.couleur }).then(function (res) {
         app.S.kid.token = res.token; app.S.kid.joueur = res.joueur; app.setKid(app.S.kid);
+        if (res.me) app.setMe(res.me);
         first.step = 'done'; app.render();
       }).catch(function (e) { if (pad) { pad.busy = false; pad.val = ''; paintDigits(); setMsg(e.message, true); } });
     } };

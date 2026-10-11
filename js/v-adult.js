@@ -35,10 +35,79 @@
     var val = ui.fmtVal(r.valeur, t.unite, t.decimales);
     if (r.extra && r.extra.g !== undefined) val = 'G ' + r.extra.g + ' s · D ' + r.extra.d + ' s';
     if (r.extra && r.extra.elastique) val += ' (élastique ' + r.extra.elastique + ' : ' + (r.extra.nbElastique || 0) + ')';
-    return '<li class="li" style="flex-wrap:wrap"><span class="grow"><span class="t1">' + (prenom ? esc(prenom.toUpperCase()) + ' · ' : '') + esc(testName(r)) + '</span><span class="t2">' + (r.bilan === 'defi' ? 'Défi' : 'Bilan ' + esc(r.bilan)) + ' · ' + ui.fmtDate(r.date) + '</span></span>' +
-      '<span style="font:700 16px/1 var(--f-hud);color:var(--gold)">' + esc(val) + '</span>' +
-      (withActions ? '<span class="grid2" style="width:100%;gap:6px;margin-top:4px"><button type="button" class="btn green" style="min-height:44px;font-size:12px" data-act="recOk" data-id="' + esc(r.id) + '">Confirmer</button><button type="button" class="btn2 grey sm" style="width:100%" data-act="recNo" data-id="' + esc(r.id) + '">Refuser</button></span>' : '') + '</li>';
+    return '<li class="li" style="flex-wrap:wrap"><span class="grow"><span class="t1">' + (prenom ? esc(prenom.toUpperCase()) + ' · ' : '') + esc(testName(r)) + '</span><span class="t2">' + (r.bilan === 'defi' ? 'Défi' : 'Bilan ' + esc(r.bilan)) + ' · ' + ui.fmtDate(r.date) + (r.statut === 'refuse' ? ' · <b style="color:var(--red)">refusé</b>' + (r.parQui ? ' par ' + esc(r.parQui) : '') : '') + '</span></span>' +
+      '<span style="font:700 16px/1 var(--f-hud);color:' + (r.statut === 'refuse' ? 'var(--dim)' : 'var(--gold)') + '">' + esc(val) + '</span>' +
+      (withActions ? decBtns(r) : '') + '</li>';
   }
+
+  // ---------- Confirmer / refuser : on choisit d'abord (ça s'allume), puis on valide tout d'un coup ----------
+  var dec = {}; // id du résultat → 'ok' | 'refuse' (choix pas encore envoyés)
+  function decBtns(r) {
+    var d = dec[r.id] || '', refused = r.statut === 'refuse';
+    return '<span class="decis" data-rid="' + esc(r.id) + '">' +
+      '<button type="button" class="dbtn dok' + (d === 'ok' ? ' on' : '') + '" aria-pressed="' + (d === 'ok') + '" data-act="decide" data-v="ok" data-id="' + esc(r.id) + '">' + icon('check', 16) + (refused ? ' Rétablir (confirmer)' : ' Confirmer') + '</button>' +
+      (refused ? '' : '<button type="button" class="dbtn dno' + (d === 'refuse' ? ' on' : '') + '" aria-pressed="' + (d === 'refuse') + '" data-act="decide" data-v="refuse" data-id="' + esc(r.id) + '">' + icon('x', 16) + ' Refuser</button>') + '</span>';
+  }
+  function decBar() {
+    var n = Object.keys(dec).length;
+    return '<div class="decbar" id="decbar"' + (n ? '' : ' hidden') + '><span class="decn" id="decn">' + decCount() + '</span>' +
+      '<button type="button" class="btn2 sm grey" data-act="decCancel">Annuler</button><button type="button" class="btn sm" data-act="decSend">' + icon('check', 18) + ' Valider mes choix</button></div>';
+  }
+  function decCount() {
+    var ok = 0, no = 0;
+    Object.keys(dec).forEach(function (k) { if (dec[k] === 'ok') ok++; else no++; });
+    return [ok ? ok + ' à confirmer' : '', no ? no + ' à refuser' : ''].filter(Boolean).join(' · ');
+  }
+  function updDec() {
+    Array.prototype.forEach.call(document.querySelectorAll('.decis[data-rid]'), function (sp) {
+      var d = dec[sp.getAttribute('data-rid')] || '';
+      Array.prototype.forEach.call(sp.querySelectorAll('[data-act="decide"]'), function (b) {
+        var on = b.getAttribute('data-v') === d;
+        b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on));
+      });
+    });
+    var bar = document.getElementById('decbar'), n = Object.keys(dec).length;
+    if (bar) { bar.hidden = !n; document.getElementById('decn').textContent = decCount(); }
+    document.body.classList.toggle('dec-open', !!n);
+  }
+  MC.act.decide = function (b) {
+    var id = b.getAttribute('data-id'), v = b.getAttribute('data-v');
+    if (dec[id] === v) delete dec[id]; else dec[id] = v;
+    updDec();
+  };
+  MC.act.decAll = function (b) { b.getAttribute('data-ids').split(',').forEach(function (id) { if (id) dec[id] = 'ok'; }); updDec(); };
+  MC.act.decCancel = function () { dec = {}; updDec(); };
+  // les résultats renvoyés par le serveur remplacent ceux gardés en mémoire (pas besoin de tout recharger)
+  function patchRecords(recs) {
+    var byId = {};
+    recs.forEach(function (r) { byId[r.id] = r; });
+    function fix(list) { (list || []).forEach(function (r, i) { if (byId[r.id]) list[i] = byId[r.id]; }); }
+    var c = app.S.cache, tok = app.S.adult && app.S.adult.token;
+    if (c.family) { c.family.enfants.forEach(function (e) { fix(e.records); }); app.lsSet('mc-fam', { tok: tok, data: c.family }); }
+    if (c.group) { c.group.joueurs.forEach(function (p) { fix(p.records); }); app.lsSet('mc-group', { tok: tok, data: c.group }); }
+    if (c.kid) fix(c.kid.records);
+  }
+  MC.act.decSend = function (b) {
+    var list = Object.keys(dec).map(function (id) { return { id: id, statut: dec[id] }; });
+    if (!list.length) return;
+    b.disabled = true;
+    app.adultCall('confirm', { decisions: list }).then(function (r) {
+      if (r.records) return r;
+      // serveur pas encore à jour : ancien format, un appel par sorte de choix
+      var ok = list.filter(function (x) { return x.statut === 'ok'; }).map(function (x) { return x.id; });
+      var no = list.filter(function (x) { return x.statut === 'refuse'; }).map(function (x) { return x.id; });
+      return (ok.length ? app.adultCall('confirm', { ids: ok, statut: 'ok' }) : Promise.resolve()).then(function () {
+        return no.length ? app.adultCall('confirm', { ids: no, statut: 'refuse' }) : null;
+      }).then(function () { app.S.cache = {}; app.lsSet('mc-fam', null); app.lsSet('mc-group', null); return { confirmes: ok.length, refuses: no.length, records: [] }; });
+    }).then(function (r) {
+      patchRecords(r.records || []);
+      dec = {};
+      document.body.classList.remove('dec-open');
+      ui.toast([r.confirmes ? r.confirmes + ' confirmé' + (r.confirmes > 1 ? 's' : '') : '', r.refuses ? r.refuses + ' refusé' + (r.refuses > 1 ? 's' : '') : ''].filter(Boolean).join(' · ') || 'Enregistré');
+      app.rerender();
+    }).catch(function (e) { b.disabled = false; ui.toast(e.message, true); });
+  };
+  document.addEventListener('hashchange', function () { if (!/^#\/(parent|educ)/.test(location.hash)) { dec = {}; document.body.classList.remove('dec-open'); } });
 
   // ---------- résumé d'un enfant (parent et éduc) ----------
   function kidSummary(d, opts) {
@@ -63,9 +132,12 @@
       return '<li class="li"><span class="dia" style="--dc:' + (j.color || '#888') + '"></span><span class="grow"><span class="t1">' + esc(j.nomSeance || s.type) + '</span><span class="t2">' + ui.fmtDate(s.date) + ' · ' + esc(info) + '</span></span></li>';
     }).join('') + '</ul>' : '<div class="empty">Aucune séance notée pour l\'instant.</div>';
     var pending = (d.records || []).filter(function (r) { return r.statut === 'attente'; });
-    var pendHtml = pending.length ? '<section class="note pink" style="flex-direction:column;gap:10px"><div><div class="hud" style="color:var(--pink)">' + pending.length + ' résultat' + (pending.length > 1 ? 's' : '') + ' à confirmer</div><div class="small" style="color:var(--soft);margin-top:4px">' + esc(k.prenom) + ' les a notés. Vous étiez là ? Confirmez-les pour qu\'ils comptent (records, badges, classement).</div></div>' +
+    var refused = (d.records || []).filter(function (r) { return r.statut === 'refuse'; }).sort(function (a, b) { return a.date < b.date ? 1 : -1; }).slice(0, 12);
+    var pendHtml = pending.length ? '<section class="note pink" style="flex-direction:column;gap:10px"><div><div class="hud" style="color:var(--pink)">' + pending.length + ' résultat' + (pending.length > 1 ? 's' : '') + ' à confirmer</div><div class="small" style="color:var(--soft);margin-top:4px">' + esc(k.prenom) + ' les a notés. Vous étiez là ? Choisissez <b>Confirmer</b> ou <b>Refuser</b> pour chacun (vous pouvez changer d\'avis), puis touchez <b>Valider mes choix</b>.</div></div>' +
       '<ul class="list" style="width:100%">' + pending.map(function (r) { return recLine(r, '', true); }).join('') + '</ul>' +
-      (pending.length > 1 ? '<button type="button" class="btn pink" data-act="recAll" data-ids="' + esc(pending.map(function (r) { return r.id; }).join(',')) + '">Tout confirmer</button>' : '') + '</section>' : '';
+      (pending.length > 1 ? '<button type="button" class="btn2 pink" data-act="decAll" data-ids="' + esc(pending.map(function (r) { return r.id; }).join(',')) + '">' + icon('check', 16) + ' Tout confirmer</button>' : '') + '</section>' : '';
+    if (refused.length) pendHtml += '<details class="note" style="flex-direction:column;gap:8px;display:block"><summary style="cursor:pointer;min-height:32px"><span class="hud" style="color:var(--muted)">' + refused.length + ' résultat' + (refused.length > 1 ? 's' : '') + ' refusé' + (refused.length > 1 ? 's' : '') + '</span> <span class="small">· refusé par erreur ? Rétablissez-le.</span></summary>' +
+      '<ul class="list" style="width:100%;margin-top:8px">' + refused.map(function (r) { return recLine(r, '', true); }).join('') + '</ul></details>';
     var niv = k.niveaux || {};
     var levels = '<ul class="list">' + C.FAMILLES.map(function (f) {
       return f.cles.map(function (cle) {
@@ -81,16 +153,6 @@
     return { tiles: tiles, week: '<div class="grid4" style="grid-template-columns:repeat(7,minmax(0,1fr));gap:5px">' + days + '</div>', last: lastHtml, pending: pendHtml, levels: levels, recs: '<div class="recgrid">' + recs + '</div>', st: st };
   }
 
-  function confirmIds(ids, statut) {
-    return app.adultCall('confirm', { ids: ids, statut: statut }).then(function (r) {
-      app.S.cache = {};
-      ui.toast(statut === 'ok' ? (r.faits > 1 ? r.faits + ' résultats confirmés' : 'Résultat confirmé') : 'Résultat refusé');
-      app.rerender();
-    }).catch(function (e) { ui.toast(e.message, true); });
-  }
-  MC.act.recOk = function (b) { b.disabled = true; confirmIds([b.getAttribute('data-id')], 'ok'); };
-  MC.act.recNo = function (b) { b.disabled = true; confirmIds([b.getAttribute('data-id')], 'refuse'); };
-  MC.act.recAll = function (b) { b.disabled = true; confirmIds(b.getAttribute('data-ids').split(','), 'ok'); };
   MC.act.adultLogout = function () {
     ui.modal({ title: 'Se déconnecter ?', body: '<p class="lead">Il faudra retaper le code sur cet appareil.</p>', actions: [{ label: 'Se déconnecter', value: true, cls: 'btn pink' }, { label: 'Annuler', value: false, cls: 'btn2 grey' }] }).then(function (ok) {
       if (ok) { app.setAdult(null); app.go('#/adultes'); }
@@ -106,16 +168,26 @@
       }).catch(function (e) { ui.toast(e.message, true); });
     });
   };
+  // modifie un joueur dans les données gardées (famille, vestiaire, fiche) sans tout recharger
+  function patchKid(id, fn) {
+    var c = app.S.cache, tok = app.S.adult && app.S.adult.token;
+    if (c.family) { c.family.enfants.forEach(function (e) { if (e.joueur.id === id) fn(e.joueur); }); app.lsSet('mc-fam', { tok: tok, data: c.family }); }
+    if (c.group) { c.group.joueurs.forEach(function (p) { if (p.joueur.id === id) fn(p.joueur); }); app.lsSet('mc-group', { tok: tok, data: c.group }); }
+    if (c.kid && c.kid.joueur.id === id) fn(c.kid.joueur);
+  }
   MC.act.kidVisible = function (b) {
-    var on = b.getAttribute('aria-checked') !== 'true';
-    app.adultCall('setVisible', { joueurId: b.getAttribute('data-id'), visible: on }).then(function () { app.S.cache = {}; app.rerender(); }).catch(function (e) { ui.toast(e.message, true); });
+    var on = b.getAttribute('aria-checked') !== 'true', id = b.getAttribute('data-id');
+    app.adultCall('setVisible', { joueurId: id, visible: on }).then(function () { patchKid(id, function (j) { j.visible = on; }); app.rerender(); }).catch(function (e) { ui.toast(e.message, true); });
   };
 
   // ---------- PARENT ----------
   var parentSel = null;
   app.route('/parent', function () {
     var a = app.S.adult;
-    var p = app.S.cache.family ? Promise.resolve(app.S.cache.family) : app.adultCall('family').then(function (r) { app.S.cache.family = r; return r; });
+    var p = app.S.cache.family ? Promise.resolve(app.S.cache.family) : app.swr('mc-fam', 'family', {}, function (res) {
+      app.S.cache.family = res;
+      if (location.hash.indexOf('#/parent') === 0 && !Object.keys(dec).length) app.rerender();
+    }).then(function (r) { app.S.cache.family = r; return r; });
     return p.then(function (fam) {
       var kids = fam.enfants;
       if (!kids.length) return '<main class="screen nonav"><div class="head"><span class="kicker">Espace parent</span><h1 class="big md">' + esc(fam.famille.nom) + '</h1></div><div class="empty">Aucun enfant rattaché à ce code. Demandez à l\'éducateur.</div><button class="btn2 grey" data-act="adultLogout">Se déconnecter</button></main>';
@@ -139,7 +211,7 @@
         '<button type="button" class="switch" data-act="kidCode" data-id="' + esc(k.id) + '" data-p="' + esc(k.prenom) + '"><span><span class="t1" style="display:block">Nouveau code secret pour ' + esc(k.prenom) + '</span><span class="t2" style="display:block">S\'il a oublié le sien</span></span>' + icon('right', 18) + '</button>' +
         '</section></div></div>' +
         '<div class="note">' + icon('info', 20) + '<span>Le programme est fait pour 9-11 ans : poids du corps, pas de charge. Une douleur qui revient (talon, genou) = pause des sauts et avis médical. Le vendredi reste un jour de repos.</span></div>' +
-        '</main>';
+        decBar() + '</main>';
     });
   }, { adult: 'f', bg: '#16223F' });
   MC.act.parentKid = function (b) { parentSel = b.getAttribute('data-id'); app.rerender(); };
@@ -148,8 +220,14 @@
   var edFilter = 'all', edQ = '';
   function loadGroup(force) {
     if (app.S.cache.group && !force) return Promise.resolve(app.S.cache.group);
-    return app.adultCall('group').then(function (r) { app.S.cache.group = r; return r; });
+    if (force) return app.adultCall('group').then(function (r) { app.S.cache.group = r; app.lsSet('mc-group', { tok: app.S.adult.token, data: r }); return r; });
+    return app.swr('mc-group', 'group', {}, function (res) {
+      app.S.cache.group = res;
+      if (/^#\/educ/.test(location.hash) && !Object.keys(dec).length && !document.querySelector('.modal')) app.rerender();
+    }).then(function (r) { app.S.cache.group = r; return r; });
   }
+  // après une modification : on oublie le groupe gardé (sinon on reverrait l'ancien état un instant)
+  function dropGroup() { app.S.cache.group = null; app.lsSet('mc-group', null); }
   app.route('/educ', function () {
     return loadGroup().then(function (g) { return paintEduc(g); });
   }, { adult: 'e', bg: '#16223F' });
@@ -184,7 +262,7 @@
       '<div class="tile" style="border-color:rgba(255,138,61,.5);background:rgba(255,138,61,.08)"><span class="v" style="color:var(--orange)">' + late.length + '</span><span class="l" style="text-transform:none;font-family:var(--f-body);letter-spacing:0;font-size:12px">rien depuis 7 jours</span></div></div>' +
       '<div class="cols2"><div class="sec" style="gap:20px">' +
       '<section class="sec"><div class="between"><h2 class="h2">Résultats à valider</h2><span class="hud" style="color:var(--pink)">' + pending.length + '</span></div>' +
-      (pending.length ? '<ul class="list">' + pend + '</ul>' + (pending.length > 1 ? '<button type="button" class="btn pink" data-act="recAll" data-ids="' + esc(pending.map(function (x) { return x.r.id; }).join(',')) + '">Tout valider (' + pending.length + ')</button>' : '') : '<div class="empty">Tout est validé. Bravo !</div>') + '</section>' +
+      (pending.length ? '<p class="small" style="margin:0">Choisissez Confirmer ou Refuser (vous pouvez changer d\'avis), puis <b>Valider mes choix</b> en bas.</p><ul class="list">' + pend + '</ul>' + (pending.length > 1 ? '<button type="button" class="btn2 pink" data-act="decAll" data-ids="' + esc(pending.map(function (x) { return x.r.id; }).join(',')) + '">' + icon('check', 16) + ' Tout confirmer (' + pending.length + ')</button>' : '') : '<div class="empty">Tout est validé. Bravo !</div>') + '</section>' +
       '<section class="sec"><h2 class="h2">Outils</h2>' +
       '<a class="switch" href="#/educ/ajouter" style="text-decoration:none">' + '<span class="row">' + icon('plus', 20, 'style="color:var(--cyan)"') + '<span class="t1">Ajouter un joueur</span></span>' + icon('right', 16) + '</a>' +
       '<a class="switch" href="#/educ/familles" style="text-decoration:none"><span class="row">' + icon('key', 20, 'style="color:var(--cyan)"') + '<span class="t1">Familles et codes parents</span></span>' + icon('right', 16) + '</a>' +
@@ -194,7 +272,7 @@
       '<section class="sec"><div class="between"><h2 class="h2">Les joueurs</h2><span class="small">' + players.length + '</span></div>' +
       '<label class="sr-only" for="edq">Chercher un joueur</label><input id="edq" class="search" type="search" placeholder="Chercher un prénom…" value="' + esc(edQ) + '">' +
       '<div class="grid2"><button type="button" class="opt' + (edFilter === 'all' ? ' on' : '') + '" data-act="edFilter" data-v="all">Tous · ' + players.length + '</button><button type="button" class="opt' + (edFilter === 'late' ? ' on' : '') + '" style="--oc:var(--orange)" data-act="edFilter" data-v="late">À relancer · ' + late.length + '</button></div>' +
-      '<ul class="list" id="edlist">' + (rows || '<li class="empty">Personne.</li>') + '</ul></section></div></main>';
+      '<ul class="list" id="edlist">' + (rows || '<li class="empty">Personne.</li>') + '</ul></section></div>' + decBar() + '</main>';
   }
   MC.act.edFilter = function (b) { edFilter = b.getAttribute('data-v'); app.rerender(); };
   var edTimer = null;
@@ -222,9 +300,19 @@
 
   // ---------- ÉDUC : un joueur ----------
   app.route('/educ/joueur/:id', function (p) {
-    return app.adultCall('kid', { joueurId: p.id }).then(function (d) {
-      app.S.cache.kid = d;
-      return loadGroup().then(function (g) {
+    return loadGroup().then(function (g) {
+      var c = app.S.cache.kid;
+      if (c && c.joueur.id === p.id) return paintKid(c, g);
+      var quick = g.joueurs.filter(function (x) { return x.joueur.id === p.id; })[0];
+      var full = MC.api.call('kid', { token: app.S.adult.token, joueurId: p.id }, { silent: !!quick }).then(function (d) { app.S.cache.kid = d; return d; });
+      if (quick) {
+        full.then(function () { if (location.hash === '#/educ/joueur/' + p.id) app.rerender(); }).catch(function () { });
+        return paintKid(quick, g);
+      }
+      return full.then(function (d) { return paintKid(d, g); });
+    });
+  }, { adult: 'e', bg: '#16223F' });
+  function paintKid(d, g) {
         var k = d.joueur, S = kidSummary(d, { editLevels: true });
         var fam = g.familles.filter(function (f) { return f.id === k.familleId; })[0];
         return '<main class="screen nonav"><a class="back" href="#/educ">' + icon('left', 18) + 'Le vestiaire</a>' +
@@ -239,22 +327,23 @@
           '<button type="button" class="switch" role="switch" aria-checked="' + !!k.visible + '" data-act="kidVisible" data-id="' + esc(k.id) + '"><span><span class="t1" style="display:block">Visible au classement</span><span class="t2" style="display:block">Les parents peuvent aussi le régler</span></span><span class="k"></span></button>' +
           '<label class="lab" for="kfam">Famille</label><select id="kfam" class="txt" data-act-change="kidFamily" data-id="' + esc(k.id) + '">' + g.familles.map(function (f) { return '<option value="' + esc(f.id) + '"' + (f.id === k.familleId ? ' selected' : '') + '>' + esc(f.nom) + '</option>'; }).join('') + '</select>' +
           '<button type="button" class="btn2 ' + (k.actif ? 'grey' : '') + '" data-act="kidActive" data-id="' + esc(k.id) + '" data-on="' + (k.actif ? 0 : 1) + '">' + (k.actif ? 'Désactiver (a quitté le groupe)' : 'Réactiver') + '</button>' +
-          '</section></div></div></main>';
-      });
-    });
-  }, { adult: 'e', bg: '#16223F' });
+          '</section></div></div>' + decBar() + '</main>';
+  }
   MC.act.edLevel = function (b) {
-    var d = app.S.cache.kid, cle = b.getAttribute('data-cle'), v = Number(b.getAttribute('data-v')), nv = {};
+    var id = app.current().params.id, cle = b.getAttribute('data-cle'), v = Number(b.getAttribute('data-v')), nv = {};
     nv[cle] = v;
-    app.adultCall('updatePlayer', { joueurId: d.joueur.id, niveaux: nv }).then(function () { app.S.cache.group = null; ui.toast(C.CLES[cle].nom + ' : N' + v); app.rerender(); }).catch(function (e) { ui.toast(e.message, true); });
+    app.adultCall('updatePlayer', { joueurId: id, niveaux: nv }).then(function () {
+      patchKid(id, function (j) { j.niveaux = j.niveaux || {}; j.niveaux[cle] = v; });
+      ui.toast(C.CLES[cle].nom + ' : N' + v); app.rerender();
+    }).catch(function (e) { ui.toast(e.message, true); });
   };
   MC.act.kidActive = function (b) {
     var on = b.getAttribute('data-on') === '1';
-    app.adultCall('updatePlayer', { joueurId: b.getAttribute('data-id'), actif: on }).then(function () { app.S.cache.group = null; ui.toast(on ? 'Joueur réactivé' : 'Joueur désactivé (il n\'apparaît plus)'); app.rerender(); }).catch(function (e) { ui.toast(e.message, true); });
+    app.adultCall('updatePlayer', { joueurId: b.getAttribute('data-id'), actif: on }).then(function () { patchKid(b.getAttribute('data-id'), function (j) { j.actif = on; }); ui.toast(on ? 'Joueur réactivé' : 'Joueur désactivé (il n\'apparaît plus)'); app.rerender(); }).catch(function (e) { ui.toast(e.message, true); });
   };
   document.addEventListener('change', function (e) {
     if (e.target && e.target.getAttribute && e.target.getAttribute('data-act-change') === 'kidFamily') {
-      app.adultCall('updatePlayer', { joueurId: e.target.getAttribute('data-id'), familleId: e.target.value }).then(function () { app.S.cache.group = null; ui.toast('Famille changée'); }).catch(function (er) { ui.toast(er.message, true); });
+      app.adultCall('updatePlayer', { joueurId: e.target.getAttribute('data-id'), familleId: e.target.value }).then(function () { dropGroup(); ui.toast('Famille changée'); }).catch(function (er) { ui.toast(er.message, true); });
     }
   });
 
@@ -279,7 +368,7 @@
     var p = { prenom: add.prenom };
     if (add.fam === 'new') p.familleNom = add.famNom; else p.familleId = add.fam;
     app.adultCall('addPlayer', p).then(function (r) {
-      app.S.cache.group = null;
+      dropGroup();
       add = { prenom: '', fam: 'new', famNom: '' };
       var lines = ['Code provisoire de ' + esc(r.joueur.prenom) + ' (1re connexion, 45 jours) : il choisira ensuite son propre code.'];
       var text = 'Mode champion M12 · Bienvenue ' + r.joueur.prenom + ' ! Site : ' + siteUrl() + ' — touche ton prénom et tape ton code provisoire : ' + r.code + '.';

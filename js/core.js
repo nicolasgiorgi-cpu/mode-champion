@@ -354,7 +354,8 @@ var Core = (function () {
       j = find(ctx.db.rows('joueurs'), j.id);
       return {
         token: makeToken(ctx.secret, 'p', j.id, Number(j.pinV || 0), ctx.now + TOKEN_JOUEUR),
-        joueur: pubJoueur(j)
+        joueur: pubJoueur(j),
+        me: j.mustChange ? null : dossier(ctx, j, true)
       };
     }
   };
@@ -370,7 +371,7 @@ var Core = (function () {
       if (req.couleur && /^#[0-9A-Fa-f]{6}$/.test(req.couleur)) patch.couleur = req.couleur;
       ctx.db.update('joueurs', j.id, patch);
       j = find(ctx.db.rows('joueurs'), j.id);
-      return { token: makeToken(ctx.secret, 'p', j.id, Number(j.pinV), ctx.now + TOKEN_JOUEUR), joueur: pubJoueur(j) };
+      return { token: makeToken(ctx.secret, 'p', j.id, Number(j.pinV), ctx.now + TOKEN_JOUEUR), joueur: pubJoueur(j), me: dossier(ctx, j, true) };
     }
   };
 
@@ -394,7 +395,7 @@ var Core = (function () {
       if (details && JSON.stringify(details).length > 20000) fail('invalide', 'Trop de données.');
       var row = { id: genId(ctx.env), joueurId: ctx.auth.id, date: date, type: type, mode: mode, ressenti: ress, details: details, cree: isoNow(ctx.now) };
       ctx.db.insert('seances', row);
-      return { seance: pubSeance(row, true) };
+      return { seance: pubSeance(row, true), me: req.avecDossier ? dossier(ctx, find(ctx.db.rows('joueurs'), ctx.auth.id), true) : null };
     }
   };
 
@@ -420,9 +421,7 @@ var Core = (function () {
     return out;
   }
 
-  A.updateMe = {
-    auth: ['p'],
-    run: function (req, ctx) {
+  function majJoueur(req, ctx) {
       var j = ctx.auth.row, patch = {};
       if (req.niveaux) {
         var cur = j.niveaux || {}, nv = cleanNiveaux(req.niveaux);
@@ -437,7 +436,12 @@ var Core = (function () {
         if (!e || ['niveau', 'niveau_refus', 'bilan_niveaux'].indexOf(e.type) < 0) continue;
         ctx.db.insert('journal', { id: genId(ctx.env), joueurId: j.id, type: e.type, data: e.data || null, date: isoDate(ctx.now), cree: isoNow(ctx.now) });
       }
-      return dossier(ctx, find(ctx.db.rows('joueurs'), j.id), true);
+  }
+  A.updateMe = {
+    auth: ['p'],
+    run: function (req, ctx) {
+      majJoueur(req, ctx);
+      return dossier(ctx, find(ctx.db.rows('joueurs'), ctx.auth.id), true);
     }
   };
 
@@ -446,6 +450,14 @@ var Core = (function () {
     run: function (req, ctx) {
       var bilan = String(req.bilan === undefined ? '' : req.bilan);
       if (!/^(\d|defi)$/.test(bilan)) fail('invalide', 'Bilan inconnu.');
+      // date de réalisation : aujourd'hui par défaut, sinon la date choisie (pas dans le futur, pas plus de 150 jours avant)
+      var date = isoDate(ctx.now);
+      if (req.date !== undefined && req.date !== null && req.date !== '') {
+        if (!validDate(String(req.date))) fail('invalide', 'Date invalide.');
+        var td = Date.parse(req.date + 'T12:00:00');
+        if (td > ctx.now + 2 * DAY || td < ctx.now - 150 * DAY) fail('invalide', 'Date trop éloignée.');
+        date = String(req.date);
+      }
       var vals = Array.isArray(req.valeurs) ? req.valeurs.slice(0, 20) : [];
       var mine = where(ctx.db.rows('records'), 'joueurId', ctx.auth.id), saved = [];
       for (var i = 0; i < vals.length; i++) {
@@ -459,16 +471,26 @@ var Core = (function () {
           for (var k = 0; k < mine.length; k++) if (mine[k].bilan === bilan && mine[k].test === v.test) existing = mine[k];
         }
         if (existing) {
-          if (existing.valeur === n && JSON.stringify(existing.extra || null) === JSON.stringify(extra)) { saved.push(pubRecord(existing)); continue; }
-          ctx.db.update('records', existing.id, { valeur: n, extra: extra, statut: 'attente', parQui: '', date: isoDate(ctx.now) });
+          if (existing.valeur === n && JSON.stringify(existing.extra || null) === JSON.stringify(extra)) {
+            // même résultat : seule la date peut changer, la confirmation est gardée
+            if (existing.date !== date) ctx.db.update('records', existing.id, { date: date });
+            saved.push(pubRecord(find(ctx.db.rows('records'), existing.id)));
+            continue;
+          }
+          ctx.db.update('records', existing.id, { valeur: n, extra: extra, statut: 'attente', parQui: '', date: date });
           saved.push(pubRecord(find(ctx.db.rows('records'), existing.id)));
         } else {
-          var row = { id: genId(ctx.env), joueurId: ctx.auth.id, bilan: bilan, test: String(v.test), valeur: n, extra: extra, statut: 'attente', parQui: '', date: isoDate(ctx.now), cree: isoNow(ctx.now) };
+          var row = { id: genId(ctx.env), joueurId: ctx.auth.id, bilan: bilan, test: String(v.test), valeur: n, extra: extra, statut: 'attente', parQui: '', date: date, cree: isoNow(ctx.now) };
           ctx.db.insert('records', row);
           saved.push(pubRecord(row));
         }
       }
-      return { records: saved };
+      // la date vaut pour tout le bilan : les tests déjà envoyés de ce bilan prennent la nouvelle date
+      if (bilan !== 'defi' && req.date) {
+        mine.forEach(function (r) { if (r.bilan === bilan && r.date !== date) ctx.db.update('records', r.id, { date: date }); });
+      }
+      if (req.niveaux || req.journal) majJoueur(req, ctx);
+      return { records: saved, me: req.avecDossier ? dossier(ctx, find(ctx.db.rows('joueurs'), ctx.auth.id), true) : null };
     }
   };
 
@@ -523,18 +545,20 @@ var Core = (function () {
   A.confirm = {
     auth: ['f', 'e'],
     run: function (req, ctx) {
-      var ids = Array.isArray(req.ids) ? req.ids : [];
-      var statut = req.statut === 'refuse' ? 'refuse' : 'ok';
       var qui = ctx.auth.r === 'e' ? 'Éduc ' + ctx.auth.row.nom : 'Parent';
-      var done = 0;
-      for (var i = 0; i < ids.length; i++) {
-        var r = find(ctx.db.rows('records'), String(ids[i]));
+      var dec = Array.isArray(req.decisions) ? req.decisions.slice(0, 200) : (Array.isArray(req.ids) ? req.ids.map(function (id) { return { id: id, statut: req.statut }; }) : []);
+      var done = 0, ok = 0, refus = 0, out = [];
+      for (var i = 0; i < dec.length; i++) {
+        if (!dec[i]) continue;
+        var statut = dec[i].statut === 'refuse' ? 'refuse' : 'ok';
+        var r = find(ctx.db.rows('records'), String(dec[i].id));
         if (!r) continue;
         kidFor(ctx, r.joueurId);
         ctx.db.update('records', r.id, { statut: statut, parQui: qui });
-        done++;
+        done++; if (statut === 'ok') ok++; else refus++;
+        out.push(pubRecord(find(ctx.db.rows('records'), r.id)));
       }
-      return { faits: done };
+      return { faits: done, confirmes: ok, refuses: refus, records: out };
     }
   };
 

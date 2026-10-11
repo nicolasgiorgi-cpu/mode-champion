@@ -361,6 +361,26 @@ label.lab{font:600 11px/1.2 var(--f-hud);letter-spacing:.14em;color:var(--dim);t
 .minitimer{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;background:#0C1120;border:1px solid var(--line)}
 .minitimer .t{font:700 34px/1 var(--f-hud);color:var(--rc,var(--green))}
 .next{text-align:center;font:600 12px/1.3 var(--f-hud);letter-spacing:.1em;color:var(--dim);text-transform:uppercase}
+/* activité réseau : barre en haut + bouton occupé */
+html.net-busy::before{content:'';position:fixed;top:0;left:0;right:0;height:3px;z-index:100;background:linear-gradient(90deg,transparent,var(--cyan),var(--pink),transparent) no-repeat;background-size:45% 100%;animation:netbar 1.1s linear infinite;pointer-events:none}
+@keyframes netbar{from{background-position:-60% 0}to{background-position:160% 0}}
+.busy{position:relative;pointer-events:none;opacity:.8}
+.busy::after{content:'';position:absolute;right:14px;top:50%;width:16px;height:16px;margin-top:-8px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* confirmer / refuser puis valider */
+.decis{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px}
+.decis .dbtn{min-height:46px;display:flex;align-items:center;justify-content:center;gap:6px;background:transparent;border:1.5px solid var(--line2);color:var(--soft);font:700 12px/1.1 var(--f-hud);letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
+.decis .dbtn:only-child{grid-column:1/-1}
+.decis .dok.on{background:var(--green);border-color:var(--green);color:#070A12;box-shadow:0 0 14px rgba(61,255,176,.35)}
+.decis .dno.on{background:var(--red);border-color:var(--red);color:#fff;box-shadow:0 0 14px rgba(255,79,109,.35)}
+.decbar{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;align-items:center;gap:10px;padding:10px 16px calc(10px + var(--safe-b));background:rgba(10,15,31,.97);border-top:1px solid var(--line2);box-shadow:0 -10px 30px rgba(0,0,0,.5)}
+.decbar[hidden]{display:none}
+.decbar{flex-wrap:wrap}
+.decbar .decn{flex:1 1 100%;min-width:0;font:700 12px/1.25 var(--f-hud);letter-spacing:.06em;color:var(--ink);text-transform:uppercase}
+.decbar .btn{flex:1}
+.decbar .btn{width:auto;min-height:48px;padding:0 16px;font-size:13px}
+.decbar .btn2{min-height:48px}
+body.dec-open .screen{padding-bottom:150px}
 /* guide « Comment ça marche ? » */
 .gtabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;border:1px solid var(--line2);padding:4px}
 .gtabs .opt{min-height:44px}

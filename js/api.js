@@ -52,8 +52,38 @@ MC.api = (function () {
   }
   function resetDemo() { mem = null; try { localStorage.removeItem(KEY); } catch (e) { } load(); }
 
+  // ----- indicateur d'activité : barre en haut de l'écran + bouton touché « occupé » -----
+  var inflight = 0, lastBtn = null, lastBtnAt = 0, busyBtns = [];
+  document.addEventListener('click', function (e) {
+    var b = e.target && e.target.closest && e.target.closest('button, .btn, .btn2');
+    if (b) { lastBtn = b; lastBtnAt = Date.now(); }
+  }, true);
+  function netStart(silent) {
+    if (silent) return;
+    inflight++;
+    document.documentElement.classList.add('net-busy');
+    if (lastBtn && Date.now() - lastBtnAt < 600 && document.body.contains(lastBtn)) {
+      lastBtn.classList.add('busy'); lastBtn.setAttribute('aria-busy', 'true'); busyBtns.push(lastBtn);
+    }
+    lastBtn = null;
+  }
+  function netEnd(silent) {
+    if (silent) return;
+    inflight = Math.max(0, inflight - 1);
+    if (inflight) return;
+    document.documentElement.classList.remove('net-busy');
+    busyBtns.forEach(function (b) { b.classList.remove('busy'); b.removeAttribute('aria-busy'); });
+    busyBtns = [];
+  }
+
   // ----- appel -----
-  function call(action, params) {
+  // opts.silent : mise à jour en arrière-plan, sans indicateur
+  function call(action, params, opts) {
+    var silent = !!(opts && opts.silent);
+    netStart(silent);
+    return raw(action, params).then(function (r) { netEnd(silent); return r; }, function (e) { netEnd(silent); throw e; });
+  }
+  function raw(action, params) {
     var req = {};
     for (var k in (params || {})) req[k] = params[k];
     req.action = action;

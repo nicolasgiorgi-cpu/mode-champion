@@ -139,8 +139,9 @@
         ])) +
       card('p-confirmer', 'check', '#FFC23D', 'Confirmer les résultats', 'Le geste le plus important',
         ul([
-          'Après un bilan ou un défi, les résultats arrivent dans votre espace avec <b>Confirmer</b> / <b>Refuser</b>.',
+          'Après un bilan ou un défi, les résultats arrivent dans votre espace. Pour chacun, touchez <b>Confirmer</b> ou <b>Refuser</b> : le bouton s\'allume, vous pouvez changer d\'avis. Rien n\'est envoyé tant que vous n\'avez pas touché <b>Valider mes choix</b> (en bas de l\'écran).',
           'Confirmez si vous avez vu le test (ou si le chiffre vous paraît juste). Un éduc peut aussi confirmer.',
+          'Refusé par erreur ? Ouvrez « résultats refusés » et touchez <b>Rétablir</b>, puis Valider mes choix.',
           'Seuls les résultats confirmés comptent pour le classement, les badges et les records.'
         ])) +
       card('p-bilan', 'sheet', '#4D9BFF', 'Le bilan', 'Les 12 tests, toutes les 8 semaines environ',
@@ -181,7 +182,7 @@
         ul([
           'Les étoiles de la semaine de chaque joueur et sa dernière séance.',
           'Le filtre <b>À relancer</b> montre ceux qui n\'ont noté aucune séance depuis 7 jours.',
-          '<b>Résultats à valider</b> : les bilans et défis en attente, avec Confirmer / Refuser ou <b>Tout valider</b>.'
+          '<b>Résultats à valider</b> : les bilans et défis en attente. Confirmer / Refuser (ou Tout confirmer) s\'allument, puis <b>Valider mes choix</b> envoie le tout. Un résultat refusé par erreur se rétablit depuis la fiche du joueur.'
         ])) +
       card('e-fiche', 'user', '#FFC23D', 'La fiche d\'un joueur', 'Touchez un prénom',
         ul([

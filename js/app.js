@@ -14,8 +14,11 @@ MC.app = (function () {
   // ---------- Sessions mémorisées sur l'appareil ----------
   function lsGet(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
   function lsSet(k, v) { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } }
-  function setKid(k) { S.kid = k; S.me = null; S.stats = null; S.league = null; lsSet('mc-kid', k); if (k) rememberKid(k.joueur.id); }
-  function setAdult(a) { S.adult = a; S.cache = {}; lsSet('mc-adult', a); }
+  function setKid(k) {
+    S.kid = k; S.me = null; S.stats = null; S.league = null; lsSet('mc-kid', k);
+    if (k) rememberKid(k.joueur.id); else lsSet(ME_KEY, null);
+  }
+  function setAdult(a) { S.adult = a; S.cache = {}; lsSet('mc-adult', a); if (!a) { lsSet('mc-fam', null); lsSet('mc-group', null); } }
   function rememberKid(id) {
     var r = lsGet('mc-recents') || [];
     r = [id].concat(r.filter(function (x) { return x !== id; })).slice(0, 6);
@@ -106,14 +109,54 @@ MC.app = (function () {
   }
 
   // ---------- Données du joueur connecté ----------
+  // Gardées aussi sur l'appareil : à l'ouverture, l'écran s'affiche tout de suite avec la dernière
+  // version connue, puis se met à jour en arrière-plan (le serveur Google répond en 1 à 3 s).
+  var ME_KEY = 'mc-me';
+  function setMe(res) {
+    S.me = res;
+    S.stats = L.compute(res);
+    if (S.kid) { S.kid.joueur = res.joueur; lsSet('mc-kid', S.kid); }
+    lsSet(ME_KEY, { kid: res.joueur.id, me: res });
+  }
   function loadMe(force) {
     if (S.me && !force) return Promise.resolve(S.me);
-    return api.call('me', { token: S.kid.token }).then(function (res) {
-      S.me = res;
-      S.kid.joueur = res.joueur;
-      lsSet('mc-kid', S.kid);
-      S.stats = L.compute(res);
-      return res;
+    if (!force) {
+      var c = lsGet(ME_KEY);
+      if (c && c.me && S.kid && c.kid === S.kid.joueur.id) {
+        S.me = c.me; S.stats = L.compute(c.me);
+        refreshMe();
+        return Promise.resolve(S.me);
+      }
+    }
+    return api.call('me', { token: S.kid.token }).then(function (res) { setMe(res); return res; });
+  }
+  function refreshMe() {
+    var id = S.kid.joueur.id, before = JSON.stringify(S.me);
+    api.call('me', { token: S.kid.token }, { silent: true }).then(function (res) {
+      if (!S.kid || S.kid.joueur.id !== id) return;
+      setMe(res);
+      if (JSON.stringify(res) !== before && current && current.route.opts.live) render();
+    }).catch(function (e) {
+      if (e.code === 'session') { setKid(null); go('#/connexion', true); ui.toast('Reconnecte-toi avec ton code.', true); }
+    });
+  }
+  // même principe pour les espaces adultes (famille, vestiaire)
+  function swr(lsKey, action, params, live) {
+    var tok = S.adult && S.adult.token, c = lsGet(lsKey);
+    function fetch(silent) {
+      var p = {}; for (var k in (params || {})) p[k] = params[k];
+      p.token = S.adult && S.adult.token;
+      return api.call(action, p, { silent: silent }).then(function (res) { lsSet(lsKey, { tok: tok, data: res }); return res; });
+    }
+    if (c && c.tok === tok && c.data) {
+      fetch(true).then(function (res) {
+        if (JSON.stringify(res) !== JSON.stringify(c.data)) { live(res); }
+      }).catch(function (e) { if (e.code === 'session') { setAdult(null); go('#/adultes', true); } });
+      return Promise.resolve(c.data);
+    }
+    return fetch(false).catch(function (e) {
+      if (e.code === 'session') { setAdult(null); go('#/adultes', true); ui.toast('Reconnectez-vous.', true); }
+      throw e;
     });
   }
   function kidCall(action, params) {
@@ -181,7 +224,7 @@ MC.app = (function () {
 
   return {
     S: S, route: route, go: go, render: render, rerender: rerender, start: start,
-    setKid: setKid, setAdult: setAdult, loadMe: loadMe, kidCall: kidCall, adultCall: adultCall,
+    setKid: setKid, setAdult: setAdult, loadMe: loadMe, setMe: setMe, swr: swr, kidCall: kidCall, adultCall: adultCall,
     lsGet: lsGet, lsSet: lsSet, current: function () { return current; }
   };
 })();

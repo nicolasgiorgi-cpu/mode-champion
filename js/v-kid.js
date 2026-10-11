@@ -58,7 +58,7 @@
   // ---------- MA SEMAINE ----------
   app.route('/semaine', function () {
     return app.loadMe().then(function (me) { return paintSemaine(me, app.S.stats); });
-  }, { kid: true, nav: 'semaine' });
+  }, { kid: true, nav: 'semaine', live: true });
 
   function paintSemaine(me, st) {
     var t = L.today(), type = L.dayType(t), j = C.JOURS[type], niv = me.joueur.niveaux || {};
@@ -183,7 +183,7 @@
   MC.act.toggleMini = function () {
     var m = app.S.me.joueur.materiel === 'mini' ? 'complet' : 'mini';
     app.kidCall('updateMe', { materiel: m }).then(function (res) {
-      app.S.me = res; app.S.stats = L.compute(res); app.S.kid.joueur = res.joueur;
+      app.setMe(res);
       ui.toast(m === 'mini' ? 'Mode mini matériel activé' : 'Matériel complet');
       app.rerender();
     }).catch(function (e) { ui.toast(e.message, true); });
@@ -351,9 +351,13 @@
   function saveSessions(list, recap) {
     var before = app.S.stats;
     var chain = Promise.resolve();
-    var saved = [];
-    list.forEach(function (p) { chain = chain.then(function () { return app.kidCall('logSession', p).then(function (r) { saved.push(r.seance); }); }); });
-    return chain.then(function () { return app.loadMe(true); }).then(function () {
+    var saved = [], fresh = null;
+    // le dernier envoi renvoie directement le profil à jour : un seul aller-retour avec le serveur
+    list.forEach(function (p, i) {
+      p.avecDossier = i === list.length - 1;
+      chain = chain.then(function () { return app.kidCall('logSession', p).then(function (r) { saved.push(r.seance); if (r.me) fresh = r.me; }); });
+    });
+    return chain.then(function () { if (fresh) { app.setMe(fresh); return fresh; } return app.loadMe(true); }).then(function () {
       app.S.lastResult = { before: before, after: app.S.stats, seances: saved, recap: recap };
       app.go('#/bravo');
     });
@@ -407,8 +411,8 @@
     b.disabled = true;
     var d = app.S.lastResult.seances[0].date;
     var before = app.S.lastResult.before;
-    app.kidCall('logSession', { type: 'club', date: d, mode: 'rapide' }).then(function (r) {
-      return app.loadMe(true).then(function () {
+    app.kidCall('logSession', { type: 'club', date: d, mode: 'rapide', avecDossier: true }).then(function (r) {
+      return (r.me ? Promise.resolve(app.setMe(r.me)) : app.loadMe(true)).then(function () {
         app.S.lastResult = { before: before, after: app.S.stats, seances: app.S.lastResult.seances.concat([r.seance]), recap: app.S.lastResult.recap };
         ui.toast('Club noté : +' + C.XP.club + ' XP');
         app.rerender();
@@ -431,7 +435,7 @@
     var nv = {}; nv[cle] = a;
     b.disabled = true;
     app.kidCall('updateMe', { niveaux: nv, journal: [{ type: 'niveau', data: { cle: cle, de: de, a: a } }] }).then(function (res) {
-      app.S.me = res; app.S.stats = L.compute(res); app.S.kid.joueur = res.joueur;
+      app.setMe(res);
       ui.toast(a > de ? 'Bravo ! ' + C.CLES[cle].nom + ' : N' + a + (a > de ? ' · +' + C.XP.niveau + ' XP' : '') : C.CLES[cle].nom + ' : N' + a);
       if (app.S.lastResult) app.S.lastResult.after = app.S.stats;
       app.rerender();
@@ -440,7 +444,7 @@
   MC.act.propNo = function (b) {
     var cle = b.getAttribute('data-cle'), de = Number(b.getAttribute('data-de'));
     app.kidCall('updateMe', { journal: [{ type: 'niveau_refus', data: { cle: cle, niveau: de } }] }).then(function (res) {
-      app.S.me = res; app.S.stats = L.compute(res);
+      app.setMe(res);
       if (app.S.lastResult) app.S.lastResult.after = app.S.stats;
       app.rerender();
     }).catch(function (e) { ui.toast(e.message, true); });

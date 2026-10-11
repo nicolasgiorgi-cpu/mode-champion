@@ -424,7 +424,7 @@
     }).join('');
     return '<div class="main single"><div class="hd"><span class="kicker" style="color:var(--rc)">Bilan terminé</span><h1>Bravo !</h1>' +
       '<p class="lead">' + vals.length + ' test' + (vals.length > 1 ? 's' : '') + ' noté' + (vals.length > 1 ? 's' : '') + ' sur ' + NB + '. Vérifie, puis envoie : un parent ou ton éduc confirmera tes résultats.</p></div>' +
-      '<ul class="list">' + list + '</ul>' +
+      '<ul class="list">' + list + '</ul>' + MC.bilan.dateField('br_date') +
       '<button type="button" class="btn xl gold" data-act="brSend"' + (vals.length ? '' : ' disabled') + '>' + icon('send', 20) + ' Envoyer mon bilan</button>' +
       '<a class="btn2 grey" href="#/bilan">Voir le formulaire du bilan</a></div>';
   }

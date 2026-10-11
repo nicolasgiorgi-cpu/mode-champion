@@ -7,19 +7,39 @@
 
 var TABLES = ['joueurs', 'familles', 'educs', 'seances', 'records', 'journal'];
 
+/*
+ * Cache des onglets (CacheService). Lire un onglet de la feuille coûte 0,2 à 0,5 s ;
+ * le cache évite ces lectures d'une demande à l'autre. Toutes les demandes passent sous
+ * le verrou, donc le cache reste juste : une écriture le met à jour à la fin de la demande.
+ * Une modification faite À LA MAIN dans la feuille est vue au plus tard après CACHE_TTL
+ * secondes, ou tout de suite en lançant la fonction viderCache dans l'éditeur.
+ */
+var CACHE_TTL = 1200;      // 20 min
+var CACHE_PART = 24000;    // caractères par morceau (une valeur du cache est limitée à 100 Ko)
+var CACHE_MAX_PARTS = 90;  // au-delà, l'onglet est lu dans la feuille à chaque fois
+
 /** Petit adaptateur : les onglets de la feuille servent de tables. Tout est stocké en texte. */
 function SheetDB_() {
-  this.ss = SpreadsheetApp.getActiveSpreadsheet();
-  this.cache = {};
+  this.ss = null;           // la feuille n'est ouverte que si on en a besoin
+  this.cache = {};          // onglets lus pendant cette demande
+  this.dirty = {};          // onglets modifiés pendant cette demande
   this.props = PropertiesService.getScriptProperties();
+  this.cs = CacheService.getScriptCache();
 }
 SheetDB_.prototype.sheet = function (table) {
+  if (!this.ss) this.ss = SpreadsheetApp.getActiveSpreadsheet();
   var sh = this.ss.getSheetByName(table);
   if (!sh) throw new Error('Onglet « ' + table + ' » introuvable : lance la fonction installer.');
   return sh;
 };
 SheetDB_.prototype.rows = function (table) {
   if (this.cache[table]) return this.cache[table];
+  var out = this.cacheGet_(table);
+  if (!out) { out = this.readSheet_(table); this.cachePut_(table, out); }
+  this.cache[table] = out;
+  return out;
+};
+SheetDB_.prototype.readSheet_ = function (table) {
   var sh = this.sheet(table);
   var n = Core.SCHEMA[table].length;
   var last = sh.getLastRow();
@@ -33,8 +53,38 @@ SheetDB_.prototype.rows = function (table) {
       out.push(o);
     }
   }
-  this.cache[table] = out;
   return out;
+};
+SheetDB_.prototype.cacheGet_ = function (table) {
+  try {
+    var meta = this.cs.get('t:' + table);
+    if (!meta) return null;
+    var n = Number(meta), keys = [], i;
+    for (i = 0; i < n; i++) keys.push('t:' + table + ':' + i);
+    var got = this.cs.getAll(keys), s = '';
+    for (i = 0; i < n; i++) { if (typeof got[keys[i]] !== 'string') return null; s += got[keys[i]]; }
+    return JSON.parse(s);
+  } catch (e) { return null; }
+};
+SheetDB_.prototype.cachePut_ = function (table, rows) {
+  try {
+    var s = JSON.stringify(rows), n = Math.ceil(s.length / CACHE_PART) || 1;
+    if (n > CACHE_MAX_PARTS) { this.cs.remove('t:' + table); return; }
+    var parts = {}, k = 0;
+    for (var i = 0; i < n; i++) {
+      parts['t:' + table + ':' + i] = s.slice(i * CACHE_PART, (i + 1) * CACHE_PART);
+      if (++k === 30 || i === n - 1) { this.cs.putAll(parts, CACHE_TTL); parts = {}; k = 0; }
+    }
+    this.cs.put('t:' + table, String(n), CACHE_TTL);
+  } catch (e) { try { this.cs.remove('t:' + table); } catch (e2) { /* rien */ } }
+};
+/** À la fin de chaque demande : le cache reprend l'état des onglets modifiés. */
+SheetDB_.prototype.flush_ = function () {
+  for (var t in this.dirty) {
+    if (this.cache[t]) this.cachePut_(t, this.cache[t]);
+    else { try { this.cs.remove('t:' + t); } catch (e) { /* rien */ } }
+  }
+  this.dirty = {};
 };
 SheetDB_.prototype.writeRow_ = function (table, rowIndex, obj) {
   var sh = this.sheet(table);
@@ -44,12 +94,14 @@ SheetDB_.prototype.writeRow_ = function (table, rowIndex, obj) {
   rg.setValues([cells]);
 };
 SheetDB_.prototype.insert = function (table, obj) {
+  this.rows(table); // pour que le cache contienne aussi la nouvelle ligne
   var sh = this.sheet(table);
   var rowIndex = Math.max(sh.getLastRow(), 1) + 1;
   this.writeRow_(table, rowIndex, obj);
   var copy = JSON.parse(JSON.stringify(obj));
   copy._row = rowIndex;
-  if (this.cache[table]) this.cache[table].push(copy);
+  this.cache[table].push(copy);
+  this.dirty[table] = true;
 };
 SheetDB_.prototype.update = function (table, id, patch) {
   var rows = this.rows(table);
@@ -57,6 +109,7 @@ SheetDB_.prototype.update = function (table, id, patch) {
     if (rows[i].id === id) {
       for (var k in patch) rows[i][k] = patch[k];
       this.writeRow_(table, rows[i]._row, rows[i]);
+      this.dirty[table] = true;
       return;
     }
   }
@@ -68,6 +121,7 @@ SheetDB_.prototype.remove = function (table, id) {
     if (rows[i].id === id) {
       this.sheet(table).deleteRow(rows[i]._row);
       delete this.cache[table];
+      this.dirty[table] = true;
       return;
     }
   }
@@ -100,9 +154,11 @@ function doPost(e) {
   } catch (err) {
     return json_({ ok: false, error: 'occupe', message: 'Le serveur est occupé, réessaie dans un instant.' });
   }
+  var db = new SheetDB_();
   try {
-    return json_(Core.handle(req, new SheetDB_(), env_()));
+    return json_(Core.handle(req, db, env_()));
   } finally {
+    try { db.flush_(); } catch (err) { /* le cache sera relu depuis la feuille */ }
     lock.releaseLock();
   }
 }
@@ -134,7 +190,10 @@ function installer() {
   if (first && TABLES.indexOf(first.getName()) < 0 && first.getLastRow() === 0) {
     try { ss.deleteSheet(first); } catch (e) { /* on garde l'onglet s'il ne peut pas être supprimé */ }
   }
-  var res = Core.install(new SheetDB_(), env_(), 'Admin');
+  viderCache();
+  var idb = new SheetDB_();
+  var res = Core.install(idb, env_(), 'Admin');
+  idb.flush_();
   if (res.code) {
     Logger.log('✅ Installation terminée.');
     Logger.log('👉 Code administrateur (espace adultes › Je suis éduc) : ' + res.code);
@@ -159,5 +218,13 @@ function nouveauCodeAdmin() {
     if (!used) break;
   }
   db.update('educs', admins[0].id, { codeHash: Core._hashAdulte(sec, code), codeV: Number(admins[0].codeV || 0) + 1 });
+  db.flush_();
   Logger.log('👉 Nouveau code administrateur pour « ' + admins[0].nom + ' » : ' + code);
+}
+
+/** Après une modification faite à la main dans la feuille : lance cette fonction pour que le site la voie tout de suite. */
+function viderCache() {
+  var cs = CacheService.getScriptCache();
+  TABLES.forEach(function (t) { cs.remove('t:' + t); });
+  Logger.log('Cache vidé : le site relit la feuille.');
 }
