@@ -70,7 +70,8 @@
     var demo = api.DEMO ? '<div class="demo-banner"><b>MODE DÉMO</b> · joueurs fictifs, rien n\'est envoyé. Code des enfants : <b>' + MC.demo.CODES.enfant + '</b> · Rose (1re connexion) : <b>' + MC.demo.CODES.nouveau + '</b> · Parent de Tom : <b>' + MC.demo.CODES.parent + '</b> · Éduc : <b>' + MC.demo.CODES.educ + '</b> <button type="button" class="btn2 sm grey" style="margin-top:8px" data-act="resetDemo">Remettre la démo à zéro</button></div>' : '';
     return '<main class="screen nonav">' +
       '<div class="between" style="align-items:center"><span class="kicker">' + esc(MC.CONFIG.CLUB) + '</span>' +
-      '<a class="tag" href="#/adultes" style="min-height:40px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--soft)">' + ui.icon('lock', 14) + 'Adultes</a></div>' +
+      '<span class="row" style="gap:6px"><a class="tag" href="#/guide" style="min-height:40px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--soft)">' + ui.icon('info', 14) + 'Aide</a>' +
+      '<a class="tag" href="#/adultes" style="min-height:40px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--soft)">' + ui.icon('lock', 14) + 'Adultes</a></span></div>' +
       '<div class="head"><h1 class="big">Mode<br>champion</h1><p class="lead">Touche ton avatar, puis tape ton code secret pour entrer dans l\'arène.</p></div>' +
       demo +
       (recents.length ? '<section class="sec"><h2 class="h2">Déjà venus ici</h2><div class="roster">' + recents.map(kidButton).join('') + '</div></section>' : '') +
@@ -235,7 +236,8 @@
       '<button type="button" role="tab" aria-selected="' + (adultWho === 'f') + '" class="opt' + (adultWho === 'f' ? ' on' : '') + '" data-act="adultWho" data-w="f" style="min-height:44px">Je suis parent</button>' +
       '<button type="button" role="tab" aria-selected="' + (adultWho === 'e') + '" class="opt' + (adultWho === 'e' ? ' on' : '') + '" data-act="adultWho" data-w="e" style="min-height:44px">Je suis éduc</button></div>' +
       '<div class="sec pin-zone" style="width:100%;margin:0 auto"><span class="lab">' + (adultWho === 'f' ? 'Code famille' : 'Code éduc') + ' · 6 chiffres</span>' + digitsHtml(6, '', false) +
-      '<div class="msg" aria-live="polite"></div>' + padHtml(true) + '<p class="small" style="margin:0">' + help + ' Vous restez connecté sur cet appareil.</p></div></main>';
+      '<div class="msg" aria-live="polite"></div>' + padHtml(true) + '<p class="small" style="margin:0">' + help + ' Vous restez connecté sur cet appareil.</p></div>' +
+      '<a class="btn2 grey" href="#/guide?pour=' + (adultWho === 'e' ? 'educ' : 'parent') + '">' + ui.icon('info', 16) + ' Comment ça marche ?</a></main>';
   }, { bg: '#16223F' });
   MC.act.adultWho = function (b) { adultWho = b.getAttribute('data-w'); app.render(); };
 })();

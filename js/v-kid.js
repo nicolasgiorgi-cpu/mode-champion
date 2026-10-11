@@ -114,6 +114,7 @@
     return '<main class="screen">' + hud(me, st) +
       '<div class="head"><span class="kicker">' + esc(C.JOURS[type].jour.toUpperCase()) + ' · ' + (cy.semaine > 8 ? 'SEMAINE DU BILAN' : 'SEMAINE ' + cy.semaine + ' / 8') + '</span>' +
       '<h1 class="big">Mission<br>du jour</h1></div>' +
+      (MC.guideVu && !MC.guideVu() ? '<div class="note">' + icon('info', 22) + '<div style="flex:1"><b>Nouveau ici ?</b><div class="small" style="color:var(--soft);margin-top:3px">Étoiles, niveaux, badges, classement : découvre comment marche le jeu.</div></div><a class="btn2 sm" href="#/guide">Le guide</a></div>' : '') +
       bilanNote + props + pendNote +
       '<div class="home"><div>' + mission + '</div><div class="side">' +
       '<section class="sec"><div class="between"><h2 class="h2">Ma semaine</h2><span class="hud" style="color:var(--gold)">' + wk.stars + ' / 6 étoiles</span></div>' +

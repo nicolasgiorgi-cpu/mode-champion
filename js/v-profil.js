@@ -66,7 +66,7 @@
     }).join('');
     var propN = st.proposals.length;
     return '<main class="screen">' +
-      '<div class="between" style="align-items:center"><span class="kicker">Mon profil · saison 2026-27</span><a class="tag" href="#/reglages" style="min-height:40px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--soft)">' + icon('settings', 14) + 'Réglages</a></div>' +
+      '<div class="between" style="align-items:center"><span class="kicker">Mon profil · saison 2026-27</span><span class="row" style="gap:6px"><a class="tag" href="#/guide?de=profil" style="min-height:40px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--soft)">' + icon('info', 14) + 'Aide</a><a class="tag" href="#/reglages" style="min-height:40px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--soft)">' + icon('settings', 14) + 'Réglages</a></span></div>' +
       '<div class="profile-grid"><div class="sec" style="gap:14px">' + card + xp +
       '<a class="btn2" href="#/bilan">' + icon('plus', 16) + ' Saisir mon ' + esc(bl.nom.toLowerCase()) + ' · ' + esc(bl.quand) + '</a></div>' +
       '<div class="sec" style="gap:20px">' + tiles + boardHtml(st) + '</div>' +
@@ -432,6 +432,7 @@
         '<div class="head"><span class="kicker">' + esc(k.prenom) + '</span><h1 class="big md">Réglages</h1></div>' +
         '<div class="sec">' + sw(mini, 'Mode mini matériel', 'Tapis + élastiques : les exercices et les tests s\'adaptent', 'toggleMini') +
         sw(!ui.isMuted(), 'Bips du chrono', 'Un bip à 3-2-1 et à la fin de chaque série', 'togglePrefSon') +
+        '<a class="switch" href="#/guide?de=profil" style="text-decoration:none"><span><span class="t1" style="display:block">Comment ça marche ?</span><span class="t2" style="display:block">Étoiles, niveaux, badges, bilan, classement</span></span>' + icon('right', 18) + '</a>' +
         '<a class="switch" href="#/premiere?change=1" style="text-decoration:none"><span><span class="t1" style="display:block">Changer mon code secret</span><span class="t2" style="display:block">Et ma couleur reste la même</span></span>' + icon('right', 18) + '</a>' +
         '<div class="box"><span class="t2 small">' + (k.visible ? 'Tu apparais dans le classement de ta ligue.' : 'Tes parents ont choisi de ne pas t\'afficher dans le classement des autres.') + '</span></div></div>' +
         '<button type="button" class="btn2 grey" data-act="logoutKid">' + icon('logout', 18) + ' Changer de joueur</button>' +

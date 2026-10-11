@@ -127,7 +127,7 @@
         return '<button type="button" class="opt' + (on ? ' on' : '') + '" aria-pressed="' + on + '" data-act="parentKid" data-id="' + esc(x.joueur.id) + '" style="min-height:48px;padding:0 14px">' + ui.avatar(x.joueur.prenom, x.joueur.couleur, 28) + esc(x.joueur.prenom) + '</button>';
       }).join('') + '</div>' : '';
       return '<main class="screen nonav">' +
-        '<div class="between" style="align-items:center"><span class="kicker">Espace parent · ' + esc(fam.famille.nom) + '</span><button type="button" class="tag" style="min-height:40px;background:none;cursor:pointer" data-act="adultLogout">' + icon('logout', 14) + ' Sortir</button></div>' +
+        '<div class="between" style="align-items:center"><span class="kicker">Espace parent · ' + esc(fam.famille.nom) + '</span><span class="row" style="gap:6px"><a class="tag" href="#/guide" style="min-height:40px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--soft)">' + icon('info', 14) + 'Aide</a><button type="button" class="tag" style="min-height:40px;background:none;cursor:pointer" data-act="adultLogout">' + icon('logout', 14) + ' Sortir</button></span></div>' +
         '<div class="row" style="gap:14px">' + ui.avatar(k.prenom, k.couleur, 64) + '<div class="head"><h1 class="big sm">Suivi de ' + esc(k.prenom) + '</h1></div></div>' + sel +
         S.pending + S.tiles +
         '<div class="cols2"><div class="sec" style="gap:20px"><section class="sec"><div class="between"><h2 class="h2">Cette semaine</h2><span class="hud" style="color:var(--gold)">' + S.st.week.stars + ' / 6</span></div>' + S.week + '</section>' +
@@ -177,7 +177,7 @@
     }).join('');
     var pend = pending.length ? pending.slice(0, 30).map(function (x) { return recLine(x.r, x.p.joueur.prenom, true); }).join('') : '';
     return '<main class="screen nonav">' +
-      '<div class="between" style="align-items:center"><span class="kicker">Espace éduc · ' + esc(g.moi.nom) + (g.moi.admin ? ' · admin' : '') + '</span><button type="button" class="tag" style="min-height:40px;background:none;cursor:pointer" data-act="adultLogout">' + icon('logout', 14) + ' Sortir</button></div>' +
+      '<div class="between" style="align-items:center"><span class="kicker">Espace éduc · ' + esc(g.moi.nom) + (g.moi.admin ? ' · admin' : '') + '</span><span class="row" style="gap:6px"><a class="tag" href="#/guide" style="min-height:40px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--soft)">' + icon('info', 14) + 'Aide</a><button type="button" class="tag" style="min-height:40px;background:none;cursor:pointer" data-act="adultLogout">' + icon('logout', 14) + ' Sortir</button></span></div>' +
       '<div class="head"><h1 class="big md">Le vestiaire</h1>' + (MC.api.DEMO ? '<p class="small" style="margin:0;color:var(--yellow)">Mode démo : joueurs fictifs.</p>' : '') + '</div>' +
       '<div class="grid3"><div class="tile"><span class="v">' + sessionsWeek + '</span><span class="l" style="text-transform:none;font-family:var(--f-body);letter-spacing:0;font-size:12px">séances cette semaine</span></div>' +
       '<div class="tile"><span class="v" style="color:var(--green)">' + active + '<small style="font-size:13px;color:var(--dim)"> / ' + players.length + '</small></span><span class="l" style="text-transform:none;font-family:var(--f-body);letter-spacing:0;font-size:12px">actifs sur 7 jours</span></div>' +

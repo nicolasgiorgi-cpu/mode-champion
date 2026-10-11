@@ -20,6 +20,7 @@ Site statique (HTML/CSS/JS, rien à installer) + une Google Sheet qui sert de ba
 | `js/anims.js` | Les animations des exercices |
 | `js/v-*.js` | Les écrans |
 | `js/v-bilan.js` | Le bilan guidé (test par test) |
+| `js/v-guide.js` | Le guide « Comment ça marche ? » (joueur, parents, éducs) |
 | `apps-script/serveur-mode-champion.gs` | **Le serveur à coller dans Google Apps Script** (un seul fichier) |
 
 ## 1. Brancher la Google Sheet (10 minutes, une seule fois)
@@ -61,6 +62,8 @@ Sur iPad et téléphone : **Partager › Sur l'écran d'accueil** pour l'ouvrir 
 5. Autres éducs : **Les éducs (admin)** › Ajouter un éduc.
 
 Code oublié : le parent (espace parent) ou l'éduc (fiche du joueur) crée un **code provisoire** valable 48 h ; l'enfant choisit ensuite un nouveau code. Ses séances et ses étoiles sont gardées. Après 5 codes faux, le profil se bloque 10 minutes.
+
+Le guide **« Comment ça marche ? »** (bouton **Aide** sur l'écran d'accueil, dans le profil, les réglages et les espaces parent et éduc) explique tout cela aux enfants, aux parents et aux éducs. Ses chiffres (XP, grades, badges, dates) viennent de `js/content.js` et `js/config.js` : il reste juste si on les modifie.
 
 ## Les règles du jeu (modifiables dans `js/content.js`)
 
