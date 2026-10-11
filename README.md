@@ -38,6 +38,8 @@ Site statique (HTML/CSS/JS, rien à installer) + une Google Sheet qui sert de ba
 
 La feuille contient ensuite un onglet par table (`joueurs`, `familles`, `educs`, `seances`, `records`, `journal`). Ne renommez pas les onglets ni les colonnes. Les codes y sont stockés chiffrés (empreintes), jamais en clair.
 
+Pour aller plus vite, le serveur garde une copie de la feuille en mémoire (20 minutes). Si vous modifiez la feuille **à la main** (renommer un éduc, corriger un résultat…), lancez ensuite la fonction `viderCache` dans l'éditeur Apps Script (menu des fonctions › `viderCache` › Exécuter) pour que l'appli voie le changement tout de suite.
+
 **Code admin perdu ?** Dans l'éditeur Apps Script, exécutez la fonction `nouveauCodeAdmin` : le nouveau code s'affiche dans le journal.
 
 **Mettre à jour le serveur** (si `js/core.js` change) : relancez `outils/fabriquer-serveur.sh`, recollez `apps-script/serveur-mode-champion.gs` dans l'éditeur, puis **Déployer › Gérer les déploiements › crayon › Version : Nouvelle version › Déployer** (l'URL ne change pas).
