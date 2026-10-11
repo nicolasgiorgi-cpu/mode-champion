@@ -141,18 +141,25 @@
     if (refused.length) pendHtml += '<details class="note" style="flex-direction:column;gap:8px;display:block"><summary style="cursor:pointer;min-height:32px"><span class="hud" style="color:var(--muted)">' + refused.length + ' résultat' + (refused.length > 1 ? 's' : '') + ' refusé' + (refused.length > 1 ? 's' : '') + '</span> <span class="small">· refusé par erreur ? Rétablissez-le.</span></summary>' +
       '<ul class="list" style="width:100%;margin-top:8px">' + refused.map(function (r) { return recLine(r, '', true); }).join('') + '</ul>' + (pending.length ? '' : decBar()) + '</details>';
     var niv = k.niveaux || {};
+    var editing = !!(opts.editLevels && lvDraft && lvDraft.id === k.id);
     var levels = '<ul class="list">' + C.FAMILLES.map(function (f) {
       return f.cles.map(function (cle) {
-        var n = niv[cle] || 1;
-        var ctl = opts.editLevels ? '<span class="row" style="gap:4px">' + [1, 2, 3, 4].map(function (i) { return '<button type="button" class="opt' + (i === n ? ' on' : '') + '" style="min-height:40px;width:40px;padding:0;--oc:' + C.NIVEAUX[i].color + '" data-act="edLevel" data-cle="' + cle + '" data-v="' + i + '" aria-label="' + esc(C.CLES[cle].nom) + ' niveau ' + i + '">' + i + '</button>'; }).join('') + '</span>' : ui.lvl(n);
-        return '<li class="li"><span class="dia" style="--dc:' + f.color + '"></span><span class="grow"><span class="t1">' + esc(C.CLES[cle].nom) + '</span></span>' + ctl + '</li>';
+        var n = niv[cle] || 1, dn = editing ? (lvDraft.niv[cle] || n) : n;
+        var ctl = editing ? '<span class="row" style="gap:4px">' + [1, 2, 3, 4].map(function (i) { return '<button type="button" class="opt' + (i === dn ? ' on' : '') + '" style="min-height:40px;width:40px;padding:0;--oc:' + C.NIVEAUX[i].color + '" data-act="lvPick" data-cle="' + cle + '" data-v="' + i + '" aria-pressed="' + (i === dn) + '" aria-label="' + esc(C.CLES[cle].nom) + ' niveau ' + i + '">' + i + '</button>'; }).join('') + '</span>' : ui.lvl(n);
+        return '<li class="li' + (editing && dn !== n ? ' changed' : '') + '"><span class="dia" style="--dc:' + f.color + '"></span><span class="grow"><span class="t1">' + esc(C.CLES[cle].nom) + '</span>' + (editing && dn !== n ? '<span class="t2" style="color:var(--yellow)">N' + n + ' → N' + dn + '</span>' : '') + '</span>' + ctl + '</li>';
       }).join('');
     }).join('') + '</ul>';
+    if (opts.editLevels) {
+      levels += editing ?
+        '<div class="grid2"><button type="button" class="btn2 grey" data-act="lvCancel">Annuler</button><button type="button" class="btn" style="min-height:48px;font-size:13px" data-act="lvSave" data-id="' + esc(k.id) + '">' + icon('check', 16) + ' Enregistrer les niveaux</button></div>' :
+        '<button type="button" class="btn2" data-act="lvEdit" data-id="' + esc(k.id) + '">' + icon('edit', 16) + ' Modifier les niveaux</button>';
+    }
     var bests = st.bestsOk, recs = C.TESTS.map(function (t) {
       var b = bests[t.id] || bests[t.id + ':sm'];
       return '<div class="rec"><span class="v">' + (b ? ui.valHtml(b.valeur, t.unite, t.decimales) : '—') + '</span><span class="l">' + esc(t.court) + '</span></div>';
     }).join('');
-    return { tiles: tiles, week: '<div class="grid4" style="grid-template-columns:repeat(7,minmax(0,1fr));gap:5px">' + days + '</div>', last: lastHtml, pending: pendHtml, levels: levels, recs: '<div class="recgrid">' + recs + '</div>', st: st };
+    return { tiles: tiles, week: '<div class="grid4" style="grid-template-columns:repeat(7,minmax(0,1fr));gap:5px">' + days + '</div>', last: lastHtml, pending: pendHtml, levels: levels, recs: '<div class="recgrid">' + recs + '</div>', st: st,
+      hist: MC.suivi.seances(d.seances), prog: MC.suivi.progression(d.records, { vide: k.prenom + ' n\'a pas encore noté de bilan.' }) };
   }
 
   MC.act.adultLogout = function () {
@@ -195,7 +202,7 @@
       if (!kids.length) return '<main class="screen nonav"><div class="head"><span class="kicker">Espace parent</span><h1 class="big md">' + esc(fam.famille.nom) + '</h1></div><div class="empty">Aucun enfant rattaché à ce code. Demandez à l\'éducateur.</div><button class="btn2 grey" data-act="adultLogout">Se déconnecter</button></main>';
       if (!parentSel || !kids.some(function (k) { return k.joueur.id === parentSel; })) parentSel = kids[0].joueur.id;
       var d = kids.filter(function (k) { return k.joueur.id === parentSel; })[0], k = d.joueur;
-      var S = kidSummary(d, {});
+      var S = kidSummary(d, { editLevels: true });
       var sel = kids.length > 1 ? '<div class="row" style="gap:8px;flex-wrap:wrap">' + kids.map(function (x) {
         var on = x.joueur.id === parentSel;
         return '<button type="button" class="opt' + (on ? ' on' : '') + '" aria-pressed="' + on + '" data-act="parentKid" data-id="' + esc(x.joueur.id) + '" style="min-height:48px;padding:0 14px">' + ui.avatar(x.joueur.prenom, x.joueur.couleur, 28) + esc(x.joueur.prenom) + '</button>';
@@ -205,8 +212,9 @@
         '<div class="row" style="gap:14px">' + ui.avatar(k.prenom, k.couleur, 64) + '<div class="head"><h1 class="big sm">Suivi de ' + esc(k.prenom) + '</h1></div></div>' + sel +
         S.pending + S.tiles +
         '<div class="cols2"><div class="sec" style="gap:20px"><section class="sec"><div class="between"><h2 class="h2">Cette semaine</h2><span class="hud" style="color:var(--gold)">' + S.st.week.stars + ' / 6</span></div>' + S.week + '</section>' +
-        '<section class="sec"><h2 class="h2">Dernières séances</h2>' + S.last + '</section></div>' +
-        '<div class="sec" style="gap:20px"><section class="sec"><h2 class="h2">Ses niveaux</h2>' + S.levels + '<p class="small" style="margin:0">Ils viennent du bilan et montent quand c\'est « facile » 2 fois de suite. L\'éducateur peut les ajuster.</p></section>' +
+        '<section class="sec"><h2 class="h2">Ses séances</h2><p class="small" style="margin:0">Touchez une séance pour voir le détail : exercices, séries, ressenti.</p>' + S.hist + '</section>' +
+        '<section class="sec"><h2 class="h2">Sa progression aux bilans</h2>' + S.prog + '</section></div>' +
+        '<div class="sec" style="gap:20px"><section class="sec"><h2 class="h2">Ses niveaux</h2><p class="small" style="margin:0">Ils viennent du bilan et montent quand c\'est « facile » 2 fois de suite. Vous pouvez les ajuster si un exercice est trop facile ou trop dur.</p>' + S.levels + '</section>' +
         '<section class="sec"><h2 class="h2">Ses records confirmés</h2>' + S.recs + '</section>' +
         '<section class="sec"><h2 class="h2">Réglages</h2>' +
         '<button type="button" class="switch" role="switch" aria-checked="' + !!k.visible + '" data-act="kidVisible" data-id="' + esc(k.id) + '"><span><span class="t1" style="display:block">Afficher ' + esc(k.prenom) + ' au classement</span><span class="t2" style="display:block">' + (k.visible ? 'Son prénom apparaît dans sa ligue' : 'Il voit son rang, les autres ne le voient pas') + '</span></span><span class="k"></span></button>' +
@@ -256,16 +264,23 @@
       return '<li><a class="li" href="#/educ/joueur/' + esc(p.joueur.id) + '">' + ui.hexa(p.joueur.prenom, p.joueur.couleur) + '<span class="grow"><span class="t1">' + esc(p.joueur.prenom.toUpperCase()) + '</span><span class="t2" style="color:' + (p._last && p._last > weekAgo ? 'var(--dim)' : 'var(--orange)') + '">' + esc(lastTxt) + '</span></span><span class="setdots" aria-label="' + w.stars + ' étoiles cette semaine">' + dots + '</span>' + icon('right', 16) + '</a></li>';
     }).join('');
     var pend = pending.length ? pending.slice(0, 30).map(function (x) { return recLine(x.r, x.p.joueur.prenom, true); }).join('') : '';
+    var mine = (g.moi.enfants || []).map(function (id) { return g.joueurs.filter(function (p) { return p.joueur.id === id; })[0]; }).filter(Boolean);
+    var mineHtml = '<section class="sec"><div class="between"><h2 class="h2">' + (mine.length > 1 ? 'Mes enfants' : 'Mon enfant') + '</h2><button type="button" class="lnk" data-act="myKids">' + (mine.length ? 'Changer' : 'Choisir') + '</button></div>' +
+      (mine.length ? '<ul class="list">' + mine.map(function (p) {
+        var att = p.records.filter(function (r) { return r.statut === 'attente'; }).length;
+        return '<li><a class="li" href="#/educ/joueur/' + esc(p.joueur.id) + '">' + ui.hexa(p.joueur.prenom, p.joueur.couleur) + '<span class="grow"><span class="t1">' + esc(p.joueur.prenom.toUpperCase()) + '</span><span class="t2">Suivi, séances, bilans, niveaux, code secret' + (att ? ' · <b style="color:var(--pink)">' + att + ' à confirmer</b>' : '') + '</span></span>' + icon('right', 16) + '</a></li>';
+      }).join('') + '</ul>' : '<p class="small" style="margin:0">Vous êtes aussi parent d\'un joueur ? Choisissez-le pour le retrouver ici, avec tout le suivi parent.</p>') + '</section>';
     return '<main class="screen nonav">' +
       '<div class="between" style="align-items:center"><span class="kicker">Espace éduc · ' + esc(g.moi.nom) + (g.moi.admin ? ' · admin' : '') + '</span><span class="row" style="gap:6px"><a class="tag" href="#/guide" style="min-height:40px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--soft)">' + icon('info', 14) + 'Aide</a><button type="button" class="tag" style="min-height:40px;background:none;cursor:pointer" data-act="adultLogout">' + icon('logout', 14) + ' Sortir</button></span></div>' +
       '<div class="head"><h1 class="big md">Le vestiaire</h1>' + (MC.api.DEMO ? '<p class="small" style="margin:0;color:var(--yellow)">Mode démo : joueurs fictifs.</p>' : '') + '</div>' +
       '<div class="grid3"><div class="tile"><span class="v">' + sessionsWeek + '</span><span class="l" style="text-transform:none;font-family:var(--f-body);letter-spacing:0;font-size:12px">séances cette semaine</span></div>' +
       '<div class="tile"><span class="v" style="color:var(--green)">' + active + '<small style="font-size:13px;color:var(--dim)"> / ' + players.length + '</small></span><span class="l" style="text-transform:none;font-family:var(--f-body);letter-spacing:0;font-size:12px">actifs sur 7 jours</span></div>' +
       '<div class="tile" style="border-color:rgba(255,138,61,.5);background:rgba(255,138,61,.08)"><span class="v" style="color:var(--orange)">' + late.length + '</span><span class="l" style="text-transform:none;font-family:var(--f-body);letter-spacing:0;font-size:12px">rien depuis 7 jours</span></div></div>' +
-      '<div class="cols2"><div class="sec" style="gap:20px">' +
+      '<div class="cols2"><div class="sec" style="gap:20px">' + mineHtml +
       '<section class="sec"><div class="between"><h2 class="h2">Résultats à valider</h2><span class="hud" style="color:var(--pink)">' + pending.length + '</span></div>' +
       (pending.length ? '<p class="small" style="margin:0">Choisissez Confirmer ou Refuser (vous pouvez changer d\'avis), puis <b>Valider mes choix</b> juste en dessous.</p><ul class="list">' + pend + '</ul>' + (pending.length > 1 ? '<button type="button" class="btn2 pink" data-act="decAll" data-ids="' + esc(pending.map(function (x) { return x.r.id; }).join(',')) + '">' + icon('check', 16) + ' Tout confirmer (' + pending.length + ')</button>' : '') + decBar() : '<div class="empty">Tout est validé. Bravo !</div>') + '</section>' +
       '<section class="sec"><h2 class="h2">Outils</h2>' +
+      '<a class="switch" href="#/educ/progres" style="text-decoration:none"><span class="row">' + icon('up', 20, 'style="color:var(--cyan)"') + '<span class="t1">Progrès du groupe aux bilans</span></span>' + icon('right', 16) + '</a>' +
       '<a class="switch" href="#/educ/ajouter" style="text-decoration:none">' + '<span class="row">' + icon('plus', 20, 'style="color:var(--cyan)"') + '<span class="t1">Ajouter un joueur</span></span>' + icon('right', 16) + '</a>' +
       '<a class="switch" href="#/educ/familles" style="text-decoration:none"><span class="row">' + icon('key', 20, 'style="color:var(--cyan)"') + '<span class="t1">Familles et codes parents</span></span>' + icon('right', 16) + '</a>' +
       (g.moi.admin ? '<a class="switch" href="#/educ/educs" style="text-decoration:none"><span class="row">' + icon('group', 20, 'style="color:var(--cyan)"') + '<span class="t1">Les éducs (admin)</span></span>' + icon('right', 16) + '</a>' : '') +
@@ -300,6 +315,22 @@
     });
   };
 
+  // ---------- ÉDUC : progrès du groupe aux bilans ----------
+  var progTest = 'pompes';
+  app.route('/educ/progres', function () {
+    return loadGroup().then(function (g) {
+      var chips = C.TESTS.map(function (t) {
+        return '<button type="button" class="opt' + (t.id === progTest ? ' on' : '') + '" aria-pressed="' + (t.id === progTest) + '" data-act="progTest" data-v="' + t.id + '">' + esc(t.court) + '</button>';
+      }).join('');
+      var t = C.TESTS.filter(function (x) { return x.id === progTest; })[0];
+      return '<main class="screen nonav"><a class="back" href="#/educ">' + icon('left', 18) + 'Le vestiaire</a>' +
+        '<div class="head"><span class="kicker">Bilans de la saison</span><h1 class="big sm">Progrès du groupe</h1><p class="lead" style="margin:0">Choisissez un test : les joueurs qui ont le plus progressé depuis leur bilan d\'avant sont en haut.</p></div>' +
+        '<div class="testchips">' + chips + '</div>' +
+        '<section class="sec"><div class="between"><h2 class="h2">' + esc(t.nom) + '</h2>' + (t.moinsMieux ? '<span class="small">plus petit = mieux</span>' : '') + '</div>' + MC.suivi.groupe(g.joueurs, progTest) + '</section></main>';
+    });
+  }, { adult: 'e', bg: '#16223F' });
+  MC.act.progTest = function (b) { progTest = b.getAttribute('data-v'); app.rerender(); };
+
   // ---------- ÉDUC : un joueur ----------
   app.route('/educ/joueur/:id', function (p) {
     return loadGroup().then(function (g) {
@@ -321,9 +352,10 @@
           '<div class="row" style="gap:14px">' + ui.avatar(k.prenom, k.couleur, 64) + '<div class="head"><span class="kicker">' + esc(fam ? fam.nom : '') + (k.actif ? '' : ' · désactivé') + '</span><h1 class="big sm">' + esc(k.prenom) + '</h1></div></div>' +
           S.pending + S.tiles +
           '<div class="cols2"><div class="sec" style="gap:20px"><section class="sec"><div class="between"><h2 class="h2">Cette semaine</h2><span class="hud" style="color:var(--gold)">' + S.st.week.stars + ' / 6</span></div>' + S.week + '</section>' +
-          '<section class="sec"><h2 class="h2">Dernières séances</h2>' + S.last + '</section>' +
+          '<section class="sec"><h2 class="h2">Séances</h2>' + (d.seances && d.seances.length && !d.seances.some(function (x) { return x.details; }) ? '<p class="small" style="margin:0">Chargement du détail…</p>' : '') + S.hist + '</section>' +
+          '<section class="sec"><h2 class="h2">Progression aux bilans</h2>' + S.prog + '</section>' +
           '<section class="sec"><h2 class="h2">Records confirmés</h2>' + S.recs + '</section></div>' +
-          '<div class="sec" style="gap:20px"><section class="sec"><h2 class="h2">Niveaux</h2><p class="small" style="margin:0">Touchez un chiffre pour changer le niveau d\'un groupe d\'exercices.</p>' + S.levels + '</section>' +
+          '<div class="sec" style="gap:20px"><section class="sec"><h2 class="h2">Niveaux</h2>' + S.levels + '</section>' +
           '<section class="sec"><h2 class="h2">Compte</h2>' +
           '<button type="button" class="switch" data-act="kidCode" data-id="' + esc(k.id) + '" data-p="' + esc(k.prenom) + '"><span><span class="t1" style="display:block">' + (k.aUnCode ? 'Nouveau code provisoire' : 'Code provisoire (1re connexion)') + '</span><span class="t2" style="display:block">Pour un code oublié ou une 1re connexion</span></span>' + icon('right', 18) + '</button>' +
           '<button type="button" class="switch" role="switch" aria-checked="' + !!k.visible + '" data-act="kidVisible" data-id="' + esc(k.id) + '"><span><span class="t1" style="display:block">Visible au classement</span><span class="t2" style="display:block">Les parents peuvent aussi le régler</span></span><span class="k"></span></button>' +
@@ -331,14 +363,59 @@
           '<button type="button" class="btn2 ' + (k.actif ? 'grey' : '') + '" data-act="kidActive" data-id="' + esc(k.id) + '" data-on="' + (k.actif ? 0 : 1) + '">' + (k.actif ? 'Désactiver (a quitté le groupe)' : 'Réactiver') + '</button>' +
           '</section></div></div>' + '</main>';
   }
-  MC.act.edLevel = function (b) {
-    var id = app.current().params.id, cle = b.getAttribute('data-cle'), v = Number(b.getAttribute('data-v')), nv = {};
-    nv[cle] = v;
-    app.adultCall('updatePlayer', { joueurId: id, niveaux: nv }).then(function () {
-      patchKid(id, function (j) { j.niveaux = j.niveaux || {}; j.niveaux[cle] = v; });
-      ui.toast(C.CLES[cle].nom + ' : N' + v); app.rerender();
-    }).catch(function (e) { ui.toast(e.message, true); });
+  MC.act.myKids = function () {
+    var g = app.S.cache.group;
+    if (!g) return;
+    var sel = (g.moi.enfants || []).slice();
+    var list = g.joueurs.filter(function (p) { return p.joueur.actif; }).sort(function (a, b) { return a.joueur.prenom.localeCompare(b.joueur.prenom, 'fr'); });
+    ui.modal({
+      title: 'Mon enfant',
+      body: '<p class="small">Touchez votre enfant (ou vos enfants). Vous le retrouverez en haut du vestiaire.</p><div class="kidpick">' + list.map(function (p) {
+        var on = sel.indexOf(p.joueur.id) >= 0;
+        return '<button type="button" class="opt' + (on ? ' on' : '') + '" aria-pressed="' + on + '" data-kidpick="' + esc(p.joueur.id) + '">' + esc(p.joueur.prenom) + '</button>';
+      }).join('') + '</div>',
+      actions: [{ label: 'Enregistrer', value: 'ok', cls: 'btn' }, { label: 'Annuler', value: null, cls: 'btn2 grey' }],
+      onOpen: function (host) {
+        host.addEventListener('click', function (e) {
+          var b = e.target.closest('[data-kidpick]');
+          if (!b) return;
+          var id = b.getAttribute('data-kidpick'), i = sel.indexOf(id);
+          if (i >= 0) sel.splice(i, 1); else sel.push(id);
+          b.classList.toggle('on', i < 0); b.setAttribute('aria-pressed', String(i < 0));
+        });
+      }
+    }).then(function (v) {
+      if (v !== 'ok') return;
+      app.adultCall('mesEnfants', { ids: sel }).then(function (r) {
+        g.moi.enfants = r.enfants;
+        app.lsSet('mc-group', { tok: app.S.adult.token, data: g });
+        ui.toast(r.enfants.length ? 'C\'est noté' : 'Plus d\'enfant choisi');
+        app.rerender();
+      }).catch(function (e) { ui.toast(e.message, true); });
+    });
   };
+
+  // ---------- niveaux : on passe en mode « modifier », on choisit, puis on enregistre ----------
+  var lvDraft = null;
+  MC.act.lvEdit = function (b) { lvDraft = { id: b.getAttribute('data-id'), niv: {} }; app.rerender(); };
+  MC.act.lvCancel = function () { lvDraft = null; app.rerender(); };
+  MC.act.lvPick = function (b) { if (!lvDraft) return; lvDraft.niv[b.getAttribute('data-cle')] = Number(b.getAttribute('data-v')); app.rerender(); };
+  MC.act.lvSave = function (b) {
+    if (!lvDraft) return;
+    var id = lvDraft.id, nv = lvDraft.niv;
+    if (!Object.keys(nv).length) { lvDraft = null; app.rerender(); return; }
+    b.disabled = true;
+    app.adultCall('setNiveaux', { joueurId: id, niveaux: nv }).catch(function (e) {
+      // serveur pas encore à jour : l'éduc passe par l'ancienne action
+      if (e.code === 'invalide' && app.S.adult.role === 'e') return app.adultCall('updatePlayer', { joueurId: id, niveaux: nv });
+      throw e;
+    }).then(function () {
+      patchKid(id, function (j) { j.niveaux = j.niveaux || {}; for (var c in nv) j.niveaux[c] = nv[c]; });
+      lvDraft = null;
+      ui.toast('Niveaux enregistrés'); app.rerender();
+    }).catch(function (e) { b.disabled = false; ui.toast(e.message, true); });
+  };
+  document.addEventListener('hashchange', function () { lvDraft = null; });
   MC.act.kidActive = function (b) {
     var on = b.getAttribute('data-on') === '1';
     app.adultCall('updatePlayer', { joueurId: b.getAttribute('data-id'), actif: on }).then(function () { patchKid(b.getAttribute('data-id'), function (j) { j.actif = on; }); ui.toast(on ? 'Joueur réactivé' : 'Joueur désactivé (il n\'apparaît plus)'); app.rerender(); }).catch(function (e) { ui.toast(e.message, true); });

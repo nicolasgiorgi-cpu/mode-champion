@@ -101,7 +101,7 @@ var Core = (function () {
       ['tempHash', 's'], ['tempExp', 'n'], ['mustChange', 'b'], ['fails', 'n'], ['lockUntil', 'n'], ['niveaux', 'j'],
       ['materiel', 's'], ['visible', 'b'], ['actif', 'b'], ['cree', 's']],
     familles: [['id', 's'], ['nom', 's'], ['codeHash', 's'], ['codeV', 'n'], ['cree', 's']],
-    educs: [['id', 's'], ['nom', 's'], ['codeHash', 's'], ['codeV', 'n'], ['admin', 'b'], ['actif', 'b'], ['cree', 's']],
+    educs: [['id', 's'], ['nom', 's'], ['codeHash', 's'], ['codeV', 'n'], ['admin', 'b'], ['actif', 'b'], ['cree', 's'], ['enfants', 'j']],
     seances: [['id', 's'], ['joueurId', 's'], ['date', 's'], ['type', 's'], ['mode', 's'], ['ressenti', 's'], ['details', 'j'], ['cree', 's']],
     records: [['id', 's'], ['joueurId', 's'], ['bilan', 's'], ['test', 's'], ['valeur', 'n'], ['extra', 'j'], ['statut', 's'],
       ['parQui', 's'], ['date', 's'], ['cree', 's']],
@@ -606,10 +606,37 @@ var Core = (function () {
         };
       });
       return {
-        moi: { id: ctx.auth.row.id, nom: ctx.auth.row.nom, admin: !!ctx.auth.row.admin },
+        moi: { id: ctx.auth.row.id, nom: ctx.auth.row.nom, admin: !!ctx.auth.row.admin, enfants: Array.isArray(ctx.auth.row.enfants) ? ctx.auth.row.enfants : [] },
         joueurs: joueurs,
         familles: fams.map(function (f) { return { id: f.id, nom: f.nom }; })
       };
+    }
+  };
+
+  // Niveaux d'un joueur réglés par un parent (son enfant) ou un éduc. Pas d'XP pour ces réglages.
+  A.setNiveaux = {
+    auth: ['f', 'e'],
+    run: function (req, ctx) {
+      var j = kidFor(ctx, String(req.joueurId || ''));
+      var nv = cleanNiveaux(req.niveaux), cur = j.niveaux || {}, chg = {};
+      for (var k in nv) { if (cur[k] !== nv[k]) chg[k] = { de: cur[k] || 1, a: nv[k] }; cur[k] = nv[k]; }
+      ctx.db.update('joueurs', j.id, { niveaux: cur });
+      if (Object.keys(chg).length) {
+        var qui = ctx.auth.r === 'e' ? 'Éduc ' + ctx.auth.row.nom : 'Parent';
+        ctx.db.insert('journal', { id: genId(ctx.env), joueurId: j.id, type: 'niveau_adulte', data: { changes: chg, par: qui }, date: isoDate(ctx.now), cree: isoNow(ctx.now) });
+      }
+      return { joueur: pubJoueur(find(ctx.db.rows('joueurs'), j.id)) };
+    }
+  };
+
+  // Un éduc qui est aussi parent : ses enfants, pour les retrouver tout de suite dans le vestiaire
+  A.mesEnfants = {
+    auth: ['e'],
+    run: function (req, ctx) {
+      var all = ctx.db.rows('joueurs'), ids = Array.isArray(req.ids) ? req.ids.slice(0, 6) : [];
+      ids = ids.map(String).filter(function (id) { return !!find(all, id); });
+      ctx.db.update('educs', ctx.auth.row.id, { enfants: ids });
+      return { enfants: ids };
     }
   };
 

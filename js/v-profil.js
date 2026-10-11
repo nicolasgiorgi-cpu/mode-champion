@@ -75,9 +75,20 @@
       (propN ? '<a class="note pink" href="#/niveaux" style="text-decoration:none;color:var(--soft)">' + icon('up', 20) + '<span>' + propN + ' changement' + (propN > 1 ? 's' : '') + ' de niveau à décider</span></a>' : '') +
       '<a class="btn2 grey" href="#/niveaux">' + icon('up', 16) + ' Mes niveaux exercice par exercice</a></section>' +
       '<section class="sec"><div class="between"><h2 class="h2">Mes records</h2><span class="small">bilans et défis</span></div><div class="recgrid">' + recs + '</div></section>' +
+      '<a class="btn2" href="#/progression">' + icon('up', 16) + ' Ma progression d\'un bilan à l\'autre</a>' +
       '<a class="btn2 gold" href="#/trophees">' + icon('trophy', 18) + ' Mes trophées · ' + st.nbBadges + ' / ' + C.BADGES.length + ' badges</a>' +
       '</div></div></main>';
   }
+
+  // ---------- MA PROGRESSION ----------
+  app.route('/progression', function () {
+    return app.loadMe().then(function (me) {
+      return '<main class="screen"><a class="back" href="#/profil">' + icon('left', 18) + 'Mon profil</a>' +
+        '<div class="head"><span class="kicker">Bilans de la saison</span><h1 class="big md">Ma progression</h1><p class="lead" style="margin:0">Tes résultats à chaque bilan, et ce que tu as gagné depuis le bilan d\'avant.</p></div>' +
+        '<section class="sec">' + MC.suivi.progression(me.records, { vide: 'Fais ton premier bilan pour voir ta progression ici.' }) + '</section>' +
+        '<section class="sec"><h2 class="h2">Mes séances</h2><p class="small" style="margin:0">Touche une séance pour revoir le détail.</p>' + MC.suivi.seances(me.seances) + '</section></main>';
+    });
+  }, { kid: true, nav: 'profil', live: true });
 
   // ---------- NIVEAUX ----------
   app.route('/niveaux', function () {

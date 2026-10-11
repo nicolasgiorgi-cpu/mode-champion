@@ -39,6 +39,7 @@ MC.ui = (function () {
     down: '<path d="M6 9l6 6 6-6M6 4l6 6 6-6"/>',
     info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/>',
     list: '<path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/>',
+    edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/>',
     undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 010 11H11"/>',
     skipb: '<path d="M18 6L10 12l8 6zM6 6v12"/>',
     skipf: '<path d="M6 6l8 6-8 6zM18 6v12"/>',

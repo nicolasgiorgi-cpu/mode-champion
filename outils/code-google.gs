@@ -89,6 +89,12 @@ SheetDB_.prototype.flush_ = function () {
 SheetDB_.prototype.writeRow_ = function (table, rowIndex, obj) {
   var sh = this.sheet(table);
   var cells = Core.cellsFromRow(table, obj);
+  // nouvelle colonne ajoutée au programme : on complète la ligne d'en-tête (une fois par demande)
+  this.hdr = this.hdr || {};
+  if (!this.hdr[table]) {
+    this.hdr[table] = true;
+    if (!sh.getRange(1, cells.length).getDisplayValue()) sh.getRange(1, 1, 1, cells.length).setValues([Core.SCHEMA[table].map(function (c) { return c[0]; })]);
+  }
   var rg = sh.getRange(rowIndex, 1, 1, cells.length);
   rg.setNumberFormat('@');
   rg.setValues([cells]);
@@ -108,6 +114,18 @@ SheetDB_.prototype.update = function (table, id, patch) {
   for (var i = 0; i < rows.length; i++) {
     if (rows[i].id === id) {
       for (var k in patch) rows[i][k] = patch[k];
+      // sécurité : si la feuille a été modifiée à la main (lignes ajoutées ou supprimées), la copie en mémoire
+      // peut viser la mauvaise ligne. On vérifie l'identifiant avant d'écrire, sinon on relit l'onglet.
+      if (String(this.sheet(table).getRange(rows[i]._row, 1).getDisplayValue()) !== String(id)) {
+        var fresh = this.readSheet_(table), merged = null;
+        for (var f = 0; f < fresh.length; f++) if (fresh[f].id === id) { merged = fresh[f]; break; }
+        if (!merged) throw new Error('Ligne introuvable : ' + table + ' ' + id);
+        for (var k2 in patch) merged[k2] = patch[k2];
+        this.cache[table] = fresh;
+        this.writeRow_(table, merged._row, merged);
+        this.dirty[table] = true;
+        return;
+      }
       this.writeRow_(table, rows[i]._row, rows[i]);
       this.dirty[table] = true;
       return;
@@ -121,6 +139,7 @@ SheetDB_.prototype.remove = function (table, id) {
     if (rows[i].id === id) {
       this.sheet(table).deleteRow(rows[i]._row);
       delete this.cache[table];
+      try { this.cs.remove('t:' + table); } catch (e) { /* la prochaine lecture relira la feuille */ }
       this.dirty[table] = true;
       return;
     }

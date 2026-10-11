@@ -133,13 +133,14 @@
         ]), true) +
       card('p-voir', 'eye', '#3DFFB0', 'Ce que vous voyez', 'Le suivi de votre enfant',
         ul([
-          'Sa semaine : les étoiles gagnées et les séances faites (jour, niveau, ressenti).',
+          'Sa semaine : les étoiles gagnées et les séances faites. <b>Touchez une séance</b> pour le détail : exercices, niveau, séries, ressenti.',
+          '<b>Sa progression aux bilans</b> : ses résultats à chaque bilan et ce qu\'il a gagné depuis le précédent.',
           'Son grade, ses niveaux exercice par exercice, ses records confirmés.',
           'Les résultats de bilan ou de défi <b>en attente de confirmation</b>.'
         ])) +
       card('p-confirmer', 'check', '#FFC23D', 'Confirmer les résultats', 'Le geste le plus important',
         ul([
-          'Après un bilan ou un défi, les résultats arrivent dans votre espace. Pour chacun, touchez <b>Confirmer</b> ou <b>Refuser</b> : le bouton s\'allume, vous pouvez changer d\'avis. Rien n\'est envoyé tant que vous n\'avez pas touché <b>Valider mes choix</b> (en bas de l\'écran).',
+          'Après un bilan ou un défi, les résultats arrivent dans votre espace. Pour chacun, touchez <b>Confirmer</b> ou <b>Refuser</b> : le bouton s\'allume, vous pouvez changer d\'avis. Rien n\'est envoyé tant que vous n\'avez pas touché <b>Valider mes choix</b>, juste sous la liste.',
           'Confirmez si vous avez vu le test (ou si le chiffre vous paraît juste). Un éduc peut aussi confirmer.',
           'Refusé par erreur ? Ouvrez « résultats refusés » et touchez <b>Rétablir</b>, puis Valider mes choix.',
           'Seuls les résultats confirmés comptent pour le classement, les badges et les records.'
@@ -149,6 +150,11 @@
           'Prochain : <b>' + prochainBilan() + '</b>.',
           'Votre enfant le lance depuis son profil (bilan guidé, test par test). Il faut <b>un adulte à côté</b> pour regarder, compter et chronométrer.',
           'Ses niveaux se règlent tout seuls à partir des résultats.'
+        ])) +
+      card('p-niveaux', 'up', '#B48CFF', 'Ajuster ses niveaux', 'Trop facile, trop dur ?',
+        ul([
+          'Dans « Ses niveaux », touchez <b>Modifier les niveaux</b>, choisissez N1 à N4, puis <b>Enregistrer les niveaux</b>. Rien ne change tant que vous n\'avez pas enregistré.',
+          'Monter si c\'est facile avec une technique parfaite ; redescendre si les mouvements se dégradent. Le changement est noté (qui et quand).'
         ])) +
       card('p-code', 'key', '#7CFF6B', 'Code oublié', 'Votre enfant ne se souvient plus de son code',
         ul([
@@ -182,12 +188,14 @@
         ul([
           'Les étoiles de la semaine de chaque joueur et sa dernière séance.',
           'Le filtre <b>À relancer</b> montre ceux qui n\'ont noté aucune séance depuis 7 jours.',
+          '<b>Mon enfant</b> : vous êtes aussi parent d\'un joueur ? Choisissez-le une fois, il apparaît en haut du vestiaire avec tout le suivi parent, sans changer de code.',
+          'Outils › <b>Progrès du groupe aux bilans</b> : test par test, les joueurs classés selon leur progrès depuis le bilan d\'avant.',
           '<b>Résultats à valider</b> : les bilans et défis en attente. Confirmer / Refuser (ou Tout confirmer) s\'allument, puis <b>Valider mes choix</b> envoie le tout. Un résultat refusé par erreur se rétablit depuis la fiche du joueur.'
         ])) +
       card('e-fiche', 'user', '#FFC23D', 'La fiche d\'un joueur', 'Touchez un prénom',
         ul([
-          'Ses séances, ses records confirmés, ses niveaux.',
-          '<b>Ajuster un niveau</b> (N1 à N4) si le bilan ne reflète pas ce que vous voyez sur le terrain.',
+          'Ses séances (touchez-en une pour le détail), sa <b>progression d\'un bilan à l\'autre</b>, ses records confirmés, ses niveaux.',
+          '<b>Modifier les niveaux</b> (N1 à N4) si le bilan ne reflète pas ce que vous voyez sur le terrain : bouton Modifier, puis Enregistrer. Les parents peuvent aussi les ajuster.',
           '<b>Nouveau code provisoire</b> si l\'enfant a oublié le sien.',
           '<b>Masquer du classement</b>, ou <b>désactiver</b> un joueur qui a quitté le groupe (ses données sont gardées).'
         ])) +
