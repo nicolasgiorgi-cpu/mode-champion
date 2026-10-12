@@ -24,6 +24,8 @@ Site statique (HTML/CSS/JS, rien à installer) + une Google Sheet qui sert de ba
 | `js/v-*.js` | Les écrans |
 | `js/v-bilan.js` | Le bilan guidé (test par test) |
 | `js/v-guide.js` | Le guide « Comment ça marche ? » (joueur, parents, éducs) |
+| `js/accueil.js` | L'accueil des nouveaux : visites (joueur, parent, éduc), listes « premiers pas », astuces |
+| `js/nouveautes.js` | **Les nouveautés** : une entrée par nouvelle fonction (voir plus bas) |
 | `sw.js` | La copie de l'appli gardée sur l'appareil (elle s'ouvre même quand le réseau traîne) |
 | `apps-script/serveur-mode-champion.gs` | **Le serveur à coller dans Google Apps Script** (un seul fichier) |
 
@@ -64,6 +66,10 @@ Sur iPad et téléphone : **Partager › Sur l'écran d'accueil** pour l'ouvrir 
 **Réparer l'appli** sur un appareil : ouvrir l'adresse du site suivie de `?reset=1` (vide la copie gardée, on reste connecté) ou `?reset=2` (repart de zéro sur cet appareil : il faudra retaper les codes). Si l'icône de l'écran d'accueil reste noire : forcer la fermeture, rouvrir ; sinon supprimer l'icône et la remettre depuis Safari.
 
 **À chaque mise à jour du site**, augmenter le numéro `?v=` dans `index.html` (tous les fichiers) : c'est lui qui dit aux appareils de prendre la nouvelle version.
+
+**Navigation.** Partout la même : en haut, le bouton Retour (il ramène toujours au même écran) et l'aide « ? » ; en bas, les onglets (joueur : Semaine · Profil · Classement ; parent : Suivi · Progrès · Classement · Plus ; éduc : Vestiaire · Joueurs · Classement · Outils). Sur iPad en paysage, les onglets passent sur le côté.
+
+**Annoncer une nouveauté.** Ajouter une entrée en haut de `MC.NEWS` dans `js/nouveautes.js` : `id` (unique), `date`, `pour` (`k` joueur, `f` parent, `e` éduc), `titre`, `texte` (une phrase) et, si utile, `lien` (l'écran à ouvrir). À l'ouverture suivante, chacun voit « Quoi de neuf ? » (3 au plus, une seule fois) ; l'historique est dans Réglages (joueur), Plus (parent), Outils (éduc). Les nouveaux inscrits ne voient pas les anciennes nouveautés : ils ont la visite.
 
 ## 3. Démarrer avec le groupe
 

@@ -65,8 +65,8 @@
       return '<div class="rec' + (wait ? ' wait' : '') + '"><span class="v">' + (b ? ui.valHtml(b.valeur, t.unite, t.decimales) : '—') + '</span><span class="l">' + esc(sm ? t.sm.nom : t.court) + (wait ? ' · à confirmer' : '') + '</span></div>';
     }).join('');
     var propN = st.proposals.length;
-    return '<main class="screen">' +
-      '<div class="between" style="align-items:center"><span class="kicker">Mon profil · saison 2026-27</span><span class="row" style="gap:6px"><a class="tag" href="#/guide?de=profil" style="min-height:40px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--soft)">' + icon('info', 14) + 'Aide</a><a class="tag" href="#/reglages" style="min-height:40px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--soft)">' + icon('settings', 14) + 'Réglages</a></span></div>' +
+    return '<main class="screen">' + MC.kidBar(me, st, '<a class="cbtn grey" href="#/reglages" aria-label="Réglages">' + icon('settings', 20) + '</a>') +
+      '<span class="kicker">Mon profil · saison 2026-27</span>' +
       '<div class="profile-grid"><div class="sec" style="gap:14px">' + card + xp +
       '<a class="btn2" href="#/bilan">' + icon('plus', 16) + ' Saisir mon ' + esc(bl.nom.toLowerCase()) + ' · ' + esc(bl.quand) + '</a></div>' +
       '<div class="sec" style="gap:20px">' + tiles + boardHtml(st) + '</div>' +
@@ -83,7 +83,7 @@
   // ---------- MA PROGRESSION ----------
   app.route('/progression', function () {
     return app.loadMe().then(function (me) {
-      return '<main class="screen"><a class="back" href="#/profil">' + icon('left', 18) + 'Mon profil</a>' +
+      return '<main class="screen">' + MC.kidSubBar('#/profil', 'Mon profil', 'Ma progression') +
         '<div class="head"><span class="kicker">Bilans de la saison</span><h1 class="big md">Ma progression</h1><p class="lead" style="margin:0">Tes résultats à chaque bilan, et ce que tu as gagné depuis le bilan d\'avant.</p></div>' +
         '<section class="sec">' + MC.suivi.progression(me.records, { vide: 'Fais ton premier bilan pour voir ta progression ici.' }) + '</section>' +
         '<section class="sec"><h2 class="h2">Mes séances</h2><p class="small" style="margin:0">Touche une séance pour revoir le détail.</p>' + MC.suivi.seances(me.seances) + '</section></main>';
@@ -99,16 +99,26 @@
         return '<section class="sec"><div class="row"><span class="dia" style="--dc:' + f.color + '"></span><h2 class="h2">' + esc(f.nom) + '</h2></div><ul class="list">' + f.cles.map(function (cle) {
           var n = niv[cle] || 1, exos = [];
           for (var id in C.EXOS) if (C.EXOS[id].cle === cle) exos.push(C.EXOS[id].nom);
-          return '<li class="li"><div class="grow"><div class="t1">' + esc(C.CLES[cle].nom) + '</div><div class="t2">' + esc(exos.join(' · ')) + '</div></div>' + pips(n, C.NIVEAUX[n].color) + ui.lvl(n) + '</li>';
+          var p4 = n === 3 && st.proposals.some(function (p) { return p.cle === cle && p.a === 4; });
+          var upOk = n < 3 || p4;
+          return '<li class="li lvrow"><div class="grow"><div class="t1">' + esc(C.CLES[cle].nom) + ' ' + ui.lvl(n) + '</div><div class="t2">' + esc(exos.join(' · ')) + '</div>' + pips(n, C.NIVEAUX[n].color) + '</div>' +
+            '<span class="lvstep"><button type="button" class="cbtn grey" data-act="lvStep" data-cle="' + cle + '" data-n="' + n + '" data-d="-1" aria-label="' + esc(C.CLES[cle].nom) + ' : niveau d\'avant"' + (n <= 1 ? ' disabled' : '') + '>' + icon('minus', 18) + '</button>' +
+            '<button type="button" class="cbtn" data-act="lvStep" data-cle="' + cle + '" data-n="' + n + '" data-d="1" aria-label="' + esc(C.CLES[cle].nom) + ' : niveau d\'après"' + (upOk ? '' : ' disabled') + '>' + icon('plus', 18) + '</button></span></li>';
         }).join('') + '</ul></section>';
       }).join('');
-      return '<main class="screen"><a class="back" href="#/profil">' + icon('left', 18) + 'Mon profil</a>' +
+      return '<main class="screen">' + MC.kidSubBar('#/profil', 'Mon profil', 'Mes niveaux') +
         '<div class="head"><span class="kicker">N1 début · N2 moyen · N3 fort · N4 champion</span><h1 class="big md">Mes niveaux</h1>' +
-        '<p class="lead">Ils viennent de ton bilan. Tu montes quand c\'est « facile » 2 séances de suite (technique parfaite), tu redescends si c\'est « dur » 2 fois. Le N4 champion s\'ouvre quand le N3 est facile.</p></div>' +
+        '<p class="lead">Ils viennent de ton bilan (niveau 1 si tu ne l\'as pas encore fait). Trop facile ? Touche <b>+</b> pour passer au niveau d\'après, si ta technique est parfaite. Trop dur ? Touche <b>−</b>. Le <b>N4 champion</b> s\'ouvre quand le N3 est « facile » 2 séances de suite.</p></div>' +
         props + '<div class="cols2"><div class="sec" style="gap:20px">' + fams.split('</section>').slice(0, 2).join('</section>') + '</section></div><div class="sec" style="gap:20px">' + fams.split('</section>').slice(2, 4).join('</section>') + '</section></div></div>' +
-        '<div class="note">' + icon('info', 20) + '<span>Un niveau ne te va pas du tout ? Demande à ton éduc : il peut le changer.</span></div></main>';
+        '<div class="note">' + icon('info', 20) + '<span>Tes parents et ton éduc voient tes niveaux et peuvent aussi les ajuster.</span></div></main>';
     });
   }, { kid: true, nav: 'profil', live: true });
+
+  MC.act.lvStep = function (b) {
+    var cle = b.getAttribute('data-cle'), n = Number(b.getAttribute('data-n')), a = n + Number(b.getAttribute('data-d'));
+    if (a < 1 || a > 4) return;
+    MC.changeLevel(cle, n, a, b).then(function (ok) { if (ok) app.rerender(); });
+  };
 
   // ---------- TROPHÉES ----------
   app.route('/trophees', function () {
@@ -139,7 +149,7 @@
         return '<section class="sec"><div class="between"><h2 class="h2">' + esc(f.nom) + '</h2><span class="hud" style="color:var(--gold)">' + n + ' / ' + list.length + '</span></div>' +
           (f.intro ? '<p class="small" style="margin:0">' + esc(f.intro) + '</p>' : '') + '<div class="badges">' + list.map(badgeCard).join('') + '</div></section>';
       }).join('');
-      return '<main class="screen"><a class="back" href="#/profil">' + icon('left', 18) + 'Mon profil</a>' +
+      return '<main class="screen">' + MC.kidSubBar('#/profil', 'Mon profil', 'Mes trophées') +
         '<div class="head"><span class="kicker" style="color:var(--gold)">Salle des trophées</span><h1 class="big md">Grades<br>et badges</h1></div>' +
         '<div class="cols2"><section class="sec"><div class="between"><h2 class="h2">Ma carrière</h2><span class="small">1 séance = ' + C.XP.seance + ' XP</span></div><ol class="grades">' + grades + '</ol>' +
         '<div class="box small" style="line-height:1.5">Séance à la maison +' + C.XP.seance + ' · club +' + C.XP.club + ' · récup +' + C.XP.recup + ' · semaine parfaite +' + C.XP.bonus + ' · badge ou palier +' + C.XP.badge + ' · record battu +' + C.XP.record + ' · niveau monté +' + C.XP.niveau + '</div></section>' +
@@ -173,7 +183,7 @@
         var nav = (me.records || []).filter(function (r) { return r.test === 'navette' && r.statut === 'ok'; }).sort(function (a, c) { return a.date < c.date ? -1 : 1; });
         prev = nav.length ? '<div class="note">' + icon('info', 20) + '<span>Ton 1er chrono de navette : <b>' + ui.fmtVal(nav[0].valeur, 's', 1) + '</b>. Fais mieux !</span></div>' : '<div class="note yellow">' + icon('info', 20) + '<span>Il faut d\'abord un 1er chrono de navette (au bilan) pour pouvoir le battre.</span></div>';
       }
-      return '<main class="screen"><a class="back" href="#/trophees">' + icon('left', 18) + 'Mes trophées</a>' +
+      return '<main class="screen">' + MC.kidSubBar('#/trophees', 'Mes trophées', 'Défi ' + b.nom) +
         '<div class="row" style="gap:16px">' + MC.badgeIcon(b, true, 84) + '<div class="head"><span class="kicker" style="color:' + b.color + '">Défi badge</span><h1 class="big sm">' + esc(b.nom) + '</h1></div></div>' +
         '<div class="box"><div class="hud" style="color:' + b.color + '">Le défi</div><p class="lead" style="margin-top:6px;color:var(--ink)">' + esc(b.cond) + '</p>' + (t.comment ? '<p class="small" style="margin:8px 0 0">' + esc(sm ? t.sm.comment : t.comment) + '</p>' : '') + '</div>' +
         prev + '<div class="note yellow">' + icon('group', 20) + '<span>Un adulte doit être là pour compter. Ensuite, un parent ou ton éduc confirme dans son espace et le badge s\'allume.</span></div>' +
@@ -219,6 +229,7 @@
   app.route('/classement', function () {
     return Promise.all([app.loadMe(), app.kidCall('league')]).then(function (res) {
       app.S.league = res[1];
+      if (MC.accueil) MC.accueil.markArene(res[0].joueur.id);
       return paintRank(res[0], res[1]);
     });
   }, { kid: true, nav: 'classement', bg: '#2A1640' });
@@ -242,7 +253,7 @@
     var inIt = lg.rows.some(function (r) { return r.p.id === me.joueur.id; });
     var empty = !lg.rows.length ? '<div class="empty">' + (rank.mode === 'prog' ? 'Pas encore de progrès à comparer : il faut au moins 2 résultats confirmés (bilan + défi ou bilan suivant).' : 'Personne n\'a encore de résultat confirmé sur cette épreuve dans ta ligue.') + '</div>' : '';
     var meNote = !inIt && lg.rows.length ? '<div class="note">' + icon('info', 20) + '<span>Tu n\'apparais pas encore : saisis ton bilan (ou un défi) et fais-le confirmer par un adulte.</span></div>' : '';
-    return '<main class="screen"><div class="head"><span class="kicker" style="color:var(--pink)">Classement · M12</span><h1 class="big">L\'arène</h1></div>' +
+    return '<main class="screen">' + MC.kidBar(me, app.S.stats) + '<div class="head"><span class="kicker" style="color:var(--pink)">Classement · M12</span><h1 class="big">L\'arène</h1></div>' +
       '<section class="row" style="padding:12px 14px;background:' + ui.rgba(lc, 0.1) + ';border:1.5px solid ' + lc + ';align-items:center">' + ui.lvl(lg.myLv, lname.toUpperCase()) +
       '<span style="font-size:13px;line-height:1.35;color:var(--soft)">Tu te mesures aux joueurs de ton niveau sur cette épreuve' + (lg.sm ? ' (version mini matériel)' : '') + '.</span></section>' +
       '<div class="sec" style="gap:8px"><span class="lab">Épreuve</span><div class="row" style="overflow-x:auto;gap:8px;padding-bottom:4px;-webkit-overflow-scrolling:touch">' + chips + '</div></div>' +
@@ -371,9 +382,9 @@
     }).join('');
     var pct = Math.round(done / C.TESTS.length * 100);
     var nb = L.nextBilan();
-    return '<main class="screen"><a class="back" href="#/profil">' + icon('left', 18) + 'Mon profil</a>' +
+    return '<main class="screen">' + MC.kidSubBar('#/profil', 'Mon profil', 'Mon bilan') +
       '<div class="head"><span class="kicker">' + esc(B.nom) + ' · ' + esc(B.quand) + '</span><h1 class="big md">Mon bilan<br>de champion</h1></div>' +
-      '<div class="note">' + icon('group', 22) + '<span>Fais les 12 tests avec un adulte à côté, toujours dans le même ordre, 2 min de repos entre deux tests. Tes records entrent au classement quand un adulte les a confirmés. Tes niveaux se mettent à jour tout seuls.</span></div>' +
+      bilanExplain(me) +
       guidedCta() + dateField('bil_date') +
       (mini ? '<div class="note yellow">' + icon('home', 20) + '<span>Mode mini matériel : les tests 4, 5, 10 et 11 sont en version « SM ».</span></div>' : '') +
       '<div class="sec" style="gap:6px"><div class="between"><span class="hud" id="bil_done">' + done + ' / 12 tests notés</span><span class="hud" style="color:var(--gold)" id="bil_recs">' + recs + ' record' + (recs > 1 ? 's' : '') + '</span></div><div class="xpbar" style="height:8px"><i id="bil_bar" style="width:' + pct + '%"></i></div></div>' +
@@ -381,6 +392,17 @@
       '<div class="cols2"><div class="sec" style="gap:18px">' + groups.split('</section>').slice(0, 2).join('</section>') + '</section></div><div class="sec" style="gap:18px">' + groups.split('</section>').slice(2, 4).join('</section>') + '</section>' +
       '<button type="button" class="btn xl" id="bil_send" data-act="sendBilan"' + (done ? '' : ' disabled') + '>' + icon('send', 20) + ' Envoyer mon bilan</button>' +
       '<p class="small" style="text-align:center;margin:0">Tu peux revenir le compléter plus tard.' + (nb && nb.n !== B.n ? ' Prochain : ' + esc(nb.nom.toLowerCase()) + ', ' + esc(nb.quand) + '.' : '') + '</p></div></div></main>';
+  }
+  // le principe du bilan, expliqué simplement (et on peut s'entraîner sans)
+  function bilanExplain(me) {
+    var first = !(me.records || []).some(function (r) { return /^\d+$/.test(String(r.bilan)); });
+    return '<section class="bilexp"><div class="hud" style="color:var(--cyan)">Le bilan, c\'est quoi ?</div>' +
+      '<ol class="steps">' +
+      '<li><span class="num" style="--sc:var(--cyan)">1</span><span class="tx"><b>12 petits tests</b> (sauts, gainage, navette…) pour voir où tu en es. Toutes les 8 semaines environ.</span></li>' +
+      '<li><span class="num" style="--sc:var(--cyan)">2</span><span class="tx"><b>Avec un adulte</b> à côté qui regarde, compte et chronomètre. Environ 45 min, 2 min de repos entre deux tests.</span></li>' +
+      '<li><span class="num" style="--sc:var(--cyan)">3</span><span class="tx">Il <b>règle tes niveaux</b> exercice par exercice, et tes résultats deviennent tes <b>records</b>.</span></li>' +
+      '<li><span class="num" style="--sc:var(--cyan)">4</span><span class="tx">Un parent ou ton éduc les <b>confirme</b> : ils entrent alors dans l\'arène (le classement).</span></li></ol>' +
+      (first ? '<p class="small" style="margin:0;color:var(--soft)">' + icon('info', 14) + ' Pas d\'adulte dispo aujourd\'hui ? Pas de souci : <b>tu peux t\'entraîner dès maintenant</b>, tes exos sont au niveau 1. Tu feras ton bilan quand un adulte sera là.</p>' : '') + '</section>';
   }
   function guidedCta() {
     var g = MC.bilanGuide && MC.bilanGuide.progress();
@@ -464,11 +486,13 @@
     return app.loadMe().then(function (me) {
       var k = me.joueur, mini = k.materiel === 'mini';
       function sw(on, t1, t2, act) { return '<button type="button" class="switch" role="switch" aria-checked="' + on + '" data-act="' + act + '"><span><span class="t1" style="display:block">' + t1 + '</span><span class="t2" style="display:block">' + t2 + '</span></span><span class="k"></span></button>'; }
-      return '<main class="screen"><a class="back" href="#/profil">' + icon('left', 18) + 'Mon profil</a>' +
+      return '<main class="screen">' + MC.kidSubBar('#/profil', 'Mon profil', 'Réglages') +
         '<div class="head"><span class="kicker">' + esc(k.prenom) + '</span><h1 class="big md">Réglages</h1></div>' +
         '<div class="sec">' + sw(mini, 'Mode mini matériel', 'Tapis + élastiques : les exercices et les tests s\'adaptent', 'toggleMini') +
         sw(!ui.isMuted(), 'Bips du chrono', 'Un bip 10 s avant la fin, puis 5-4-3-2-1 et le son de fin', 'togglePrefSon') +
-        '<a class="switch" href="#/guide?de=profil" style="text-decoration:none"><span><span class="t1" style="display:block">Comment ça marche ?</span><span class="t2" style="display:block">Étoiles, niveaux, badges, bilan, classement</span></span>' + icon('right', 18) + '</a>' +
+        '<a class="switch" href="#/guide?pour=joueur&de=reglages" style="text-decoration:none"><span><span class="t1" style="display:block">Comment ça marche ?</span><span class="t2" style="display:block">Étoiles, niveaux, badges, bilan, classement</span></span>' + icon('right', 18) + '</a>' +
+        '<a class="switch" href="#/nouveautes" style="text-decoration:none"><span><span class="t1" style="display:block">Les nouveautés</span><span class="t2" style="display:block">Ce qui a changé dans l\'appli</span></span>' + icon('right', 18) + '</a>' +
+        '<a class="switch" href="#/bienvenue?revoir=1" style="text-decoration:none"><span><span class="t1" style="display:block">Revoir la visite</span><span class="t2" style="display:block">Les 5 écrans du début</span></span>' + icon('right', 18) + '</a>' +
         '<a class="switch" href="#/premiere?change=1" style="text-decoration:none"><span><span class="t1" style="display:block">Changer mon code secret</span><span class="t2" style="display:block">Et ma couleur reste la même</span></span>' + icon('right', 18) + '</a>' +
         '<div class="box"><span class="t2 small">' + (k.visible ? 'Tu apparais dans le classement de ta ligue.' : 'Tes parents ont choisi de ne pas t\'afficher dans le classement des autres.') + '</span></div></div>' +
         '<button type="button" class="btn2 grey" data-act="logoutKid">' + icon('logout', 18) + ' Changer de joueur</button>' +

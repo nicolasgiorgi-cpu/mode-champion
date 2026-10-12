@@ -68,6 +68,14 @@ MC.ui = (function () {
     infinity: '<path d="M12 12c-2-2.6-3.6-4-5.5-4a4 4 0 0 0 0 8c1.9 0 3.5-1.4 5.5-4zm0 0c2 2.6 3.6 4 5.5 4a4 4 0 0 0 0-8c-1.9 0-3.5 1.4-5.5 4z"/>',
     boot: '<path d="M2.5 17.5V13c0-.6.4-1 1-1H7l2.2-3.2c.3-.5 1-.6 1.5-.3l1.3.9 1.2 2.1 4.6 1.7c2 .7 3.7 2.2 3.7 4.3z"/><path d="M2.5 17.5h19v1.5a1 1 0 0 1-1 1h-17a1 1 0 0 1-1-1z"/><path d="M11 12.5l1.2-1M13 13.5l1.2-1"/>',
     crown: '<path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 10H5z"/><path d="M5 21h14"/>',
+    pulse: '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
+    wrench: '<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/>',
+    menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
+    chevd: '<path d="M6 9l6 6 6-6"/>',
+    swap: '<path d="M7 7h12l-3-3M17 17H5l3 3"/>',
+    spark: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M18 6l-2.5 2.5M8.5 15.5L6 18"/>',
+    news: '<path d="M4 5h13v14H6a2 2 0 0 1-2-2zM17 9h3v8a2 2 0 0 1-2 2M8 9h5M8 13h5"/>',
+    vest: '<path d="M3 11l9-7 9 7v10h-6v-6H9v6H3z"/>',
     settings: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>'
   };
   function icon(name, size, extra) {
@@ -434,7 +442,26 @@ MC.ui = (function () {
     return '<iframe src="https://www.youtube-nocookie.com/embed/' + encodeURIComponent(id) + '?autoplay=1&rel=0&modestbranding=1&playsinline=1" title="Vidéo de démonstration" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>';
   }
 
+  // ---------- Barre du haut (la même partout) ----------
+  // À gauche : le bouton Retour, qui ramène toujours au même écran (pas à « la page d'avant » du navigateur),
+  // avec au-dessus du titre le nom de cet écran. Au milieu : le titre. À droite : des actions et l'aide.
+  // o : { back, backLabel, title, kicker, left (html à la place du Retour), mid (html du milieu), right (html), help (lien, false = aucune), xp (% de la ligne d'XP) }
+  function topbar(o) {
+    o = o || {};
+    var left = o.back ? '<a class="cbtn" href="' + esc(o.back) + '" aria-label="Retour : ' + esc(o.backLabel || 'écran d\'avant') + '" data-back>' + icon('left', 20) + '</a>' : (o.left || '');
+    var kick = o.back ? (o.backLabel || '') : (o.kicker || '');
+    var mid = o.mid !== undefined ? o.mid : '<span class="tb-t">' + (kick ? '<span class="tb-k">' + esc(kick) + '</span>' : '') + '<span class="tb-title">' + esc(o.title || '') + '</span></span>';
+    var help = o.help === false ? '' : '<a class="cbtn grey" href="' + esc(o.help || '#/guide') + '" aria-label="Aide : comment ça marche ?"><b class="q">?</b></a>';
+    return '<header class="topbar">' + left + mid + (o.right || '') + help + (o.xp !== undefined ? '<i class="tb-xp" style="width:' + Math.max(2, Math.min(100, o.xp)) + '%" aria-hidden="true"></i>' : '') + '</header>';
+  }
+  // lien d'aide qui ramène ensuite à l'écran où l'on était
+  function helpLink(pour) {
+    var here = (location.hash || '').replace(/^#\/?/, '');
+    return '#/guide?pour=' + (pour || 'joueur') + (here ? '&de=' + encodeURIComponent(here) : '');
+  }
+
   return {
+    topbar: topbar, helpLink: helpLink,
     esc: esc, icon: icon, starSvg: starSvg, lvl: lvl, levelIcon: levelIcon, avatar: avatar, hexa: hexa, rgba: hexToRgba,
     doseLabel: doseLabel, doseInfo: doseInfo, fmtDate: fmtDate, fmtNum: fmtNum, fmtVal: fmtVal, valHtml: valHtml,
     numInput: numInput, numpadClose: npClose, TOUCH: TOUCH,

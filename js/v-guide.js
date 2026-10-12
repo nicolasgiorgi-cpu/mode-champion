@@ -34,7 +34,7 @@
   function xpTable() {
     var X = C.XP;
     var rows = [['Séance à la maison (lundi → jeudi)', X.seance], ['Club du mercredi ou du samedi', X.club], ['Récup du dimanche', X.recup], ['Semaine parfaite (les 6 étoiles)', X.bonus],
-      ['Badge gagné, ou palier bronze / argent / or', X.badge], ['Record battu (confirmé par un adulte)', X.record], ['Niveau monté', X.niveau]];
+      ['Badge gagné, ou palier bronze / argent / or', X.badge], ['Record battu (confirmé par un adulte)', X.record], ['Niveau monté (la 1re fois)', X.niveau], ['Premiers pas réussis (une fois)', X.premiersPas]];
     return '<div class="gxp">' + rows.map(function (r) { return '<span>' + esc(r[0]) + '</span><span>+' + r[1] + ' XP</span>'; }).join('') + '</div>';
   }
   function grades() {
@@ -69,13 +69,14 @@
         ])) +
       card('niveaux', 'up', '#B48CFF', 'Tes niveaux N1 → N4', 'Chaque exercice a son niveau',
         levels() + ul([
-          'Chaque famille d\'exercices a son niveau. C\'est <b>ton bilan</b> qui les règle au départ (N1 à N3).',
-          '<b>Facile</b> 2 séances de suite → le site te propose de <b>monter</b>. <b>Dur</b> 2 fois → il te propose de <b>redescendre</b>. C\'est toi qui décides (Profil › Mes niveaux).',
-          '<b>N4 = niveau champion</b> : on n\'y arrive qu\'en progressant, jamais directement par le bilan.'
+          'Chaque famille d\'exercices a son niveau. C\'est <b>ton bilan</b> qui les règle au départ (N1 à N3). Pas encore de bilan ? Tu commences au <b>niveau 1</b>.',
+          'Un exercice <b>facile</b> ? À la fin de la séance, touche <b>Passer au niveau d\'après</b>. <b>Dur</b> ? <b>Reviens au niveau d\'avant</b>. Tu peux aussi le faire dans Profil › Mes niveaux (boutons + et −). Monte seulement si ta technique est parfaite.',
+          '<b>N4 = niveau champion</b> : il s\'ouvre quand le N3 est « facile » 2 séances de suite, jamais directement par le bilan.'
         ])) +
       card('bilan', 'sheet', '#38E8FF', 'Le bilan', 'Les 12 tests, toutes les 8 semaines',
         ul([
           '12 tests, toujours dans le même ordre, avec un adulte qui regarde et compte. Prochain : <b>' + prochainBilan() + '</b>.',
+          '<b>Pas d\'adulte dispo ?</b> Tu peux t\'entraîner sans bilan : tes exercices sont au niveau 1, et le bilan les réglera ensuite.',
           'Profil › <b>Saisir mon bilan</b> › <b>Lancer le bilan guidé</b> : échauffement, puis chaque test avec la démo, le chrono et le compteur, 2 min de repos entre deux tests. Tu peux aussi tout noter dans le formulaire.',
           'Le bilan <b>règle tes niveaux</b> tout seul et donne tes <b>records</b>.',
           'Un parent ou ton éduc <b>confirme</b> tes résultats. Sans confirmation, ils ne comptent pas au classement.'
@@ -128,6 +129,7 @@
       card('p-connexion', 'lock', '#38E8FF', 'Se connecter', 'Un code par famille',
         ul([
           'Bouton <b>Adultes</b> (en haut de l\'écran d\'accueil) › <b>Je suis parent</b> › votre <b>code famille</b> à 6 chiffres, donné par l\'éducateur.',
+          'Votre espace a 4 onglets en bas : <b>Suivi</b> (sa semaine, ses séances, les résultats à confirmer), <b>Progrès</b> (bilans, records, niveaux), <b>Classement</b> et <b>Plus</b> (réglages, aide). Plusieurs enfants ? Changez d\'enfant en haut à gauche.',
           'Un seul code pour la famille : les deux parents peuvent l\'utiliser, et il donne accès à tous vos enfants inscrits.',
           'Vous restez connecté sur l\'appareil. Code perdu : l\'éducateur vous en crée un nouveau.'
         ]), true) +
@@ -153,26 +155,27 @@
         ])) +
       card('p-niveaux', 'up', '#B48CFF', 'Ajuster ses niveaux', 'Trop facile, trop dur ?',
         ul([
-          'Dans « Ses niveaux », touchez <b>Modifier les niveaux</b>, choisissez N1 à N4, puis <b>Enregistrer les niveaux</b>. Rien ne change tant que vous n\'avez pas enregistré.',
+          'Votre enfant peut monter d\'un niveau à la fin d\'une séance où un exercice était « facile » (ou redescendre s\'il était « dur »).',
+          'Vous aussi : onglet <b>Progrès</b> › « Ses niveaux » › <b>Modifier les niveaux</b>, choisissez N1 à N4, puis <b>Enregistrer les niveaux</b>. Rien ne change tant que vous n\'avez pas enregistré.',
           'Monter si c\'est facile avec une technique parfaite ; redescendre si les mouvements se dégradent. Le changement est noté (qui et quand).'
         ])) +
       card('p-partage', 'phone', '#38E8FF', 'Il utilise votre téléphone', 'Pas de téléphone ou d\'iPad à lui ? Aucun problème',
         ul([
           'Ouvrez le site sur votre téléphone (Partager › « Sur l\'écran d\'accueil » pour l\'avoir comme une appli). Votre enfant touche son avatar et tape son code : il reste connecté pour les fois suivantes.',
           'Frères et sœurs sur le même téléphone : chacun a son profil. « Pas Tom ? Changer de joueur » en haut de la semaine, ou « J\'ai fini » à la fin de la séance. S\'il n\'a pas servi depuis 30 min, le site demande « C\'est bien toi ? » avant de commencer.',
-          'Votre espace parent est protégé : sur un appareil partagé, votre code est redemandé après 10 min, ou dès qu\'on repasse côté joueur. Votre enfant ne peut donc pas confirmer lui-même ses résultats. Réglage « Appareil partagé avec un enfant » dans votre espace.',
+          'Votre espace parent est protégé : sur un appareil partagé, votre code est redemandé après 10 min, ou dès qu\'on repasse côté joueur. Votre enfant ne peut donc pas confirmer lui-même ses résultats. Réglage « Appareil partagé avec un enfant » dans l\'onglet <b>Plus</b>.',
           'Une séance commencée est gardée sur le téléphone : si vous en avez besoin au milieu, votre enfant la reprendra là où il en était.'
         ])) +
       card('p-code', 'key', '#7CFF6B', 'Code oublié', 'Votre enfant ne se souvient plus de son code',
         ul([
-          'Dans votre espace, sur son prénom : <b>nouveau code provisoire</b> (valable 48 h).',
+          'Onglet <b>Plus</b> › <b>Nouveau code secret</b> pour votre enfant : un code provisoire valable 48 h.',
           'Votre enfant se connecte avec, puis choisit lui-même un nouveau code. Ses séances, étoiles et XP sont gardés.'
         ])) +
       card('p-classement', 'podium', '#B48CFF', 'Classement et données', 'Prénoms seulement',
         ul([
           'Le classement compare les enfants <b>de même niveau</b> sur chaque test, en meilleur score ou en progrès.',
-          'Bouton <b>Classement</b> en haut de votre espace : la ligue de votre enfant, comme il la voit.',
-          'Tous les enfants y apparaissent par défaut. Vous pouvez <b>masquer votre enfant</b> depuis votre espace : il continue de voir sa propre place.',
+          'Onglet <b>Classement</b> : la ligue de votre enfant, comme il la voit.',
+          'Tous les enfants y apparaissent par défaut. Vous pouvez <b>masquer votre enfant</b> (onglet Plus) : il continue de voir sa propre place.',
           'Le site ne garde que des prénoms et des résultats sportifs, dans un fichier du club. Pas d\'adresse e-mail, pas de nom de famille. Les codes sont enregistrés chiffrés.'
         ])) +
       card('p-rythme', 'heart', '#FF4F6D', 'Rythme et sécurité', 'Court, régulier, sans forcer',
@@ -194,12 +197,12 @@
         ]), true) +
       card('e-vestiaire', 'group', '#3DFFB0', 'Le vestiaire', 'Tout le groupe d\'un coup d\'œil',
         ul([
-          'Les étoiles de la semaine de chaque joueur et sa dernière séance.',
-          'Le filtre <b>À relancer</b> montre ceux qui n\'ont noté aucune séance depuis 7 jours.',
-          '<b>Mon enfant</b> : vous êtes aussi parent d\'un joueur ? Choisissez-le une fois, il apparaît en haut du vestiaire avec tout le suivi parent, sans changer de code.',
-          'Outils › <b>Le classement</b> : tout le groupe ou une ligue à la fois, avec la liste des joueurs pas encore classés.',
+          '4 onglets en bas : <b>Vestiaire</b> (à valider, ce qui bouge), <b>Joueurs</b>, <b>Classement</b>, <b>Outils</b>. Une pastille rose sur Vestiaire = des résultats attendent.',
+          'Onglet <b>Joueurs</b> : les étoiles de la semaine de chacun et sa dernière séance. Le filtre <b>À relancer</b> montre ceux qui n\'ont rien noté depuis 7 jours.',
+          '<b>Mon enfant</b> : vous êtes aussi parent d\'un joueur ? Choisissez-le dans Outils : son bouclier apparaît en haut de votre espace, avec tout le suivi parent, sans changer de code.',
+          'Onglet <b>Classement</b> : tout le groupe ou une ligue à la fois, avec la liste des joueurs pas encore classés.',
           'Outils › <b>Progrès du groupe aux bilans</b> : test par test, les joueurs classés selon leur progrès depuis le bilan d\'avant.',
-          '<b>Résultats à valider</b> : les bilans et défis en attente. Confirmer / Refuser (ou Tout confirmer) s\'allument, puis <b>Valider mes choix</b> envoie le tout. Un résultat refusé par erreur se rétablit depuis la fiche du joueur.'
+          '<b>À valider</b> (Vestiaire) : les bilans et défis en attente. Confirmer / Refuser (ou Tout confirmer) s\'allument, puis <b>Valider mes choix</b> envoie le tout. Un résultat refusé par erreur se rétablit depuis la fiche du joueur.'
         ])) +
       card('e-fiche', 'user', '#FFC23D', 'La fiche d\'un joueur', 'Touchez un prénom',
         ul([
@@ -227,21 +230,22 @@
     var pour = q.pour || (S.adult ? (S.adult.role === 'e' ? 'educ' : 'parent') : 'joueur');
     if (['joueur', 'parent', 'educ'].indexOf(pour) < 0) pour = 'joueur';
     var back = S.adult && !S.kid ? (S.adult.role === 'e' ? '#/educ' : '#/parent') : S.kid ? '#/semaine' : '#/connexion';
-    if (q.de === 'profil') back = '#/profil';
+    if (q.de) back = '#/' + String(q.de).replace(/^#?\/?/, '');
     var tabs = [['joueur', 'Joueur'], ['parent', 'Parents'], ['educ', 'Éducs']].map(function (t) {
       return '<button type="button" role="tab" aria-selected="' + (pour === t[0]) + '" class="opt' + (pour === t[0] ? ' on' : '') + '" data-act="guideTab" data-v="' + t[0] + '">' + t[1] + '</button>';
     }).join('');
     var body = pour === 'parent' ? parents() : pour === 'educ' ? educs() : joueur();
-    return '<main class="screen guide"><a class="back" href="' + back + '">' + icon('left', 18) + 'Retour</a>' +
+    return '<main class="screen guide nonav">' + ui.topbar({ back: back, backLabel: 'Retour', title: 'Comment ça marche ?', help: false }) +
       '<div class="head"><span class="kicker">' + esc(MC.CONFIG.CLUB) + '</span><h1 class="big md">Comment<br>ça marche ?</h1></div>' +
       '<div class="gtabs" role="tablist" aria-label="Guide pour">' + tabs + '</div>' +
       '<div class="sec" style="gap:10px">' + body + '</div>' +
+      (MC.accueil && MC.accueil.tourLink(pour) ? '<a class="btn2" href="' + MC.accueil.tourLink(pour) + '">' + icon('play', 16) + ' Revoir la visite du début</a>' : '') +
       '<a class="btn2 grey" href="' + back + '">' + icon('left', 16) + ' Retour</a></main>';
   }, { bg: '#16223F', neutral: true });
 
   MC.act.guideTab = function (b) {
     var q = app.current() && app.current().q || {};
-    app.go('#/guide?pour=' + b.getAttribute('data-v') + (q.de ? '&de=' + q.de : ''), true);
+    app.go('#/guide?pour=' + b.getAttribute('data-v') + (q.de ? '&de=' + encodeURIComponent(q.de) : ''), true);
     window.scrollTo(0, 0);
   };
 })();

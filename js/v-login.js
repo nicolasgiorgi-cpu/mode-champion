@@ -122,7 +122,7 @@
     host.setAttribute('aria-label', 'Code secret de ' + k.prenom);
     host.innerHTML = '<div class="card pin-zone">' +
       '<div class="row">' + ui.avatar(k.prenom, k.couleur, 48) + '<div style="flex:1"><div class="kicker">' + (k.nouveau ? 'Code provisoire de ton éduc' : 'Code secret') + '</div><div style="font:700 20px/1.1 var(--f-hud);letter-spacing:.04em;margin-top:5px">' + esc(k.prenom.toUpperCase()) + '</div></div>' +
-      '<button type="button" class="ibtn" data-close aria-label="Fermer">' + ui.icon('x') + '</button></div>' +
+      '<button type="button" class="cbtn grey" data-close aria-label="Fermer">' + ui.icon('x') + '</button></div>' +
       digitsHtml(4, '', false) + '<div class="msg" aria-live="polite"></div>' + padHtml(true) +
       '<a href="#/oubli" class="btn2 grey" data-close>Code oublié ?</a></div>';
     document.body.appendChild(host);
@@ -216,7 +216,7 @@
   // ---------- Code oublié ----------
   app.route('/oubli', function () {
     function step(n, t) { return '<li><span class="num" style="--sc:var(--cyan)">' + n + '</span><span class="tx">' + t + '</span></li>'; }
-    return '<main class="screen nonav"><a class="back" href="#/connexion">' + ui.icon('left', 18) + 'Retour</a>' +
+    return '<main class="screen nonav">' + ui.topbar({ back: '#/connexion', backLabel: 'Qui s\'entraîne ?', title: 'Code oublié', help: false }) +
       '<div style="align-self:center">' + ui.avatar('?', '#FF4FA3', 110) + '</div>' +
       '<div class="head" style="text-align:center"><h1 class="big md">Code oublié ?</h1><p class="lead">Pas de panique, ça arrive même aux pros. Tes étoiles et ton XP ne sont pas perdus.</p></div>' +
       '<ol class="steps">' + step(1, 'Demande à <b>un parent</b> ou à <b>ton éduc</b> un code provisoire. Ils le créent en 2 secondes dans leur espace.') +
@@ -247,7 +247,7 @@
     if (A) {
       // appareil partagé : l'espace est verrouillé, on retape son code
       var who = A.role === 'e' ? 'éduc' : 'parent';
-      return '<main class="screen nonav" id="adultzone"><a class="back" href="#/connexion">' + ui.icon('left', 18) + 'Espace joueurs</a>' +
+      return '<main class="screen nonav" id="adultzone">' + ui.topbar({ back: '#/connexion', backLabel: 'Espace joueurs', title: 'Espace ' + who, help: false }) +
         '<div class="head"><span class="kicker">Espace ' + who + ' · ' + esc(A.nom || '') + '</span><h1 class="big md">Espace<br>verrouillé</h1>' +
         '<p class="lead" style="margin:0">Cet appareil sert aussi à un enfant : retapez votre code ' + (A.role === 'e' ? 'éduc' : 'famille') + ' pour ouvrir votre espace. Il se referme tout seul après 10 minutes sans y toucher.</p></div>' +
         '<div class="sec pin-zone" style="width:100%;margin:0 auto"><span class="lab">Code ' + (A.role === 'e' ? 'éduc' : 'famille') + ' · 6 chiffres</span>' + digitsHtml(6, '', false) +
@@ -257,7 +257,7 @@
     var help = adultWho === 'f'
       ? 'Un seul code pour tous vos enfants inscrits, donné par l\'éducateur à l\'inscription. Perdu ? L\'éducateur vous en crée un nouveau.'
       : 'Code personnel créé par l\'administrateur du site. Perdu ? L\'administrateur vous en génère un nouveau.';
-    return '<main class="screen nonav" id="adultzone"><a class="back" href="#/connexion">' + ui.icon('left', 18) + 'Espace joueurs</a>' +
+    return '<main class="screen nonav" id="adultzone">' + ui.topbar({ back: '#/connexion', backLabel: 'Espace joueurs', title: 'Espace adultes', help: '#/guide?pour=' + (adultWho === 'e' ? 'educ' : 'parent') + '&de=adultes' }) +
       '<div class="head"><span class="kicker">' + esc(MC.CONFIG.CLUB) + '</span><h1 class="big md">Espace<br>adultes</h1></div>' +
       '<div class="grid2" role="tablist" aria-label="Je suis" style="border:1px solid var(--line2);padding:4px;gap:4px">' +
       '<button type="button" role="tab" aria-selected="' + (adultWho === 'f') + '" class="opt' + (adultWho === 'f' ? ' on' : '') + '" data-act="adultWho" data-w="f" style="min-height:44px">Je suis parent</button>' +

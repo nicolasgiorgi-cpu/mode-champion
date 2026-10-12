@@ -262,7 +262,7 @@
       exos.push({ id: s.it.id, niveau: s.it.niveau, dose: ui.doseLabel(s.it.dose), series: v, ressenti: f, fait: v.length > 0, mini: s.it.mini });
       var u = s.it.dose.k === 'time' ? ' s' : (s.it.dose.k === 'dist' ? ' m' : '');
       var res = s.it.dose.k === 'inter' ? (v[0] || 0) + ' / ' + s.it.dose.n : s.it.dose.k === 'circuit' ? v.length + ' / ' + s.it.dose.tours + ' tours' : (v.length ? v.join(' · ') + u : '—');
-      recap.push({ nom: s.it.nom, res: res, ressenti: f, fait: v.length > 0 });
+      recap.push({ id: s.it.id, niveau: s.it.niveau, nom: s.it.nom, res: res, ressenti: f, fait: v.length > 0 });
     });
     var count = { facile: 0, bien: 0, dur: 0 };
     feels.forEach(function (f) { count[f]++; });
@@ -329,10 +329,10 @@
       return '<i><b style="width:' + w + '%"></b></i>';
     }).join('');
     var s = step(), label = s.kind === 'warmup' ? 'ÉCHAUFFEMENT' : s.kind === 'calme' ? 'RETOUR AU CALME' : 'EXO ' + R.i + '/' + exoSteps;
-    return '<div class="top"><button type="button" class="ibtn" data-act="runQuit" aria-label="Quitter la séance">' + icon('x', 20) + '</button>' +
-      (H.length ? '<button type="button" class="ibtn backbtn" data-act="runBack" aria-label="Revenir en arrière (annuler le dernier clic)">' + icon('undo', 18) + '<span>Retour</span></button>' : '') +
+    return '<div class="top"><button type="button" class="cbtn grey" data-act="runQuit" aria-label="Quitter la séance">' + icon('x', 20) + '</button>' +
+      (H.length ? '<button type="button" class="cbtn wide" data-act="runBack" aria-label="Revenir en arrière (annuler le dernier clic)">' + icon('undo', 18) + '<span>Retour</span></button>' : '') +
       '<div class="prog" style="--n:' + R.steps.length + '">' + segs + '</div><span class="hud" style="color:var(--rc)">' + label + '</span>' +
-      '<button type="button" class="ibtn" data-act="runMute" aria-label="' + (ui.isMuted() ? 'Activer le son' : 'Couper le son') + '">' + icon(ui.isMuted() ? 'mute' : 'sound', 20) + '</button></div>';
+      '<button type="button" class="cbtn grey" data-act="runMute" aria-label="' + (ui.isMuted() ? 'Activer le son' : 'Couper le son') + '">' + icon(ui.isMuted() ? 'mute' : 'sound', 20) + '</button></div>';
   }
   function ringHtml(value, label, mode, frac) {
     return '<div class="ring ' + (mode || '') + '"><svg viewBox="0 0 500 500" aria-hidden="true"><circle cx="250" cy="250" r="210" fill="none" stroke="#1E2740" stroke-width="26"/>' +

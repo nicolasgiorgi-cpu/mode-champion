@@ -139,12 +139,35 @@ MC.app = (function () {
       '<a class="btn2 grey" href="?reset=1">Réparer l\'appli</a></main>';
   }
 
+  // ---------- Onglets du bas (les mêmes règles pour les enfants, les parents et les éducs) ----------
+  // o.nav : 'semaine' | 'profil' | 'classement' (joueur), 'p:suivi'… (parent), 'e:vestiaire'… (éduc)
+  var NAVS = {
+    k: [['semaine', '#/semaine', 'calendar', 'Semaine'], ['profil', '#/profil', 'user', 'Profil'], ['classement', '#/classement', 'podium', 'Classement']],
+    p: [['p:suivi', '#/parent', 'pulse', 'Suivi'], ['p:progres', '#/parent/progres', 'up', 'Progrès'], ['p:classement', '#/parent/classement', 'podium', 'Classement'], ['p:plus', '#/parent/plus', 'menu', 'Plus']],
+    e: [['e:vestiaire', '#/educ', 'vest', 'Vestiaire'], ['e:joueurs', '#/educ/joueurs', 'group', 'Joueurs'], ['e:classement', '#/educ/classement', 'podium', 'Classement'], ['e:outils', '#/educ/outils', 'wrench', 'Outils']]
+  };
+  var navActive = null;
+  function pendingCount(list) { var n = 0; (list || []).forEach(function (d) { (d.records || []).forEach(function (r) { if (r.statut === 'attente') n++; }); }); return n; }
+  function navBadge(key) {
+    var c = S.cache || {};
+    if (key === 'p:suivi' && c.family) return pendingCount(c.family.enfants);
+    if (key === 'e:vestiaire' && c.group) return pendingCount(c.group.joueurs.filter(function (p) { return p.joueur.actif; }));
+    return 0;
+  }
   function paintNav(active) {
-    var items = [['semaine', '#/semaine', 'calendar', 'Semaine'], ['profil', '#/profil', 'user', 'Profil'], ['classement', '#/classement', 'podium', 'Classement']];
+    navActive = active;
+    var set = /^p:/.test(active) ? 'p' : /^e:/.test(active) ? 'e' : 'k';
+    var items = NAVS[set];
+    navEl.style.setProperty('--n', items.length);
+    navEl.setAttribute('aria-label', set === 'k' ? 'Navigation principale' : set === 'p' ? 'Navigation de l\'espace parent' : 'Navigation de l\'espace éduc');
     navEl.innerHTML = '<span class="brand" aria-hidden="true">' + ui.avatar('M', '#38E8FF', 48).replace('>M<', '>M12<') + '</span>' + items.map(function (it) {
-      return '<a href="' + it[1] + '" class="' + (active === it[0] ? 'on' : '') + '"' + (active === it[0] ? ' aria-current="page"' : '') + '>' + ui.icon(it[2], 22) + it[3].toUpperCase() + '</a>';
+      var on = active === it[0], n = navBadge(it[0]);
+      return '<a href="' + it[1] + '" class="' + (on ? 'on' : '') + '"' + (on ? ' aria-current="page"' : '') + '>' + ui.icon(it[2], 22) + '<span>' + it[3] + '</span>' +
+        (n ? '<span class="nb" aria-label="' + n + ' à valider">' + n + '</span>' : '') + '</a>';
     }).join('');
   }
+  // après le chargement des données (pastilles « à valider »)
+  function refreshNav() { if (navActive && !navEl.hidden) paintNav(navActive); }
 
   // ---------- Données du joueur connecté ----------
   // Gardées aussi sur l'appareil : à l'ouverture, l'écran s'affiche tout de suite avec la dernière
@@ -285,6 +308,7 @@ MC.app = (function () {
     S: S, route: route, go: go, render: render, rerender: rerender, start: start,
     setKid: setKid, setAdult: setAdult, loadMe: loadMe, setMe: setMe, swr: swr, kidCall: kidCall, adultCall: adultCall,
     lsGet: lsGet, lsSet: lsSet, current: function () { return current; },
+    refreshNav: refreshNav,
     sharedDevice: sharedDevice, setShared: setShared, adultUnlocked: adultUnlocked, touchAdult: touchAdult, lockAdult: lockAdult,
     touchKid: touchKid, takeTarget: takeTarget, recents: recents
   };

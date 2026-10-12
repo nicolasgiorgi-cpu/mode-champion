@@ -433,7 +433,8 @@ var Core = (function () {
       var jr = Array.isArray(req.journal) ? req.journal.slice(0, 20) : [];
       for (var i = 0; i < jr.length; i++) {
         var e = jr[i];
-        if (!e || ['niveau', 'niveau_refus', 'bilan_niveaux'].indexOf(e.type) < 0) continue;
+        if (!e || ['niveau', 'niveau_refus', 'bilan_niveaux', 'premiers_pas'].indexOf(e.type) < 0) continue;
+        if (e.type === 'premiers_pas' && ctx.db.rows('journal').some(function (x) { return x.joueurId === j.id && x.type === 'premiers_pas'; })) continue;   // une seule fois
         ctx.db.insert('journal', { id: genId(ctx.env), joueurId: j.id, type: e.type, data: e.data || null, date: isoDate(ctx.now), cree: isoNow(ctx.now) });
       }
   }

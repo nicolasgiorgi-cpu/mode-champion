@@ -399,7 +399,8 @@ window.MC = window.MC || {};
     bonus: 200,       // les 6 étoiles de la semaine
     badge: 100,       // badge gagné
     record: 50,       // record battu (confirmé par un adulte)
-    niveau: 100       // montée de niveau
+    niveau: 100,      // montée de niveau (une fois par niveau atteint)
+    premiersPas: 100  // les 4 « premiers pas » du nouveau joueur (une fois)
   };
 
   MC.CONTENT = {

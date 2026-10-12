@@ -44,22 +44,26 @@
   // appareil partagé : on sort du profil (la séance faite reste enregistrée), le suivant tape son code
   MC.act.switchKid = function () { app.setKid(null); app.go('#/connexion'); };
 
-  // ---------- bandeau joueur ----------
-  function hud(me, st) {
+  // ---------- barre du haut côté joueur (les 3 onglets) : qui je suis, mes étoiles, l'aide ----------
+  function kidBar(me, st, right) {
     var k = me.joueur, g = st.grade;
-    return '<div class="hudbar">' +
-      '<a href="#/profil" aria-label="Mon profil">' + ui.avatar(k.prenom, k.couleur, 44) + '</a>' +
-      '<div class="who"><div class="between" style="align-items:baseline"><span style="font:700 14px/1 var(--f-hud);letter-spacing:.06em">' + esc(k.prenom.toUpperCase()) + '</span>' +
-      '<span style="font:700 10px/1 var(--f-hud);letter-spacing:.14em;color:var(--cyan)">' + esc(g.nom.toUpperCase()) + '</span></div>' +
-      '<div class="xpbar"><i style="width:' + g.pct + '%"></i></div>' +
-      '<span style="font:600 10px/1 var(--f-hud);letter-spacing:.08em;color:var(--dim)">' + ui.fmtNum(st.xp) + (g.next ? ' / ' + ui.fmtNum(g.next.xp) + ' XP · ' + esc(g.next.nom.toUpperCase()) : ' XP · GRADE MAX') + '</span></div>' +
-      '<div class="counters"><span class="cnt" style="color:var(--orange)" title="Série d\'étoiles">' + icon('flame', 15) + st.streak + '</span>' +
-      '<span class="cnt" style="color:var(--gold)" title="Étoiles">' + icon('star', 15) + st.stars + '</span></div></div>';
+    return ui.topbar({
+      mid: '<a class="tb-who" href="#/profil" aria-label="Mon profil">' + ui.avatar(k.prenom, k.couleur, 38) + '<span class="tb-t"><span class="tb-title">' + esc(k.prenom) + '</span><span class="tb-k" style="color:var(--cyan)">' + esc(g.nom) + ' · ' + ui.fmtNum(st.xp) + ' XP</span></span></a>',
+      right: '<span class="tb-cnt"><span style="color:var(--orange)" title="Série d\'étoiles">' + icon('flame', 14) + st.streak + '</span><span style="color:var(--gold)" title="Étoiles">' + icon('star', 14) + st.stars + '</span></span>' + (right || ''),
+      help: ui.helpLink('joueur'), xp: g.pct
+    });
   }
+  MC.kidBar = kidBar;
+  function subBar(back, backLabel, title) { return ui.topbar({ back: back, backLabel: backLabel, title: title, help: ui.helpLink('joueur') }); }
+  MC.kidSubBar = subBar;
 
   // ---------- MA SEMAINE ----------
-  app.route('/semaine', function () {
-    return app.loadMe().then(function (me) { return paintSemaine(me, app.S.stats); });
+  app.route('/semaine', function (p, q, cur) {
+    return app.loadMe().then(function (me) {
+      if (MC.accueil && MC.accueil.needTour('k', me.joueur.id)) { setTimeout(function () { app.go('#/bienvenue', true); }, 0); return null; }
+      cur.after = function () { if (MC.news) setTimeout(function () { if (location.hash.indexOf('#/semaine') === 0) MC.news.maybeShow('k', me.joueur.id); }, 350); };
+      return paintSemaine(me, app.S.stats);
+    });
   }, { kid: true, nav: 'semaine', live: true });
 
   function paintSemaine(me, st) {
@@ -77,6 +81,7 @@
           return '<li><a class="exrow" style="--xc:' + j.color + '" href="#/exo/' + it.id + '?jour=' + type + '"><span class="n">' + (i + 1) + '</span><span class="nm">' + esc(it.nom) + '</span><span class="ds">' + esc(ui.doseLabel(it.dose)) + '</span>' + icon('right', 16) + '</a></li>';
         }).join('') + '</ul>' +
         (doneToday ? '<div class="note green">' + icon('check', 22) + '<span><b>Séance faite cette semaine !</b> Ton étoile est gagnée. Tu peux la refaire pour le plaisir.</span></div>' : '') +
+        (!doneToday && MC.accueil && !(me.seances || []).length ? MC.accueil.tip('k-lancer', me.joueur.id, 'Touche ici : le site t\'explique chaque exercice et lance le chrono pour toi.') : '') +
         '<a class="btn' + (doneToday ? '' : ' glow') + '" href="#/jour/' + type + '">' + icon('play', 18) + (doneToday ? ' Revoir la séance' : ' Lancer la séance') + '</a>' +
         (doneToday ? '' : '<a class="btn2" href="#/noter?type=' + type + '">' + icon('check', 16) + ' J\'ai déjà fait ma séance</a>') +
         '</div></div></section>';
@@ -109,15 +114,15 @@
 
     var props = st.proposals.length ? '<div class="note pink">' + icon('up', 22) + '<div style="flex:1"><b>Changement de niveau possible</b><div class="small" style="color:var(--soft);margin-top:3px">' + st.proposals.map(function (p) { return esc(C.CLES[p.cle].nom) + ' : N' + p.de + ' → N' + p.a; }).join(' · ') + '</div></div><a class="btn2 sm pink" href="#/niveaux">Voir</a></div>' : '';
     var noBilan = !(me.records || []).some(function (r) { return r.bilan !== 'defi'; });
-    var bilanNote = noBilan ? '<div class="note gold">' + icon('trophy', 22) + '<div style="flex:1"><b>Commence par ton bilan !</b><div class="small" style="color:var(--soft);margin-top:3px">Les 12 tests règlent tes niveaux. Sans bilan, tu démarres en N1 partout.</div></div><a class="btn2 sm gold" href="#/bilan">Bilan</a></div>' : '';
+    var bilanNote = noBilan && !(MC.accueil && MC.accueil.kidChecklistShown(me)) ? '<div class="note gold">' + icon('trophy', 22) + '<div style="flex:1"><b>Pas encore de bilan ? Pas grave.</b><div class="small" style="color:var(--soft);margin-top:3px">Tu t\'entraînes déjà, au niveau 1. Ton bilan (12 tests avec un adulte) réglera ensuite chaque exercice pile pour toi.</div></div><a class="btn2 sm gold" href="#/bilan">Le bilan</a></div>' : '';
     var pend = (me.records || []).filter(function (r) { return r.statut === 'attente'; }).length;
     var pendNote = pend ? '<div class="note">' + icon('clock', 20) + '<span>' + pend + ' record' + (pend > 1 ? 's' : '') + ' en attente : un parent ou ton éduc doit confirmer.</span></div>' : '';
 
-    return '<main class="screen">' + hud(me, st) +
+    return '<main class="screen">' + kidBar(me, st) +
       '<button type="button" class="pastoi" data-act="switchKid">' + icon('user', 14) + ' Pas ' + esc(me.joueur.prenom) + ' ? Changer de joueur</button>' +
       '<div class="head"><span class="kicker">' + esc(C.JOURS[type].jour.toUpperCase()) + ' · ' + (cy.semaine > 8 ? 'SEMAINE DU BILAN' : 'SEMAINE ' + cy.semaine + ' / 8') + '</span>' +
       '<h1 class="big">Mission<br>du jour</h1></div>' +
-      (MC.guideVu && !MC.guideVu() ? '<div class="note">' + icon('info', 22) + '<div style="flex:1"><b>Nouveau ici ?</b><div class="small" style="color:var(--soft);margin-top:3px">Étoiles, niveaux, badges, classement : découvre comment marche le jeu.</div></div><a class="btn2 sm" href="#/guide">Le guide</a></div>' : '') +
+      (MC.accueil ? MC.accueil.kidChecklist(me, st) : '') +
       bilanNote + props + pendNote +
       '<div class="home"><div>' + mission + '</div><div class="side">' +
       '<section class="sec"><div class="between"><h2 class="h2">Ma semaine</h2><span class="hud" style="color:var(--gold)">' + wk.stars + ' / 6 étoiles</span></div>' +
@@ -136,7 +141,7 @@
 
   function paintJour(type, me) {
     var j = C.JOURS[type], niv = me.joueur.niveaux || {}, pr = prefs();
-    var back = '<a class="back" href="#/semaine">' + icon('left', 18) + 'Ma semaine</a>';
+    var back = subBar('#/semaine', 'Ma semaine', j.nomSeance);
     if (!j.maison) {
       var extra = '';
       if (type === 'club') extra = '<a class="btn" href="#/noter?type=club">' + icon('ball', 18) + ' J\'ai fait le club</a>';
@@ -153,9 +158,9 @@
         '<a href="' + href + '" style="flex:1;min-width:0;padding:4px 0 14px;display:flex;align-items:flex-start;justify-content:space-between;gap:8px;text-decoration:none;color:var(--ink)"><span style="display:flex;flex-direction:column;gap:4px"><span style="font:600 16px/1.2 var(--f-body)">' + esc(nom) + '</span><span style="font-size:13px;color:var(--muted)">' + esc(info) + '</span></span>' +
         '<span style="flex:none;font:700 13px/1.2 var(--f-hud);color:' + (warm ? 'var(--muted)' : j.color) + ';padding-top:3px;text-align:right">' + esc(dose) + '</span></a></li>';
     }
-    var parcours = stepLi('0', C.REVEIL.nom, 'Échauffement obligatoire', '4 min', '#/echauffement', true) +
+    var parcours = stepLi('0', C.REVEIL.nom, 'Échauffement obligatoire', '4 min', '#/echauffement?jour=' + type, true) +
       items.map(function (it, i) { return stepLi(i + 1, it.nom, ui.doseInfo(it.dose) || ('Repos ' + (it.ex.repos || j.repos) + ' s entre les séries'), ui.doseLabel(it.dose), '#/exo/' + it.id + '?jour=' + type, false); }).join('') +
-      stepLi('★', C.CALME.nom, 'Étirements et flamant rose', '3 min', '#/calme', true);
+      stepLi('★', C.CALME.nom, 'Étirements et flamant rose', '3 min', '#/calme?jour=' + type, true);
     function sw(key, on, t1, t2, act) {
       return '<button type="button" class="switch" role="switch" aria-checked="' + on + '" data-act="' + act + '" data-k="' + key + '"><span><span class="t1" style="display:block">' + t1 + '</span>' + (t2 ? '<span class="t2" style="display:block">' + t2 + '</span>' : '') + '</span><span class="k"></span></button>';
     }
@@ -171,6 +176,7 @@
       '<div class="sec"><div class="box"><div class="hud" style="color:' + j.color + '">Mon modèle : ' + esc(j.joueur) + ' · ' + esc(j.poste) + '</div><p class="lead" style="margin-top:6px;color:var(--soft)">' + esc(j.modele) + '</p><p class="lead" style="margin-top:8px">' + esc(j.intro) + '</p></div>' +
       '<div class="box"><div class="hud" style="color:var(--muted)">Matériel</div><p class="lead" style="margin-top:6px">' + esc(mini ? j.materielMini : j.materiel) + '</p></div>' +
       switches + '</div></div>' +
+      (MC.accueil && !(me.seances || []).some(function (s) { return s.mode === 'guidee'; }) ? MC.accueil.tip('k-partir', me.joueur.id, 'Touche « C\'est parti » : l\'échauffement, chaque exercice, le chrono et les bips, tout est guidé. Le bouton Retour en haut annule un clic de trop.') : '') +
       '<a class="btn xl glow" href="#/go/' + type + '" data-act="startRun">' + icon('play', 20) + ' C\'est parti !</a>' +
       '<a class="btn2" href="#/noter?type=' + type + '">' + icon('check', 16) + ' Je l\'ai déjà faite</a>' +
       '<div class="note gold">' + icon('trophy', 22) + '<span><b>À quoi ça sert sur le terrain ?</b> ' + esc(j.terrain) + '</span></div>' +
@@ -193,8 +199,10 @@
   };
 
   // ---------- Échauffement et retour au calme (consultation) ----------
-  function routineView(R) {
-    return '<main class="screen"><button type="button" class="back" data-act="back">' + icon('left', 18) + 'Retour</button>' +
+  function routineView(R, jour) {
+    var j = C.JOURS[jour];
+    var back = j && j.maison ? subBar('#/jour/' + jour, j.nomSeance, R.nom) : subBar('#/semaine', 'Ma semaine', R.nom);
+    return '<main class="screen">' + back +
       '<div class="head"><span class="kicker">' + Math.round(R.duree / 60) + ' minutes · avant / après chaque séance</span><h1 class="big md">' + esc(R.nom) + '</h1><p class="lead">' + esc(R.intro) + '</p></div>' +
       '<p class="small" style="margin:0">Pendant la séance guidée, touche <b>GO</b> : chaque étape s\'affiche en grand avec son chrono et sa démo.</p>' +
       '<ul class="wulist">' + R.items.map(function (it) {
@@ -204,8 +212,8 @@
         return '<li>' + (it.anim ? '<span class="wuanim" data-anim="' + esc(it.anim) + '" data-color="#3DFFB0"></span>' : '') + '<span class="ds">' + esc(dose) + '</span><span><b>' + esc(it.nom) + '</b><small>' + esc(it.detail) + esc(mini) + '</small>' + ui.infoBtn(it.id, it.nom) + '</span></li>';
       }).join('') + '</ul></main>';
   }
-  app.route('/echauffement', function () { return app.loadMe().then(function () { return routineView(C.REVEIL); }); }, { kid: true, nav: 'semaine' });
-  app.route('/calme', function () { return app.loadMe().then(function () { return routineView(C.CALME); }); }, { kid: true, nav: 'semaine' });
+  app.route('/echauffement', function (p, q) { return app.loadMe().then(function () { return routineView(C.REVEIL, q.jour); }); }, { kid: true, nav: 'semaine' });
+  app.route('/calme', function (p, q) { return app.loadMe().then(function () { return routineView(C.CALME, q.jour); }); }, { kid: true, nav: 'semaine' });
 
   // ---------- FICHE EXO ----------
   app.route('/exo/:id', function (p, q) {
@@ -221,7 +229,7 @@
     var color = j ? j.color : '#3DFFB0';
     var mini = me.joueur.materiel === 'mini' && ex.mini;
     var idx = j && j.exos ? j.exos.indexOf(id) : -1;
-    var back = j ? '<a class="back" href="#/jour/' + type + '">' + icon('left', 18) + esc(j.nomSeance) + '</a>' : '<a class="back" href="#/semaine">' + icon('left', 18) + 'Ma semaine</a>';
+    var back = j ? subBar('#/jour/' + type, j.nomSeance, mini ? ex.mini.nom : ex.nom) : subBar('#/semaine', 'Ma semaine', mini ? ex.mini.nom : ex.nom);
     var anim = mini ? (ex.mini.anim || ex.anim) : (ex.animNiveau ? ex.animNiveau[n] : ex.anim);
     var video = mini ? (ex.mini.video || null) : ((ex.videoNiveau && ex.videoNiveau[n]) || ex.video);
     var etapes = mini ? ex.mini.etapes : ex.etapes;
@@ -312,7 +320,7 @@
     }
     var xp = C.JOURS[f.type].maison ? C.XP.seance + (f.type === 'dupont' && f.clubMer ? C.XP.club : 0) : (f.type === 'club' ? C.XP.club : C.XP.recup);
     var dateOk = f.date <= t;
-    return '<main class="screen"><a class="back" href="#/semaine">' + icon('left', 18) + 'Ma semaine</a>' +
+    return '<main class="screen">' + subBar('#/semaine', 'Ma semaine', 'J\'ai fait ma séance') +
       '<div class="head"><span class="kicker">Saisie rapide</span><h1 class="big md">J\'ai fait<br>ma séance !</h1></div>' +
       '<div class="cols2"><div class="sec">' + quand + quoi + '</div><div class="sec">' + rest +
       (C.JOURS[f.type].maison ? '<div class="note green">' + icon('up', 20) + '<span>Dis la vérité sur le ressenti : 2 séances « facile » de suite et le site te propose de monter d\'un niveau.</span></div>' : '') +
@@ -401,7 +409,8 @@
         return '<li class="li"><span style="color:' + (r.fait ? 'var(--green)' : 'var(--dim)') + '">' + icon(r.fait ? 'check' : 'minus', 18) + '</span><span class="grow" style="font:600 15px/1.2 var(--f-body)">' + esc(r.nom) + '</span><span class="hud" style="color:var(--soft)">' + esc(r.res) + '</span>' + (fl ? '<span style="font:700 9px/1 var(--f-hud);letter-spacing:.08em;color:' + fc + ';border:1px solid currentColor;padding:4px 5px">' + fl + '</span>' : '') + '</li>';
       }).join('') + '</ul></section>';
     }
-    var props = a.proposals.map(propCard).join('');
+    var adj = levelAdjust(R, me, a);
+    var props = a.proposals.filter(function (p) { return adj.cles.indexOf(p.cle) < 0; }).map(propCard).join('');
     var clubBtn = (s0.type === 'dupont' && R.seances.length === 1 && s0.mode === 'guidee') ? '<button type="button" class="btn2 gold" data-act="clubSoir">' + icon('ball', 16) + ' Ce soir j\'ai aussi le club (+' + C.XP.club + ' XP)</button>' : '';
     return '<main class="screen nonav">' +
       '<div class="burst">' + conf + '<svg class="st" width="140" height="140" viewBox="0 0 24 24" role="img" aria-label="Étoile gagnée"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6-4.9-4.6 6.6-.8z" fill="#FFC23D" stroke="#FFF1C2" stroke-width=".6" stroke-linejoin="round"/></svg></div>' +
@@ -412,7 +421,7 @@
       '<div class="sec"><div class="between"><span class="hud" style="color:var(--cyan)">' + esc(a.grade.nom) + '</span><span class="hud" style="color:var(--dim)">' + ui.fmtNum(a.xp) + (a.grade.next ? ' / ' + ui.fmtNum(a.grade.next.xp) + ' XP' : ' XP') + '</span></div>' +
       '<div class="xpbar" style="height:12px"><i style="width:' + a.grade.pct + '%"></i></div>' +
       (gradeUp ? '<div class="note pink">' + icon('trophy', 22) + '<span><b>Nouveau grade : ' + esc(a.grade.nom) + ' !</b> Montre-le à tes parents.</span></div>' : (a.grade.next ? '<span class="small">Plus que ' + ui.fmtNum(a.grade.next.xp - a.xp) + ' XP pour devenir <b style="color:var(--ink)">' + esc(a.grade.next.nom) + '</b>.</span>' : '')) + '</div>' +
-      newB + recap + props + clubBtn +
+      newB + adj.html + recap + props + clubBtn +
       '<div class="sec"><a class="btn" href="#/profil">Voir mon profil</a><a class="btn2 grey" href="#/semaine">Retour à ma semaine</a>' +
       (app.recents().length >= 2 || app.S.adult ? '<button type="button" class="btn2 grey" data-act="switchKid">' + icon('user', 16) + ' J\'ai fini : un autre joueur ou je rends l\'appareil</button>' : '') + '</div></main>';
   }
@@ -428,6 +437,64 @@
       });
     }).catch(function (e) { b.disabled = false; ui.toast(e.message, true); });
   };
+
+  // ---------- après une séance : changer de niveau en un geste ----------
+  // « facile » → niveau d'après (le N4 champion reste à débloquer : « facile » 2 fois de suite en N3),
+  // « dur » → niveau d'avant. Rien ne change sans que l'enfant touche le bouton.
+  function levelAdjust(R, me, st) {
+    var out = { html: '', cles: [] };
+    if (!R.recap || !R.recap.length) return out;
+    var niv = me.joueur.niveaux || {}, by = {}, order = [];
+    R.recap.forEach(function (r) {
+      var ex = C.EXOS[r.id];
+      if (!ex || !ex.cle || !r.fait || (r.ressenti !== 'facile' && r.ressenti !== 'dur')) return;
+      if (!by[ex.cle]) { by[ex.cle] = { cle: ex.cle, facile: [], dur: [] }; order.push(ex.cle); }
+      by[ex.cle][r.ressenti].push(r.nom);
+    });
+    R.adjusted = R.adjusted || {};
+    var rows = order.map(function (cle) {
+      var b = by[cle], n = niv[cle] || 1, done = R.adjusted[cle], nom = C.CLES[cle].nom;
+      var exos = (b.dur.length ? b.dur : b.facile).join(', ');
+      out.cles.push(cle);
+      if (done) return '<li class="li adj done">' + icon('check', 18, 'style="color:var(--green);flex:none"') + '<span class="grow"><span class="t1">' + esc(nom) + '</span><span class="t2">' + (done.keep ? 'Tu gardes le niveau N' + n + '.' : 'C\'est fait : tu es en N' + done.a + '.') + '</span></span>' + ui.lvl(n) + '</li>';
+      if (b.dur.length) {
+        if (n <= 1) return '<li class="li adj"><span class="grow"><span class="t1">' + esc(nom) + ' · c\'était dur</span><span class="t2">Tu es déjà au niveau 1 : prends ton temps, la technique d\'abord.</span></span>' + ui.lvl(n) + '</li>';
+        return '<li class="li adj"><span class="grow"><span class="t1">' + esc(nom) + ' · c\'était dur</span><span class="t2">' + esc(exos) + '</span></span>' +
+          '<span class="adjb"><button type="button" class="btn2 sm gold" data-act="lvQuick" data-cle="' + cle + '" data-de="' + n + '" data-a="' + (n - 1) + '">' + icon('down', 14) + ' Revenir en N' + (n - 1) + '</button><button type="button" class="btn2 sm grey" data-act="lvKeep" data-cle="' + cle + '">Garder N' + n + '</button></span></li>';
+      }
+      if (n >= 4) return '<li class="li adj"><span class="grow"><span class="t1">' + esc(nom) + ' · c\'était facile</span><span class="t2">Tu es au niveau champion. Respect !</span></span>' + ui.lvl(4) + '</li>';
+      var p4 = n === 3 && st.proposals.some(function (p) { return p.cle === cle && p.a === 4; });
+      if (n === 3 && !p4) return '<li class="li adj"><span class="grow"><span class="t1">' + esc(nom) + ' · c\'était facile</span><span class="t2">Encore une séance « facile » en N3 et le <b style="color:var(--pink)">N4 champion</b> s\'ouvre.</span></span>' + ui.lvl(3) + '</li>';
+      return '<li class="li adj"><span class="grow"><span class="t1">' + esc(nom) + ' · c\'était facile</span><span class="t2">' + esc(exos) + '</span></span>' +
+        '<span class="adjb"><button type="button" class="btn2 sm pink" data-act="lvQuick" data-cle="' + cle + '" data-de="' + n + '" data-a="' + (n + 1) + '">' + icon('up', 14) + ' Passer en N' + (n + 1) + '</button><button type="button" class="btn2 sm grey" data-act="lvKeep" data-cle="' + cle + '">Garder N' + n + '</button></span></li>';
+    });
+    if (!rows.length) return out;
+    out.html = '<section class="sec"><div class="between"><h2 class="h2">Tes niveaux</h2><span class="small">d\'après ton ressenti</span></div><ul class="list">' + rows.join('') + '</ul>' +
+      '<p class="small" style="margin:0">Monte seulement si la technique est parfaite. Tu pourras toujours revenir en arrière (Profil › Mes niveaux).</p></section>';
+    return out;
+  }
+  function changeLevel(cle, de, a, btn) {
+    var nv = {}; nv[cle] = a;
+    if (btn) btn.disabled = true;
+    var xp0 = app.S.stats ? app.S.stats.xp : 0;
+    return app.kidCall('updateMe', { niveaux: nv, journal: [{ type: 'niveau', data: { cle: cle, de: de, a: a } }] }).then(function (res) {
+      app.setMe(res);
+      var gain = (app.S.stats ? app.S.stats.xp : 0) - xp0;
+      ui.toast(C.CLES[cle].nom + ' : N' + a + (gain > 0 ? ' · +' + gain + ' XP' : ''));
+      if (app.S.lastResult) app.S.lastResult.after = app.S.stats;
+      return true;
+    }).catch(function (e) { if (btn) btn.disabled = false; ui.toast(e.message, true); return false; });
+  }
+  MC.changeLevel = changeLevel;
+  MC.act.lvQuick = function (b) {
+    var cle = b.getAttribute('data-cle'), de = Number(b.getAttribute('data-de')), a = Number(b.getAttribute('data-a'));
+    changeLevel(cle, de, a, b).then(function (ok) {
+      if (!ok) return;
+      var R = app.S.lastResult; if (R) { R.adjusted = R.adjusted || {}; R.adjusted[cle] = { a: a }; }
+      app.rerender();
+    });
+  };
+  MC.act.lvKeep = function (b) { var R = app.S.lastResult, cle = b.getAttribute('data-cle'); if (R) { R.adjusted = R.adjusted || {}; R.adjusted[cle] = { keep: true }; } app.rerender(); };
 
   // ---------- propositions de niveau ----------
   function propCard(p) {

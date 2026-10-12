@@ -319,9 +319,22 @@ MC.logic = (function () {
       totalStars += wi.stars + (wi.bonus ? 1 : 0);
       if (wi.bonus) { xp += X.bonus; perfectWeeks++; if (!firstPerfect) firstPerfect = addDays(mon, 6); }
     });
-    // niveaux montés
-    var ups = {};
-    (data.journal || []).forEach(function (j) { if (j.type === 'niveau' && j.data && j.data.a > j.data.de && !ups[j.data.cle + j.data.a]) { ups[j.data.cle + j.data.a] = 1; xp += X.niveau; } });
+    // niveaux montés : des XP seulement quand on dépasse le plus haut niveau déjà atteint sur cet exercice
+    // (redescendre puis remonter ne rapporte rien ; les niveaux réglés par le bilan ou un adulte comptent comme atteints)
+    var maxLv = {};
+    function reach(cle, n) { n = Number(n) || 1; if (n > (maxLv[cle] || 1)) maxLv[cle] = n; }
+    (data.journal || []).slice().sort(function (a, b) { return (a.cree || a.date || '') < (b.cree || b.date || '') ? -1 : 1; }).forEach(function (j) {
+      var d = j.data || {};
+      if (j.type === 'bilan_niveaux' && d.niveaux) Object.keys(d.niveaux).forEach(function (c) { reach(c, d.niveaux[c]); });
+      else if (j.type === 'niveau_adulte' && d.changes) Object.keys(d.changes).forEach(function (c) { reach(c, d.changes[c].de); reach(c, d.changes[c].a); });
+      else if (j.type === 'niveau' && d.cle) {
+        reach(d.cle, d.de);
+        if (d.a > d.de && d.a > (maxLv[d.cle] || 1)) xp += X.niveau;
+        reach(d.cle, d.a);
+      }
+    });
+    // premiers pas réussis (une seule fois)
+    if ((data.journal || []).some(function (j) { return j.type === 'premiers_pas'; })) xp += X.premiersPas || 0;
     // records battus (confirmés)
     var recOk = (data.records || []).filter(function (r) { return r.statut === 'ok'; }).sort(function (a, b) { return (a.date + a.cree) < (b.date + b.cree) ? -1 : 1; });
     var best = {}, recordsBattus = 0;

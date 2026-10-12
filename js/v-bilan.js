@@ -332,10 +332,10 @@
     var segs = '';
     for (var i = 0; i <= NB + 1; i++) segs += '<i><b style="width:' + (i < G.i ? 100 : 0) + '%"></b></i>';
     var label = G.i === 0 ? 'ÉCHAUFFEMENT' : G.i > NB ? 'RÉCAP' : 'TEST ' + G.i + '/' + NB;
-    return '<div class="top"><button type="button" class="ibtn" data-act="brQuit" aria-label="Faire une pause">' + icon('x', 20) + '</button>' +
-      (H.length ? '<button type="button" class="ibtn backbtn" data-act="brBack" aria-label="Revenir en arrière (annuler le dernier clic)">' + icon('undo', 18) + '<span>Retour</span></button>' : '') +
+    return '<div class="top"><button type="button" class="cbtn grey" data-act="brQuit" aria-label="Faire une pause">' + icon('x', 20) + '</button>' +
+      (H.length ? '<button type="button" class="cbtn wide" data-act="brBack" aria-label="Revenir en arrière (annuler le dernier clic)">' + icon('undo', 18) + '<span>Retour</span></button>' : '') +
       '<div class="prog" style="--n:' + (NB + 2) + '">' + segs + '</div><span class="hud" style="color:var(--rc)">' + label + '</span>' +
-      '<button type="button" class="ibtn" data-act="brMute" aria-label="' + (ui.isMuted() ? 'Activer le son' : 'Couper le son') + '">' + icon(ui.isMuted() ? 'mute' : 'sound', 20) + '</button></div>';
+      '<button type="button" class="cbtn grey" data-act="brMute" aria-label="' + (ui.isMuted() ? 'Activer le son' : 'Couper le son') + '">' + icon(ui.isMuted() ? 'mute' : 'sound', 20) + '</button></div>';
   }
   function ringHtml(value, label, mode, frac, cls) {
     var col = mode === 'rest' ? '#38E8FF' : 'var(--rc)';
