@@ -100,3 +100,16 @@ Le guide **« Comment ça marche ? »** (bouton **Aide** sur l'écran d'accueil,
 ## Données
 
 Uniquement des prénoms et des résultats sportifs, dans votre Google Sheet. Pas d'adresse e-mail, pas de nom de famille obligatoire. Les vidéos viennent de YouTube (mode sans cookie) et restent la propriété de leurs auteurs ; pour en changer une, remplacez son identifiant (`video:` dans `js/content.js`).
+
+## Tests (pour la maintenance)
+
+Le dossier `tests/` contient les tests automatiques (aucun vrai code dedans : ils tournent en mode démo ou sur un faux serveur).
+Les chemins supposent le site dans `/home/claude/mode-champion` et les tests dans `/home/claude/tests` :
+
+```sh
+git clone https://github.com/nicolasgiorgi-cpu/mode-champion /home/claude/mode-champion
+cp -r /home/claude/mode-champion/tests /home/claude/tests
+cd /home/claude/mode-champion && sh outils/fabriquer-serveur.sh   # le faux serveur charge le .gs fabriqué
+node /home/claude/tests/test_logic.js && node /home/claude/tests/test_core.js
+python3 /home/claude/tests/e2e_v14.py 390 844                      # Playwright, site servi en local (voir mkdemo.sh)
+```
