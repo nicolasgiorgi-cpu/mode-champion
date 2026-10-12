@@ -16,35 +16,93 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Barlow+Condensed:ital,wght@0,600;0,800;1,800;1,900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=11">
+<!-- polices chargées sans bloquer l'affichage : si Google Fonts traîne, l'appli s'ouvre quand même -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Barlow+Condensed:ital,wght@0,600;0,800;1,800;1,900&family=Barlow:wght@400;500;600&display=swap" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Barlow+Condensed:ital,wght@0,600;0,800;1,800;1,900&family=Barlow:wght@400;500;600&display=swap"></noscript>
+<script>
+/* « Réparer l'appli » : ?reset=1 vide le cache de l'appli (on reste connecté), ?reset=2 repart de zéro sur cet appareil */
+(function () {
+  var m = /[?&]reset=(\d)/.exec(location.search);
+  if (!m) return;
+  var tasks = [];
+  try { if (navigator.serviceWorker) tasks.push(navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister(); })); })); } catch (e) { }
+  try { if (window.caches) tasks.push(caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); })); } catch (e) { }
+  if (m[1] === '2') try { Object.keys(localStorage).forEach(function (k) { if (k.indexOf('mc-') === 0) localStorage.removeItem(k); }); } catch (e) { }
+  window.__mcResetting = true;
+  Promise.all(tasks).catch(function () { }).then(function () { location.replace(location.pathname); });
+  setTimeout(function () { location.replace(location.pathname); }, 3000);
+})();
+</script>
+<style>
+/* écran d'ouverture, affiché avant tout le reste (pas d'écran noir) */
+html,body{background:#070A12;color:#EAF0FF;margin:0}
+.boot{min-height:88vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px 16px;text-align:center;font-family:system-ui,-apple-system,sans-serif}
+.boot b{font:800 italic 44px/.9 'Barlow Condensed',system-ui,sans-serif;letter-spacing:.01em;text-transform:uppercase}
+.boot b span{color:#38E8FF}
+.boot .dots{display:flex;gap:10px}
+.boot .dots i{width:10px;height:10px;background:#38E8FF;transform:rotate(45deg);animation:bootb 1s infinite}
+.boot .dots i:nth-child(2){animation-delay:.15s}.boot .dots i:nth-child(3){animation-delay:.3s}
+@keyframes bootb{50%{opacity:.2}}
+.boot p{margin:0;max-width:340px;color:#AEB9D6;font-size:15px;line-height:1.45}
+.boot .bb{display:flex;flex-direction:column;gap:10px;width:100%;max-width:320px}
+.boot button{min-height:52px;border:0;border-radius:0;font:700 16px/1 system-ui,-apple-system,sans-serif;letter-spacing:.04em;text-transform:uppercase;background:#38E8FF;color:#070A12;cursor:pointer}
+.boot button.g{background:transparent;color:#EAF0FF;border:1px solid #34405F}
+.boot code{font-size:12px;color:#7D89A8;word-break:break-all}
+</style>
+<link rel="stylesheet" href="css/style.css?v=12">
 </head>
 <body>
 <div class="bgfx" aria-hidden="true"></div>
 <div class="offline" id="offline" hidden>Pas de connexion internet</div>
-<div id="app" aria-live="polite"></div>
+<div id="app" aria-live="polite"><div class="boot" id="boot" role="status"><b>Mode<br><span>champion</span></b><div class="dots" aria-hidden="true"><i></i><i></i><i></i></div><p id="bootmsg">Chargement…</p><div class="bb" id="bootbtns" hidden><button type="button" onclick="location.reload()">Réessayer</button><button type="button" class="g" onclick="location.replace(location.pathname+'?reset=1')">Réparer l'appli</button></div></div></div>
+<script>
+/* si l'appli ne démarre pas (réseau qui bloque, fichier qui manque, erreur), on le dit au lieu d'un écran vide */
+(function () {
+  var BOOT = document.getElementById('app').innerHTML, fileFail = false;
+  function show(txt, detail) {
+    if (window.__mcStarted) return;
+    var m = document.getElementById('bootmsg'), b = document.getElementById('bootbtns'), app = document.getElementById('app');
+    if ((!m || !b) && app) { app.innerHTML = BOOT; m = document.getElementById('bootmsg'); b = document.getElementById('bootbtns'); }
+    if (!m || !b) return;
+    m.innerHTML = txt + (detail ? '<br><code>' + String(detail).replace(/[<>&]/g, '') + '</code>' : '');
+    b.hidden = false;
+  }
+  window.__mcBootFail = show;
+  window.addEventListener('error', function (e) {
+    if (window.__mcStarted || window.__mcResetting) return;
+    var t = e.target;
+    if (t && t !== window && t.tagName) {
+      var u = t.src || t.href || '';
+      if ((t.tagName !== 'SCRIPT' && t.tagName !== 'LINK') || u.indexOf(location.origin) !== 0) return;   // les polices Google, une image… ne bloquent pas l'appli
+      fileFail = true;
+      show('Un fichier de l\'appli n\'a pas pu être chargé. Vérifie la connexion internet, puis réessaie.', u.split('/').pop());
+    } else if (!fileFail) show('L\'appli n\'a pas pu démarrer.', (e.message || '') + ' ' + ((e.filename || '').split('/').pop() || '') + (e.lineno ? ':' + e.lineno : ''));
+  }, true);
+  setTimeout(function () { if (!fileFail) show('C\'est long… La connexion internet est peut-être lente ou bloquée (certains Wi-Fi d\'entreprise ou d\'école bloquent l\'appli). Essaie en 4G, ou réessaie.'); }, 9000);
+})();
+</script>
 <nav class="nav" id="nav" aria-label="Navigation principale" hidden></nav>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <noscript><p style="padding:20px;color:#fff">Ce site a besoin de JavaScript.</p></noscript>
-<script src="js/config.js?v=11"></script>
-<script src="js/content.js?v=11"></script>
-<script src="js/fiches.js?v=11"></script>
-<script src="js/core.js?v=11"></script>
-<script src="js/logic.js?v=11"></script>
-<script src="js/demo.js?v=11"></script>
-<script src="js/api.js?v=11"></script>
-<script src="js/ui.js?v=11"></script>
-<script src="js/anims.js?v=11"></script>
-<script src="js/app.js?v=11"></script>
-<script src="js/routine.js?v=11"></script>
-<script src="js/suivi.js?v=11"></script>
-<script src="js/v-login.js?v=11"></script>
-<script src="js/v-kid.js?v=11"></script>
-<script src="js/v-seance.js?v=11"></script>
-<script src="js/v-profil.js?v=11"></script>
-<script src="js/v-bilan.js?v=11"></script>
-<script src="js/v-guide.js?v=11"></script>
-<script src="js/v-adult.js?v=11"></script>
-<script>MC.app.start();</script>
+<script src="js/config.js?v=12"></script>
+<script src="js/content.js?v=12"></script>
+<script src="js/fiches.js?v=12"></script>
+<script src="js/core.js?v=12"></script>
+<script src="js/logic.js?v=12"></script>
+<script src="js/demo.js?v=12"></script>
+<script src="js/api.js?v=12"></script>
+<script src="js/ui.js?v=12"></script>
+<script src="js/anims.js?v=12"></script>
+<script src="js/app.js?v=12"></script>
+<script src="js/routine.js?v=12"></script>
+<script src="js/suivi.js?v=12"></script>
+<script src="js/v-login.js?v=12"></script>
+<script src="js/v-kid.js?v=12"></script>
+<script src="js/v-seance.js?v=12"></script>
+<script src="js/v-profil.js?v=12"></script>
+<script src="js/v-bilan.js?v=12"></script>
+<script src="js/v-guide.js?v=12"></script>
+<script src="js/v-adult.js?v=12"></script>
+<script>if (!window.__mcResetting) MC.app.start();</script>
 </body>
 </html>

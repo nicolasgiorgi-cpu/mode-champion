@@ -243,10 +243,23 @@ MC.app = (function () {
     window.addEventListener('hashchange', render);
     window.addEventListener('online', function () { var o = document.getElementById('offline'); if (o) o.hidden = true; });
     window.addEventListener('offline', function () { var o = document.getElementById('offline'); if (o) o.hidden = false; });
+    if (navigator.onLine === false) { var off = document.getElementById('offline'); if (off) off.hidden = false; }
     if (!location.hash || location.hash === '#' || location.hash === '#/') {
       history.replaceState(null, '', S.kid ? '#/semaine' : '#/connexion');
     }
     render();
+    window.__mcStarted = true;
+    registerSW();
+  }
+
+  // ---------- Appli « hors ligne » ----------
+  // Le service worker garde une copie de l'appli sur l'appareil : elle s'ouvre même quand le réseau
+  // traîne (iPhone qui sort de veille, Wi-Fi capricieux). Les données passent toujours par le serveur.
+  function registerSW() {
+    if (!('serviceWorker' in navigator)) return;
+    if (location.protocol !== 'https:' && lsGet('mc-sw') !== 1) return;
+    function reg() { navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(function () { }); }
+    if (document.readyState === 'complete') reg(); else window.addEventListener('load', reg);
   }
 
   return {

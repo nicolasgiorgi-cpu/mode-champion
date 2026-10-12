@@ -83,6 +83,11 @@ MC.api = (function () {
     netStart(silent);
     return raw(action, params).then(function (r) { netEnd(silent); return r; }, function (e) { netEnd(silent); throw e; });
   }
+  // Délais d'attente : sans réponse, on n'attend pas indéfiniment (un iPhone qui sort de veille,
+  // un Wi-Fi qui ne laisse rien passer…). Les lectures et les connexions sont relancées une fois
+  // toutes seules ; les enregistrements, non (pour ne pas noter deux fois la même séance).
+  var RETRY = { ping: 1, roster: 1, login: 1, adultLogin: 1, me: 1, league: 1, family: 1, kid: 1, group: 1, mesEnfants: 1, listEducs: 1 };
+  var T = MC.CONFIG.TIMEOUTS || { read: 15000, retry: 20000, write: 40000 };
   function raw(action, params) {
     var req = {};
     for (var k in (params || {})) req[k] = params[k];
@@ -96,10 +101,29 @@ MC.api = (function () {
         return JSON.parse(JSON.stringify(res));
       });
     }
-    return fetch(MC.CONFIG.API_URL, { method: 'POST', body: JSON.stringify(req), redirect: 'follow' })
-      .catch(function () { throw new ApiError({ error: 'reseau', message: 'Pas de connexion internet. Réessaie dans un instant.' }); })
-      .then(function (r) { return r.json().catch(function () { throw new ApiError({ error: 'reseau', message: 'Le serveur ne répond pas correctement.' }); }); })
-      .then(function (res) { if (!res.ok) throw new ApiError(res); return res; });
+    var body = JSON.stringify(req);
+    if (!RETRY[action]) return send(body, T.write);
+    return send(body, T.read).catch(function (e) {
+      if (e.code !== 'reseau' && e.code !== 'lent') throw e;
+      return new Promise(function (r) { setTimeout(r, 600); }).then(function () { return send(body, T.retry); });
+    });
+  }
+  function send(body, limit) {
+    return new Promise(function (resolve, reject) {
+      var ctrl = window.AbortController ? new AbortController() : null, over = false;
+      var tm = setTimeout(function () {
+        over = true;
+        try { if (ctrl) ctrl.abort(); } catch (e) { }
+        reject(new ApiError({ error: 'lent', message: 'Le serveur ne répond pas. Vérifie la connexion internet (Wi-Fi ou 4G), puis réessaie.' }));
+      }, limit);
+      var o = { method: 'POST', body: body, redirect: 'follow' };
+      if (ctrl) o.signal = ctrl.signal;
+      fetch(MC.CONFIG.API_URL, o)
+        .catch(function () { throw new ApiError({ error: 'reseau', message: 'Pas de connexion internet. Réessaie dans un instant.' }); })
+        .then(function (r) { return r.json().catch(function () { throw new ApiError({ error: 'reseau', message: 'Le serveur ne répond pas correctement.' }); }); })
+        .then(function (res) { if (!res.ok) throw new ApiError(res); return res; })
+        .then(function (res) { clearTimeout(tm); if (!over) resolve(res); }, function (e) { clearTimeout(tm); if (!over) reject(e); });
+    });
   }
 
   return { call: call, DEMO: DEMO, resetDemo: resetDemo, ApiError: ApiError };

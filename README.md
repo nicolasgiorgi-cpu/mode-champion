@@ -24,6 +24,7 @@ Site statique (HTML/CSS/JS, rien à installer) + une Google Sheet qui sert de ba
 | `js/v-*.js` | Les écrans |
 | `js/v-bilan.js` | Le bilan guidé (test par test) |
 | `js/v-guide.js` | Le guide « Comment ça marche ? » (joueur, parents, éducs) |
+| `sw.js` | La copie de l'appli gardée sur l'appareil (elle s'ouvre même quand le réseau traîne) |
 | `apps-script/serveur-mode-champion.gs` | **Le serveur à coller dans Google Apps Script** (un seul fichier) |
 
 ## 1. Brancher la Google Sheet (10 minutes, une seule fois)
@@ -57,6 +58,12 @@ Pour aller plus vite, le serveur garde une copie de la feuille en mémoire (20 m
 Le site n'est pas référencé par les moteurs de recherche (`noindex`). Pour les mises à jour : modifiez les fichiers, **Commit** puis **Push** dans GitHub Desktop.
 
 Sur iPad et téléphone : **Partager › Sur l'écran d'accueil** pour l'ouvrir en plein écran comme une appli. Sur ces écrans tactiles, les champs chiffrés ouvrent le pavé numérique du site (pas le clavier du système).
+
+**Réseau capricieux.** L'appli garde une copie d'elle-même sur l'appareil (`sw.js`) : elle s'ouvre même hors ligne ou quand le réseau traîne (après 3,5 s on prend la copie). Le serveur Google a 15 s pour répondre (une relance automatique pour les lectures et les connexions), sinon un message « Le serveur ne répond pas » et un bouton Réessayer. À l'ouverture, si rien ne démarre au bout de 9 s, l'écran le dit (au lieu d'un écran noir) avec **Réessayer** et **Réparer l'appli**.
+
+**Réparer l'appli** sur un appareil : ouvrir l'adresse du site suivie de `?reset=1` (vide la copie gardée, on reste connecté) ou `?reset=2` (repart de zéro sur cet appareil : il faudra retaper les codes). Si l'icône de l'écran d'accueil reste noire : forcer la fermeture, rouvrir ; sinon supprimer l'icône et la remettre depuis Safari.
+
+**À chaque mise à jour du site**, augmenter le numéro `?v=` dans `index.html` (tous les fichiers) : c'est lui qui dit aux appareils de prendre la nouvelle version.
 
 ## 3. Démarrer avec le groupe
 
