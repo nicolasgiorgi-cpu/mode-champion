@@ -283,12 +283,23 @@ MC.logic = (function () {
       else if (b.id === 'parfaite') { if (st.perfectWeeks >= 1) ok = { date: st.firstPerfect }; }
       else if (b.id === 'serie7') { if (st.bestStreak >= 7) ok = { date: '' }; }
       else if (b.id === 'fidele') { if (st.maison >= 25) ok = { date: '' }; }
+      else if (b.mission) {
+        var mi = missionOf(data, b.mission);
+        if (mi && mi.faite) ok = { date: mi.date || '' };
+        else { res[b.id] = { earned: false, tier: 0, prog: mi && mi.reponses && mi.reponses.postes && mi.reponses.postes.length ? 'Mission commencée' : 'Mission à faire' }; return; }
+      }
       res[b.id] = ok ? { earned: true, tier: 1, date: ok.date || '' } : { earned: false, tier: 0 };
     });
     // progression pour les badges de régularité
     res.serie7.prog = Math.min(st.bestStreak, 7) + ' / 7';
     res.fidele.prog = Math.min(st.maison, 25) + ' / 25';
     return res;
+  }
+
+  function missionOf(data, id) {
+    var l = (data && data.missions) || [];
+    for (var i = 0; i < l.length; i++) if (l[i].mission === id) return l[i];
+    return null;
   }
 
   // ---------- XP et grades ----------
@@ -335,6 +346,8 @@ MC.logic = (function () {
     });
     // premiers pas réussis (une seule fois)
     if ((data.journal || []).some(function (j) { return j.type === 'premiers_pas'; })) xp += X.premiersPas || 0;
+    // missions spéciales accomplies
+    (data.missions || []).forEach(function (m) { if (m.faite) xp += X.mission || 0; });
     // records battus (confirmés)
     var recOk = (data.records || []).filter(function (r) { return r.statut === 'ok'; }).sort(function (a, b) { return (a.date + a.cree) < (b.date + b.cree) ? -1 : 1; });
     var best = {}, recordsBattus = 0;

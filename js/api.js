@@ -21,7 +21,7 @@ MC.api = (function () {
     if (mem) return mem;
     try { mem = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { mem = null; }
     if (!mem || !mem.tables) {
-      mem = { tables: { joueurs: [], familles: [], educs: [], seances: [], records: [], journal: [] }, props: {} };
+      mem = { tables: { joueurs: [], familles: [], educs: [], seances: [], records: [], journal: [], missions: [] }, props: {} };
       MC.demo.seed(localDb(), env());
       save();
     }
@@ -31,13 +31,13 @@ MC.api = (function () {
   function localDb() {
     return {
       rows: function (t) { return (load().tables[t] = load().tables[t] || []); },
-      insert: function (t, o) { load().tables[t].push(JSON.parse(JSON.stringify(o))); },
+      insert: function (t, o) { (load().tables[t] = load().tables[t] || []).push(JSON.parse(JSON.stringify(o))); },
       update: function (t, id, patch) {
-        var rows = load().tables[t];
+        var rows = load().tables[t] || [];
         for (var i = 0; i < rows.length; i++) if (rows[i].id === id) { for (var k in patch) rows[i][k] = patch[k]; return; }
         throw new Error('introuvable');
       },
-      remove: function (t, id) { load().tables[t] = load().tables[t].filter(function (r) { return r.id !== id; }); },
+      remove: function (t, id) { load().tables[t] = (load().tables[t] || []).filter(function (r) { return r.id !== id; }); },
       getProp: function (k) { return load().props[k] || null; },
       setProp: function (k, v) { load().props[k] = String(v); }
     };

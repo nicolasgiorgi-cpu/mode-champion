@@ -34,7 +34,7 @@
   function xpTable() {
     var X = C.XP;
     var rows = [['Séance à la maison (lundi → jeudi)', X.seance], ['Club du mercredi ou du samedi', X.club], ['Récup du dimanche', X.recup], ['Semaine parfaite (les 6 étoiles)', X.bonus],
-      ['Badge gagné, ou palier bronze / argent / or', X.badge], ['Record battu (confirmé par un adulte)', X.record], ['Niveau monté (la 1re fois)', X.niveau], ['Premiers pas réussis (une fois)', X.premiersPas]];
+      ['Badge gagné, ou palier bronze / argent / or', X.badge], ['Record battu (confirmé par un adulte)', X.record], ['Niveau monté (la 1re fois)', X.niveau], ['Premiers pas réussis (une fois)', X.premiersPas], ['Mission spéciale accomplie', X.mission]];
     return '<div class="gxp">' + rows.map(function (r) { return '<span>' + esc(r[0]) + '</span><span>+' + r[1] + ' XP</span>'; }).join('') + '</div>';
   }
   function grades() {
@@ -89,10 +89,17 @@
           'Paliers de la jauge : <b>14</b> Espoir · <b>28</b> Titulaire · <b>42</b> Capitaine · <b>56</b> Légende (et le badge Légende !).',
           'La jauge repart de zéro à chaque nouveau cycle. Tes XP et ton grade, eux, restent.'
         ])) +
-      card('badges', 'shield', '#FF4FA3', 'Les badges', C.BADGES.length + ' badges en 3 familles',
+      card('mission', 'ball', '#FFC23D', 'Les missions spéciales', 'Une chose à faire une fois, une grosse récompense',
+        ul([
+          'Une <b>mission spéciale</b> s\'affiche en haut de <b>Ma semaine</b> tant qu\'elle n\'est pas faite (pastille sur l\'onglet Semaine).',
+          '« <b>Prépare le jeu à 10</b> » : choisis ton poste (1 à 3, dans l\'ordre) avec les 7 cartes ou le test « Aide-moi à choisir », puis tes <b>copains</b>. Tes copains, c\'est <b>secret</b> : seuls les éducs les voient.',
+          'Mission accomplie : <b>+' + C.XP.mission + ' XP</b> et un badge. Tu peux changer tes choix quand tu veux (Profil › Mes choix pour le jeu à 10).'
+        ])) +
+      card('badges', 'shield', '#FF4FA3', 'Les badges', C.BADGES.length + ' badges en ' + C.FAMILLES_BADGES.length + ' familles',
         '<p style="margin:0"><b>Exploit</b> : les défis du tableau du mur, gagnés au bilan ou en défi devant un adulte. Plus <b>Champion</b> : réussir un exercice en N4.</p>' + badgeRow('exploit') +
         '<p style="margin:0"><b>Séances</b> : 10, 25 puis 40 séances du même jour = <b>bronze</b>, <b>argent</b>, <b>or</b>.</p>' + badgeRow('seances') +
         '<p style="margin:0"><b>Régularité</b> : ils viennent tout seuls si tu t\'entraînes souvent.</p>' + badgeRow('regularite') +
+        '<p style="margin:0"><b>Missions</b> : une mission spéciale accomplie.</p>' + badgeRow('missions') +
         '<p style="margin:0">Chaque badge et chaque palier : <b>+' + C.XP.badge + ' XP</b>. Tout est dans Profil › Mes trophées.</p>') +
       card('defi', 'gift', '#FF8A3D', 'Les défis', 'Tenter un badge un jour où tu te sens fort',
         ul([
@@ -210,6 +217,13 @@
           '<b>Modifier les niveaux</b> (N1 à N4) si le bilan ne reflète pas ce que vous voyez sur le terrain : bouton Modifier, puis Enregistrer. Les parents peuvent aussi les ajuster.',
           '<b>Nouveau code provisoire</b> si l\'enfant a oublié le sien.',
           '<b>Masquer du classement</b>, ou <b>désactiver</b> un joueur qui a quitté le groupe (ses données sont gardées).'
+        ])) +
+      card('e-mission', 'ball', '#FFC23D', 'Postes et copains (jeu à 10)', 'La mission « Prépare le jeu à 10 »',
+        ul([
+          'Chaque enfant choisit dans l\'appli 1 à 3 <b>postes</b> (dans l\'ordre) et ses <b>copains</b>, sans limite. Les copains sont secrets : ni les autres enfants ni les parents ne les voient.',
+          'Outils › <b>Mission « Prépare le jeu à 10 »</b> : qui l\'a faite, les postes demandés (choix 1 et choix 2-3), les copains de chacun.',
+          'La fiche d\'un joueur montre ses postes, son test « Aide-moi à choisir », ses copains et ceux qui l\'ont choisi (⇄ = ils se sont choisis l\'un l\'autre).',
+          'Les réponses envoyées avec l\'ancien site « Choisis ton poste » se reprennent d\'un bouton, si le Google Form range ses réponses dans la feuille de l\'appli.'
         ])) +
       card('e-ajout', 'plus', '#4D9BFF', 'Ajouter des joueurs et des familles', 'En début de saison ou en cours d\'année',
         ul([

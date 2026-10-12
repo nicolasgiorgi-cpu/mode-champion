@@ -70,7 +70,7 @@ assert.strictEqual(st.xp, 100+300, 'xp '+st.xp);
   assert.ok(s2.badges.champion.earned); assert.strictEqual(s2.badges.champion.date,'2026-07-13');
   s2=L.compute({joueur:{niveaux:{}},seances:many.concat([S('2026-07-12','dupont',{details:{niveau:4}})]),records:[],journal:[]});
   assert.ok(s2.badges.champion.earned,'saisie rapide N4');
-  assert.strictEqual(C.BADGES.length,17);
+  assert.strictEqual(C.BADGES.length,18);
   L._setToday('2026-10-11');
 }
 // classement
@@ -99,4 +99,17 @@ console.log('LOGIC TESTS OK');
   let x4 = L.compute(Object.assign({}, base, { journal: [J('premiers_pas', {}, 1), J('premiers_pas', {}, 2)] })).xp;
   assert.strictEqual(x4 - x0, C.XP.premiersPas, 'premiers pas une fois');
   console.log('V14 LOGIC OK');
+}
+
+// mission « Prépare le jeu à 10 » : +200 XP et le badge, seulement quand elle est faite
+{
+  const base = { joueur: { niveaux: {} }, seances: [], records: [], journal: [] };
+  const x0 = L.compute(base).xp;
+  let s = L.compute(Object.assign({}, base, { missions: [{ mission: 'jeu10', faite: false, reponses: { postes: ['centre'] }, date: '' }] }));
+  assert.strictEqual(s.xp, x0); assert.ok(!s.badges.jeu10.earned); assert.strictEqual(s.badges.jeu10.prog, 'Mission commencée');
+  assert.strictEqual(L.compute(base).badges.jeu10.prog, 'Mission à faire');
+  s = L.compute(Object.assign({}, base, { missions: [{ mission: 'jeu10', faite: true, reponses: { postes: ['centre'] }, date: '2026-10-14' }] }));
+  assert.strictEqual(s.xp, x0 + C.XP.mission + C.XP.badge); assert.ok(s.badges.jeu10.earned); assert.strictEqual(s.badges.jeu10.date, '2026-10-14');
+  assert.strictEqual(s.nbBadges, 1);
+  console.log('MISSION LOGIC OK');
 }

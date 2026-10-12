@@ -345,14 +345,16 @@ window.MC = window.MC || {};
 
   // Dates des bilans (une séance de tests toutes les ~8 semaines). Modifiable dans config.js.
   // ---------- Badges ----------
-  // 17 badges en 3 familles :
+  // 18 badges en 4 familles :
   //  - exploit    : au bilan ou en défi (un adulte confirme) + Champion (un exo réussi en N4)
   //  - seances    : 10 / 25 / 40 séances d'un même jour → bronze, argent, or
   //  - regularite : automatiques (étoiles, séries)
+  //  - missions   : une mission spéciale accomplie (voir MISSIONS dans js/missions.js)
   var FAMILLES_BADGES = [
     { id: 'exploit', nom: 'Badges d\'exploit', intro: 'Au bilan, ou un jour où tu te sens fort, avec un adulte qui compte. Touche un badge pour tenter le défi.' },
     { id: 'seances', nom: 'Badges de séances', intro: '10 séances = bronze, 25 = argent, 40 = or. Chaque palier rapporte des XP.' },
-    { id: 'regularite', nom: 'Badges de régularité', intro: '' }
+    { id: 'regularite', nom: 'Badges de régularité', intro: '' },
+    { id: 'missions', nom: 'Badges de missions', intro: 'Une mission spéciale accomplie = un badge.' }
   ];
   var PALIERS = [
     { nom: 'Bronze', color: '#E0894A' },
@@ -376,7 +378,8 @@ window.MC = window.MC || {};
     { id: 'parfaite', famille: 'regularite', nom: 'Semaine parfaite', cond: 'Les 6 étoiles d\'une semaine', icon: 'calendar', color: '#38E8FF' },
     { id: 'serie7', famille: 'regularite', nom: 'Série de 7', cond: '7 étoiles d\'affilée sans en rater', icon: 'flame', color: '#FF8A3D' },
     { id: 'fidele', famille: 'regularite', nom: 'Fidèle', cond: '25 séances à la maison', icon: 'shield', color: '#B48CFF' },
-    { id: 'legende', famille: 'regularite', nom: 'Légende', cond: '56 étoiles sur un cycle de 8 semaines', icon: 'trophy', color: '#FFC23D' }
+    { id: 'legende', famille: 'regularite', nom: 'Légende', cond: '56 étoiles sur un cycle de 8 semaines', icon: 'trophy', color: '#FFC23D' },
+    { id: 'jeu10', famille: 'missions', nom: 'Prêt pour le jeu à 10', cond: 'Mission « Prépare le jeu à 10 » accomplie', mission: 'jeu10', lien: '#/mission', icon: 'ball', color: '#38E8FF' }
   ];
   // Défi « Meafou » : un test qui n'est pas dans le bilan
   var DEFI_TESTS = {
@@ -400,7 +403,8 @@ window.MC = window.MC || {};
     badge: 100,       // badge gagné
     record: 50,       // record battu (confirmé par un adulte)
     niveau: 100,      // montée de niveau (une fois par niveau atteint)
-    premiersPas: 100  // les 4 « premiers pas » du nouveau joueur (une fois)
+    premiersPas: 100, // les 4 « premiers pas » du nouveau joueur (une fois)
+    mission: 200      // une mission spéciale accomplie (en plus de son badge)
   };
 
   MC.CONTENT = {

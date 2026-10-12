@@ -122,6 +122,7 @@
       '<button type="button" class="pastoi" data-act="switchKid">' + icon('user', 14) + ' Pas ' + esc(me.joueur.prenom) + ' ? Changer de joueur</button>' +
       '<div class="head"><span class="kicker">' + esc(C.JOURS[type].jour.toUpperCase()) + ' · ' + (cy.semaine > 8 ? 'SEMAINE DU BILAN' : 'SEMAINE ' + cy.semaine + ' / 8') + '</span>' +
       '<h1 class="big">Mission<br>du jour</h1></div>' +
+      (MC.missionCard ? MC.missionCard(me) : '') +
       (MC.accueil ? MC.accueil.kidChecklist(me, st) : '') +
       bilanNote + props + pendNote +
       '<div class="home"><div>' + mission + '</div><div class="side">' +

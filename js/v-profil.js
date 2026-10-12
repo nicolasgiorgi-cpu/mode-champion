@@ -77,6 +77,7 @@
       '<section class="sec"><div class="between"><h2 class="h2">Mes records</h2><span class="small">bilans et défis</span></div><div class="recgrid">' + recs + '</div></section>' +
       '<a class="btn2" href="#/progression">' + icon('up', 16) + ' Ma progression d\'un bilan à l\'autre</a>' +
       '<a class="btn2 gold" href="#/trophees">' + icon('trophy', 18) + ' Mes trophées · ' + st.nbBadges + ' / ' + C.BADGES.length + ' badges</a>' +
+      (MC.missions && MC.missions.of(me, 'jeu10') ? '<a class="btn2" href="#/mission">' + icon('ball', 18) + ' Mes choix pour le jeu à 10</a>' : '') +
       '</div></div></main>';
   }
 
@@ -139,9 +140,10 @@
           status = on ? P.nom + (res.next ? ' · ' + res.count + ' / ' + res.next : ' · ' + res.count + ' séances') : res.prog;
           pips = '<span class="pips" aria-label="Palier ' + (res.tier || 0) + ' sur 3">' + C.PALIERS.map(function (p, i) { return '<i class="' + (i < res.tier ? 'on' : '') + '" style="--pc:' + p.color + '"></i>'; }).join('') + '</span>';
         }
-        var tag = b.defi && !on ? 'a' : 'div';
+        var href = b.defi && !on ? '#/defi/' + b.id : (b.lien && !on ? b.lien : '');
+        var tag = href ? 'a' : 'div';
         var col = b.paliers && on ? C.PALIERS[res.tier - 1].color : b.color;
-        return '<' + tag + ' class="bdg' + (on ? ' on' : '') + '" style="--bc:' + col + '"' + (tag === 'a' ? ' href="#/defi/' + b.id + '"' : '') + '>' + MC.badgeIcon({ icon: b.icon, color: col }, on, 56) + '<span class="nm">' + esc(b.nom) + '</span><span class="cd">' + esc(b.paliers ? b.paliers.join(' / ') + ' ' + b.cond : b.cond) + '</span>' + pips + '<span class="st">' + esc(status) + '</span></' + tag + '>';
+        return '<' + tag + ' class="bdg' + (on ? ' on' : '') + '" style="--bc:' + col + '"' + (href ? ' href="' + href + '"' : '') + '>' + MC.badgeIcon({ icon: b.icon, color: col }, on, 56) + '<span class="nm">' + esc(b.nom) + '</span><span class="cd">' + esc(b.paliers ? b.paliers.join(' / ') + ' ' + b.cond : b.cond) + '</span>' + pips + '<span class="st">' + esc(status) + '</span></' + tag + '>';
       }
       var familles = C.FAMILLES_BADGES.map(function (f) {
         var list = C.BADGES.filter(function (b) { return b.famille === f.id; });
@@ -152,7 +154,7 @@
       return '<main class="screen">' + MC.kidSubBar('#/profil', 'Mon profil', 'Mes trophées') +
         '<div class="head"><span class="kicker" style="color:var(--gold)">Salle des trophées</span><h1 class="big md">Grades<br>et badges</h1></div>' +
         '<div class="cols2"><section class="sec"><div class="between"><h2 class="h2">Ma carrière</h2><span class="small">1 séance = ' + C.XP.seance + ' XP</span></div><ol class="grades">' + grades + '</ol>' +
-        '<div class="box small" style="line-height:1.5">Séance à la maison +' + C.XP.seance + ' · club +' + C.XP.club + ' · récup +' + C.XP.recup + ' · semaine parfaite +' + C.XP.bonus + ' · badge ou palier +' + C.XP.badge + ' · record battu +' + C.XP.record + ' · niveau monté +' + C.XP.niveau + '</div></section>' +
+        '<div class="box small" style="line-height:1.5">Séance à la maison +' + C.XP.seance + ' · club +' + C.XP.club + ' · récup +' + C.XP.recup + ' · semaine parfaite +' + C.XP.bonus + ' · badge ou palier +' + C.XP.badge + ' · record battu +' + C.XP.record + ' · niveau monté +' + C.XP.niveau + ' · mission spéciale +' + C.XP.mission + '</div></section>' +
         '<div class="sec" style="gap:20px">' + familles + '</div></div></main>';
     });
   }, { kid: true, nav: 'profil', bg: '#2E2612', live: true });

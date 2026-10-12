@@ -105,7 +105,9 @@ var Core = (function () {
     seances: [['id', 's'], ['joueurId', 's'], ['date', 's'], ['type', 's'], ['mode', 's'], ['ressenti', 's'], ['details', 'j'], ['cree', 's']],
     records: [['id', 's'], ['joueurId', 's'], ['bilan', 's'], ['test', 's'], ['valeur', 'n'], ['extra', 'j'], ['statut', 's'],
       ['parQui', 's'], ['date', 's'], ['cree', 's']],
-    journal: [['id', 's'], ['joueurId', 's'], ['type', 's'], ['data', 'j'], ['date', 's'], ['cree', 's']]
+    journal: [['id', 's'], ['joueurId', 's'], ['type', 's'], ['data', 'j'], ['date', 's'], ['cree', 's']],
+    // missions ponctuelles (ex. « Prépare le jeu à 10 ») : une ligne par joueur et par mission
+    missions: [['id', 's'], ['joueurId', 's'], ['mission', 's'], ['reponses', 'j'], ['faite', 'b'], ['date', 's'], ['source', 's'], ['cree', 's'], ['maj', 's']]
   };
 
   // Valeur brute (texte de la feuille) -> valeur typée
@@ -250,14 +252,24 @@ var Core = (function () {
     return { id: r.id, joueurId: r.joueurId, bilan: r.bilan, test: r.test, valeur: r.valeur, extra: r.extra || null, statut: r.statut, parQui: r.parQui, date: r.date, cree: r.cree };
   }
   function pubJournal(j) { return { id: j.id, joueurId: j.joueurId, type: j.type, data: j.data || null, date: j.date, cree: j.cree }; }
+  // Les copains choisis restent secrets : seuls l'enfant lui-même et les éducs les voient (jamais les parents).
+  function pubMission(m, sansCopains) {
+    var r = m.reponses || {}, out = {
+      postes: Array.isArray(r.postes) ? r.postes : [], quiz: r.quiz || null, quizTop: r.quizTop || null, quizResume: r.quizResume || '',
+      copainsFait: !!r.copainsFait
+    };
+    if (!sansCopains) out.copains = Array.isArray(r.copains) ? r.copains : [];
+    return { id: m.id, joueurId: m.joueurId, mission: m.mission, reponses: out, faite: !!m.faite, date: m.date || '', source: m.source || '', maj: m.maj || m.cree || '' };
+  }
 
   function dossier(ctx, joueur, full) {
-    var db = ctx.db;
+    var db = ctx.db, parent = !!(ctx.auth && ctx.auth.r === 'f');
     return {
       joueur: pubJoueur(joueur),
       seances: where(db.rows('seances'), 'joueurId', joueur.id).map(function (s) { return pubSeance(s, full); }),
       records: where(db.rows('records'), 'joueurId', joueur.id).map(pubRecord),
-      journal: where(db.rows('journal'), 'joueurId', joueur.id).map(pubJournal)
+      journal: where(db.rows('journal'), 'joueurId', joueur.id).map(pubJournal),
+      missions: where(db.rows('missions'), 'joueurId', joueur.id).map(function (m) { return pubMission(m, parent); })
     };
   }
 
@@ -446,6 +458,140 @@ var Core = (function () {
     }
   };
 
+  // ---------------------------------------------------------
+  // Missions ponctuelles
+  // « jeu10 » : choisir ses postes (1 à 3, dans l'ordre) puis ses copains (secret, sans limite)
+  // ---------------------------------------------------------
+  var MISSIONS = {
+    jeu10: { postes: ['pilier', 'talonneur', 'troisieme-ligne', 'demi-de-melee', 'ouvreur', 'centre', 'ailier'], maxPostes: 3 }
+  };
+  function missionRow(ctx, joueurId, mission) {
+    var rows = ctx.db.rows('missions');
+    for (var i = 0; i < rows.length; i++) if (rows[i].joueurId === joueurId && rows[i].mission === mission) return rows[i];
+    return null;
+  }
+  function missionRep(row) {
+    var c = row && row.reponses ? row.reponses : {};
+    return {
+      postes: Array.isArray(c.postes) ? c.postes.slice() : [], quiz: c.quiz || null, quizTop: c.quizTop || null, quizResume: c.quizResume || '',
+      copains: Array.isArray(c.copains) ? c.copains.slice() : [], copainsFait: !!c.copainsFait
+    };
+  }
+  function saveMission(ctx, joueurId, mission, rep, source) {
+    var row = missionRow(ctx, joueurId, mission), now = isoNow(ctx.now);
+    var faite = rep.postes.length > 0 && !!rep.copainsFait;
+    if (row) {
+      var patch = { reponses: rep, faite: faite || !!row.faite, maj: now, source: source || row.source };
+      if (patch.faite && !row.date) patch.date = isoDate(ctx.now);
+      ctx.db.update('missions', row.id, patch);
+    } else {
+      ctx.db.insert('missions', { id: genId(ctx.env), joueurId: joueurId, mission: mission, reponses: rep, faite: faite, date: faite ? isoDate(ctx.now) : '', source: source || 'appli', cree: now, maj: now });
+    }
+  }
+  function cleanQuiz(q) {
+    if (!q || typeof q !== 'object' || !Array.isArray(q.ans)) return null;
+    return {
+      ans: q.ans.slice(0, 8).map(function (a) {
+        return Array.isArray(a) ? a.slice(0, 3).map(Number).filter(function (n) { return n >= 0 && n < 12 && Math.floor(n) === n; }) : [];
+      })
+    };
+  }
+
+  A.mission = {
+    auth: ['p'],
+    run: function (req, ctx) {
+      var mid = String(req.mission || ''), M = MISSIONS[mid];
+      if (!M) fail('invalide', 'Mission inconnue.');
+      var me = ctx.auth.row, rep = missionRep(missionRow(ctx, me.id, mid));
+      if (req.postes !== undefined) {
+        if (!Array.isArray(req.postes)) fail('invalide', 'Postes invalides.');
+        var ps = [];
+        req.postes.slice(0, 10).forEach(function (p) { p = String(p); if (M.postes.indexOf(p) >= 0 && ps.indexOf(p) < 0) ps.push(p); });
+        if (!ps.length) fail('invalide', 'Choisis au moins un poste.');
+        rep.postes = ps.slice(0, M.maxPostes);
+      }
+      if (req.quiz !== undefined) {
+        rep.quiz = cleanQuiz(req.quiz);
+        rep.quizTop = Array.isArray(req.quizTop) ? req.quizTop.slice(0, 3).filter(function (x) { return x && M.postes.indexOf(String(x.id)) >= 0; }).map(function (x) {
+          var pct = Math.round(Number(x.pct)); return { id: String(x.id), pct: pct >= 0 && pct <= 100 ? pct : 0 };
+        }) : null;
+      }
+      if (req.copains !== undefined) {
+        if (!Array.isArray(req.copains)) fail('invalide', 'Copains invalides.');
+        var all = ctx.db.rows('joueurs'), cs = [];
+        req.copains.slice(0, 80).forEach(function (c) { c = String(c); var j = find(all, c); if (j && j.actif && j.id !== me.id && cs.indexOf(c) < 0) cs.push(c); });
+        rep.copains = cs;
+      }
+      if (req.fin) {
+        if (!rep.postes.length) fail('invalide', 'Choisis d\'abord ton poste.');
+        if (!rep.copains.length) fail('invalide', 'Choisis au moins un copain.');
+        rep.copainsFait = true;
+      }
+      saveMission(ctx, me.id, mid, rep, 'appli');
+      return dossier(ctx, find(ctx.db.rows('joueurs'), me.id), true);
+    }
+  };
+
+  // Reprise des réponses de l'ancien site « Choisis ton poste » (Google Form, réponses rangées dans un onglet de la feuille).
+  // rows : [{ prenom, nom, choix: [3 textes], test }] dans l'ordre d'arrivée ; la dernière réponse d'un enfant compte.
+  // Un enfant qui a déjà choisi ses postes dans l'appli garde ses choix de l'appli.
+  function sansAccents(s) {
+    s = String(s === undefined || s === null ? '' : s).toLowerCase();
+    try { s = s.normalize('NFD').replace(/[̀-ͯ]/g, ''); } catch (e) { /* vieux moteur : on garde les accents */ }
+    return s.replace(/[’`]/g, '\'').replace(/\s+/g, ' ').trim();
+  }
+  var NOMS_POSTES = {
+    pilier: 'pilier', talonneur: 'talonneur', '3eligne': 'troisieme-ligne', '3emeligne': 'troisieme-ligne', troisiemeligne: 'troisieme-ligne', '3l': 'troisieme-ligne',
+    demidemelee: 'demi-de-melee', '9': 'demi-de-melee', demidouverture: 'ouvreur', ouvreur: 'ouvreur', '10': 'ouvreur', centre: 'centre', ailier: 'ailier'
+  };
+  function posteDuTexte(t) { return NOMS_POSTES[sansAccents(t).replace(/[^a-z0-9]/g, '')] || null; }
+  function cleJoueur(prenom) {
+    var s = sansAccents(prenom), ini = '';
+    var m = /^(.*\S)\s+([a-z])\.?$/.exec(s);           // « Baptiste A. » : homonymes distingués par l'initiale du nom
+    if (m) { s = m[1]; ini = m[2]; }
+    return { cle: s.replace(/[^a-z]/g, ''), ini: ini };
+  }
+  function importPostes(ctx, rows) {
+    var joueurs = ctx.db.rows('joueurs').filter(function (j) { return j.actif; }).map(function (j) { var k = cleJoueur(j.prenom); return { j: j, cle: k.cle, ini: k.ini }; });
+    var dernier = {}, inconnus = [], ambigus = [];
+    (rows || []).forEach(function (r) {
+      var cle = cleJoueur(r.prenom).cle, ini = sansAccents(r.nom).replace(/[^a-z]/g, '').charAt(0);
+      if (!cle) return;
+      var c = joueurs.filter(function (x) { return x.cle === cle; });
+      if (c.length > 1) c = c.filter(function (x) { return x.ini && x.ini === ini; });
+      var nom = cleanText((r.prenom || '') + ' ' + (r.nom || ''), 60);
+      if (!c.length) { if (inconnus.indexOf(nom) < 0) inconnus.push(nom); return; }
+      if (c.length > 1) { if (ambigus.indexOf(nom) < 0) ambigus.push(nom); return; }
+      dernier[c[0].j.id] = r;
+    });
+    var importes = 0, gardes = [];
+    Object.keys(dernier).forEach(function (jid) {
+      var r = dernier[jid], ps = [];
+      (r.choix || []).forEach(function (t) { var p = posteDuTexte(t); if (p && ps.indexOf(p) < 0) ps.push(p); });
+      if (!ps.length) return;
+      var row = missionRow(ctx, jid, 'jeu10'), rep = missionRep(row);
+      if (row && row.source === 'appli' && rep.postes.length) { gardes.push(find(ctx.db.rows('joueurs'), jid).prenom); return; }
+      var resume = String(r.test || '').replace(/[<>\u0000-\u0009\u000b-\u001f]/g, ' ').slice(0, 1500);
+      if (row && rep.postes.join() === ps.slice(0, 3).join() && rep.quizResume === resume) return;   // rien de neuf
+      rep.postes = ps.slice(0, 3);
+      rep.quizResume = resume;
+      saveMission(ctx, jid, 'jeu10', rep, 'formulaire');
+      importes++;
+    });
+    var info = { quand: isoNow(ctx.now), reponses: (rows || []).length, enfants: Object.keys(dernier).length, importes: importes, gardes: gardes, inconnus: inconnus, ambigus: ambigus };
+    ctx.db.setProp('importPostes', JSON.stringify(info));
+    return info;
+  }
+  A.importPostes = {
+    auth: ['e'],
+    run: function (req, ctx) {
+      if (!ctx.env.formulairePostes) fail('indispo', 'La reprise du formulaire ne marche que sur le serveur Google.');
+      var rows = ctx.env.formulairePostes();
+      if (!rows) fail('introuvable', 'Les réponses du formulaire « Choix de postes » ne sont pas dans la feuille de l\'appli.');
+      return { info: importPostes(ctx, rows) };
+    }
+  };
+
   A.submitRecords = {
     auth: ['p'],
     run: function (req, ctx) {
@@ -598,7 +744,7 @@ var Core = (function () {
     auth: ['e'],
     run: function (req, ctx) {
       var db = ctx.db;
-      var seances = db.rows('seances'), records = db.rows('records'), journal = db.rows('journal');
+      var seances = db.rows('seances'), records = db.rows('records'), journal = db.rows('journal'), missions = db.rows('missions');
       var fams = db.rows('familles');
       var joueurs = db.rows('joueurs').map(function (j) {
         return {
@@ -606,13 +752,17 @@ var Core = (function () {
           famille: (find(fams, j.familleId) || {}).nom || '',
           seances: where(seances, 'joueurId', j.id).map(function (s) { return pubSeance(s, false); }),
           records: where(records, 'joueurId', j.id).map(pubRecord),
-          journal: where(journal, 'joueurId', j.id).map(pubJournal)
+          journal: where(journal, 'joueurId', j.id).map(pubJournal),
+          missions: where(missions, 'joueurId', j.id).map(function (m) { return pubMission(m, false); })
         };
       });
+      var imp = null;
+      try { imp = JSON.parse(db.getProp('importPostes') || 'null'); } catch (e) { imp = null; }
       return {
         moi: { id: ctx.auth.row.id, nom: ctx.auth.row.nom, admin: !!ctx.auth.row.admin, enfants: Array.isArray(ctx.auth.row.enfants) ? ctx.auth.row.enfants : [] },
         joueurs: joueurs,
-        familles: fams.map(function (f) { return { id: f.id, nom: f.nom }; })
+        familles: fams.map(function (f) { return { id: f.id, nom: f.nom }; }),
+        importPostes: imp
       };
     }
   };
@@ -813,7 +963,9 @@ var Core = (function () {
     rowFromCells: rowFromCells,
     cellsFromRow: cellsFromRow,
     // outils exposés pour le mode démo et les tests
-    _sha256: sha256, _hmac: hmac, _hashPin: hashPin, _hashTemp: hashTemp, _hashAdulte: hashAdulte, _pinFaible: pinFaible, _clone: clone
+    _sha256: sha256, _hmac: hmac, _hashPin: hashPin, _hashTemp: hashTemp, _hashAdulte: hashAdulte, _pinFaible: pinFaible, _clone: clone,
+    _posteDuTexte: posteDuTexte, _sansAccents: sansAccents,
+    importPostesDepuis: function (db, env, rows) { return importPostes({ db: db, env: env, now: env.now() }, rows); }
   };
 })();
 

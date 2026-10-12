@@ -260,7 +260,7 @@
       return '<main class="screen">' + parentBar(fam, d, 'Suivi') +
         (MC.accueil ? MC.accueil.parentChecklist(fam) : '') +
         '<div class="head"><span class="kicker" style="color:var(--green)">Suivi · ' + esc(ui.fmtDate(L.today())) + '</span><h1 class="big md">' + esc(k.prenom) + '<br>cette semaine</h1></div>' +
-        S.pending + otherNote + S.tiles +
+        S.pending + otherNote + (MC.missionParent ? MC.missionParent(d) : '') + S.tiles +
         '<div class="cols2"><section class="sec"><div class="between"><h2 class="h2">Sa semaine</h2><span class="hud" style="color:var(--gold)">' + S.st.week.stars + ' / 6 étoiles</span></div>' + S.week + '</section>' +
         '<section class="sec"><h2 class="h2">Ses séances</h2><p class="small" style="margin:0">Touchez une séance pour le détail : exercices, séries, ressenti.</p>' + MC.suivi.seances(d.seances, { max: 4 }) + '</section></div>' +
         '</main>';
@@ -322,6 +322,7 @@
   // ÉDUC : 4 onglets (Vestiaire · Joueurs · Classement · Outils)
   // ======================================================================
   var edFilter = 'all', edQ = '';
+  MC.loadGroup = function (force) { return loadGroup(force); };
   function loadGroup(force) {
     if (app.S.cache.group && !force) return Promise.resolve(app.S.cache.group);
     if (force) return app.adultCall('group').then(function (r) { app.S.cache.group = r; app.lsSet('mc-group', { tok: app.S.adult.token, data: r }); return r; });
@@ -444,6 +445,7 @@
       return '<main class="screen">' + educBar(g, 'Outils') +
         '<div class="head"><span class="kicker" style="color:var(--violet)">Le groupe, les codes, l\'aide</span><h1 class="big md">Outils</h1></div>' +
         '<div class="cols2"><div class="sec" style="gap:20px"><section class="sec"><h2 class="h2">Le groupe</h2>' +
+        link('#/educ/mission', 'ball', 'Mission « Prépare le jeu à 10 »', 'Les postes et les copains choisis par les enfants') +
         link('#/educ/progres', 'up', 'Progrès du groupe aux bilans', 'Qui a le plus progressé, test par test') +
         link('#/educ/ajouter', 'plus', 'Ajouter un joueur', 'Son code provisoire et, si besoin, le code parent') +
         link('#/educ/familles', 'key', 'Familles et codes parents', 'Un nouveau code si une famille a perdu le sien') +
@@ -587,7 +589,7 @@
           '<section class="sec"><h2 class="h2">Séances</h2>' + (d.seances && d.seances.length && !d.seances.some(function (x) { return x.details; }) ? '<p class="small" style="margin:0">Chargement du détail…</p>' : '') + S.hist + '</section>' +
           '<section class="sec"><h2 class="h2">Progression aux bilans</h2>' + S.prog + '</section>' +
           '<section class="sec"><h2 class="h2">Records confirmés</h2>' + S.recs + '</section></div>' +
-          '<div class="sec" style="gap:20px"><section class="sec"><h2 class="h2">Niveaux</h2>' + S.levels + '</section>' +
+          '<div class="sec" style="gap:20px">' + (MC.missionKid ? MC.missionKid(d, g) : '') + '<section class="sec"><h2 class="h2">Niveaux</h2>' + S.levels + '</section>' +
           '<section class="sec"><h2 class="h2">Compte</h2>' +
           '<button type="button" class="switch" data-act="kidCode" data-id="' + esc(k.id) + '" data-p="' + esc(k.prenom) + '"><span><span class="t1" style="display:block">' + (k.aUnCode ? 'Nouveau code provisoire' : 'Code provisoire (1re connexion)') + '</span><span class="t2" style="display:block">Pour un code oublié ou une 1re connexion</span></span>' + icon('right', 18) + '</button>' +
           '<button type="button" class="switch" role="switch" aria-checked="' + !!k.visible + '" data-act="kidVisible" data-id="' + esc(k.id) + '"><span><span class="t1" style="display:block">Visible au classement</span><span class="t2" style="display:block">Les parents peuvent aussi le régler</span></span><span class="k"></span></button>' +

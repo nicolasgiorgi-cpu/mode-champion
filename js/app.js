@@ -150,6 +150,7 @@ MC.app = (function () {
   function pendingCount(list) { var n = 0; (list || []).forEach(function (d) { (d.records || []).forEach(function (r) { if (r.statut === 'attente') n++; }); }); return n; }
   function navBadge(key) {
     var c = S.cache || {};
+    if (key === 'semaine' && S.me && MC.missions) return MC.missions.pending(S.me).length;
     if (key === 'p:suivi' && c.family) return pendingCount(c.family.enfants);
     if (key === 'e:vestiaire' && c.group) return pendingCount(c.group.joueurs.filter(function (p) { return p.joueur.actif; }));
     return 0;
@@ -163,7 +164,7 @@ MC.app = (function () {
     navEl.innerHTML = '<span class="brand" aria-hidden="true">' + ui.avatar('M', '#38E8FF', 48).replace('>M<', '>M12<') + '</span>' + items.map(function (it) {
       var on = active === it[0], n = navBadge(it[0]);
       return '<a href="' + it[1] + '" class="' + (on ? 'on' : '') + '"' + (on ? ' aria-current="page"' : '') + '>' + ui.icon(it[2], 22) + '<span>' + it[3] + '</span>' +
-        (n ? '<span class="nb" aria-label="' + n + ' à valider">' + n + '</span>' : '') + '</a>';
+        (n ? '<span class="nb" aria-label="' + n + (it[0] === 'semaine' ? ' mission à faire' : ' à valider') + '">' + n + '</span>' : '') + '</a>';
     }).join('');
   }
   // après le chargement des données (pastilles « à valider »)
@@ -180,13 +181,14 @@ MC.app = (function () {
     S.stats = L.compute(res);
     if (S.kid) { S.kid.joueur = res.joueur; lsSet('mc-kid', S.kid); }
     lsSet(ME_KEY, { kid: res.joueur.id, me: res });
+    refreshNav();   // pastille « mission à faire » sur l'onglet Semaine
   }
   function loadMe(force) {
     if (S.me && !force) return Promise.resolve(S.me);
     if (!force) {
       var c = lsGet(ME_KEY);
       if (c && c.me && S.kid && c.kid === S.kid.joueur.id) {
-        S.me = c.me; S.stats = L.compute(c.me);
+        S.me = c.me; S.stats = L.compute(c.me); refreshNav();
         refreshMe();
         return Promise.resolve(S.me);
       }

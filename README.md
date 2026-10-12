@@ -26,6 +26,9 @@ Site statique (HTML/CSS/JS, rien à installer) + une Google Sheet qui sert de ba
 | `js/v-guide.js` | Le guide « Comment ça marche ? » (joueur, parents, éducs) |
 | `js/accueil.js` | L'accueil des nouveaux : visites (joueur, parent, éduc), listes « premiers pas », astuces |
 | `js/nouveautes.js` | **Les nouveautés** : une entrée par nouvelle fonction (voir plus bas) |
+| `js/missions.js` | **Les missions spéciales** (dates, textes) et le test « Aide-moi à choisir » |
+| `js/postes-data.js` | Les 7 cartes postes de la mission « Prépare le jeu à 10 » (reprises du site « Choisis ton poste ») |
+| `js/v-mission.js` | Les écrans de la mission (joueur), sa vue éduc (Outils) et parent |
 | `sw.js` | La copie de l'appli gardée sur l'appareil (elle s'ouvre même quand le réseau traîne) |
 | `apps-script/serveur-mode-champion.gs` | **Le serveur à coller dans Google Apps Script** (un seul fichier) |
 
@@ -42,7 +45,7 @@ Site statique (HTML/CSS/JS, rien à installer) + une Google Sheet qui sert de ba
    - **Déployer**, puis copiez l'**URL de l'application Web** (elle finit par `/exec`).
 7. Collez cette URL dans `js/config.js` : `API_URL: 'https://script.google.com/macros/s/…/exec',` (ou envoyez-la à Claude).
 
-La feuille contient ensuite un onglet par table (`joueurs`, `familles`, `educs`, `seances`, `records`, `journal`). Ne renommez pas les onglets ni les colonnes. Les codes y sont stockés chiffrés (empreintes), jamais en clair.
+La feuille contient ensuite un onglet par table (`joueurs`, `familles`, `educs`, `seances`, `records`, `journal`, `missions`). Un onglet ajouté par une nouvelle version (comme `missions`) se crée tout seul à la première écriture. Ne renommez pas les onglets ni les colonnes. Les codes y sont stockés chiffrés (empreintes), jamais en clair.
 
 Pour aller plus vite, le serveur garde une copie de la feuille en mémoire (20 minutes). Si vous modifiez la feuille **à la main** (renommer un éduc, corriger un résultat…), lancez ensuite la fonction `viderCache` dans l'éditeur Apps Script (menu des fonctions › `viderCache` › Exécuter) pour que l'appli voie le changement tout de suite.
 
@@ -90,11 +93,13 @@ Le guide **« Comment ça marche ? »** (bouton **Aide** sur l'écran d'accueil,
 ## Les règles du jeu (modifiables dans `js/content.js`)
 
 - **Étoiles** : 1 par jour de la semaine (Cros, Capuozzo, Dupont, Meafou, club du samedi, récup du dimanche), le vendredi est repos. Les 6 étoiles = +1 étoile bonus. Jauge de 56 étoiles par cycle de 8 semaines (14 Espoir · 28 Titulaire · 42 Capitaine · 56 Légende), comme le tableau du mur.
-- **XP et grades** : séance à la maison +150, club +50, récup +30, semaine parfaite +200, badge ou palier +100, record battu +50, niveau monté +100. Grades : Recrue, Espoir (1 500), Titulaire (4 000), Capitaine (8 000), International (14 000), Légende (22 000).
+- **XP et grades** : séance à la maison +150, club +50, récup +30, semaine parfaite +200, badge ou palier +100, record battu +50, niveau monté +100, mission spéciale +200. Grades : Recrue, Espoir (1 500), Titulaire (4 000), Capitaine (8 000), International (14 000), Légende (22 000).
 - **Niveaux** : réglés par le bilan (seuils de la page 4 du carnet). Le site propose de monter quand c'est « facile » 2 séances de suite, de redescendre quand c'est « dur » 2 fois. Le N4 ne vient jamais du bilan. Les parents (espace parent) et les éducs (fiche du joueur) peuvent les ajuster : bouton **Modifier les niveaux**, puis **Enregistrer** (le changement est noté dans le journal, sans XP).
 - **Chronos** : un bip 10 s avant la fin, puis 5-4-3-2-1 et le son de fin. Sur iPhone, les bips passent même en mode silencieux (iOS 17 et plus).
 - **Retour** : dans la séance et le bilan guidés, le bouton **Retour** en haut annule le dernier clic (série validée, exo passé, test validé par erreur).
-- **Badges** (17, en 3 familles) : **exploit** (les 7 défis du tableau du mur, au bilan ou en « défi » avec un adulte qui confirme, + Champion : un exo réussi en N4) ; **séances** (Bras d'acier, Turbo, Infatigable, Jambes de fer : 10 / 25 / 40 séances du même jour = bronze / argent / or) ; **régularité** (Première étoile, Semaine parfaite, Série de 7, Fidèle, Légende). Chaque badge ou palier rapporte +100 XP.
+- **Missions spéciales** (`js/missions.js`) : une chose à faire une seule fois, en haut de Ma semaine (pastille sur l'onglet) tant qu'elle n'est pas faite. Récompense : +200 XP et un badge (famille **missions**). 1re mission, **« Prépare le jeu à 10 »** : choisir 1 à 3 postes (les 7 cartes et le test « Aide-moi à choisir » du site « Choisis ton poste »), puis ses copains, sans limite. **Les copains sont secrets** : seuls l'enfant et les éducs les voient (jamais les parents ni les autres enfants). Les éducs ont tout dans Outils › Mission « Prépare le jeu à 10 » et dans la fiche de chaque joueur.
+- **Reprise de l'ancien site « Choisis ton poste »** : dans Google Forms (formulaire « M12 - 26/27 - Choix de postes ») › Réponses › Associer à Sheets › **feuille existante** = la feuille de l'appli. Les réponses arrivent alors dans un onglet de cette feuille ; le bouton **Reprendre les réponses du formulaire** (Outils › Mission) ou la fonction `reprendreChoixDePostes` de l'éditeur les reprend (prénom + initiale du nom pour les homonymes ; la dernière réponse compte ; un enfant qui a déjà choisi dans l'appli garde ses choix).
+- **Badges** (18, en 4 familles) : **exploit** (les 7 défis du tableau du mur, au bilan ou en « défi » avec un adulte qui confirme, + Champion : un exo réussi en N4) ; **séances** (Bras d'acier, Turbo, Infatigable, Jambes de fer : 10 / 25 / 40 séances du même jour = bronze / argent / or) ; **régularité** (Première étoile, Semaine parfaite, Série de 7, Fidèle, Légende) ; **missions** (Prêt pour le jeu à 10). Chaque badge ou palier rapporte +100 XP.
 - **Classement** : par épreuve du bilan, entre joueurs du même niveau sur cette épreuve (ligue élargie aux niveaux voisins s'il y a moins de 5 joueurs), en « meilleur score » ou « plus gros progrès ». Seuls les résultats confirmés par un adulte comptent. Les parents peuvent masquer leur enfant du classement.
 
 ## Données
@@ -110,6 +115,7 @@ Les chemins supposent le site dans `/home/claude/mode-champion` et les tests dan
 git clone https://github.com/nicolasgiorgi-cpu/mode-champion /home/claude/mode-champion
 cp -r /home/claude/mode-champion/tests /home/claude/tests
 cd /home/claude/mode-champion && sh outils/fabriquer-serveur.sh   # le faux serveur charge le .gs fabriqué
-node /home/claude/tests/test_logic.js && node /home/claude/tests/test_core.js
+node /home/claude/tests/test_logic.js && node /home/claude/tests/test_core.js && node /home/claude/tests/test_mission.js
 python3 /home/claude/tests/e2e_v14.py 390 844                      # Playwright, site servi en local (voir mkdemo.sh)
+python3 /home/claude/tests/e2e_mission.py 390 844                  # la mission « Prépare le jeu à 10 » (joueur, parent, éduc)
 ```

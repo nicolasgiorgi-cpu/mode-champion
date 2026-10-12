@@ -34,6 +34,7 @@ MC.demo = (function () {
     var start = cyc.debut;
     var bilan0 = MC.CONFIG.BILANS[0].date;
 
+    var ids = {};
     kids.forEach(function (k, idx) {
       var famId = k[3];
       if (!famId) {
@@ -41,6 +42,7 @@ MC.demo = (function () {
         db.insert('familles', { id: famId, nom: 'Famille de ' + k[0], codeHash: Core._hashAdulte(sec, String(200000 + idx * 7919)), codeV: 1, cree: nowIso });
       }
       var pid = id(), isNew = !!k[4];
+      ids[k[0]] = pid;
       // bilan 0 fictif : force selon l'assiduité
       var f = 0.4 + k[2] * 0.6 + (rnd() - 0.5) * 0.3;
       var vals = isNew ? [] : [
@@ -104,6 +106,19 @@ MC.demo = (function () {
         var dd = L.addDays(today, -1);
         db.insert('records', { id: id(), joueurId: pid, bilan: 'defi', test: 'planche', valeur: 104, extra: null, statut: 'attente', parQui: '', date: dd, cree: dd + 'T19:00:00.000Z' });
       }
+    });
+    // mission « Prépare le jeu à 10 » : quelques enfants l'ont déjà faite ou commencée (Tom, le joueur de démo, pas encore)
+    [
+      ['Inès', ['ailier', 'centre'], ['Nina', 'Chloé'], true, 'appli'],
+      ['Nina', ['demi-de-melee', 'ouvreur', 'ailier'], ['Inès', 'Léo'], true, 'appli'],
+      ['Léo', ['troisieme-ligne', 'pilier'], [], false, 'formulaire'],
+      ['Sacha', ['centre'], ['Tom', 'Enzo', 'Léo'], true, 'appli'],
+      ['Enzo', ['pilier', 'talonneur', 'troisieme-ligne'], ['Sacha'], true, 'appli'],
+      ['Chloé', ['ouvreur'], [], false, 'appli']
+    ].forEach(function (m) {
+      var d = L.addDays(today, -ri(1, 6));
+      db.insert('missions', { id: id(), joueurId: ids[m[0]], mission: 'jeu10', faite: m[3], date: m[3] ? d : '', source: m[4], cree: d + 'T18:30:00.000Z', maj: d + 'T18:30:00.000Z',
+        reponses: { postes: m[1], copains: m[2].map(function (n) { return ids[n]; }), copainsFait: m[3], quiz: null, quizTop: null, quizResume: m[4] === 'formulaire' ? 'Postes proposés : 1. 3e ligne (82 %) · 2. Pilier (74 %) · 3. Talonneur (61 %)\nPréfère : Plaquer et récupérer le ballon' : '' } });
     });
   }
 

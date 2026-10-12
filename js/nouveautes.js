@@ -8,6 +8,14 @@
 window.MC = window.MC || {};
 
 MC.NEWS = [
+  { id: '2026-10-13-mission-jeu10', date: '2026-10-13', pour: ['k', 'f', 'e'],
+    titre: { k: 'Mission spéciale : prépare le jeu à 10', f: 'Mission spéciale : le jeu à 10', e: 'Les postes et les copains, dans l\'appli' },
+    texte: {
+      k: 'Choisis ton poste avec les cartes et le test, puis dis-nous avec qui tu aimes jouer (c\'est secret). +200 XP et un badge !',
+      f: 'Votre enfant choisit son poste et ses copains pour le jeu à 10 (les copains restent entre lui et les éducs). C\'est en haut de sa page « Ma semaine ».',
+      e: '« Choisis ton poste » est maintenant une mission dans l\'appli, avec les copains en plus. Tout est dans Outils, et dans la fiche de chaque joueur.'
+    },
+    lien: { k: '#/mission', e: '#/educ/mission' } },
   { id: '2026-10-12-nav', date: '2026-10-12', pour: ['k', 'f', 'e'],
     titre: { k: 'Une navigation plus simple', f: 'Votre espace en 4 onglets', e: 'Votre espace en 4 onglets' },
     texte: {

@@ -5,7 +5,7 @@
    Voir README.md, partie « Google Sheets ».
    ========================================================= */
 
-var TABLES = ['joueurs', 'familles', 'educs', 'seances', 'records', 'journal'];
+var TABLES = ['joueurs', 'familles', 'educs', 'seances', 'records', 'journal', 'missions'];
 
 /*
  * Cache des onglets (CacheService). Lire un onglet de la feuille coûte 0,2 à 0,5 s ;
@@ -29,9 +29,21 @@ function SheetDB_() {
 SheetDB_.prototype.sheet = function (table) {
   if (!this.ss) this.ss = SpreadsheetApp.getActiveSpreadsheet();
   var sh = this.ss.getSheetByName(table);
+  if (!sh && Core.SCHEMA[table]) sh = creerOnglet_(this.ss, table);   // nouvelle table ajoutée au programme : l'onglet se crée tout seul
   if (!sh) throw new Error('Onglet « ' + table + ' » introuvable : lance la fonction installer.');
   return sh;
 };
+function creerOnglet_(ss, table) {
+  var sh = ss.insertSheet(table);
+  var cols = Core.SCHEMA[table].map(function (c) { return c[0]; });
+  var head = sh.getRange(1, 1, 1, cols.length);
+  head.setNumberFormat('@');
+  head.setValues([cols]);
+  head.setFontWeight('bold');
+  sh.setFrozenRows(1);
+  sh.getRange(1, 1, sh.getMaxRows(), cols.length).setNumberFormat('@');
+  return sh;
+}
 SheetDB_.prototype.rows = function (table) {
   if (this.cache[table]) return this.cache[table];
   var out = this.cacheGet_(table);
@@ -151,8 +163,60 @@ SheetDB_.prototype.setProp = function (k, v) { this.props.setProperty(k, v); };
 function env_() {
   return {
     now: function () { return Date.now(); },
-    rand: function (n) { return Math.floor(Math.random() * n); }
+    rand: function (n) { return Math.floor(Math.random() * n); },
+    formulairePostes: lireFormulairePostes_
   };
+}
+
+/**
+ * Réponses de l'ancien site « Choisis ton poste » : le Google Form « M12 - 26/27 - Choix de postes » range ses réponses
+ * dans un onglet de CETTE feuille (Google Forms › Réponses › Associer à Sheets › feuille existante).
+ * On reconnaît l'onglet à ses colonnes « Prénom » et « Choix 1 ». Renvoie null s'il n'y est pas.
+ */
+function lireFormulairePostes_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheets = ss.getSheets();
+  function n(s) { return Core._sansAccents(s); }
+  for (var i = 0; i < sheets.length; i++) {
+    var sh = sheets[i];
+    if (TABLES.indexOf(sh.getName()) >= 0) continue;
+    var lc = sh.getLastColumn(), lr = sh.getLastRow();
+    if (lc < 3) continue;
+    var head = sh.getRange(1, 1, 1, lc).getDisplayValues()[0].map(n);
+    var col = { prenom: -1, nom: -1, c1: -1, c2: -1, c3: -1, test: -1 };
+    head.forEach(function (h, j) {
+      if (/^prenom/.test(h)) col.prenom = j;
+      else if (/^nom\b/.test(h)) col.nom = j;
+      else if (/^choix\s*1/.test(h)) col.c1 = j;
+      else if (/^choix\s*2/.test(h)) col.c2 = j;
+      else if (/^choix\s*3/.test(h)) col.c3 = j;
+      else if (/aide-moi|test/.test(h)) col.test = j;
+    });
+    if (col.prenom < 0 || col.c1 < 0) continue;
+    if (lr < 2) return [];
+    var vals = sh.getRange(2, 1, lr - 1, lc).getDisplayValues();
+    return vals.filter(function (r) { return r[col.prenom]; }).map(function (r) {
+      return {
+        prenom: r[col.prenom], nom: col.nom >= 0 ? r[col.nom] : '',
+        choix: [r[col.c1], col.c2 >= 0 ? r[col.c2] : '', col.c3 >= 0 ? r[col.c3] : ''],
+        test: col.test >= 0 ? r[col.test] : ''
+      };
+    });
+  }
+  return null;
+}
+
+/** À lancer depuis l'éditeur pour reprendre les réponses du formulaire « Choix de postes » (les éducs ont aussi un bouton dans l'appli). */
+function reprendreChoixDePostes() {
+  var db = new SheetDB_();
+  var rows = lireFormulairePostes_();
+  if (!rows) { Logger.log('Onglet des réponses introuvable : dans Google Forms, Réponses › Associer à Sheets › cette feuille.'); return; }
+  var info = Core.importPostesDepuis(db, env_(), rows);
+  db.flush_();
+  Logger.log('Réponses lues : ' + info.reponses + ' · enfants reconnus : ' + info.enfants + ' · repris : ' + info.importes +
+    (info.gardes.length ? ' · déjà choisi dans l\'appli : ' + info.gardes.join(', ') : '') +
+    (info.inconnus.length ? ' · pas trouvés : ' + info.inconnus.join(', ') : '') +
+    (info.ambigus.length ? ' · homonymes à vérifier : ' + info.ambigus.join(', ') : ''));
 }
 
 function json_(o) {
