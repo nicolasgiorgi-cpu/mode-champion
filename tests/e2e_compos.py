@@ -104,7 +104,7 @@ with sync_playwright() as p:
     cp = ev(pg, "JSON.stringify(MC.app.S.cache.compos.compos.find(c=>c.evenementId==='sp-demo-p3'))")
     check('compo publiée (version 1, justification)', '"version":1' in cp and 'première fois' in cp, cp[:200])
     check('compo de Coach Nico affichée', 'COMPO DE COACH NICO' in pg.inner_text('.cstate').upper())
-    check('brouillon effacé', ev(pg, "localStorage.getItem('mc-cdraft:sp-demo-p3')") in (None, 'null'))
+    check('brouillon effacé', ev(pg, "Object.keys(localStorage).filter(k=>k.indexOf('mc-cdraft:')===0 && k.indexOf('sp-demo-p3')>0 && localStorage.getItem(k)!=='null').length") == 0)
     # l'auteur modifie directement : version 2
     x = pg.query_selector('.ccol >> nth=0').query_selector('.cpj').get_attribute('data-id')
     pg.click('.cpj[data-id="%s"]' % x); pg.wait_for_timeout(300)
@@ -116,6 +116,19 @@ with sync_playwright() as p:
     check('version 2 enregistrée', ev(pg, "MC.app.S.cache.compos.compos.find(c=>c.evenementId==='sp-demo-p3').version") == 2)
     check('alerte : présent pas placé', 'pas encore placé' in pg.inner_text('main') or 'Pas placés' in pg.inner_text('main'))
     shot(pg, 'k07-publiee', True)
+    # un enfant venu sans répondre : coché présent après la compo, il apparaît dans « Pas placés » et se place d'un geste
+    nid = ev(pg, "MC.app.S.cache.group.joueurs.find(p=>p.joueur.prenom==='Nathan').joueur.id")
+    pg.goto(BASE + '#/educ/evt/sp-demo-p3'); pg.wait_for_timeout(700)
+    pg.click('[data-act="prToggle"][data-id="%s"]' % nid); pg.wait_for_timeout(300)
+    pg.click('[data-act="prSave"]'); pg.wait_for_timeout(700)
+    pg.goto(BASE + '#/educ/compo/sp-demo-p3'); pg.wait_for_timeout(800)
+    check('présent arrivé après la compo : dans « Pas placés »', pg.query_selector('.ccol.banc .cpj[data-id="%s"]' % nid) is not None)
+    pg.click('.cpj[data-id="%s"]' % nid); pg.wait_for_timeout(300)
+    pg.click('.cselp [data-act="cMove"][data-t="B1"]'); pg.wait_for_timeout(500)
+    check('… et se place en B1', ev(pg, "!!document.querySelectorAll('.ccol')[1].querySelector('[data-id=\"%s\"]')" % nid))
+    pg.click('[data-act="cSave"]'); pg.wait_for_timeout(300)
+    pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(1000)
+    check('version 3 enregistrée', ev(pg, "MC.app.S.cache.compos.compos.find(c=>c.evenementId==='sp-demo-p3').version") == 3)
     # ----- la contre-proposition de Cyril (rassemblement) : l'auteur accepte -----
     pg.goto(BASE + '#/educ/compos'); pg.wait_for_timeout(700)
     pg.click('a.calert-top'); pg.wait_for_timeout(800)
@@ -179,6 +192,12 @@ with sync_playwright() as p:
     check('jeu à 10 : postes affichés', len(pg.query_selector_all('.cpj .cpo')) >= 16)
     check('jeu à 10 : bouton Postes auto', pg.query_selector('[data-act="cPostes"]') is not None)
     shot(pg, 'k10-jeu10', True)
+    # en se déconnectant, les compos et les brouillons (ils citent des copains) quittent l'appareil
+    pg.goto(BASE + '#/educ/outils'); pg.wait_for_timeout(700)
+    pg.click('[data-act="adultLogout"]'); pg.wait_for_timeout(500)
+    if pg.query_selector('.modal'): pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(500)
+    left = ev(pg, "Object.keys(localStorage).filter(k=>(k==='mc-compos'||k.indexOf('mc-cdraft:')===0) && localStorage.getItem(k)!=='null')")
+    check('déconnexion : plus de compos ni de brouillon sur l\'appareil', len(left) == 0, left)
     b.close()
 print('ERREURS JS:', errs)
 bad = [n for n, c in res if not c]

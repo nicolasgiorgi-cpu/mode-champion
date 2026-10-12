@@ -14,13 +14,25 @@ window.MC = window.MC || {};
   var BG = '#1E1A3A';
 
   // ---------- données ----------
+  var lu = 0;   // heure de la dernière lecture des compos (pour relire en fond si elles datent)
+  function busy() { return !!((B && B.dirty) || Object.keys(PR.chg).length || document.querySelector('.modal')); }
   function loadCompos(force) {
-    function set(r) { app.S.cache.compos = r; return r; }
-    if (app.S.cache.compos && !force) return Promise.resolve(app.S.cache.compos);
+    function set(r) { app.S.cache.compos = r; lu = Date.now(); return r; }
+    if (app.S.cache.compos && !force) {
+      if (Date.now() - lu > 60000) {
+        lu = Date.now();
+        MC.api.call('compos', { token: app.S.adult && app.S.adult.token }, { silent: true }).then(function (r) {
+          var before = JSON.stringify(app.S.cache.compos);
+          set(r); app.lsSet('mc-compos', { tok: app.S.adult.token, data: r }); app.refreshNav();
+          if (JSON.stringify(r) !== before && /^#\/educ\/(compos|evt|compo|avis)/.test(location.hash) && !busy()) rerenderKeep();
+        }).catch(function () { });
+      }
+      return Promise.resolve(app.S.cache.compos);
+    }
     if (force) return app.adultCall('compos').then(function (r) { app.lsSet('mc-compos', { tok: app.S.adult.token, data: r }); return set(r); });
     return app.swr('mc-compos', 'compos', {}, function (res) {
       set(res); app.refreshNav();
-      if (/^#\/educ\/(compos|evt|compo|avis)/.test(location.hash) && !(B && B.dirty) && !Object.keys(PR.chg).length && !document.querySelector('.modal')) rerenderKeep();
+      if (/^#\/educ\/(compos|evt|compo|avis)/.test(location.hash) && !busy()) rerenderKeep();
     }).then(set);
   }
   MC.loadCompos = loadCompos;
@@ -220,7 +232,7 @@ window.MC = window.MC || {};
     } else if (past) {
       compoBlock = '<div class="empty">Pas de compo enregistrée pour ce plateau.</div>';
     } else {
-      var dr = app.lsGet('mc-cdraft:' + e.id);
+      var dr = app.lsGet(draftKey(e.id));
       compoBlock = '<a class="btn" href="#/educ/compo/' + esc(e.id) + '">' + icon('swap', 18) + (dr ? ' Reprendre ma compo en cours' : ' Préparer la compo') + '</a>' +
         '<p class="small" style="margin:0">Un éduc suffit : la compo publiée est celle du plateau, sauf si un autre éduc fait une contre-proposition.</p>';
     }
@@ -251,20 +263,8 @@ window.MC = window.MC || {};
   MC.act.prSave = function (b) {
     var e = (app.S.cache.compos.evenements || []).filter(function (x) { return x.id === PR.evtId; })[0];
     if (!e) return;
-    var params = { id: e.id };
-    if (e.source === 'manuel') {
-      var pres = (e.presents || []).slice();
-      Object.keys(PR.chg).forEach(function (id) { var i = pres.indexOf(id); if (PR.chg[id] && i < 0) pres.push(id); if (!PR.chg[id] && i >= 0) pres.splice(i, 1); });
-      params.presents = pres;
-    } else {
-      var aj = (e.ajouts || []).slice(), re = (e.retraits || []).slice(), sp = e.presents || [];
-      Object.keys(PR.chg).forEach(function (id) {
-        aj = aj.filter(function (x) { return x !== id; }); re = re.filter(function (x) { return x !== id; });
-        if (PR.chg[id] && sp.indexOf(id) < 0) aj.push(id);
-        if (!PR.chg[id] && sp.indexOf(id) >= 0) re.push(id);
-      });
-      params.ajouts = aj; params.retraits = re;
-    }
+    // seulement les prénoms touchés : le serveur les applique sur son état (un autre éduc a pu corriger aussi)
+    var params = { id: e.id, marques: PR.chg };
     b.disabled = true;
     app.adultCall('setEvenement', params).then(function (r) {
       var l = app.S.cache.compos.evenements;
@@ -289,19 +289,24 @@ window.MC = window.MC || {};
   // B : la compo affichée. mode = 'reglages' (pas encore de compo) | 'draft' (brouillon, pas publiée)
   //     | 'edit' (je suis l'auteur, ou c'est le jour J) | 'view' (compo d'un autre éduc) | 'counter' (ma contre-proposition)
   var B = null;
-  function draftKey(id) { return 'mc-cdraft:' + id; }
+  function draftKey(id) { return 'mc-cdraft:' + ((app.S.adult && app.S.adult.id) || (app.S.cache.group && app.S.cache.group.moi.id) || '') + ':' + id; }
   function saveDraft() { if (B && B.dirty) app.lsSet(draftKey(B.evtId), { base: B.base, compoId: B.compoId, mode: B.mode, d: B.d, undo: B.undo.slice(-15) }); }
   function dropDraft(id) { app.lsSet(draftKey(id), null); }
   function copyCompo(c) { return JSON.parse(JSON.stringify({ reglages: c.reglages, equipes: c.equipes, banc: c.banc || [], raisons: c.raisons || {} })); }
   function canEdit(C, c) { var e = C.evts[c.evenementId]; return c.auteur === C.moi.id || (e && jour(e) === L.today()); }
   function initBoard(C, e) {
-    var c = compoOf(C.cd, e.id), base = c ? c.version : 0;
-    if (B && B.evtId === e.id && B.base === base) return B;
+    var c = compoOf(C.cd, e.id), base = c ? c.version : 0, cid = c ? c.id : null;
+    if (B && B.evtId === e.id && B.base === base && B.compoId === cid && B.moi === C.moi.id) return B;
     var s = app.lsGet(draftKey(e.id));
-    if (s && s.d && s.base === base) { B = { evtId: e.id, base: base, compoId: s.compoId, mode: s.mode, d: s.d, undo: s.undo || [], sel: null, dirty: true }; return B; }
+    if (s && s.d && s.base === base && (s.compoId || null) === cid) {
+      // un brouillon « jour J » repris le lendemain devient une contre-proposition
+      var mode = s.mode === 'edit' && c && !canEdit(C, c) ? 'counter' : s.mode;
+      B = { evtId: e.id, moi: C.moi.id, base: base, compoId: cid, mode: mode, d: s.d, undo: s.undo || [], sel: null, dirty: true };
+      return B;
+    }
     if (s) { dropDraft(e.id); if (B && B.evtId === e.id && B.dirty) ui.toast('La compo a changé entre-temps : vos changements non envoyés sont effacés.', true); }
-    if (c) B = { evtId: e.id, base: base, compoId: c.id, mode: canEdit(C, c) ? 'edit' : 'view', d: copyCompo(c), undo: [], sel: null, dirty: false };
-    else B = { evtId: e.id, base: 0, compoId: null, mode: 'reglages', d: null, undo: [], sel: null, dirty: false, reg: null };
+    if (c) B = { evtId: e.id, moi: C.moi.id, base: base, compoId: c.id, mode: canEdit(C, c) ? 'edit' : 'view', d: copyCompo(c), undo: [], sel: null, dirty: false };
+    else B = { evtId: e.id, moi: C.moi.id, base: 0, compoId: null, mode: 'reglages', d: null, undo: [], sel: null, dirty: false, reg: null };
     return B;
   }
   function editable() { return B && (B.mode === 'draft' || B.mode === 'edit' || B.mode === 'counter'); }
@@ -397,7 +402,8 @@ window.MC = window.MC || {};
   }
   function column(C, t, st, moved) {
     var fmt10 = B.d.reglages.format === 10;
-    var dest = B.sel && editable() && K.where(B.d, B.sel) && (K.where(B.d, B.sel).t < 0 || B.d.equipes[K.where(B.d, B.sel).t].id !== t.id);
+    var w = B.sel ? K.where(B.d, B.sel) : null;
+    var dest = !!B.sel && editable() && (!w || w.t < 0 || B.d.equipes[w.t].id !== t.id);
     return '<section class="ccol" style="--lc:' + K.COUL_NIV[t.niveau] + '" aria-label="' + esc(teamName(t)) + '">' +
       '<button type="button" class="chd' + (dest ? ' dest' : '') + '" data-act="cTeam" data-t="' + esc(t.id) + '"' + (dest ? '' : ' tabindex="-1"') + '>' +
       '<span class="row" style="justify-content:space-between;width:100%"><b class="ctid">' + esc(t.id) + '</b><span class="cn">' + st.n + '</span></span>' +
@@ -419,7 +425,9 @@ window.MC = window.MC || {};
     if (c && (B.mode === 'counter' || (B.mode === 'edit' && B.dirty))) K.diff(c, d).forEach(function (m) { moved[m.id] = true; });
     var stats = d.equipes.map(function (t) { return K.stats(t, C.F, d.reglages.format); });
     var cols = d.equipes.map(function (t, i) { return column(C, t, stats[i], moved); }).join('');
-    var banc = d.banc || [];
+    // « Pas placés » : le banc, plus les présents arrivés après la compo (venus sans répondre…)
+    var banc = (d.banc || []).slice();
+    presents.forEach(function (id) { if (!K.where(d, id) && banc.indexOf(id) < 0) banc.push(id); });
     var showBanc = banc.length || (B.sel && editable());
     if (showBanc) {
       var bdest = B.sel && editable() && banc.indexOf(B.sel) < 0;
@@ -514,11 +522,11 @@ window.MC = window.MC || {};
     var id = b.getAttribute('data-id');
     if (B.sel === id) { B.sel = null; rerenderKeep(); return; }
     if (B.sel && editable()) {
-      var wa = K.where(B.d, B.sel), wb = K.where(B.d, id);
-      if (wa && wb && wa.t !== wb.t) {
+      var wa = K.where(B.d, B.sel), wb = K.where(B.d, id), ta = wa ? wa.t : -1, tb = wb ? wb.t : -1;
+      if (ta !== tb) {
         var a = B.sel, nA = nameOf(a), nB = nameOf(id);
         B.sel = null;
-        change(function () { B.d = K.swap(B.d, a, id); });
+        change(function () { B.d = K.swap(B.d, a, id, K.fiches(app.S.cache.group)); });
         ui.toast('Échangés : ' + nA + ' ⇄ ' + nB);
         return;
       }
@@ -559,7 +567,7 @@ window.MC = window.MC || {};
       var a = al[Number(b.getAttribute('data-i'))];
       if (!a || !a.fix) return;
       var fx = a.fix;
-      change(function () { B.d = fx.t === 'swap' ? K.swap(B.d, fx.a, fx.b) : K.moveTo(B.d, fx.id, fx.vers, C.F); });
+      change(function () { B.d = fx.t === 'swap' ? K.swap(B.d, fx.a, fx.b, C.F) : K.moveTo(B.d, fx.id, fx.vers, C.F); });
       ui.toast(fx.texte);
     });
   };
@@ -624,14 +632,17 @@ window.MC = window.MC || {};
     return loadCompos(true).then(function () { ui.toast(msg); app.rerender(); });
   }
   function onErr(e) {
-    if (e.code === 'conflit') { ui.toast(e.message, true); loadCompos(true).then(function () { B = null; app.rerender(); }); return; }
+    if (e.code === 'conflit') {
+      if (B) dropDraft(B.evtId);
+      ui.toast(e.message, true); loadCompos(true).then(function () { B = null; app.rerender(); }); return;
+    }
     ui.toast(e.message, true);
   }
   MC.act.cPublish = function () {
     if (!B || !B.d) return;
     askText('Publier la compo', 'Elle devient la compo du plateau pour tous les éducs. Un mot pour expliquer vos choix ? (facultatif)', 'Ex. : Tom monte en A, c\'est son tour.', false, 'Publier').then(function (r) {
       if (!r) return;
-      app.adultCall('saveCompo', { evenementId: B.evtId, reglages: B.d.reglages, equipes: B.d.equipes, banc: B.d.banc, raisons: B.d.raisons, justification: r.text }).then(function () { return afterSave('Compo publiée'); }).catch(onErr);
+      app.adultCall('saveCompo', { evenementId: B.evtId, version: 0, reglages: B.d.reglages, equipes: B.d.equipes, banc: B.d.banc, raisons: B.d.raisons, justification: r.text }).then(function () { return afterSave('Compo publiée'); }).catch(onErr);
     });
   };
   MC.act.cSave = function () {
@@ -639,7 +650,7 @@ window.MC = window.MC || {};
     var c = compoOf(app.S.cache.compos, B.evtId);
     askText('Enregistrer les changements', 'Ce qui a changé, en quelques mots (facultatif) : les autres éducs le verront dans les versions.', 'Ex. : Inès blessée, Malo la remplace.', false, 'Enregistrer').then(function (r) {
       if (!r) return;
-      app.adultCall('saveCompo', { evenementId: B.evtId, compoId: B.compoId, version: c ? c.version : B.base, reglages: B.d.reglages, equipes: B.d.equipes, banc: B.d.banc, raisons: B.d.raisons, note: r.text }).then(function () { return afterSave('Compo enregistrée'); }).catch(onErr);
+      app.adultCall('saveCompo', { evenementId: B.evtId, compoId: B.compoId, version: B.base, reglages: B.d.reglages, equipes: B.d.equipes, banc: B.d.banc, raisons: B.d.raisons, note: r.text }).then(function () { return afterSave('Compo enregistrée'); }).catch(onErr);
     });
   };
   MC.act.cDiscard = function () {
@@ -657,7 +668,7 @@ window.MC = window.MC || {};
     if (!c) return;
     askText('Contre-proposition', 'Pour ' + esc(c.auteurNom) + ' : pourquoi ces changements ? (obligatoire)', 'Ex. : Léo n\'a pas encore de copain dans son équipe.', true, 'Envoyer', 'btn pink').then(function (r) {
       if (!r) return;
-      app.adultCall('contreProposition', { compoId: c.id, equipes: B.d.equipes, banc: B.d.banc, justification: r.text }).then(function () { return afterSave('Contre-proposition envoyée à ' + c.auteurNom); }).catch(onErr);
+      app.adultCall('contreProposition', { compoId: B.compoId || c.id, version: B.base, equipes: B.d.equipes, banc: B.d.banc, justification: r.text }).then(function () { return afterSave('Contre-proposition envoyée à ' + c.auteurNom); }).catch(onErr);
     });
   };
   MC.act.cRetirer = function () {
@@ -737,7 +748,7 @@ window.MC = window.MC || {};
   function tSet(id, k, v, F) {
     var c = T.chg[id] || (T.chg[id] = {});
     c[k] = v;
-    if (k === 'niveau') { var p = tVal(F, id, 'passerelle'); if (p && Math.abs(K.NIV.indexOf(p) - K.NIV.indexOf(v)) !== 1) c.passerelle = ''; }
+    if (k === 'niveau') { var p = tVal(F, id, 'passerelle'); if (p && (!v || Math.abs(K.NIV.indexOf(p) - K.NIV.indexOf(v)) !== 1)) c.passerelle = ''; }
     // rien de changé au final : on retire
     var f = F[id] || {};
     Object.keys(c).forEach(function (x) { if (c[x] === f[x]) delete c[x]; });
@@ -835,6 +846,7 @@ window.MC = window.MC || {};
           var on = ed.postesOk.indexOf(p[0]) >= 0, r = f.voeux.indexOf(p[0]);
           return '<button type="button" class="cop' + (on ? ' on' : '') + '" aria-pressed="' + on + '" data-act="tkPoste" data-v="' + p[0] + '"><span class="nm">' + esc(K.nomPoste(p[0])) + (r >= 0 ? ' <small style="color:var(--gold)">vœu ' + (r + 1) + '</small>' : '') + '</span><span class="ck">' + icon('check', 14) + '</span></button>';
         }).join('') + '</div>' +
+        spondSelect(g, id, ed) +
         '<div class="grid2"><button type="button" class="btn2 grey" data-act="tkCancel">Annuler</button><button type="button" class="btn" data-act="tkSave">' + icon('check', 16) + ' Enregistrer</button></div>';
     } else {
       body = '<div class="row" style="gap:12px;flex-wrap:wrap">' + niveauTag(f.niveau) + '<span class="grow"><b>' + (f.niveau ? K.NOM_NIV[f.niveau] : 'Niveau à renseigner') + '</b>' + (f.passerelle ? ' <span style="color:var(--violet)">· passerelle ⇅ ' + f.passerelle + '</span>' : '') +
@@ -847,15 +859,29 @@ window.MC = window.MC || {};
         (x.copains.length ? ' · avec ' + esc(x.copains.map(function (c) { return (F[c] || {}).prenom || '?'; }).join(', ')) : '') + '</li>';
     }).join('');
     var sp = (g.joueurs.filter(function (p) { return p.joueur.id === id; })[0] || {}).terrain;
+    var mb = cd && cd.spond && cd.spond.membres ? cd.spond.membres.filter(function (m) { return sp && m.id === sp.spondId; })[0] : null;
     return '<section class="sec"><div class="between"><h2 class="h2">Sur le terrain</h2>' + (f.niveau ? '' : '<span class="pill" style="--pc:var(--orange)">À renseigner</span>') + '</div><div class="box" style="display:flex;flex-direction:column;gap:12px">' + body + '</div>' +
       '<div class="box" style="display:flex;flex-direction:column;gap:8px"><span class="mlab" style="margin:0">Ses plateaux</span>' +
       (h.plateaux ? '<span class="small" style="color:var(--soft)">' + h.plateaux + ' plateau' + (h.plateaux > 1 ? 'x' : '') + ' · ' + h.autre + ' hors de son niveau' + (f.copains.length ? ' · avec un copain ' + h.avecCopain + ' fois' : '') + (h.sansCopainSerie ? ' · <b style="color:var(--orange)">sans copain la dernière fois</b>' : '') + '</span><ul class="small" style="margin:0;padding-left:18px;line-height:1.5;color:var(--soft)">' + hl + '</ul>' : '<span class="small">' + (cd ? 'Pas encore de plateau avec une compo dans l\'appli.' : 'Chargement…') + '</span>') +
-      '<span class="small" style="color:var(--faint)">Spond : ' + (sp && sp.spondId ? 'relié' : 'pas encore relié') + '</span></div></section>';
+      '<span class="small" style="color:var(--faint)">Spond : ' + (sp && sp.spondId ? 'relié' + (mb ? ' à « ' + esc(mb.nom) + ' »' : '') : 'pas encore relié') + '</span></div></section>';
   };
+  // relier le joueur à son membre Spond (quand le prénom ne suffit pas : homonymes, surnom…)
+  function spondSelect(g, id, ed) {
+    var cd = app.S.cache.compos, l = cd && cd.spond && cd.spond.membres;
+    if (!l || !l.length) return '';
+    var pris = {};
+    g.joueurs.forEach(function (p) { if (p.terrain && p.terrain.spondId && p.joueur.id !== id) pris[p.terrain.spondId] = p.joueur.prenom; });
+    return '<label class="lab" for="tk-sp">Son nom dans Spond</label><select id="tk-sp" class="txt" data-act-change="tkSpond"><option value="">Pas relié</option>' + l.map(function (m) {
+      return '<option value="' + esc(m.id) + '"' + (ed.spondId === m.id ? ' selected' : '') + '>' + esc(m.nom) + (pris[m.id] ? ' (déjà relié à ' + esc(pris[m.id]) + ')' : '') + '</option>';
+    }).join('') + '</select>';
+  }
+  document.addEventListener('change', function (e) {
+    if (e.target && e.target.id === 'tk-sp' && TK) TK.spondId = e.target.value;
+  });
   MC.act.tkEdit = function (b) {
     var F = K.fiches(app.S.cache.group), f = F[b.getAttribute('data-id')];
     if (!f) return;
-    TK = { id: f.id, niveau: f.niveau, passerelle: f.passerelle, plaquage: f.plaquage, postesOk: (f.postesOk.length ? f.postesOk : f.voeux).slice() };
+    TK = { id: f.id, niveau: f.niveau, passerelle: f.passerelle, plaquage: f.plaquage, postesOk: (f.postesOk.length ? f.postesOk : f.voeux).slice(), spondId: f.spondId || '' };
     app.rerender();
   };
   MC.act.tkCancel = function () { TK = null; app.rerender(); };
@@ -866,7 +892,9 @@ window.MC = window.MC || {};
   MC.act.tkSave = function (b) {
     if (!TK) return;
     b.disabled = true;
-    app.adultCall('setTerrain', { lignes: [{ joueurId: TK.id, niveau: TK.niveau, passerelle: TK.passerelle, plaquage: TK.plaquage, postesOk: TK.postesOk }] }).then(function (r) {
+    var ligne = { joueurId: TK.id, niveau: TK.niveau, passerelle: TK.passerelle, plaquage: TK.plaquage, postesOk: TK.postesOk };
+    if (document.getElementById('tk-sp')) ligne.spondId = TK.spondId;
+    app.adultCall('setTerrain', { lignes: [ligne] }).then(function (r) {
       patchTerrain(r.terrain); TK = null; ui.toast('Fiche terrain enregistrée'); app.rerender();
     }).catch(function (e) { b.disabled = false; ui.toast(e.message, true); });
   };

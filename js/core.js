@@ -933,7 +933,7 @@ var Core = (function () {
     if (!t) return null;
     return { niveau: t.niveau || '', passerelle: t.passerelle || '', plaquage: Number(t.plaquage) || 0, postesOk: Array.isArray(t.postesOk) ? t.postesOk : [], spondId: t.spondId || '', note: t.note || '', parQui: t.parQui || '', maj: t.maj || '' };
   }
-  function voisins(a, b) { return Math.abs(NIVS.indexOf(a) - NIVS.indexOf(b)) === 1; }
+  function voisins(a, b) { return NIVS.indexOf(a) >= 0 && NIVS.indexOf(b) >= 0 && Math.abs(NIVS.indexOf(a) - NIVS.indexOf(b)) === 1; }
   function terrainRow(ctx, joueurId, patch) {
     var row = find(ctx.db.rows('terrain'), joueurId);
     if (row) ctx.db.update('terrain', joueurId, patch);
@@ -1003,10 +1003,10 @@ var Core = (function () {
       var compos = ctx.db.rows('compos').filter(function (c) { return ids[c.evenementId] && c.statut !== 'retiree'; }).map(pubCompo);
       var cids = {}; compos.forEach(function (c) { cids[c.id] = true; });
       var avis = ctx.db.rows('avis').filter(function (a) { return cids[a.compoId]; }).map(pubAvis);
-      var sp = null; try { sp = JSON.parse(ctx.db.getProp('spondSync') || 'null'); } catch (e) { sp = null; }
+      var sp = null, mb = []; try { sp = JSON.parse(ctx.db.getProp('spondSync') || 'null'); mb = JSON.parse(ctx.db.getProp('spondMembres') || '[]'); } catch (e) { sp = null; mb = []; }
       return {
         evenements: evts, compos: compos, avis: avis,
-        spond: { branche: !!(ctx.env.spondInfo && ctx.env.spondInfo().branche), derniere: sp },
+        spond: { branche: !!(ctx.env.spondInfo && ctx.env.spondInfo().branche), derniere: sp, membres: Array.isArray(mb) ? mb : [] },
         moi: { id: ctx.auth.row.id, nom: ctx.auth.row.nom, admin: !!ctx.auth.row.admin }
       };
     }
@@ -1044,6 +1044,18 @@ var Core = (function () {
         return { supprime: true };
       }
       var patch = { parQui: qui, maj: now };
+      // marques = { idJoueur: true (présent) | false (absent) } : appliquées sur l'état actuel (deux éducs peuvent corriger en même temps)
+      if (req.marques && typeof req.marques === 'object') {
+        var aj = (e.ajouts || []).slice(), re = (e.retraits || []).slice(), pr = (e.presents || []).slice(), ok = idList(ctx, Object.keys(req.marques), 120);
+        ok.forEach(function (id) {
+          var on = !!req.marques[id];
+          aj = aj.filter(function (x) { return x !== id; }); re = re.filter(function (x) { return x !== id; });
+          if (e.source === 'manuel') { pr = pr.filter(function (x) { return x !== id; }); if (on) pr.push(id); }
+          else if (on && pr.indexOf(id) < 0) aj.push(id);
+          else if (!on && pr.indexOf(id) >= 0) re.push(id);
+        });
+        if (e.source === 'manuel') patch.presents = pr; else { patch.ajouts = aj; patch.retraits = re; }
+      }
       if (req.ajouts !== undefined) patch.ajouts = idList(ctx, req.ajouts);
       if (req.retraits !== undefined) patch.retraits = idList(ctx, req.retraits);
       if (req.sorte !== undefined && ['plateau', 'entrainement', 'autre'].indexOf(req.sorte) >= 0) patch.sorte = req.sorte;
@@ -1119,11 +1131,12 @@ var Core = (function () {
         ctx.db.insert('compos', row);
         return { compo: pubCompo(row) };
       }
-      if (req.compoId && req.compoId !== cur.id) fail('conflit', 'Une autre compo a été publiée entre-temps : rechargez.');
-      if (req.version !== undefined && Number(req.version) !== Number(cur.version)) fail('conflit', 'La compo a changé entre-temps (version ' + cur.version + ') : rechargez avant de modifier.');
+      // on modifie toujours une version précise : sinon on écraserait le travail d'un autre éduc
+      if (req.compoId !== cur.id) fail('conflit', cur.auteurNom + ' a publié une compo entre-temps : la voici. Faites une contre-proposition si vous n\'êtes pas d\'accord.');
+      if (Number(req.version) !== Number(cur.version)) fail('conflit', 'La compo a changé entre-temps (version ' + cur.version + ') : la voici à jour.');
       var auteur = cur.auteur === me.id, dm = jourJ(ctx, e);
       if (!auteur && !dm) fail('interdit', 'C\'est la compo de ' + cur.auteurNom + ' : faites plutôt une contre-proposition.');
-      var ch = diffCompo(cur, c);
+      var ch = diffCompo(actifsSeuls(ctx, cur), c);
       if (!ch.length && JSON.stringify(cur.reglages) === JSON.stringify(c.reglages)) return { compo: pubCompo(cur) };
       var v = (Number(cur.version) || 1) + 1;
       var hist = (cur.historique || []).concat([{ v: v, par: me.nom, quand: now, note: note || (auteur ? 'Modifiée' : 'Dernière minute'), n: ch.length, dm: !auteur }]).slice(-30);
@@ -1151,10 +1164,11 @@ var Core = (function () {
     run: function (req, ctx) {
       var cur = find(ctx.db.rows('compos'), String(req.compoId || ''));
       if (!cur || cur.statut !== 'publiee') fail('introuvable', 'Compo introuvable.');
+      if (req.version !== undefined && Number(req.version) !== Number(cur.version)) fail('conflit', 'La compo a changé entre-temps (version ' + cur.version + ') : la voici à jour, refaites vos changements dessus.');
       var just = cleanText(req.justification, 600);
       if (just.length < 3) fail('invalide', 'Expliquez en quelques mots pourquoi.');
       var c = cleanCompo(ctx, { equipes: req.equipes, banc: req.banc, reglages: cur.reglages });
-      var ch = diffCompo(cur, c);
+      var ch = diffCompo(actifsSeuls(ctx, cur), c);
       if (!ch.length) fail('invalide', 'Aucun changement par rapport à la compo.');
       var me = ctx.auth.row, now = isoNow(ctx.now);
       var row = { id: genId(ctx.env), compoId: cur.id, version: Number(cur.version) || 1, auteur: me.id, auteurNom: me.nom, equipes: c.equipes, banc: c.banc, changements: ch,
@@ -1181,7 +1195,7 @@ var Core = (function () {
       if (req.accepte) {
         var proposee = { equipes: a.equipes, banc: a.banc };
         // la compo a changé depuis : on rejoue seulement les déplacements de la contre-proposition
-        if (Number(a.version) !== Number(cur.version)) proposee = rejouer(cur, a.changements);
+        if (Number(a.version) !== Number(cur.version)) proposee = rejouer(ctx, cur, a.changements);
         var v = (Number(cur.version) || 1) + 1;
         var hist = (cur.historique || []).concat([{ v: v, par: me.nom, quand: now, note: 'Contre-proposition de ' + a.auteurNom + ' acceptée', n: (a.changements || []).length }]).slice(-30);
         ctx.db.update('compos', cur.id, { equipes: proposee.equipes, banc: proposee.banc, version: v, historique: hist, maj: now });
@@ -1192,13 +1206,21 @@ var Core = (function () {
       return { avis: pubAvis(find(ctx.db.rows('avis'), a.id)), compo: pubCompo(find(ctx.db.rows('compos'), cur.id)) };
     }
   };
-  function rejouer(cur, changements) {
+  // les joueurs encore actifs d'une compo (un joueur désactivé depuis ne compte pas comme un changement)
+  function actifsSeuls(ctx, c) {
+    var actifs = {}; ctx.db.rows('joueurs').forEach(function (j) { if (j.actif) actifs[j.id] = true; });
+    return { equipes: (c.equipes || []).map(function (t) { return { id: t.id, niveau: t.niveau, joueurs: (t.joueurs || []).filter(function (j) { return actifs[j.id]; }) }; }),
+      banc: (c.banc || []).filter(function (id) { return actifs[id]; }) };
+  }
+  function rejouer(ctx, cur, changements) {
     var o = clone({ equipes: cur.equipes || [], banc: cur.banc || [] });
     (changements || []).forEach(function (m) {
       var entry = null;
       o.equipes.forEach(function (t) { t.joueurs = t.joueurs.filter(function (j) { if (j.id === m.id) { entry = j; return false; } return true; }); });
       o.banc = o.banc.filter(function (id) { return id !== m.id; });
-      entry = entry || { id: m.id, poste: '', n: '' };
+      if (!m.vers) return;                                         // retiré de la compo
+      var tr = find(ctx.db.rows('terrain'), m.id);
+      entry = entry || { id: m.id, poste: '', n: (tr && tr.niveau) || '' };
       entry.poste = m.poste || '';
       if (m.vers === 'banc') o.banc.push(m.id);
       else { var t = o.equipes.filter(function (x) { return x.id === m.vers; })[0]; if (t) t.joueurs.push(entry); else o.banc.push(m.id); }
@@ -1216,15 +1238,24 @@ var Core = (function () {
     var parSpond = {}, lies = {};
     terrain.forEach(function (t) { if (t.spondId) { parSpond[t.spondId] = t.id; lies[t.id] = t.spondId; } });
     var cles = joueurs.map(function (j) { var k = cleJoueur(j.prenom); return { j: j, cle: k.cle, ini: k.ini }; });
-    var nouveaux = 0, membres = {};
+    var nouveaux = 0, membres = {}, liste = [];
+    function cleM(m) { var k = cleJoueur(m.prenom); return { cle: k.cle, ini: sansAccents(m.nom).replace(/[^a-z]/g, '').charAt(0) || k.ini }; }
+    var parCle = {};
+    (data.membres || []).forEach(function (m) { var k = cleM(m); (parCle[k.cle] = parCle[k.cle] || []).push(k.ini); });
     (data.membres || []).forEach(function (m) {
       var mid = String(m.id || ''); if (!mid) return;
       membres[mid] = m;
+      var k = cleM(m);
+      var iniNom = sansAccents(m.nom).replace(/[^a-z]/g, '').charAt(0);
+      liste.push({ id: mid, nom: cleanText(String(m.prenom || '').replace(/\s+([A-Za-z])\.?$/, ' $1.') + (iniNom ? ' ' + iniNom.toUpperCase() + '.' : ''), 40) });
       if (parSpond[mid]) return;
-      var cle = cleJoueur(m.prenom).cle, ini = sansAccents(m.nom).replace(/[^a-z]/g, '').charAt(0);
+      var cle = k.cle, ini = k.ini;
       var c = cles.filter(function (x) { return x.cle === cle; });
       if (c.length > 1) c = c.filter(function (x) { return x.ini && x.ini === ini; });
       if (c.length !== 1 || lies[c[0].j.id]) return;
+      // plusieurs membres Spond avec ce prénom : il faut que l'initiale du nom les départage
+      var memes = parCle[cle] || [];
+      if (memes.length > 1 && (!c[0].ini || memes.filter(function (x) { return x === c[0].ini; }).length !== 1)) return;
       parSpond[mid] = c[0].j.id; lies[c[0].j.id] = mid; nouveaux++;
       terrainRow(ctx, c[0].j.id, { spondId: mid, maj: now });
     });
@@ -1237,18 +1268,27 @@ var Core = (function () {
       });
       return out;
     }
-    var evts = 0;
+    liste.sort(function (a, b) { return a.nom.localeCompare(b.nom, 'fr'); });
+    ctx.db.setProp('spondMembres', JSON.stringify(liste.slice(0, 120)));
+    var evts = 0, vus = {};
     (data.evenements || []).forEach(function (ev) {
       var id = 'sp-' + String(ev.id || '').slice(0, 60);
       if (id === 'sp-') return;
       var inc = [];
       var row = { titre: cleanText(ev.titre, 80) || 'Événement', debut: dateEvt(ev.debut) || String(ev.debut || ''), fin: String(ev.fin || ''), lieu: cleanText(ev.lieu, 80),
         presents: map(ev.acceptes, inc), absents: map(ev.refuses), sansReponse: map((ev.sansReponse || []).concat(ev.attente || [])), inconnus: inc.slice(0, 40), annule: !!ev.annule, maj: now };
+      vus[id] = true;
       var cur = find(ctx.db.rows('evenements'), id);
       if (cur) ctx.db.update('evenements', id, row);
       else { row.id = id; row.source = 'spond'; row.sorte = sorteEvt(row.titre); row.ajouts = []; row.retraits = []; row.parQui = 'Spond'; ctx.db.insert('evenements', row); }
       evts++;
     });
+    // un événement Spond de la période lue qui n'y est plus a été supprimé dans Spond
+    if (Array.isArray(data.evenements)) {
+      var dmin = isoDate(ctx.now - 29 * DAY), dmax = isoDate(ctx.now + 59 * DAY);
+      ctx.db.rows('evenements').filter(function (e) { var d = String(e.debut).slice(0, 10); return e.source === 'spond' && !vus[e.id] && !e.annule && d >= dmin && d <= dmax; })
+        .forEach(function (e) { ctx.db.update('evenements', e.id, { annule: true, maj: now }); });
+    }
     var nonLies = joueurs.filter(function (j) { return !lies[j.id]; }).map(function (j) { return j.prenom; });
     var info = { quand: now, evenements: evts, membres: Object.keys(membres).length, nouveauxLiens: nouveaux, joueursSansLien: nonLies };
     ctx.db.setProp('spondSync', JSON.stringify(info));

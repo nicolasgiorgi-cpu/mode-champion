@@ -24,7 +24,14 @@ MC.app = (function () {
     if (k) lsSet('mc-kid-seen', Date.now());
     if (k) rememberKid(k.joueur.id); else lsSet(ME_KEY, null);
   }
-  function setAdult(a) { S.adult = a; S.cache = {}; lsSet('mc-adult', a); if (!a) { lsSet('mc-fam', null); lsSet('mc-group', null); } }
+  function setAdult(a) {
+    S.adult = a; S.cache = {}; lsSet('mc-adult', a);
+    if (!a) {
+      lsSet('mc-fam', null); lsSet('mc-group', null); lsSet('mc-compos', null);
+      // les brouillons de compo (ils citent des copains, secrets) ne restent pas sur l'appareil
+      try { Object.keys(localStorage).forEach(function (k) { if (k.indexOf('mc-cdraft:') === 0) localStorage.removeItem(k); }); } catch (e) { }
+    }
+  }
   function rememberKid(id) {
     var r = recents();
     r = [id].concat(r.filter(function (x) { return x !== id; })).slice(0, 6);

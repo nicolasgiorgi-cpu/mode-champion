@@ -22,7 +22,7 @@ MC.compos = (function () {
   var TAILLE = { 5: { min: 5, ideal: 7 }, 10: { min: 10, ideal: 12 } };
   var FORMATS = [5, 10];
 
-  function voisin(a, b) { return Math.abs(NIV.indexOf(a) - NIV.indexOf(b)) === 1; }
+  function voisin(a, b) { return NIV.indexOf(a) >= 0 && NIV.indexOf(b) >= 0 && Math.abs(NIV.indexOf(a) - NIV.indexOf(b)) === 1; }
   function fmt(r) { return Number(r && r.format) === 10 ? 10 : 5; }
   function nbOf(r) {
     var nb = (r && r.nb) || {}, o = {};
@@ -110,13 +110,15 @@ MC.compos = (function () {
   }
 
   // ---------- Couverture des postes (jeu à 10) : appariement postes ↔ joueurs ----------
-  // renvoie { poste par joueur, manquants: [postes non couverts] } ; préférence aux vœux (rang le plus bas)
+  // Les 10 places du jeu à 10, chaque joueur au plus une, en préférant les vœux (rang le plus bas).
+  // renvoie { poste par joueur ('' = remplaçant ou pas de place), manquants: [places non tenues] }
   function apparier(ids, F) {
-    var slots = SLOTS10.slice(0, Math.min(SLOTS10.length, ids.length));
-    var slotOf = {}, playerOf = {};
+    var slots = SLOTS10, slotOf = {}, playerOf = {};
+    var rk = {};
+    ids.forEach(function (pid) { var o = {}; slots.forEach(function (p) { if (o[p] === undefined) o[p] = rang(F[pid], p); }); rk[pid] = o; });
     function tryAssign(pid, maxR, seen) {
       for (var s = 0; s < slots.length; s++) {
-        if (seen[s] || rang(F[pid], slots[s]) > maxR) continue;
+        if (seen[s] || rk[pid][slots[s]] > maxR) continue;
         seen[s] = true;
         if (playerOf[s] === undefined || tryAssign(playerOf[s], maxR, seen)) { playerOf[s] = pid; slotOf[pid] = s; return true; }
       }
@@ -127,55 +129,55 @@ MC.compos = (function () {
     });
     var poste = {}, manquants = [];
     ids.forEach(function (pid) { poste[pid] = slotOf[pid] !== undefined ? slots[slotOf[pid]] : ''; });
-    // postes du jeu à 10 que personne de l'équipe ne peut tenir
-    SLOTS10.forEach(function (p, s) { if (s < slots.length && playerOf[s] === undefined) manquants.push(p); });
-    if (ids.length < SLOTS10.length) SLOTS10.slice(ids.length).forEach(function (p) { manquants.push(p); });
+    slots.forEach(function (p, s) { if (playerOf[s] === undefined) manquants.push(p); });
     return { poste: poste, manquants: manquants };
   }
 
   // ---------- Score d'une répartition dans un niveau (plus petit = mieux) ----------
+  // somme des scores des équipes ; les moyennes du niveau ne changent pas pendant les échanges
   var W = { taille: 5, plaq: 4, bons: 1.5, copain: 1, seul: 0.75, poste: 1.5 };
-  function scoreNiveau(teams, F, H, format) {
-    var k = teams.length;
-    if (k < 2 && format !== 10) return scoreCopains(teams, F, H);
-    var tot = 0, totP = 0, totB = 0;
+  function niveauCtx(teams, F) {
+    var tot = 0, totP = 0, totB = 0, k = teams.length || 1;
     teams.forEach(function (t) { t.forEach(function (id) { tot++; var p = (F[id] || {}).plaquage || 0; totP += p; if (p >= BON) totB++; }); });
-    var avgN = tot / k, mean = tot ? totP / tot : 0, avgB = totB / k, s = 0;
-    teams.forEach(function (t) {
-      var sp = 0, sb = 0;
-      t.forEach(function (id) { var p = (F[id] || {}).plaquage || 0; sp += p; if (p >= BON) sb++; });
-      s += W.taille * Math.abs(t.length - avgN);
-      if (t.length) s += W.plaq * Math.abs(sp / t.length - mean);
-      s += W.bons * Math.abs(sb - avgB);
-      if (format === 10) s += W.poste * apparier(t, F).manquants.length;
-    });
-    return s + scoreCopains(teams, F, H);
+    return { avgN: tot / k, mean: tot ? totP / tot : 0, avgB: totB / k };
   }
-  function scoreCopains(teams, F, H) {
-    var s = 0;
-    teams.forEach(function (t) {
-      t.forEach(function (id) {
-        var cps = (F[id] || {}).copains || [];
-        if (!cps.length) return;
-        for (var i = 0; i < cps.length; i++) if (cps[i] !== id && t.indexOf(cps[i]) >= 0) return;
-        s += W.copain + W.seul * Math.min(3, hOf(H, id).sansCopainSerie);
-      });
+  function scoreEquipe(t, cx, F, H, format) {
+    var sp = 0, sb = 0, s = 0;
+    t.forEach(function (id) { var p = (F[id] || {}).plaquage || 0; sp += p; if (p >= BON) sb++; });
+    s += W.taille * Math.abs(t.length - cx.avgN);
+    if (t.length) s += W.plaq * Math.abs(sp / t.length - cx.mean);
+    s += W.bons * Math.abs(sb - cx.avgB);
+    if (format === 10) s += W.poste * apparier(t, F).manquants.length;
+    t.forEach(function (id) {
+      var cps = (F[id] || {}).copains || [];
+      if (!cps.length) return;
+      for (var i = 0; i < cps.length; i++) if (cps[i] !== id && t.indexOf(cps[i]) >= 0) return;
+      s += W.copain + W.seul * Math.min(3, hOf(H, id).sansCopainSerie);
     });
     return s;
   }
-  // améliore la répartition par échanges deux à deux (et déplacements si les effectifs s'écartent)
+  function scoreNiveau(teams, F, H, format) {
+    var cx = niveauCtx(teams, F), s = 0;
+    teams.forEach(function (t) { s += scoreEquipe(t, cx, F, H, format); });
+    return s;
+  }
+  // améliore la répartition par échanges deux à deux (et déplacements si les effectifs s'écartent) ;
+  // seules les deux équipes touchées sont recalculées
   function ameliorer(teams, F, H, format) {
-    var best = scoreNiveau(teams, F, H, format), guard = 0, improved = true;
-    while (improved && guard++ < 80) {
+    var cx = niveauCtx(teams, F), ts = teams.map(function (t) { return scoreEquipe(t, cx, F, H, format); });
+    var guard = 0, improved = true;
+    function sc(i) { return scoreEquipe(teams[i], cx, F, H, format); }
+    while (improved && guard++ < 120) {
       improved = false;
-      var cand = null;
+      var cand = null, bestD = -1e-9;
       for (var a = 0; a < teams.length; a++) for (var b = a + 1; b < teams.length; b++) {
+        var base = ts[a] + ts[b];
         for (var i = 0; i < teams[a].length; i++) for (var j = 0; j < teams[b].length; j++) {
           var x = teams[a][i], y = teams[b][j];
           teams[a][i] = y; teams[b][j] = x;
-          var sc = scoreNiveau(teams, F, H, format);
+          var na = sc(a), nb = sc(b), d = na + nb - base;
           teams[a][i] = x; teams[b][j] = y;
-          if (sc < best - 1e-9) { best = sc; cand = { t: 'swap', a: a, b: b, i: i, j: j }; }
+          if (d < bestD) { bestD = d; cand = { t: 'swap', a: a, b: b, i: i, j: j, na: na, nb: nb }; }
         }
         // déplacement d'un joueur de l'équipe la plus nombreuse vers l'autre
         [[a, b], [b, a]].forEach(function (ab) {
@@ -183,16 +185,18 @@ MC.compos = (function () {
           if (from.length - to.length < 2) return;
           for (var m = 0; m < from.length; m++) {
             var id = from.splice(m, 1)[0]; to.push(id);
-            var sc2 = scoreNiveau(teams, F, H, format);
+            var nf = sc(ab[0]), nt = sc(ab[1]), d2 = nf + nt - ts[ab[0]] - ts[ab[1]];
             to.pop(); from.splice(m, 0, id);
-            if (sc2 < best - 1e-9) { best = sc2; cand = { t: 'move', from: ab[0], to: ab[1], m: m }; }
+            if (d2 < bestD) { bestD = d2; cand = { t: 'move', from: ab[0], to: ab[1], m: m, nf: nf, nt: nt }; }
           }
         });
       }
       if (cand) {
         improved = true;
-        if (cand.t === 'swap') { var tmp = teams[cand.a][cand.i]; teams[cand.a][cand.i] = teams[cand.b][cand.j]; teams[cand.b][cand.j] = tmp; }
-        else teams[cand.to].push(teams[cand.from].splice(cand.m, 1)[0]);
+        if (cand.t === 'swap') {
+          var tmp = teams[cand.a][cand.i]; teams[cand.a][cand.i] = teams[cand.b][cand.j]; teams[cand.b][cand.j] = tmp;
+          ts[cand.a] = cand.na; ts[cand.b] = cand.nb;
+        } else { teams[cand.to].push(teams[cand.from].splice(cand.m, 1)[0]); ts[cand.from] = cand.nf; ts[cand.to] = cand.nt; }
       }
     }
     return teams;
@@ -306,7 +310,7 @@ MC.compos = (function () {
     eqs.forEach(function (t) { (t.joueurs || []).forEach(function (j) { placed[j.id] = t.id; }); });
     (c.banc || []).forEach(function (id) { placed[id] = 'banc'; });
     var oublis = (presents || []).filter(function (id) { return !placed[id]; });
-    if (oublis.length) out.push({ k: 'oubli', niveau: 'warn', texte: oublis.length + ' présent' + (oublis.length > 1 ? 's' : '') + ' pas encore placé' + (oublis.length > 1 ? 's' : '') + ' : ' + noms(oublis, F) + '.', ids: oublis });
+    if (oublis.length) out.push({ k: 'oubli', niveau: 'warn', texte: oublis.length + ' présent' + (oublis.length > 1 ? 's' : '') + ' pas encore placé' + (oublis.length > 1 ? 's' : '') + ' : ' + noms(oublis, F) + ' (colonne « Pas placés »).', ids: oublis });
     var sansNiv = Object.keys(placed).filter(function (id) { return placed[id] !== 'banc' && F[id] && !F[id].niveau; });
     if (sansNiv.length) out.push({ k: 'niveau', niveau: 'info', texte: 'Niveau à renseigner : ' + noms(sansNiv, F) + '.', ids: sansNiv });
     NIV.forEach(function (n) {
@@ -374,10 +378,15 @@ MC.compos = (function () {
     else { var t = o.equipes.filter(function (x) { return x.id === dest; })[0]; if (!t) return c; t.joueurs.push(entry); }
     return o;
   }
-  function swap(c, a, b) {
-    var o = clone(c), wa = where(o, a), wb = where(o, b);
+  // échanger les places de deux joueurs ; un présent pas encore placé compte comme « Pas placé »
+  function swap(c, a, b, F) {
+    var o = clone(c);
+    o.banc = o.banc || [];
+    if (!where(o, a)) o.banc.push(a);
+    if (!where(o, b)) o.banc.push(b);
+    var wa = where(o, a), wb = where(o, b);
     if (!wa || !wb) return c;
-    function get(w) { return w.t >= 0 ? o.equipes[w.t].joueurs[w.j] : { id: o.banc[w.j], poste: '', n: '' }; }
+    function get(w) { var id = o.banc[w.j]; return w.t >= 0 ? o.equipes[w.t].joueurs[w.j] : { id: id, poste: '', n: (F && F[id] && F[id].niveau) || '' }; }
     function put(w, e) { if (w.t >= 0) o.equipes[w.t].joueurs[w.j] = e; else o.banc[w.j] = e.id; }
     var ea = get(wa), eb = get(wb), pa = ea.poste, pb = eb.poste;
     // chacun prend le poste de l'autre (on échange les places)
@@ -429,7 +438,7 @@ MC.compos = (function () {
       if (!t.joueurs.some(function (j) { return f.copains.indexOf(j.id) >= 0; })) return;
       t.joueurs.forEach(function (j) {
         if (f.copains.indexOf(j.id) >= 0) return;
-        var o = swap(c, id, j.id);
+        var o = swap(c, id, j.id, F);
         var lvTeams = o.equipes.filter(function (x) { return x.niveau === me.niveau; }).map(function (x) { return x.joueurs.map(function (y) { return y.id; }); });
         var sc = scoreNiveau(lvTeams, F, H, format);
         if (!best || sc < best.sc) best = { sc: sc, b: j.id, t: t.id };

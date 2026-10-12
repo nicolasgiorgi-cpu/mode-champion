@@ -171,10 +171,32 @@ const FF = K.fiches(g);
 assert.strictEqual(FF.j1.niveau, 'B'); assert.deepStrictEqual(J(FF.j1.copains), ['j2']); assert.deepStrictEqual(J(FF.j1.voeux), ['ailier']);
 assert.strictEqual(FF.j2.niveau, ''); assert.strictEqual(FF.j2.plaquage, 0);
 
+// ----- échanges avec le banc et avec un présent pas encore placé : le niveau principal reste -----
+let cb = K.moveTo(c0, 'b5', 'banc', F);
+cb = K.swap(cb, 'b5', 'c1', F);
+assert.strictEqual(K.where(cb, 'b5').t >= 0, true);
+assert.strictEqual(cb.equipes[K.where(cb, 'b5').t].joueurs.find(j => j.id === 'b5').n, 'B', 'b5 garde son niveau principal');
+assert.deepStrictEqual(J(cb.banc), ['c1']);
+const tard = K.swap(c0, 'zz-nouveau', 'a1', F);
+assert.ok(K.where(tard, 'zz-nouveau').t >= 0 && J(tard.banc).indexOf('a1') >= 0, 'un présent arrivé tard prend la place');
+// ----- jeu à 10 avec une équipe de 8 : les 8 joueurs ont un poste s'ils peuvent en tenir un -----
+const E8 = {};
+['ailier', 'centre', 'centre', 'pilier', 'pilier', 'talonneur', 'demi-de-melee', 'ouvreur'].forEach((ps, i) => { E8['e' + i] = { id: 'e' + i, prenom: 'E' + i, niveau: 'A', plaquage: 2, voeux: [ps], postesOk: [], copains: [] }; });
+ap = K.apparier(Object.keys(E8), E8);
+assert.strictEqual(Object.values(ap.poste).filter(Boolean).length, 8, JSON.stringify(ap));
+assert.deepStrictEqual(J(ap.manquants).sort(), ['troisieme-ligne', 'troisieme-ligne']);
+// ----- performance : 44 joueurs, 4 équipes au jeu à 10 -----
+const Q = {};
+for (let i = 0; i < 44; i++) Q['r' + i] = { id: 'r' + i, prenom: 'R' + i, niveau: i < 22 ? 'A' : 'B', passerelle: '', plaquage: i % 6, voeux: [postes[i % 12], postes[(i + 5) % 12]], postesOk: [], copains: ['r' + ((i + 3) % 44), 'r' + ((i + 11) % 44)] };
+let t1 = Date.now();
+p = K.proposer(Object.keys(Q), Q, {}, { format: 10, nb: { A: 2, B: 2, C: 0 } });
+const dt = Date.now() - t1;
+assert.ok(dt < 1500, 'proposition 44 joueurs jeu à 10 en ' + dt + ' ms');
+assert.strictEqual(p.equipes.reduce((n, t) => n + t.joueurs.length, 0), 44);
 // ----- performance : 40 joueurs, 6 équipes, jeu à 10 -----
 const P = {};
 for (let i = 0; i < 40; i++) P['q' + i] = { id: 'q' + i, prenom: 'Q' + i, niveau: ['A', 'B', 'C'][i % 3], passerelle: i % 5 === 0 ? 'B' : '', plaquage: i % 6, voeux: [postes[i % 12]], postesOk: [], copains: ['q' + ((i + 7) % 40)] };
 const t0 = Date.now();
 p = K.proposer(Object.keys(P), P, {}, { format: 10, nb: { A: 1, B: 1, C: 1 } });
 assert.ok(Date.now() - t0 < 4000, 'proposition en ' + (Date.now() - t0) + ' ms');
-console.log('COMPOS OK (' + (Date.now() - t0) + ' ms pour 40 joueurs au jeu à 10)');
+console.log('COMPOS OK (' + dt + ' ms pour 44 joueurs en 4 équipes au jeu à 10)');

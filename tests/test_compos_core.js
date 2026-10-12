@@ -253,4 +253,72 @@ const logins = calls.filter(u => /login/.test(u)).length;
 g.synchroSpond();
 assert.strictEqual(calls.filter(u => /login/.test(u)).length, logins);
 g.debrancherSpond(); assert.strictEqual(g._triggers.length, 0);
+// ----- suites de la relecture : conflits, marques de présence, passerelle sans niveau, homonymes Spond -----
+({ g, nico, cyril, P } = setup());
+r = g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P.Tom, niveau: '', passerelle: 'A' }] });
+assert.strictEqual(r.terrain[P.Tom].passerelle, '', 'pas de passerelle sans niveau');
+const tdy = (function () { const d = new Date(); const p = n => (n < 10 ? '0' : '') + n; return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); })();
+r = g.call({ action: 'setEvenement', token: nico, titre: 'Plateau test', debut: tdy, presents: [P.Tom, P['Léa'], P.Hugo] });
+const et = r.evenement;
+const eqA = [{ id: 'A1', niveau: 'A', joueurs: [{ id: P.Tom }, { id: P['Léa'] }] }];
+r = g.call({ action: 'saveCompo', token: nico, evenementId: et.id, version: 0, reglages: { format: 5, nb: { A: 1 } }, equipes: eqA, banc: [] });
+const ct = r.compo;
+// un brouillon publié par un autre éduc (même le jour J) n'écrase pas la compo publiée
+r = g.call({ action: 'saveCompo', token: cyril, evenementId: et.id, version: 0, reglages: { format: 5, nb: { A: 1 } }, equipes: [{ id: 'A1', niveau: 'A', joueurs: [{ id: P.Hugo }] }], banc: [] });
+assert.strictEqual(r.error, 'conflit'); assert.ok(/Admin a publié/.test(r.message), r.message);
+// ni le même éduc depuis un autre appareil, ni une version périmée
+r = g.call({ action: 'saveCompo', token: nico, evenementId: et.id, reglages: { format: 5, nb: { A: 1 } }, equipes: eqA, banc: [P.Hugo] });
+assert.strictEqual(r.error, 'conflit');
+r = g.call({ action: 'saveCompo', token: nico, evenementId: et.id, compoId: ct.id, version: 1, reglages: ct.reglages, equipes: eqA, banc: [P.Hugo] });
+assert.strictEqual(r.compo.version, 2);
+r = g.call({ action: 'saveCompo', token: cyril, evenementId: et.id, compoId: ct.id, version: 1, reglages: ct.reglages, equipes: eqA, banc: [] });
+assert.strictEqual(r.error, 'conflit', 'jour J mais version périmée');
+r = g.call({ action: 'contreProposition', token: cyril, compoId: ct.id, version: 1, equipes: eqA, banc: [], justification: 'Hugo malade' });
+assert.strictEqual(r.error, 'conflit', 'contre-proposition sur une version périmée');
+// un joueur désactivé depuis n'est pas un « changement »
+g.call({ action: 'updatePlayer', token: nico, joueurId: P.Hugo, actif: false });
+r = g.call({ action: 'contreProposition', token: cyril, compoId: ct.id, version: 2, equipes: eqA, banc: [], justification: 'Rien de neuf' });
+assert.strictEqual(r.error, 'invalide', JSON.stringify(r));
+g.call({ action: 'updatePlayer', token: nico, joueurId: P.Hugo, actif: true });
+// marques de présence : appliquées sur l'état du serveur (deux éducs en même temps)
+r = g.call({ action: 'setEvenement', token: nico, id: et.id, marques: { [P.Hugo]: false, [P.Zoé]: true } });
+assert.deepStrictEqual(r.evenement.presents, [P.Tom, P['Léa'], P.Zoé]);
+r = g.call({ action: 'setEvenement', token: cyril, id: et.id, marques: { [P['Inès']]: true } });
+assert.deepStrictEqual(r.evenement.presents, [P.Tom, P['Léa'], P.Zoé, P['Inès']], 'la correction de l\'autre éduc reste');
+
+// Spond : un seul « Baptiste » dans l'appli mais deux dans Spond → pas de lien au hasard ; « Zoé M » sans nom de famille
+const members2 = [
+  { id: 'm-b1', firstName: 'Baptiste', lastName: 'Abadie', subGroups: [SG] }, { id: 'm-b2', firstName: 'Baptiste', lastName: 'Durand', subGroups: [SG] },
+  { id: 'm-z', firstName: 'Zoé M', lastName: '', subGroups: [SG] }, { id: 'm-t', firstName: 'Tom', lastName: 'Martin', subGroups: [SG] }
+];
+let evs2 = [{ id: 'E1', heading: 'Plateau 5', startTimestamp: new Date(Date.now() + 5 * 864e5).toISOString(), responses: { acceptedIds: ['m-b1', 'm-z'] } },
+  { id: 'E2', heading: 'Plateau 6', startTimestamp: new Date(Date.now() + 9 * 864e5).toISOString(), responses: { acceptedIds: ['m-t'] } }];
+function http2(url, params) {
+  if (/login$/.test(url)) return { code: 200, body: { loginToken: 'TOK2' } };
+  if (/groups\/$/.test(url)) return { code: 200, body: [{ id: GID, members: members2, subGroups: [{ id: SG, name: 'M12 ' }] }] };
+  if (/sponds\//.test(url)) return { code: 200, body: evs2 };
+  return { code: 404, body: {} };
+}
+({ g, nico, cyril, P } = (function () {
+  const x = makeEnv({ spond: http2 }); x.installer();
+  const code = x._logs.join('\n').match(/administrateur.*?: (\d{6})/)[1];
+  const tok = x.call({ action: 'adultLogin', code }).token, PP = {};
+  ['Baptiste', 'Zoé', 'Tom'].forEach(n => { PP[n] = x.call({ action: 'addPlayer', token: tok, prenom: n }).joueur.id; });
+  return { g: x, nico: tok, cyril: null, P: PP };
+})());
+g._props.SPOND_EMAIL = 'a@b.c'; g._props.SPOND_MDP = 'x';
+r = g.call({ action: 'syncSpond', token: nico });
+assert.ok(r.ok, JSON.stringify(r));
+assert.deepStrictEqual(r.info.joueursSansLien, ['Baptiste'], 'deux Baptiste dans Spond : pas de lien au hasard');
+r = g.call({ action: 'compos', token: nico });
+assert.deepStrictEqual(r.evenements.find(e => e.id === 'sp-E1').presents, [P.Zoé], 'Zoé M reliée à Zoé');
+assert.deepStrictEqual(r.spond.membres.map(m => m.nom), ['Baptiste A.', 'Baptiste D.', 'Tom M.', 'Zoé M.']);
+// relier à la main depuis la fiche terrain
+g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P.Baptiste, spondId: 'm-b1' }] });
+// un événement supprimé dans Spond est marqué annulé
+evs2 = evs2.slice(0, 1);
+r = g.call({ action: 'syncSpond', token: nico });
+r = g.call({ action: 'compos', token: nico });
+assert.deepStrictEqual(r.evenements.find(e => e.id === 'sp-E1').presents, [P.Baptiste, P.Zoé]);
+assert.strictEqual(r.evenements.find(e => e.id === 'sp-E2').annule, true);
 console.log('COMPOS CORE OK');
