@@ -228,18 +228,32 @@
   // ---------- Connexion des adultes ----------
   var adultWho = 'f';
   app.route('/adultes', function (p, q, cur) {
-    if (app.S.adult) { setTimeout(function () { app.go(app.S.adult.role === 'e' ? '#/educ' : '#/parent', true); }, 0); return ''; }
+    var A = app.S.adult;
+    if (A && app.adultUnlocked()) { setTimeout(function () { app.go(app.takeTarget('adult') || (A.role === 'e' ? '#/educ' : '#/parent'), true); }, 0); return ''; }
     cur.cleanup = function () { pad = null; };
     cur.after = function (el) {
       pad = { len: 6, val: '', reveal: false, el: el.querySelector('#adultzone'), onDone: function (v) {
         pad.busy = true; setMsg('Vérification…');
         api.call('adultLogin', { code: v }).then(function (res) {
           pad = null;
+          var same = A && A.role === res.role && A.nom === res.nom;
           app.setAdult({ token: res.token, role: res.role, nom: res.nom, admin: res.admin });
-          app.go(res.role === 'e' ? '#/educ' : '#/parent');
+          app.touchAdult();
+          var home = res.role === 'e' ? '#/educ' : '#/parent', t = app.takeTarget('adult');
+          app.go(same && t ? t : home);
         }).catch(function (e) { if (pad) { pad.busy = false; pad.val = ''; paintDigits(); setMsg(e.message, true); } });
       } };
     };
+    if (A) {
+      // appareil partagé : l'espace est verrouillé, on retape son code
+      var who = A.role === 'e' ? 'éduc' : 'parent';
+      return '<main class="screen nonav" id="adultzone"><a class="back" href="#/connexion">' + ui.icon('left', 18) + 'Espace joueurs</a>' +
+        '<div class="head"><span class="kicker">Espace ' + who + ' · ' + esc(A.nom || '') + '</span><h1 class="big md">Espace<br>verrouillé</h1>' +
+        '<p class="lead" style="margin:0">Cet appareil sert aussi à un enfant : retapez votre code ' + (A.role === 'e' ? 'éduc' : 'famille') + ' pour ouvrir votre espace. Il se referme tout seul après 10 minutes sans y toucher.</p></div>' +
+        '<div class="sec pin-zone" style="width:100%;margin:0 auto"><span class="lab">Code ' + (A.role === 'e' ? 'éduc' : 'famille') + ' · 6 chiffres</span>' + digitsHtml(6, '', false) +
+        '<div class="msg" aria-live="polite"></div>' + padHtml(true) + '</div>' +
+        '<button type="button" class="btn2 grey" data-act="adultForget">Ce n\'est pas mon espace : se déconnecter</button></main>';
+    }
     var help = adultWho === 'f'
       ? 'Un seul code pour tous vos enfants inscrits, donné par l\'éducateur à l\'inscription. Perdu ? L\'éducateur vous en crée un nouveau.'
       : 'Code personnel créé par l\'administrateur du site. Perdu ? L\'administrateur vous en génère un nouveau.';
@@ -253,4 +267,29 @@
       '<a class="btn2 grey" href="#/guide?pour=' + (adultWho === 'e' ? 'educ' : 'parent') + '">' + ui.icon('info', 16) + ' Comment ça marche ?</a></main>';
   }, { bg: '#16223F' });
   MC.act.adultWho = function (b) { adultWho = b.getAttribute('data-w'); app.render(); };
+  MC.act.adultForget = function () { app.setAdult(null); app.lockAdult(); app.render(); };
+
+  // ---------- « C'est bien toi ? » (plusieurs enfants sur le même appareil) ----------
+  app.route('/qui', function () {
+    return app.loadMe().then(function (me) {
+      var k = me.joueur, list = app.S.roster || app.lsGet('mc-roster') || [];
+      var others = app.recents().filter(function (id) { return id !== k.id; }).map(function (id) { return list.filter(function (x) { return x.id === id; })[0]; }).filter(Boolean);
+      return '<main class="screen nonav"><div class="head" style="text-align:center;align-items:center"><span class="kicker">Appareil partagé</span><h1 class="big md">C\'est bien toi ?</h1></div>' +
+        '<div style="align-self:center">' + ui.avatar(k.prenom, k.couleur, 120) + '</div>' +
+        '<button type="button" class="btn xl" data-act="quiOui">' + ui.icon('check', 22) + ' Oui, je suis ' + esc(k.prenom) + '</button>' +
+        (others.length ? '<section class="sec"><h2 class="h2">Non, je suis…</h2><div class="roster">' + others.map(function (o) {
+          return '<button type="button" class="kidbtn" data-act="quiAutre" data-id="' + esc(o.id) + '"><span>' + ui.avatar(o.prenom, o.couleur, 40) + '<span class="nm">' + esc(o.prenom) + '</span></span></button>';
+        }).join('') + '</div></section>' : '') +
+        '<button type="button" class="btn2 grey" data-act="quiNon">Quelqu\'un d\'autre</button>' +
+        '<p class="small" style="margin:0;text-align:center">Plusieurs joueurs s\'entraînent sur cet appareil : on vérifie que les séances vont dans le bon profil.</p></main>';
+    });
+  }, { kid: true, busy: true, bg: '#1B2552' });
+  MC.act.quiOui = function () { app.touchKid(); app.go(app.takeTarget('kid') || '#/semaine', true); };
+  MC.act.quiNon = function () { app.takeTarget('kid'); app.setKid(null); app.go('#/connexion', true); };
+  MC.act.quiAutre = function (b) {
+    var id = b.getAttribute('data-id'), list = app.S.roster || app.lsGet('mc-roster') || [];
+    var k = list.filter(function (x) { return x.id === id; })[0];
+    app.takeTarget('kid'); app.setKid(null); app.go('#/connexion', true);
+    if (k) setTimeout(function () { pinSheet(k); }, 60);
+  };
 })();

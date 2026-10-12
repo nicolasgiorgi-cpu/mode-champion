@@ -300,7 +300,7 @@
       cur.after = function () { startTick(); };
       return view();
     });
-  }, { kid: true, bg: '#12352E' });
+  }, { kid: true, busy: true, bg: '#12352E' });
 
   function repaint() {
     if (!R) return;

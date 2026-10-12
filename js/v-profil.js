@@ -472,6 +472,7 @@
         '<a class="switch" href="#/premiere?change=1" style="text-decoration:none"><span><span class="t1" style="display:block">Changer mon code secret</span><span class="t2" style="display:block">Et ma couleur reste la même</span></span>' + icon('right', 18) + '</a>' +
         '<div class="box"><span class="t2 small">' + (k.visible ? 'Tu apparais dans le classement de ta ligue.' : 'Tes parents ont choisi de ne pas t\'afficher dans le classement des autres.') + '</span></div></div>' +
         '<button type="button" class="btn2 grey" data-act="logoutKid">' + icon('logout', 18) + ' Changer de joueur</button>' +
+        '<a class="btn2 grey" href="#/adultes">' + icon('lock', 18) + ' Espace adultes (parents, éducs)</a>' +
         '<p class="small" style="margin:0;text-align:center">Sur l\'iPad ou le téléphone : menu Partager › « Sur l\'écran d\'accueil » pour avoir le site comme une appli.</p></main>';
     });
   }, { kid: true, nav: 'profil' });

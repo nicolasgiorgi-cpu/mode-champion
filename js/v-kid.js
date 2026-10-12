@@ -41,6 +41,8 @@
   function prefs() { return app.lsGet('mc-prefs') || {}; }
   function setPref(k, v) { var p = prefs(); p[k] = v; app.lsSet('mc-prefs', p); }
   MC.prefs = prefs; MC.setPref = setPref;
+  // appareil partagé : on sort du profil (la séance faite reste enregistrée), le suivant tape son code
+  MC.act.switchKid = function () { app.setKid(null); app.go('#/connexion'); };
 
   // ---------- bandeau joueur ----------
   function hud(me, st) {
@@ -112,6 +114,7 @@
     var pendNote = pend ? '<div class="note">' + icon('clock', 20) + '<span>' + pend + ' record' + (pend > 1 ? 's' : '') + ' en attente : un parent ou ton éduc doit confirmer.</span></div>' : '';
 
     return '<main class="screen">' + hud(me, st) +
+      '<button type="button" class="pastoi" data-act="switchKid">' + icon('user', 14) + ' Pas ' + esc(me.joueur.prenom) + ' ? Changer de joueur</button>' +
       '<div class="head"><span class="kicker">' + esc(C.JOURS[type].jour.toUpperCase()) + ' · ' + (cy.semaine > 8 ? 'SEMAINE DU BILAN' : 'SEMAINE ' + cy.semaine + ' / 8') + '</span>' +
       '<h1 class="big">Mission<br>du jour</h1></div>' +
       (MC.guideVu && !MC.guideVu() ? '<div class="note">' + icon('info', 22) + '<div style="flex:1"><b>Nouveau ici ?</b><div class="small" style="color:var(--soft);margin-top:3px">Étoiles, niveaux, badges, classement : découvre comment marche le jeu.</div></div><a class="btn2 sm" href="#/guide">Le guide</a></div>' : '') +
@@ -410,7 +413,8 @@
       '<div class="xpbar" style="height:12px"><i style="width:' + a.grade.pct + '%"></i></div>' +
       (gradeUp ? '<div class="note pink">' + icon('trophy', 22) + '<span><b>Nouveau grade : ' + esc(a.grade.nom) + ' !</b> Montre-le à tes parents.</span></div>' : (a.grade.next ? '<span class="small">Plus que ' + ui.fmtNum(a.grade.next.xp - a.xp) + ' XP pour devenir <b style="color:var(--ink)">' + esc(a.grade.next.nom) + '</b>.</span>' : '')) + '</div>' +
       newB + recap + props + clubBtn +
-      '<div class="sec"><a class="btn" href="#/profil">Voir mon profil</a><a class="btn2 grey" href="#/semaine">Retour à ma semaine</a></div></main>';
+      '<div class="sec"><a class="btn" href="#/profil">Voir mon profil</a><a class="btn2 grey" href="#/semaine">Retour à ma semaine</a>' +
+      (app.recents().length >= 2 || app.S.adult ? '<button type="button" class="btn2 grey" data-act="switchKid">' + icon('user', 16) + ' J\'ai fini : un autre joueur ou je rends l\'appareil</button>' : '') + '</div></main>';
   }
   MC.act.clubSoir = function (b) {
     b.disabled = true;

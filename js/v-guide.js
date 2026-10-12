@@ -156,6 +156,13 @@
           'Dans « Ses niveaux », touchez <b>Modifier les niveaux</b>, choisissez N1 à N4, puis <b>Enregistrer les niveaux</b>. Rien ne change tant que vous n\'avez pas enregistré.',
           'Monter si c\'est facile avec une technique parfaite ; redescendre si les mouvements se dégradent. Le changement est noté (qui et quand).'
         ])) +
+      card('p-partage', 'phone', '#38E8FF', 'Il utilise votre téléphone', 'Pas de téléphone ou d\'iPad à lui ? Aucun problème',
+        ul([
+          'Ouvrez le site sur votre téléphone (Partager › « Sur l\'écran d\'accueil » pour l\'avoir comme une appli). Votre enfant touche son avatar et tape son code : il reste connecté pour les fois suivantes.',
+          'Frères et sœurs sur le même téléphone : chacun a son profil. « Pas Tom ? Changer de joueur » en haut de la semaine, ou « J\'ai fini » à la fin de la séance. S\'il n\'a pas servi depuis 30 min, le site demande « C\'est bien toi ? » avant de commencer.',
+          'Votre espace parent est protégé : sur un appareil partagé, votre code est redemandé après 10 min, ou dès qu\'on repasse côté joueur. Votre enfant ne peut donc pas confirmer lui-même ses résultats. Réglage « Appareil partagé avec un enfant » dans votre espace.',
+          'Une séance commencée est gardée sur le téléphone : si vous en avez besoin au milieu, votre enfant la reprendra là où il en était.'
+        ])) +
       card('p-code', 'key', '#7CFF6B', 'Code oublié', 'Votre enfant ne se souvient plus de son code',
         ul([
           'Dans votre espace, sur son prénom : <b>nouveau code provisoire</b> (valable 48 h).',
@@ -230,7 +237,7 @@
       '<div class="gtabs" role="tablist" aria-label="Guide pour">' + tabs + '</div>' +
       '<div class="sec" style="gap:10px">' + body + '</div>' +
       '<a class="btn2 grey" href="' + back + '">' + icon('left', 16) + ' Retour</a></main>';
-  }, { bg: '#16223F' });
+  }, { bg: '#16223F', neutral: true });
 
   MC.act.guideTab = function (b) {
     var q = app.current() && app.current().q || {};

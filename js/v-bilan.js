@@ -312,7 +312,7 @@
       cur.after = function () { startTick(); };
       return view();
     });
-  }, { kid: true, bg: '#3A2C10' });
+  }, { kid: true, busy: true, bg: '#3A2C10' });
 
   function repaint() {
     if (!G) return;

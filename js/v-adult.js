@@ -162,6 +162,13 @@
       hist: MC.suivi.seances(d.seances), prog: MC.suivi.progression(d.records, { vide: k.prenom + ' n\'a pas encore noté de bilan.' }) };
   }
 
+  // appareil partagé avec un enfant : l'espace adulte se reverrouille (code redemandé)
+  function sharedSwitch() {
+    var on = app.sharedDevice();
+    return '<button type="button" class="switch" role="switch" aria-checked="' + on + '" data-act="toggleShared"><span><span class="t1" style="display:block">Appareil partagé avec un enfant</span><span class="t2" style="display:block">' +
+      (on ? 'Votre code est redemandé après 10 min, ou quand on repasse côté joueur' : 'Votre espace reste ouvert sur cet appareil') + '</span></span><span class="k"></span></button>';
+  }
+  MC.act.toggleShared = function () { app.setShared(!app.sharedDevice()); app.rerender(); };
   MC.act.adultLogout = function () {
     ui.modal({ title: 'Se déconnecter ?', body: '<p class="lead">Il faudra retaper le code sur cet appareil.</p>', actions: [{ label: 'Se déconnecter', value: true, cls: 'btn pink' }, { label: 'Annuler', value: false, cls: 'btn2 grey' }] }).then(function (ok) {
       if (ok) { app.setAdult(null); app.go('#/adultes'); }
@@ -208,7 +215,7 @@
         return '<button type="button" class="opt' + (on ? ' on' : '') + '" aria-pressed="' + on + '" data-act="parentKid" data-id="' + esc(x.joueur.id) + '" style="min-height:48px;padding:0 14px">' + ui.avatar(x.joueur.prenom, x.joueur.couleur, 28) + esc(x.joueur.prenom) + '</button>';
       }).join('') + '</div>' : '';
       return '<main class="screen nonav">' +
-        '<div class="between" style="align-items:center"><span class="kicker">Espace parent · ' + esc(fam.famille.nom) + '</span><span class="row" style="gap:6px"><a class="tag" href="#/parent/classement" style="min-height:40px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--soft)">' + icon('podium', 14) + 'Classement</a><a class="tag" href="#/guide" style="min-height:40px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--soft)">' + icon('info', 14) + 'Aide</a><button type="button" class="tag" style="min-height:40px;background:none;cursor:pointer" data-act="adultLogout">' + icon('logout', 14) + ' Sortir</button></span></div>' +
+        '<div class="adhead"><span class="kicker">Espace parent · ' + esc(fam.famille.nom) + '</span><span class="adtags"><a class="tag" href="#/parent/classement" style="min-height:40px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--soft)">' + icon('podium', 14) + 'Classement</a><a class="tag" href="' + (app.S.kid ? '#/semaine' : '#/connexion') + '" style="min-height:40px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--soft)">' + icon('user', 14) + 'Côté joueur</a><a class="tag" href="#/guide" style="min-height:40px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--soft)">' + icon('info', 14) + 'Aide</a><button type="button" class="tag" style="min-height:40px;background:none;cursor:pointer" data-act="adultLogout">' + icon('logout', 14) + ' Sortir</button></span></div>' +
         '<div class="row" style="gap:14px">' + ui.avatar(k.prenom, k.couleur, 64) + '<div class="head"><h1 class="big sm">Suivi de ' + esc(k.prenom) + '</h1></div></div>' + sel +
         S.pending + S.tiles +
         '<div class="cols2"><div class="sec" style="gap:20px"><section class="sec"><div class="between"><h2 class="h2">Cette semaine</h2><span class="hud" style="color:var(--gold)">' + S.st.week.stars + ' / 6</span></div>' + S.week + '</section>' +
@@ -219,6 +226,7 @@
         '<section class="sec"><h2 class="h2">Réglages</h2>' +
         '<button type="button" class="switch" role="switch" aria-checked="' + !!k.visible + '" data-act="kidVisible" data-id="' + esc(k.id) + '"><span><span class="t1" style="display:block">Afficher ' + esc(k.prenom) + ' au classement</span><span class="t2" style="display:block">' + (k.visible ? 'Son prénom apparaît dans sa ligue' : 'Il voit son rang, les autres ne le voient pas') + '</span></span><span class="k"></span></button>' +
         '<button type="button" class="switch" data-act="kidCode" data-id="' + esc(k.id) + '" data-p="' + esc(k.prenom) + '"><span><span class="t1" style="display:block">Nouveau code secret pour ' + esc(k.prenom) + '</span><span class="t2" style="display:block">S\'il a oublié le sien</span></span>' + icon('right', 18) + '</button>' +
+        sharedSwitch() +
         '</section></div></div>' +
         '<div class="note">' + icon('info', 20) + '<span>Le programme est fait pour 9-11 ans : poids du corps, pas de charge. Une douleur qui revient (talon, genou) = pause des sauts et avis médical. Le vendredi reste un jour de repos.</span></div>' +
         '</main>';
@@ -271,7 +279,7 @@
         return '<li><a class="li" href="#/educ/joueur/' + esc(p.joueur.id) + '">' + ui.hexa(p.joueur.prenom, p.joueur.couleur) + '<span class="grow"><span class="t1">' + esc(p.joueur.prenom.toUpperCase()) + '</span><span class="t2">Suivi, séances, bilans, niveaux, code secret' + (att ? ' · <b style="color:var(--pink)">' + att + ' à confirmer</b>' : '') + '</span></span>' + icon('right', 16) + '</a></li>';
       }).join('') + '</ul>' : '<p class="small" style="margin:0">Vous êtes aussi parent d\'un joueur ? Choisissez-le pour le retrouver ici, avec tout le suivi parent.</p>') + '</section>';
     return '<main class="screen nonav">' +
-      '<div class="between" style="align-items:center"><span class="kicker">Espace éduc · ' + esc(g.moi.nom) + (g.moi.admin ? ' · admin' : '') + '</span><span class="row" style="gap:6px"><a class="tag" href="#/guide" style="min-height:40px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--soft)">' + icon('info', 14) + 'Aide</a><button type="button" class="tag" style="min-height:40px;background:none;cursor:pointer" data-act="adultLogout">' + icon('logout', 14) + ' Sortir</button></span></div>' +
+      '<div class="adhead"><span class="kicker">Espace éduc · ' + esc(g.moi.nom) + (g.moi.admin ? ' · admin' : '') + '</span><span class="adtags"><a class="tag" href="' + (app.S.kid ? '#/semaine' : '#/connexion') + '" style="min-height:40px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--soft)">' + icon('user', 14) + 'Côté joueur</a><a class="tag" href="#/guide" style="min-height:40px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--soft)">' + icon('info', 14) + 'Aide</a><button type="button" class="tag" style="min-height:40px;background:none;cursor:pointer" data-act="adultLogout">' + icon('logout', 14) + ' Sortir</button></span></div>' +
       '<div class="head"><h1 class="big md">Le vestiaire</h1>' + (MC.api.DEMO ? '<p class="small" style="margin:0;color:var(--yellow)">Mode démo : joueurs fictifs.</p>' : '') + '</div>' +
       '<div class="grid3"><div class="tile"><span class="v">' + sessionsWeek + '</span><span class="l" style="text-transform:none;font-family:var(--f-body);letter-spacing:0;font-size:12px">séances cette semaine</span></div>' +
       '<div class="tile"><span class="v" style="color:var(--green)">' + active + '<small style="font-size:13px;color:var(--dim)"> / ' + players.length + '</small></span><span class="l" style="text-transform:none;font-family:var(--f-body);letter-spacing:0;font-size:12px">actifs sur 7 jours</span></div>' +
@@ -286,6 +294,7 @@
       '<a class="switch" href="#/educ/familles" style="text-decoration:none"><span class="row">' + icon('key', 20, 'style="color:var(--cyan)"') + '<span class="t1">Familles et codes parents</span></span>' + icon('right', 16) + '</a>' +
       (g.moi.admin ? '<a class="switch" href="#/educ/educs" style="text-decoration:none"><span class="row">' + icon('group', 20, 'style="color:var(--cyan)"') + '<span class="t1">Les éducs (admin)</span></span>' + icon('right', 16) + '</a>' : '') +
       '<button type="button" class="switch" data-act="myCode"><span class="row">' + icon('lock', 20, 'style="color:var(--cyan)"') + '<span class="t1">Changer mon code éduc</span></span>' + icon('right', 16) + '</button>' +
+      sharedSwitch() +
       '</section></div>' +
       '<section class="sec"><div class="between"><h2 class="h2">Les joueurs</h2><span class="small">' + players.length + '</span></div>' +
       '<label class="sr-only" for="edq">Chercher un joueur</label><input id="edq" class="search" type="search" placeholder="Chercher un prénom…" value="' + esc(edQ) + '">' +

@@ -16,6 +16,7 @@ MC.app = (function () {
   function lsSet(k, v) { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } }
   function setKid(k) {
     S.kid = k; S.me = null; S.stats = null; S.league = null; lsSet('mc-kid', k);
+    if (k) lsSet('mc-kid-seen', Date.now());
     if (k) rememberKid(k.joueur.id); else lsSet(ME_KEY, null);
   }
   function setAdult(a) { S.adult = a; S.cache = {}; lsSet('mc-adult', a); if (!a) { lsSet('mc-fam', null); lsSet('mc-group', null); } }
@@ -24,6 +25,23 @@ MC.app = (function () {
     r = [id].concat(r.filter(function (x) { return x !== id; })).slice(0, 6);
     lsSet('mc-recents', r);
   }
+
+  // ---------- Appareil partagé (le téléphone ou l'iPad des parents) ----------
+  // Dès qu'un enfant a utilisé l'appareil, l'espace adulte se verrouille : on retape son code après
+  // 10 min sans y toucher, ou dès qu'on revient côté joueur. Les adultes peuvent couper ce réglage.
+  // Quand plusieurs enfants utilisent l'appareil, on demande « C'est bien toi ? » après 30 min.
+  var OPEN_KEY = 'mc-adult-open', SHARED_KEY = 'mc-shared', SEEN_KEY = 'mc-kid-seen';
+  var ADULT_IDLE = 10 * 60000, KID_IDLE = 30 * 60000;
+  var adultTarget = null, kidTarget = null, lastAdult = false;
+  function recents() { return lsGet('mc-recents') || []; }
+  function sharedDevice() { var p = lsGet(SHARED_KEY); if (p === 'off') return false; if (p === 'on') return true; return recents().length > 0; }
+  function setShared(on) { lsSet(SHARED_KEY, on ? 'on' : 'off'); if (on) touchAdult(); }
+  function adultUnlocked() { if (!S.adult) return false; if (!sharedDevice()) return true; return Number(lsGet(OPEN_KEY) || 0) > Date.now(); }
+  function touchAdult() { if (S.adult && sharedDevice()) lsSet(OPEN_KEY, Date.now() + ADULT_IDLE); }
+  function lockAdult() { lsSet(OPEN_KEY, null); }
+  function touchKid() { if (S.kid) lsSet(SEEN_KEY, Date.now()); }
+  function kidCheckNeeded() { return !!(S.kid && recents().length >= 2 && Date.now() - Number(lsGet(SEEN_KEY) || 0) > KID_IDLE); }
+  function takeTarget(who) { var t = who === 'adult' ? adultTarget : kidTarget; if (who === 'adult') adultTarget = null; else kidTarget = null; return t; }
 
   // ---------- Routes ----------
   function route(pattern, fn, opts) {
@@ -59,6 +77,12 @@ MC.app = (function () {
     if (o.kid && S.kid && S.kid.joueur.mustChange && !o.first) { go('#/premiere', true); return; }
     if (o.adult && !S.adult) { go('#/adultes', true); return; }
     if (o.adult && S.adult && o.adult !== S.adult.role) { go(S.adult.role === 'e' ? '#/educ' : '#/parent', true); return; }
+    if (o.adult && !adultUnlocked()) { adultTarget = location.hash; go('#/adultes', true); return; }
+    if (o.kid && !o.first && !o.busy && kidCheckNeeded()) { kidTarget = location.hash; go('#/qui', true); return; }
+    if (o.adult) touchAdult();
+    else if (lastAdult && !o.neutral && sharedDevice()) lockAdult();   // retour côté joueur : l'espace adulte se referme
+    lastAdult = !!o.adult;
+    if (o.kid) touchKid();
     if (current && current.cleanup) { try { current.cleanup(); } catch (e) { } }
     current = { route: r, params: params, q: ph.q, cleanup: null };
     var seq = ++renderSeq;
@@ -170,6 +194,7 @@ MC.app = (function () {
   function adultCall(action, params) {
     var p = params || {};
     p.token = S.adult && S.adult.token;
+    touchAdult();
     return api.call(action, p).catch(function (e) {
       if (e.code === 'session') { setAdult(null); go('#/adultes', true); ui.toast('Reconnectez-vous.', true); }
       throw e;
@@ -209,6 +234,7 @@ MC.app = (function () {
     S.kid = lsGet('mc-kid');
     S.adult = lsGet('mc-adult');
     document.addEventListener('click', onClick);
+    document.addEventListener('click', function () { if (S.kid && current && current.route.opts.kid) touchKid(); if (current && current.route.opts.adult) touchAdult(); }, true);
     window.addEventListener('unhandledrejection', function (e) {
       var r = e.reason;
       if (r && r.code === 'session') return;
@@ -226,6 +252,8 @@ MC.app = (function () {
   return {
     S: S, route: route, go: go, render: render, rerender: rerender, start: start,
     setKid: setKid, setAdult: setAdult, loadMe: loadMe, setMe: setMe, swr: swr, kidCall: kidCall, adultCall: adultCall,
-    lsGet: lsGet, lsSet: lsSet, current: function () { return current; }
+    lsGet: lsGet, lsSet: lsSet, current: function () { return current; },
+    sharedDevice: sharedDevice, setShared: setShared, adultUnlocked: adultUnlocked, touchAdult: touchAdult, lockAdult: lockAdult,
+    touchKid: touchKid, takeTarget: takeTarget, recents: recents
   };
 })();
