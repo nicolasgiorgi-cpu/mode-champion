@@ -5,7 +5,7 @@
    Voir README.md, partie « Google Sheets ».
    ========================================================= */
 
-var TABLES = ['joueurs', 'familles', 'educs', 'seances', 'records', 'journal', 'missions'];
+var TABLES = ['joueurs', 'familles', 'educs', 'seances', 'records', 'journal', 'missions', 'terrain', 'evenements', 'compos', 'avis'];
 
 /*
  * Cache des onglets (CacheService). Lire un onglet de la feuille coûte 0,2 à 0,5 s ;
@@ -164,7 +164,10 @@ function env_() {
   return {
     now: function () { return Date.now(); },
     rand: function (n) { return Math.floor(Math.random() * n); },
-    formulairePostes: lireFormulairePostes_
+    formulairePostes: lireFormulairePostes_,
+    // Spond : seulement si le fichier « spond.gs » a été ajouté au projet (il demande une autorisation de plus)
+    spondFetch: typeof lireSpond_ === 'function' ? lireSpond_ : null,
+    spondInfo: typeof spondInfo_ === 'function' ? spondInfo_ : null
   };
 }
 

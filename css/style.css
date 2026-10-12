@@ -886,3 +886,124 @@ body.has-nav:has(.cp-bar) .toast,body.has-nav:has(.cp-act) .toast{bottom:calc(va
 @media (min-width:1000px){ .cp-grid{grid-template-columns:repeat(4,minmax(0,1fr))} }
 @media (min-width:1000px) and (orientation:landscape){ body.has-nav .cp-bar,body.has-nav .cp-act{bottom:calc(10px + var(--safe-b))} body.has-nav:has(.cp-bar) .toast,body.has-nav:has(.cp-act) .toast{bottom:calc(96px + var(--safe-b))} }
 @media (prefers-reduced-motion:reduce){ .cp-dem{animation:none} .cp-card{transition:none} }
+
+/* ======================================================================
+   COMPOS D'ÉQUIPES (éducs) : événements, tableau de compo, fiche terrain
+   ====================================================================== */
+span.lab{font:600 11px/1.2 var(--f-hud);letter-spacing:.14em;color:var(--dim);text-transform:uppercase}
+textarea.txt{width:100%;padding:10px 12px;background:#0C1120;border:1px solid var(--line2);color:var(--ink);font-size:16px;line-height:1.4;resize:vertical}
+.btn.sm{min-height:46px;width:auto;padding:0 16px;font-size:13px}
+.cniv{--s:28px;flex:none;display:inline-flex;align-items:center;justify-content:center;width:var(--s);height:var(--s);font:700 calc(var(--s) * .5)/1 var(--f-hud);color:#070A12;background:var(--lc,var(--dim));clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%)}
+.cniv.none{background:var(--line3);color:var(--orange)}
+.cstars{display:inline-flex;gap:2px;vertical-align:1px}
+.cstars i{width:7px;height:7px;border-radius:50%;background:#2A3557}
+.cstars i.on{background:var(--gold);box-shadow:0 0 4px rgba(255,194,61,.6)}
+.cmeta{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--dim)}
+.cnum{font:700 13px/1 var(--f-hud);margin-right:6px}
+.cev{align-items:center}
+.cev.past{opacity:.78}
+.cdate{flex:none;width:46px;height:50px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:1px solid var(--line2);background:#0A0F1F}
+.cdate b{font:700 20px/1 var(--f-hud);color:var(--gold)}
+.cdate small{font:600 10px/1 var(--f-hud);letter-spacing:.08em;color:var(--dim);text-transform:uppercase}
+.calert-top{border-color:var(--pink);background:rgba(255,79,163,.09)}
+.cterr{border-color:rgba(56,232,255,.35)}
+.cspond{align-items:center}
+.cpres .csp{display:block;margin-top:3px;font:600 10px/1 var(--f-hud);letter-spacing:.04em;color:var(--dim)}
+.cpres .csp.oui{color:var(--green)}
+.cpres .csp.non{color:var(--red)}
+.cop.chg{border-style:dashed;border-color:var(--yellow)}
+.cop .cniv{--s:20px}
+/* barre du bas (présents, compo, fiche terrain) */
+.cdock{flex-direction:column;align-items:stretch;gap:10px}
+.cdock>.row{width:100%}
+.cacts{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.cacts .grow{flex:1;min-width:120px}
+.cselp{display:flex;flex-direction:column;gap:8px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.cmoves{display:flex;flex-wrap:wrap;gap:6px}
+.cmv{min-width:52px;min-height:42px;padding:0 10px;border:1.5px solid var(--lc,var(--line3));background:#0C1120;color:var(--lc,var(--soft));font:700 13px/1 var(--f-hud);letter-spacing:.04em}
+.cmv.here{background:var(--lc,var(--line3));color:#070A12;opacity:.55}
+.cmv.po{--lc:var(--violet);min-width:0;font-size:12px}
+.cmv.po.here{opacity:1}
+.cmv sup{font-size:9px;margin-left:2px;color:var(--gold)}
+/* réglages */
+.cstep{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--lc)}
+.cnbv{min-width:28px;text-align:center;font:700 22px/1 var(--f-hud)}
+.ibtn:disabled,.btn2:disabled{opacity:.38;cursor:default}
+.cselp .grow,.cdock .grow{flex:1;min-width:0}
+body:has(.cdock .cselp) .toast{top:calc(74px + env(safe-area-inset-top,0px));bottom:auto}
+/* état de la compo */
+.cstate{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border:1px solid var(--line2);background:var(--panel);font-size:14px;line-height:1.4}
+.cstate svg{flex:none;margin-top:1px}
+.cstate.draft{border-color:var(--yellow);color:var(--ink)}
+.cstate.draft svg{color:var(--yellow)}
+.cstate.counter{border-color:var(--pink)}
+.cstate.counter svg{color:var(--pink)}
+.cstate.pub{border-color:rgba(61,255,176,.5)}
+.cstate.pub svg{color:var(--green)}
+.ctools{flex-wrap:wrap;gap:8px}
+.clegend{margin:-12px 0 0;display:flex;flex-wrap:wrap;align-items:center;gap:4px;color:var(--dim)}
+.clegend{gap:4px 12px}
+.clegend span{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.ctl{gap:6px;margin-right:auto}
+/* le tableau : une colonne par équipe (défile sur téléphone, tout tient sur iPad paysage) */
+.cboard{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(172px,46vw);gap:10px;overflow-x:auto;margin:0 -16px;padding:2px 16px 12px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+.ccol{scroll-snap-align:start;display:flex;flex-direction:column;gap:6px;min-width:0;background:linear-gradient(180deg,color-mix(in srgb,var(--lc) 10%,transparent),rgba(10,15,31,.4) 120px);border:1px solid color-mix(in srgb,var(--lc) 45%,transparent);border-top:3px solid var(--lc);padding:8px}
+.ccol.banc{--lc:#8A93AD;border-style:dashed}
+.chd{display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:4px 4px 8px;border:0;border-bottom:1px solid var(--line);background:none;color:var(--ink);text-align:left;width:100%;cursor:default}
+.chd.dest{cursor:pointer;background:color-mix(in srgb,var(--lc) 16%,transparent);outline:1.5px dashed var(--lc);outline-offset:-2px}
+.ctid{font:italic 900 26px/.9 var(--f-title);color:var(--lc)}
+.cn{font:700 18px/1 var(--f-hud)}
+.cind{display:flex;flex-wrap:wrap;gap:4px 10px;font:600 12px/1.2 var(--f-hud);color:var(--soft)}
+.cind span{display:inline-flex;align-items:center;gap:3px}
+.cind svg{color:var(--lc)}
+.cmiss{font:600 11px/1.3 var(--f-hud);color:var(--orange)}
+.cdest{font:700 11px/1 var(--f-hud);letter-spacing:.08em;text-transform:uppercase;color:var(--lc)}
+.cpl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
+.cpj{width:100%;min-height:46px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:4px;padding:6px 8px;background:#0C1120;border:1px solid var(--line2);color:var(--ink);text-align:left;position:relative}
+.cpj .cpn{font:700 14px/1.1 var(--f-body);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:44px}
+.cpj .cpo{position:absolute;top:6px;right:6px;font:700 10px/1 var(--f-hud);letter-spacing:.04em;color:var(--violet)}
+.cpj .cpo.none{color:var(--dim)}
+.cpj .cfls{gap:6px;flex-wrap:wrap}
+.cfl{display:inline-flex;align-items:center;font:700 10px/1 var(--f-hud)}
+.cfl.cop-ok{color:var(--pink)}
+.cfl.cop-ok svg{fill:var(--pink)}
+.cfl.cop-no{color:var(--faint)}
+.cfl.cpas{color:var(--violet)}
+.cfl.cq{color:var(--orange)}
+.cpj.warn{border-left:3px solid var(--orange)}
+.cpj.moved{box-shadow:0 0 0 2px var(--yellow) inset}
+.cpj.sel{border-color:var(--cyan);background:rgba(56,232,255,.16);box-shadow:0 0 0 2px var(--cyan),0 0 16px rgba(56,232,255,.35)}
+.calerts .li{min-height:44px;align-items:center}
+.calerts .li.warn{border-color:rgba(255,138,61,.45)}
+.calerts .li.warn svg{color:var(--orange)}
+.calerts .li.info svg{color:var(--cyan)}
+/* fiche terrain du groupe */
+.tfil{display:flex;flex-wrap:wrap;gap:6px}
+.tfil .opt{min-height:40px;padding:4px 10px;font-size:12px}
+.thead{display:none}
+.tlist{gap:4px}
+.tfrow{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"nm seg" "pas st";align-items:center;gap:6px 10px;padding:8px 10px;background:var(--panel2);border:1px solid var(--line)}
+.tfrow.changed{border-color:var(--yellow)}
+.tnm{grid-area:nm;min-width:0;color:var(--ink);text-decoration:none;font:700 15px/1.2 var(--f-body);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tnm small{display:block;font:500 11px/1.3 var(--f-body);color:var(--dim)}
+.tseg{grid-area:seg;display:flex;gap:4px}
+.tlv{width:40px;height:40px;border:1.5px solid color-mix(in srgb,var(--lc) 55%,transparent);background:#0C1120;color:var(--lc);font:700 15px/1 var(--f-hud)}
+.tlv.on{background:var(--lc);color:#070A12;border-color:var(--lc)}
+.tpasw{grid-area:pas;display:flex;gap:4px;min-height:36px;align-items:center}
+.tpas{min-height:34px;padding:0 10px;border:1px dashed var(--line3);background:none;color:var(--dim);font:700 12px/1 var(--f-hud)}
+.tpas.on{border:1.5px solid var(--violet);color:var(--violet);background:rgba(180,140,255,.12)}
+.tstars{grid-area:st;display:flex;gap:0;justify-self:end}
+.tst{width:34px;height:36px;display:flex;align-items:center;justify-content:center;border:0;background:none;color:#34405F;padding:0}
+.tst.on{color:var(--gold)}
+.tstars.big .tst{width:44px;height:44px}
+.tpostes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+@media (min-width:700px){
+  .cboard{grid-auto-columns:minmax(190px,1fr);margin:0;padding:2px 0 12px}
+  .tfrow{grid-template-columns:minmax(0,1.2fr) auto minmax(120px,.8fr) auto;grid-template-areas:"nm seg pas st"}
+  .thead{display:grid;grid-template-columns:minmax(0,1.2fr) 128px minmax(120px,.8fr) 170px;gap:10px;padding:0 10px;color:var(--dim)}
+  .tpostes{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media (min-width:1000px) and (orientation:landscape){
+  .has-nav .screen.cscreen{max-width:none;margin-right:24px}
+  .cboard{grid-auto-flow:row;grid-template-columns:repeat(auto-fit,minmax(176px,1fr));overflow:visible}
+}

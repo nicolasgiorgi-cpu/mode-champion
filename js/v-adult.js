@@ -319,7 +319,7 @@
   };
 
   // ======================================================================
-  // ÉDUC : 4 onglets (Vestiaire · Joueurs · Classement · Outils)
+  // ÉDUC : 5 onglets (Vestiaire · Joueurs · Compos · Classement · Outils) ; Compos : voir v-compos.js
   // ======================================================================
   var edFilter = 'all', edQ = '';
   MC.loadGroup = function (force) { return loadGroup(force); };
@@ -365,6 +365,7 @@
       app.refreshNav();
       if (MC.accueil && MC.accueil.needTour('e', g.moi.id)) { setTimeout(function () { app.go('#/educ/bienvenue', true); }, 0); return null; }
       cur.after = function () { if (MC.news) setTimeout(function () { if (location.hash === '#/educ') MC.news.maybeShow('e', g.moi.id); }, 350); };
+      if (MC.loadCompos) MC.loadCompos().then(function () { app.refreshNav(); }).catch(function () { });   // pastille « contre-proposition » de l'onglet Compos
       return paintVestiaire(g);
     });
   }, { adult: 'e', nav: 'e:vestiaire', bg: '#2A1640' });
@@ -411,7 +412,7 @@
       for (var i = 0; i < 6; i++) dots += '<i class="' + (w.filled[i] ? 'done' : '') + '" style="' + (w.filled[i] ? 'background:var(--gold);border:0' : '') + '"></i>';
       var lastTxt = p._last ? (p._last > G.weekAgo ? 'Dernière séance : ' + ui.fmtDate(p._last) : 'Rien depuis ' + L.daysBetween(p._last, t) + ' jours') : (p.joueur.aUnCode ? 'Pas encore de séance' : 'Pas encore connecté');
       var att = p.records.filter(function (r) { return r.statut === 'attente'; }).length;
-      return '<li><a class="li" href="#/educ/joueur/' + esc(p.joueur.id) + '">' + ui.hexa(p.joueur.prenom, p.joueur.couleur) + '<span class="grow"><span class="t1">' + esc(p.joueur.prenom.toUpperCase()) + (att ? ' <span class="nbi">' + att + '</span>' : '') + '</span><span class="t2" style="color:' + (p._last && p._last > G.weekAgo ? 'var(--dim)' : 'var(--orange)') + '">' + esc(lastTxt) + '</span></span><span class="setdots" aria-label="' + w.stars + ' étoiles cette semaine">' + dots + '</span>' + icon('right', 16) + '</a></li>';
+      return '<li><a class="li" href="#/educ/joueur/' + esc(p.joueur.id) + '">' + ui.hexa(p.joueur.prenom, p.joueur.couleur) + '<span class="grow"><span class="t1">' + esc(p.joueur.prenom.toUpperCase()) + (p.terrain && p.terrain.niveau ? ' <span class="cniv" style="--lc:' + ({ A: '#FFC23D', B: '#38E8FF', C: '#3DFFB0' }[p.terrain.niveau]) + ';--s:18px;vertical-align:1px" title="Niveau ' + p.terrain.niveau + '">' + p.terrain.niveau + '</span>' : '') + (att ? ' <span class="nbi">' + att + '</span>' : '') + '</span><span class="t2" style="color:' + (p._last && p._last > G.weekAgo ? 'var(--dim)' : 'var(--orange)') + '">' + esc(lastTxt) + '</span></span><span class="setdots" aria-label="' + w.stars + ' étoiles cette semaine">' + dots + '</span>' + icon('right', 16) + '</a></li>';
     }).join('');
     return '<main class="screen">' + educBar(g, 'Les joueurs') +
       '<div class="head"><span class="kicker" style="color:var(--violet)">' + G.players.length + ' joueurs</span><h1 class="big md">Les joueurs</h1></div>' +
@@ -446,6 +447,7 @@
         '<div class="head"><span class="kicker" style="color:var(--violet)">Le groupe, les codes, l\'aide</span><h1 class="big md">Outils</h1></div>' +
         '<div class="cols2"><div class="sec" style="gap:20px"><section class="sec"><h2 class="h2">Le groupe</h2>' +
         link('#/educ/mission', 'ball', 'Mission « Prépare le jeu à 10 »', 'Les postes et les copains choisis par les enfants') +
+        link('#/educ/terrain', 'shield', 'Fiche terrain du groupe', 'Niveaux A/B/C, passerelles, plaquage (pour les compos)') +
         link('#/educ/progres', 'up', 'Progrès du groupe aux bilans', 'Qui a le plus progressé, test par test') +
         link('#/educ/ajouter', 'plus', 'Ajouter un joueur', 'Son code provisoire et, si besoin, le code parent') +
         link('#/educ/familles', 'key', 'Familles et codes parents', 'Un nouveau code si une famille a perdu le sien') +
@@ -589,7 +591,7 @@
           '<section class="sec"><h2 class="h2">Séances</h2>' + (d.seances && d.seances.length && !d.seances.some(function (x) { return x.details; }) ? '<p class="small" style="margin:0">Chargement du détail…</p>' : '') + S.hist + '</section>' +
           '<section class="sec"><h2 class="h2">Progression aux bilans</h2>' + S.prog + '</section>' +
           '<section class="sec"><h2 class="h2">Records confirmés</h2>' + S.recs + '</section></div>' +
-          '<div class="sec" style="gap:20px">' + (MC.missionKid ? MC.missionKid(d, g) : '') + '<section class="sec"><h2 class="h2">Niveaux</h2>' + S.levels + '</section>' +
+          '<div class="sec" style="gap:20px">' + (MC.terrainKid ? MC.terrainKid(d, g) : '') + (MC.missionKid ? MC.missionKid(d, g) : '') + '<section class="sec"><h2 class="h2">Niveaux</h2>' + S.levels + '</section>' +
           '<section class="sec"><h2 class="h2">Compte</h2>' +
           '<button type="button" class="switch" data-act="kidCode" data-id="' + esc(k.id) + '" data-p="' + esc(k.prenom) + '"><span><span class="t1" style="display:block">' + (k.aUnCode ? 'Nouveau code provisoire' : 'Code provisoire (1re connexion)') + '</span><span class="t2" style="display:block">Pour un code oublié ou une 1re connexion</span></span>' + icon('right', 18) + '</button>' +
           '<button type="button" class="switch" role="switch" aria-checked="' + !!k.visible + '" data-act="kidVisible" data-id="' + esc(k.id) + '"><span><span class="t1" style="display:block">Visible au classement</span><span class="t2" style="display:block">Les parents peuvent aussi le régler</span></span><span class="k"></span></button>' +

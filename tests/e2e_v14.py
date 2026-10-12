@@ -117,7 +117,7 @@ with sync_playwright() as p:
         if i<2: pg.click('[data-act="obNext"]'); pg.wait_for_timeout(300)
     pg.click('[data-act="obPick"] >> nth=0'); pg.wait_for_timeout(200)
     pg.click('[data-act="obEducDone"]'); pg.wait_for_timeout(1000)
-    check('éduc : vestiaire + onglets', pg.url.endswith('#/educ') and len(pg.query_selector_all('#nav a'))==4, pg.url)
+    check('éduc : vestiaire + onglets', pg.url.endswith('#/educ') and len(pg.query_selector_all('#nav a'))==5, pg.url)
     check('éduc : Mon enfant en haut', pg.query_selector('.topbar a[href^="#/educ/joueur/"]') is not None)
     shot(pg,'e04-vestiaire')
     for h,nm in [('#/educ/joueurs','e05-joueurs'),('#/educ/classement','e06-classement'),('#/educ/outils','e07-outils'),('#/educ/progres','e08-progres'),('#/educ/familles','e09-familles')]:

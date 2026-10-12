@@ -204,7 +204,7 @@
         ]), true) +
       card('e-vestiaire', 'group', '#3DFFB0', 'Le vestiaire', 'Tout le groupe d\'un coup d\'œil',
         ul([
-          '4 onglets en bas : <b>Vestiaire</b> (à valider, ce qui bouge), <b>Joueurs</b>, <b>Classement</b>, <b>Outils</b>. Une pastille rose sur Vestiaire = des résultats attendent.',
+          '5 onglets en bas : <b>Vestiaire</b> (à valider, ce qui bouge), <b>Joueurs</b>, <b>Compos</b>, <b>Classement</b>, <b>Outils</b>. Une pastille rose sur Vestiaire = des résultats attendent ; sur Compos = une contre-proposition attend.',
           'Onglet <b>Joueurs</b> : les étoiles de la semaine de chacun et sa dernière séance. Le filtre <b>À relancer</b> montre ceux qui n\'ont rien noté depuis 7 jours.',
           '<b>Mon enfant</b> : vous êtes aussi parent d\'un joueur ? Choisissez-le dans Outils : son bouclier apparaît en haut de votre espace, avec tout le suivi parent, sans changer de code.',
           'Onglet <b>Classement</b> : tout le groupe ou une ligue à la fois, avec la liste des joueurs pas encore classés.',
@@ -224,6 +224,15 @@
           'Outils › <b>Mission « Prépare le jeu à 10 »</b> : qui l\'a faite, les postes demandés (choix 1 et choix 2-3), les copains de chacun.',
           'La fiche d\'un joueur montre ses postes, son test « Aide-moi à choisir », ses copains et ceux qui l\'ont choisi (⇄ = ils se sont choisis l\'un l\'autre).',
           'Les réponses envoyées avec l\'ancien site « Choisis ton poste » se reprennent d\'un bouton, si le Google Form range ses réponses dans la feuille de l\'appli.'
+        ])) +
+      card('e-compos', 'board', '#38E8FF', 'Les compos des plateaux', 'Onglet Compos',
+        ul([
+          '<b>Fiche terrain</b> (réglée par les éducs) : niveau <b>A</b> Confirmés, <b>B</b> Débrouillés, <b>C</b> Débutants ; <b>passerelle</b> = peut jouer aussi dans le niveau voisin, à tour de rôle ; <b>plaquage</b> sur 5 étoiles ; postes compatibles pour le jeu à 10 (sur la fiche du joueur).',
+          'Les événements arrivent de <b>Spond</b> avec les réponses des familles (ou s\'ajoutent à la main). Sur la page d\'un événement, touchez un prénom pour corriger les présents : la correction reste après chaque synchro.',
+          '<b>Préparer la compo</b> : le format (jeu à 5 ou à 10), le nombre d\'équipes A, B et C, puis <b>Proposer une compo</b>. L\'appli équilibre le plaquage, fait tourner les passerelles (d\'abord celles qui attendent leur tour) et met chacun avec au moins un copain quand c\'est possible. Au jeu à 10, elle place aussi les postes.',
+          'Ajuster : touchez un joueur, puis l\'équipe où il va, ou un joueur d\'une autre équipe pour les échanger. « À regarder » signale les écarts (plaquage, effectifs, copains, postes, passerelles) et propose souvent la correction en un geste.',
+          '<b>Un éduc suffit</b> : la compo publiée est celle du plateau. Un autre éduc qui n\'est pas d\'accord fait une <b>contre-proposition</b> (ses déplacements + pourquoi) ; l\'auteur l\'accepte ou la refuse avec un mot. Le jour du plateau, tout éduc peut corriger directement (dernière minute).',
+          'Après le plateau, la compo devient l\'historique : plateaux joués, passages dans l\'autre niveau et fois avec un copain, sur la fiche de chaque joueur. Les copains et les niveaux restent entre éducs.'
         ])) +
       card('e-ajout', 'plus', '#4D9BFF', 'Ajouter des joueurs et des familles', 'En début de saison ou en cours d\'année',
         ul([

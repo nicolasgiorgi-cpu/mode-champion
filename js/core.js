@@ -107,7 +107,19 @@ var Core = (function () {
       ['parQui', 's'], ['date', 's'], ['cree', 's']],
     journal: [['id', 's'], ['joueurId', 's'], ['type', 's'], ['data', 'j'], ['date', 's'], ['cree', 's']],
     // missions ponctuelles (ex. « Prépare le jeu à 10 ») : une ligne par joueur et par mission
-    missions: [['id', 's'], ['joueurId', 's'], ['mission', 's'], ['reponses', 'j'], ['faite', 'b'], ['date', 's'], ['source', 's'], ['cree', 's'], ['maj', 's']]
+    missions: [['id', 's'], ['joueurId', 's'], ['mission', 's'], ['reponses', 'j'], ['faite', 'b'], ['date', 's'], ['source', 's'], ['cree', 's'], ['maj', 's']],
+    // ---- compos d'équipes (éducs seulement) ----
+    // fiche terrain d'un joueur (id = id du joueur) : niveau A/B/C, passerelle vers le niveau voisin, plaquage 0-5, postes compatibles
+    terrain: [['id', 's'], ['niveau', 's'], ['passerelle', 's'], ['plaquage', 'n'], ['postesOk', 'j'], ['spondId', 's'], ['note', 's'], ['parQui', 's'], ['maj', 's']],
+    // événements (Spond ou ajoutés à la main) et leurs présents (ids des joueurs de l'appli)
+    evenements: [['id', 's'], ['source', 's'], ['titre', 's'], ['sorte', 's'], ['debut', 's'], ['fin', 's'], ['lieu', 's'], ['presents', 'j'], ['absents', 'j'],
+      ['sansReponse', 'j'], ['ajouts', 'j'], ['retraits', 'j'], ['inconnus', 'j'], ['annule', 'b'], ['parQui', 's'], ['maj', 's']],
+    // la compo d'un événement (une seule active) ; historique = les versions successives
+    compos: [['id', 's'], ['evenementId', 's'], ['sorte', 's'], ['version', 'n'], ['auteur', 's'], ['auteurNom', 's'], ['statut', 's'], ['reglages', 'j'],
+      ['equipes', 'j'], ['banc', 'j'], ['raisons', 'j'], ['justification', 's'], ['historique', 'j'], ['cree', 's'], ['maj', 's']],
+    // contre-propositions d'un autre éduc sur une compo publiée
+    avis: [['id', 's'], ['compoId', 's'], ['version', 'n'], ['auteur', 's'], ['auteurNom', 's'], ['equipes', 'j'], ['banc', 'j'], ['changements', 'j'],
+      ['justification', 's'], ['statut', 's'], ['reponse', 's'], ['parQui', 's'], ['cree', 's'], ['maj', 's']]
   };
 
   // Valeur brute (texte de la feuille) -> valeur typée
@@ -745,7 +757,7 @@ var Core = (function () {
     run: function (req, ctx) {
       var db = ctx.db;
       var seances = db.rows('seances'), records = db.rows('records'), journal = db.rows('journal'), missions = db.rows('missions');
-      var fams = db.rows('familles');
+      var fams = db.rows('familles'), terrain = db.rows('terrain');
       var joueurs = db.rows('joueurs').map(function (j) {
         return {
           joueur: pubJoueur(j),
@@ -753,7 +765,8 @@ var Core = (function () {
           seances: where(seances, 'joueurId', j.id).map(function (s) { return pubSeance(s, false); }),
           records: where(records, 'joueurId', j.id).map(pubRecord),
           journal: where(journal, 'joueurId', j.id).map(pubJournal),
-          missions: where(missions, 'joueurId', j.id).map(function (m) { return pubMission(m, false); })
+          missions: where(missions, 'joueurId', j.id).map(function (m) { return pubMission(m, false); }),
+          terrain: pubTerrain(find(terrain, j.id))
         };
       });
       var imp = null;
@@ -910,6 +923,348 @@ var Core = (function () {
   };
 
   // ---------------------------------------------------------
+  // Compos d'équipes (éducs seulement) : fiche terrain, événements, compos, contre-propositions
+  // Règle du groupe : un éduc suffit. La compo publiée est celle du plateau, sauf si un autre éduc
+  // fait une contre-proposition et que l'auteur l'accepte. Le jour J, tout éduc peut corriger.
+  // ---------------------------------------------------------
+  var NIVS = ['A', 'B', 'C'];
+  var POSTES_ID = MISSIONS.jeu10.postes;
+  function pubTerrain(t) {
+    if (!t) return null;
+    return { niveau: t.niveau || '', passerelle: t.passerelle || '', plaquage: Number(t.plaquage) || 0, postesOk: Array.isArray(t.postesOk) ? t.postesOk : [], spondId: t.spondId || '', note: t.note || '', parQui: t.parQui || '', maj: t.maj || '' };
+  }
+  function voisins(a, b) { return Math.abs(NIVS.indexOf(a) - NIVS.indexOf(b)) === 1; }
+  function terrainRow(ctx, joueurId, patch) {
+    var row = find(ctx.db.rows('terrain'), joueurId);
+    if (row) ctx.db.update('terrain', joueurId, patch);
+    else {
+      var o = { id: joueurId, niveau: '', passerelle: '', plaquage: 0, postesOk: [], spondId: '', note: '', parQui: '', maj: '' };
+      for (var k in patch) o[k] = patch[k];
+      ctx.db.insert('terrain', o);
+    }
+  }
+  A.setTerrain = {
+    auth: ['e'],
+    run: function (req, ctx) {
+      var lignes = Array.isArray(req.lignes) ? req.lignes.slice(0, 120) : [];
+      var joueurs = ctx.db.rows('joueurs'), out = {}, qui = ctx.auth.row.nom, now = isoNow(ctx.now);
+      lignes.forEach(function (l) {
+        if (!l || typeof l !== 'object') return;
+        var j = find(joueurs, String(l.joueurId || ''));
+        if (!j) return;
+        var cur = pubTerrain(find(ctx.db.rows('terrain'), j.id)) || { niveau: '', passerelle: '', plaquage: 0, postesOk: [], spondId: '', note: '' };
+        var patch = {};
+        if (l.niveau !== undefined) patch.niveau = NIVS.indexOf(String(l.niveau)) >= 0 ? String(l.niveau) : '';
+        if (l.passerelle !== undefined) patch.passerelle = NIVS.indexOf(String(l.passerelle)) >= 0 ? String(l.passerelle) : '';
+        var niv = patch.niveau !== undefined ? patch.niveau : cur.niveau, pas = patch.passerelle !== undefined ? patch.passerelle : cur.passerelle;
+        if (pas && !voisins(niv, pas)) patch.passerelle = '';                         // une passerelle va vers le niveau voisin
+        if (l.plaquage !== undefined) { var p = Math.round(Number(l.plaquage)); patch.plaquage = p >= 0 && p <= 5 ? p : 0; }
+        if (l.postesOk !== undefined) {
+          if (!Array.isArray(l.postesOk)) fail('invalide', 'Postes invalides.');
+          var ps = []; l.postesOk.forEach(function (x) { x = String(x); if (POSTES_ID.indexOf(x) >= 0 && ps.indexOf(x) < 0) ps.push(x); });
+          patch.postesOk = ps;
+        }
+        if (l.note !== undefined) patch.note = cleanText(l.note, 200);
+        if (l.spondId !== undefined) patch.spondId = cleanText(l.spondId, 64);
+        if (!Object.keys(patch).length) return;
+        patch.parQui = qui; patch.maj = now;
+        terrainRow(ctx, j.id, patch);
+        out[j.id] = pubTerrain(find(ctx.db.rows('terrain'), j.id));
+      });
+      return { terrain: out };
+    }
+  };
+
+  function pubEvt(e) {
+    return { id: e.id, source: e.source, titre: e.titre, sorte: e.sorte, debut: e.debut, fin: e.fin, lieu: e.lieu, presents: e.presents || [], absents: e.absents || [],
+      sansReponse: e.sansReponse || [], ajouts: e.ajouts || [], retraits: e.retraits || [], inconnus: e.inconnus || [], annule: !!e.annule, parQui: e.parQui || '', maj: e.maj };
+  }
+  function pubCompo(c) {
+    return { id: c.id, evenementId: c.evenementId, sorte: c.sorte, version: Number(c.version) || 1, auteur: c.auteur, auteurNom: c.auteurNom, statut: c.statut, reglages: c.reglages || {},
+      equipes: c.equipes || [], banc: c.banc || [], raisons: c.raisons || {}, justification: c.justification || '', historique: c.historique || [], cree: c.cree, maj: c.maj };
+  }
+  function pubAvis(a) {
+    return { id: a.id, compoId: a.compoId, version: Number(a.version) || 1, auteur: a.auteur, auteurNom: a.auteurNom, equipes: a.equipes || [], banc: a.banc || [],
+      changements: a.changements || [], justification: a.justification || '', statut: a.statut, reponse: a.reponse || '', parQui: a.parQui || '', cree: a.cree, maj: a.maj };
+  }
+  function sorteEvt(titre) {
+    var t = sansAccents(titre);
+    if (/plateau|tournoi|festival|rassemblement/.test(t)) return 'plateau';
+    if (/entrainement|seance/.test(t)) return 'entrainement';
+    return 'autre';
+  }
+  A.compos = {
+    auth: ['e'],
+    run: function (req, ctx) {
+      var depuis = isoDate(ctx.now - 240 * DAY);
+      var evts = ctx.db.rows('evenements').filter(function (e) { return String(e.debut).slice(0, 10) >= depuis; }).map(pubEvt);
+      evts.sort(function (a, b) { return a.debut < b.debut ? -1 : a.debut > b.debut ? 1 : 0; });
+      var ids = {}; evts.forEach(function (e) { ids[e.id] = true; });
+      var compos = ctx.db.rows('compos').filter(function (c) { return ids[c.evenementId] && c.statut !== 'retiree'; }).map(pubCompo);
+      var cids = {}; compos.forEach(function (c) { cids[c.id] = true; });
+      var avis = ctx.db.rows('avis').filter(function (a) { return cids[a.compoId]; }).map(pubAvis);
+      var sp = null; try { sp = JSON.parse(ctx.db.getProp('spondSync') || 'null'); } catch (e) { sp = null; }
+      return {
+        evenements: evts, compos: compos, avis: avis,
+        spond: { branche: !!(ctx.env.spondInfo && ctx.env.spondInfo().branche), derniere: sp },
+        moi: { id: ctx.auth.row.id, nom: ctx.auth.row.nom, admin: !!ctx.auth.row.admin }
+      };
+    }
+  };
+  function idList(ctx, l, max) {
+    var joueurs = ctx.db.rows('joueurs'), out = [];
+    (Array.isArray(l) ? l : []).slice(0, max || 80).forEach(function (id) { id = String(id); if (find(joueurs, id) && out.indexOf(id) < 0) out.push(id); });
+    return out;
+  }
+  function dateEvt(s) {
+    s = String(s || '');
+    if (validDate(s.slice(0, 10)) && (s.length === 10 || /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s))) return s.length === 10 ? s + 'T09:00:00.000Z' : s.slice(0, 16) + ':00.000Z';
+    return null;
+  }
+  // ajouter un événement à la main, corriger les présents (ajouts / retraits), supprimer un événement ajouté à la main
+  A.setEvenement = {
+    auth: ['e'],
+    run: function (req, ctx) {
+      var now = isoNow(ctx.now), qui = ctx.auth.row.nom;
+      if (!req.id) {
+        var titre = cleanText(req.titre, 80), debut = dateEvt(req.debut);
+        if (!titre) fail('invalide', 'Il faut un titre.');
+        if (!debut) fail('invalide', 'Date invalide.');
+        var row = { id: genId(ctx.env), source: 'manuel', titre: titre, sorte: ['plateau', 'entrainement', 'autre'].indexOf(req.sorte) >= 0 ? req.sorte : sorteEvt(titre), debut: debut, fin: '',
+          lieu: cleanText(req.lieu, 80), presents: idList(ctx, req.presents), absents: [], sansReponse: [], ajouts: [], retraits: [], inconnus: [], annule: false, parQui: qui, maj: now };
+        ctx.db.insert('evenements', row);
+        return { evenement: pubEvt(row) };
+      }
+      var e = find(ctx.db.rows('evenements'), String(req.id));
+      if (!e) fail('introuvable', 'Événement introuvable.');
+      if (req.supprimer) {
+        if (e.source !== 'manuel') fail('interdit', 'Un événement Spond se supprime dans Spond.');
+        if (ctx.db.rows('compos').some(function (c) { return c.evenementId === e.id && c.statut === 'publiee'; })) fail('interdit', 'Il y a déjà une compo pour cet événement.');
+        ctx.db.remove('evenements', e.id);
+        return { supprime: true };
+      }
+      var patch = { parQui: qui, maj: now };
+      if (req.ajouts !== undefined) patch.ajouts = idList(ctx, req.ajouts);
+      if (req.retraits !== undefined) patch.retraits = idList(ctx, req.retraits);
+      if (req.sorte !== undefined && ['plateau', 'entrainement', 'autre'].indexOf(req.sorte) >= 0) patch.sorte = req.sorte;
+      if (e.source === 'manuel') {
+        if (req.titre !== undefined) { var t = cleanText(req.titre, 80); if (t) patch.titre = t; }
+        if (req.debut !== undefined) { var d = dateEvt(req.debut); if (!d) fail('invalide', 'Date invalide.'); patch.debut = d; }
+        if (req.lieu !== undefined) patch.lieu = cleanText(req.lieu, 80);
+        if (req.presents !== undefined) patch.presents = idList(ctx, req.presents);
+      }
+      ctx.db.update('evenements', e.id, patch);
+      return { evenement: pubEvt(find(ctx.db.rows('evenements'), e.id)) };
+    }
+  };
+
+  // une compo envoyée par le navigateur, nettoyée : équipes A1…C6, chaque joueur actif une seule fois
+  function cleanCompo(ctx, req) {
+    var actifs = {}; ctx.db.rows('joueurs').forEach(function (j) { if (j.actif) actifs[j.id] = true; });
+    var seen = {}, tids = {}, equipes = [];
+    (Array.isArray(req.equipes) ? req.equipes : []).slice(0, 18).forEach(function (t) {
+      if (!t || typeof t !== 'object') return;
+      var niv = NIVS.indexOf(t.niveau) >= 0 ? t.niveau : 'B', id = String(t.id || '');
+      if (!/^[ABC][1-9]$/.test(id) || tids[id] || id.charAt(0) !== niv) { var n = 1; while (tids[niv + n]) n++; id = niv + n; }
+      tids[id] = true;
+      var js = [];
+      (Array.isArray(t.joueurs) ? t.joueurs : []).slice(0, 40).forEach(function (x) {
+        var jid = String(x && x.id || '');
+        if (!actifs[jid] || seen[jid]) return;
+        seen[jid] = true;
+        js.push({ id: jid, poste: POSTES_ID.indexOf(x.poste) >= 0 ? x.poste : '', n: NIVS.indexOf(x.n) >= 0 ? x.n : '' });
+      });
+      equipes.push({ id: id, niveau: niv, joueurs: js });
+    });
+    var banc = [];
+    (Array.isArray(req.banc) ? req.banc : []).slice(0, 80).forEach(function (x) { x = String(x); if (actifs[x] && !seen[x]) { seen[x] = true; banc.push(x); } });
+    var r = req.reglages || {}, nb = {};
+    NIVS.forEach(function (n) { var v = Math.floor(Number(r.nb && r.nb[n]) || 0); nb[n] = v < 0 ? 0 : v > 6 ? 6 : v; });
+    var raisons = {};
+    if (req.raisons && typeof req.raisons === 'object') for (var k in req.raisons) if (seen[k]) raisons[k] = cleanText(req.raisons[k], 200);
+    return { equipes: equipes, banc: banc, reglages: { format: Number(r.format) === 10 ? 10 : 5, nb: nb }, raisons: raisons };
+  }
+  function placeOf(c) {
+    var p = {};
+    (c.equipes || []).forEach(function (t) { (t.joueurs || []).forEach(function (j) { p[j.id] = { eq: t.id, poste: j.poste || '' }; }); });
+    (c.banc || []).forEach(function (id) { p[id] = { eq: 'banc', poste: '' }; });
+    return p;
+  }
+  function diffCompo(a, b) {
+    var pa = placeOf(a), pb = placeOf(b), out = [], seen = {};
+    Object.keys(pa).concat(Object.keys(pb)).forEach(function (id) {
+      if (seen[id]) return; seen[id] = true;
+      var x = pa[id] || { eq: '', poste: '' }, y = pb[id] || { eq: '', poste: '' };
+      if (x.eq !== y.eq || x.poste !== y.poste) out.push({ id: id, de: x.eq, vers: y.eq, posteDe: x.poste, poste: y.poste });
+    });
+    return out;
+  }
+  function jourJ(ctx, e) { return String(e.debut).slice(0, 10) === isoDate(ctx.now); }
+  function compoActive(ctx, evenementId) {
+    var l = ctx.db.rows('compos').filter(function (c) { return c.evenementId === evenementId && c.statut === 'publiee'; });
+    return l[0] || null;
+  }
+  // publier une compo (1re fois) ou la modifier (son auteur ; tout éduc le jour J, « dernière minute »)
+  A.saveCompo = {
+    auth: ['e'],
+    run: function (req, ctx) {
+      var e = find(ctx.db.rows('evenements'), String(req.evenementId || ''));
+      if (!e) fail('introuvable', 'Événement introuvable.');
+      var c = cleanCompo(ctx, req), me = ctx.auth.row, now = isoNow(ctx.now);
+      var cur = compoActive(ctx, e.id), note = cleanText(req.note || req.justification || '', 600);
+      if (!c.equipes.length) fail('invalide', 'Il faut au moins une équipe.');
+      if (!cur) {
+        var row = { id: genId(ctx.env), evenementId: e.id, sorte: e.sorte || 'plateau', version: 1, auteur: me.id, auteurNom: me.nom, statut: 'publiee', reglages: c.reglages,
+          equipes: c.equipes, banc: c.banc, raisons: c.raisons, justification: cleanText(req.justification, 600), historique: [{ v: 1, par: me.nom, quand: now, note: 'Compo publiée' }], cree: now, maj: now };
+        ctx.db.insert('compos', row);
+        return { compo: pubCompo(row) };
+      }
+      if (req.compoId && req.compoId !== cur.id) fail('conflit', 'Une autre compo a été publiée entre-temps : rechargez.');
+      if (req.version !== undefined && Number(req.version) !== Number(cur.version)) fail('conflit', 'La compo a changé entre-temps (version ' + cur.version + ') : rechargez avant de modifier.');
+      var auteur = cur.auteur === me.id, dm = jourJ(ctx, e);
+      if (!auteur && !dm) fail('interdit', 'C\'est la compo de ' + cur.auteurNom + ' : faites plutôt une contre-proposition.');
+      var ch = diffCompo(cur, c);
+      if (!ch.length && JSON.stringify(cur.reglages) === JSON.stringify(c.reglages)) return { compo: pubCompo(cur) };
+      var v = (Number(cur.version) || 1) + 1;
+      var hist = (cur.historique || []).concat([{ v: v, par: me.nom, quand: now, note: note || (auteur ? 'Modifiée' : 'Dernière minute'), n: ch.length, dm: !auteur }]).slice(-30);
+      var patch = { equipes: c.equipes, banc: c.banc, reglages: c.reglages, raisons: c.raisons, version: v, historique: hist, maj: now };
+      if (auteur && req.justification !== undefined) patch.justification = cleanText(req.justification, 600);
+      ctx.db.update('compos', cur.id, patch);
+      return { compo: pubCompo(find(ctx.db.rows('compos'), cur.id)) };
+    }
+  };
+  // retirer sa compo (l'auteur, ou l'admin) : on repart de zéro
+  A.retirerCompo = {
+    auth: ['e'],
+    run: function (req, ctx) {
+      var c = find(ctx.db.rows('compos'), String(req.compoId || ''));
+      if (!c || c.statut !== 'publiee') fail('introuvable', 'Compo introuvable.');
+      if (c.auteur !== ctx.auth.id && !ctx.auth.row.admin) fail('interdit', 'Seul son auteur peut retirer cette compo.');
+      ctx.db.update('compos', c.id, { statut: 'retiree', maj: isoNow(ctx.now) });
+      ctx.db.rows('avis').filter(function (a) { return a.compoId === c.id && a.statut === 'attente'; }).forEach(function (a) { ctx.db.update('avis', a.id, { statut: 'retiree', maj: isoNow(ctx.now) }); });
+      return {};
+    }
+  };
+  // contre-proposition d'un autre éduc : déplacements + justification (obligatoire)
+  A.contreProposition = {
+    auth: ['e'],
+    run: function (req, ctx) {
+      var cur = find(ctx.db.rows('compos'), String(req.compoId || ''));
+      if (!cur || cur.statut !== 'publiee') fail('introuvable', 'Compo introuvable.');
+      var just = cleanText(req.justification, 600);
+      if (just.length < 3) fail('invalide', 'Expliquez en quelques mots pourquoi.');
+      var c = cleanCompo(ctx, { equipes: req.equipes, banc: req.banc, reglages: cur.reglages });
+      var ch = diffCompo(cur, c);
+      if (!ch.length) fail('invalide', 'Aucun changement par rapport à la compo.');
+      var me = ctx.auth.row, now = isoNow(ctx.now);
+      var row = { id: genId(ctx.env), compoId: cur.id, version: Number(cur.version) || 1, auteur: me.id, auteurNom: me.nom, equipes: c.equipes, banc: c.banc, changements: ch,
+        justification: just, statut: 'attente', reponse: '', parQui: '', cree: now, maj: now };
+      ctx.db.insert('avis', row);
+      return { avis: pubAvis(row) };
+    }
+  };
+  // l'auteur de la compo (ou l'admin) accepte ou refuse ; l'auteur de la contre-proposition peut la retirer
+  A.repondreAvis = {
+    auth: ['e'],
+    run: function (req, ctx) {
+      var a = find(ctx.db.rows('avis'), String(req.avisId || ''));
+      if (!a || a.statut !== 'attente') fail('introuvable', 'Contre-proposition introuvable ou déjà traitée.');
+      var cur = find(ctx.db.rows('compos'), a.compoId), me = ctx.auth.row, now = isoNow(ctx.now);
+      if (req.retirer) {
+        if (a.auteur !== me.id) fail('interdit', 'Seul son auteur peut la retirer.');
+        ctx.db.update('avis', a.id, { statut: 'retiree', maj: now });
+        return { avis: pubAvis(find(ctx.db.rows('avis'), a.id)) };
+      }
+      if (!cur || cur.statut !== 'publiee') fail('introuvable', 'Compo introuvable.');
+      if (cur.auteur !== me.id && !me.admin) fail('interdit', 'C\'est à ' + cur.auteurNom + ' de répondre.');
+      var rep = cleanText(req.reponse, 300);
+      if (req.accepte) {
+        var proposee = { equipes: a.equipes, banc: a.banc };
+        // la compo a changé depuis : on rejoue seulement les déplacements de la contre-proposition
+        if (Number(a.version) !== Number(cur.version)) proposee = rejouer(cur, a.changements);
+        var v = (Number(cur.version) || 1) + 1;
+        var hist = (cur.historique || []).concat([{ v: v, par: me.nom, quand: now, note: 'Contre-proposition de ' + a.auteurNom + ' acceptée', n: (a.changements || []).length }]).slice(-30);
+        ctx.db.update('compos', cur.id, { equipes: proposee.equipes, banc: proposee.banc, version: v, historique: hist, maj: now });
+        ctx.db.update('avis', a.id, { statut: 'acceptee', reponse: rep, parQui: me.nom, maj: now });
+      } else {
+        ctx.db.update('avis', a.id, { statut: 'refusee', reponse: rep, parQui: me.nom, maj: now });
+      }
+      return { avis: pubAvis(find(ctx.db.rows('avis'), a.id)), compo: pubCompo(find(ctx.db.rows('compos'), cur.id)) };
+    }
+  };
+  function rejouer(cur, changements) {
+    var o = clone({ equipes: cur.equipes || [], banc: cur.banc || [] });
+    (changements || []).forEach(function (m) {
+      var entry = null;
+      o.equipes.forEach(function (t) { t.joueurs = t.joueurs.filter(function (j) { if (j.id === m.id) { entry = j; return false; } return true; }); });
+      o.banc = o.banc.filter(function (id) { return id !== m.id; });
+      entry = entry || { id: m.id, poste: '', n: '' };
+      entry.poste = m.poste || '';
+      if (m.vers === 'banc') o.banc.push(m.id);
+      else { var t = o.equipes.filter(function (x) { return x.id === m.vers; })[0]; if (t) t.joueurs.push(entry); else o.banc.push(m.id); }
+    });
+    return o;
+  }
+
+  // ---------- Spond : événements du groupe M12 et réponses (lecture seule) ----------
+  // data = { membres: [{ id, prenom, nom }], evenements: [{ id, titre, debut, fin, lieu, annule, acceptes, refuses, sansReponse, attente }] }
+  // Les membres sont reliés aux joueurs par le prénom (et l'initiale du nom pour les homonymes) ;
+  // un lien posé à la main dans la fiche terrain (spondId) l'emporte.
+  function syncSpond(ctx, data) {
+    var joueurs = ctx.db.rows('joueurs').filter(function (j) { return j.actif; });
+    var terrain = ctx.db.rows('terrain'), now = isoNow(ctx.now);
+    var parSpond = {}, lies = {};
+    terrain.forEach(function (t) { if (t.spondId) { parSpond[t.spondId] = t.id; lies[t.id] = t.spondId; } });
+    var cles = joueurs.map(function (j) { var k = cleJoueur(j.prenom); return { j: j, cle: k.cle, ini: k.ini }; });
+    var nouveaux = 0, membres = {};
+    (data.membres || []).forEach(function (m) {
+      var mid = String(m.id || ''); if (!mid) return;
+      membres[mid] = m;
+      if (parSpond[mid]) return;
+      var cle = cleJoueur(m.prenom).cle, ini = sansAccents(m.nom).replace(/[^a-z]/g, '').charAt(0);
+      var c = cles.filter(function (x) { return x.cle === cle; });
+      if (c.length > 1) c = c.filter(function (x) { return x.ini && x.ini === ini; });
+      if (c.length !== 1 || lies[c[0].j.id]) return;
+      parSpond[mid] = c[0].j.id; lies[c[0].j.id] = mid; nouveaux++;
+      terrainRow(ctx, c[0].j.id, { spondId: mid, maj: now });
+    });
+    function map(l, inconnus) {
+      var out = [];
+      (l || []).forEach(function (mid) {
+        var jid = parSpond[String(mid)];
+        if (jid) { if (out.indexOf(jid) < 0) out.push(jid); }
+        else if (inconnus) { var m = membres[String(mid)]; if (m) inconnus.push(cleanText((m.prenom || '') + ' ' + String(m.nom || '').charAt(0) + '.', 40)); }
+      });
+      return out;
+    }
+    var evts = 0;
+    (data.evenements || []).forEach(function (ev) {
+      var id = 'sp-' + String(ev.id || '').slice(0, 60);
+      if (id === 'sp-') return;
+      var inc = [];
+      var row = { titre: cleanText(ev.titre, 80) || 'Événement', debut: dateEvt(ev.debut) || String(ev.debut || ''), fin: String(ev.fin || ''), lieu: cleanText(ev.lieu, 80),
+        presents: map(ev.acceptes, inc), absents: map(ev.refuses), sansReponse: map((ev.sansReponse || []).concat(ev.attente || [])), inconnus: inc.slice(0, 40), annule: !!ev.annule, maj: now };
+      var cur = find(ctx.db.rows('evenements'), id);
+      if (cur) ctx.db.update('evenements', id, row);
+      else { row.id = id; row.source = 'spond'; row.sorte = sorteEvt(row.titre); row.ajouts = []; row.retraits = []; row.parQui = 'Spond'; ctx.db.insert('evenements', row); }
+      evts++;
+    });
+    var nonLies = joueurs.filter(function (j) { return !lies[j.id]; }).map(function (j) { return j.prenom; });
+    var info = { quand: now, evenements: evts, membres: Object.keys(membres).length, nouveauxLiens: nouveaux, joueursSansLien: nonLies };
+    ctx.db.setProp('spondSync', JSON.stringify(info));
+    return info;
+  }
+  A.syncSpond = {
+    auth: ['e'],
+    run: function (req, ctx) {
+      if (!ctx.env.spondFetch) fail('indispo', 'La synchro Spond ne marche que sur le serveur Google.');
+      var data;
+      try { data = ctx.env.spondFetch(); } catch (e) { fail('spond', 'Spond ne répond pas : ' + (e && e.message ? e.message : e)); }
+      return { info: syncSpond(ctx, data) };
+    }
+  };
+
+  // ---------------------------------------------------------
   // Point d'entrée
   // ---------------------------------------------------------
   function handle(req, db, env) {
@@ -965,7 +1320,9 @@ var Core = (function () {
     // outils exposés pour le mode démo et les tests
     _sha256: sha256, _hmac: hmac, _hashPin: hashPin, _hashTemp: hashTemp, _hashAdulte: hashAdulte, _pinFaible: pinFaible, _clone: clone,
     _posteDuTexte: posteDuTexte, _sansAccents: sansAccents,
-    importPostesDepuis: function (db, env, rows) { return importPostes({ db: db, env: env, now: env.now() }, rows); }
+    importPostesDepuis: function (db, env, rows) { return importPostes({ db: db, env: env, now: env.now() }, rows); },
+    syncSpondDepuis: function (db, env, data) { return syncSpond({ db: db, env: env, now: env.now() }, data || {}); },
+    _diffCompo: diffCompo
   };
 })();
 

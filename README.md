@@ -29,8 +29,11 @@ Site statique (HTML/CSS/JS, rien à installer) + une Google Sheet qui sert de ba
 | `js/missions.js` | **Les missions spéciales** (dates, textes) et le test « Aide-moi à choisir » |
 | `js/postes-data.js` | Les 7 cartes postes de la mission « Prépare le jeu à 10 » (reprises du site « Choisis ton poste ») |
 | `js/v-mission.js` | Les écrans de la mission (joueur), sa vue éduc (Outils) et parent |
+| `js/compos.js` | **Les règles des compos** : fiche terrain, historique, proposition automatique, indicateurs, alertes |
+| `js/v-compos.js` | L'onglet éduc **Compos** : événements et présents, tableau de compo, contre-propositions, fiche terrain |
 | `sw.js` | La copie de l'appli gardée sur l'appareil (elle s'ouvre même quand le réseau traîne) |
-| `apps-script/serveur-mode-champion.gs` | **Le serveur à coller dans Google Apps Script** (un seul fichier) |
+| `apps-script/serveur-mode-champion.gs` | **Le serveur à coller dans Google Apps Script** |
+| `apps-script/spond.gs` | La synchro Spond : 2e fichier du projet Apps Script, à ajouter seulement pour brancher Spond (voir plus bas) |
 
 ## 1. Brancher la Google Sheet (10 minutes, une seule fois)
 
@@ -45,13 +48,20 @@ Site statique (HTML/CSS/JS, rien à installer) + une Google Sheet qui sert de ba
    - **Déployer**, puis copiez l'**URL de l'application Web** (elle finit par `/exec`).
 7. Collez cette URL dans `js/config.js` : `API_URL: 'https://script.google.com/macros/s/…/exec',` (ou envoyez-la à Claude).
 
-La feuille contient ensuite un onglet par table (`joueurs`, `familles`, `educs`, `seances`, `records`, `journal`, `missions`). Un onglet ajouté par une nouvelle version (comme `missions`) se crée tout seul à la première écriture. Ne renommez pas les onglets ni les colonnes. Les codes y sont stockés chiffrés (empreintes), jamais en clair.
+La feuille contient ensuite un onglet par table (`joueurs`, `familles`, `educs`, `seances`, `records`, `journal`, `missions`, `terrain`, `evenements`, `compos`, `avis`). Un onglet ajouté par une nouvelle version (comme `missions` ou `compos`) se crée tout seul à la première écriture. Ne renommez pas les onglets ni les colonnes. Les codes y sont stockés chiffrés (empreintes), jamais en clair.
 
 Pour aller plus vite, le serveur garde une copie de la feuille en mémoire (20 minutes). Si vous modifiez la feuille **à la main** (renommer un éduc, corriger un résultat…), lancez ensuite la fonction `viderCache` dans l'éditeur Apps Script (menu des fonctions › `viderCache` › Exécuter) pour que l'appli voie le changement tout de suite.
 
 **Code admin perdu ?** Dans l'éditeur Apps Script, exécutez la fonction `nouveauCodeAdmin` : le nouveau code s'affiche dans le journal.
 
 **Mettre à jour le serveur** (si `js/core.js` change) : relancez `outils/fabriquer-serveur.sh`, recollez `apps-script/serveur-mode-champion.gs` dans l'éditeur, puis **Déployer › Gérer les déploiements › crayon › Version : Nouvelle version › Déployer** (l'URL ne change pas).
+
+**Brancher Spond** (facultatif : sans Spond, les éducs ajoutent les plateaux à la main) — le mode d'emploi complet est en tête de `apps-script/spond.gs` :
+1. Dans l'éditeur Apps Script : **+** à côté de Fichiers › **Script**, nommez-le `spond`, collez `apps-script/spond.gs`, enregistrez.
+2. **Paramètres du projet** (roue dentée) › **Propriétés du script** : `SPOND_EMAIL` et `SPOND_MDP` (le compte Spond qui voit le groupe M12). Ils restent chez Google.
+3. Fonction **`brancherSpond`** › Exécuter : Google demande deux autorisations de plus (service externe, déclencheurs) ; le sous-groupe « M12 » est trouvé tout seul, la synchro tourne tout de suite puis toutes les heures.
+4. **Déployer › Gérer les déploiements › crayon › Nouvelle version › Déployer** (sinon l'appli ne voit pas les nouvelles autorisations).
+`debrancherSpond` arrête la synchro. Lecture seule : événements de J-30 à J+60 et réponses (oui, non, sans réponse). Les membres Spond sont reliés aux joueurs par le prénom (et l'initiale du nom pour les homonymes) ; un lien se corrige dans la feuille, onglet `terrain`, colonne `spondId`.
 
 ## 2. Mettre le site en ligne (GitHub Pages)
 
@@ -99,6 +109,7 @@ Le guide **« Comment ça marche ? »** (bouton **Aide** sur l'écran d'accueil,
 - **Retour** : dans la séance et le bilan guidés, le bouton **Retour** en haut annule le dernier clic (série validée, exo passé, test validé par erreur).
 - **Missions spéciales** (`js/missions.js`) : une chose à faire une seule fois, en haut de Ma semaine (pastille sur l'onglet) tant qu'elle n'est pas faite. Récompense : +200 XP et un badge (famille **missions**). 1re mission, **« Prépare le jeu à 10 »** : choisir 1 à 3 postes (les 7 cartes et le test « Aide-moi à choisir » du site « Choisis ton poste »), puis ses copains, sans limite. **Les copains sont secrets** : seuls l'enfant et les éducs les voient (jamais les parents ni les autres enfants). Les éducs ont tout dans Outils › Mission « Prépare le jeu à 10 » et dans la fiche de chaque joueur.
 - **Reprise de l'ancien site « Choisis ton poste »** : dans Google Forms (formulaire « M12 - 26/27 - Choix de postes ») › Réponses › Associer à Sheets › **feuille existante** = la feuille de l'appli. Les réponses arrivent alors dans un onglet de cette feuille ; le bouton **Reprendre les réponses du formulaire** (Outils › Mission) ou la fonction `reprendreChoixDePostes` de l'éditeur les reprend (prénom + initiale du nom pour les homonymes ; la dernière réponse compte ; un enfant qui a déjà choisi dans l'appli garde ses choix).
+- **Compos des plateaux** (éducs, onglet **Compos**) : la **fiche terrain** de chaque joueur (niveau A Confirmés / B Débrouillés / C Débutants, passerelle vers le niveau voisin, plaquage sur 5 étoiles, postes compatibles), réglée par les éducs ; les **événements** (Spond ou à la main) et leurs présents ; **Préparer la compo** : format (jeu à 5 ou à 10), nombre d'équipes par niveau, puis une **proposition automatique** (`js/compos.js` : les passerelles comblent les écarts d'effectif, d'abord celles qui attendent leur tour ; serpentin par étoiles de plaquage puis échanges qui équilibrent plaquage, effectifs, copains et, au jeu à 10, postes). On ajuste en touchant un joueur puis son équipe. **Un éduc suffit** : la compo publiée est celle du plateau ; un autre éduc peut faire une **contre-proposition** (déplacements + pourquoi), que l'auteur accepte ou refuse ; le jour J, tout éduc corrige directement. Après le plateau, la compo devient l'historique (plateaux joués, passages dans l'autre niveau, fois avec un copain). Repères de plaquage (proposés, l'appli prévient sans interdire) : 3 étoiles pour B, 4 pour A (`SEUIL` dans `js/compos.js`). Jeu à 10 : 2 piliers, 1 talonneur, 2 troisièmes lignes, 9, 10, 2 centres, 1 ailier (`POSTES10`).
 - **Badges** (18, en 4 familles) : **exploit** (les 7 défis du tableau du mur, au bilan ou en « défi » avec un adulte qui confirme, + Champion : un exo réussi en N4) ; **séances** (Bras d'acier, Turbo, Infatigable, Jambes de fer : 10 / 25 / 40 séances du même jour = bronze / argent / or) ; **régularité** (Première étoile, Semaine parfaite, Série de 7, Fidèle, Légende) ; **missions** (Prêt pour le jeu à 10). Chaque badge ou palier rapporte +100 XP.
 - **Classement** : par épreuve du bilan, entre joueurs du même niveau sur cette épreuve (ligue élargie aux niveaux voisins s'il y a moins de 5 joueurs), en « meilleur score » ou « plus gros progrès ». Seuls les résultats confirmés par un adulte comptent. Les parents peuvent masquer leur enfant du classement.
 
@@ -116,6 +127,8 @@ git clone https://github.com/nicolasgiorgi-cpu/mode-champion /home/claude/mode-c
 cp -r /home/claude/mode-champion/tests /home/claude/tests
 cd /home/claude/mode-champion && sh outils/fabriquer-serveur.sh   # le faux serveur charge le .gs fabriqué
 node /home/claude/tests/test_logic.js && node /home/claude/tests/test_core.js && node /home/claude/tests/test_mission.js
+node /home/claude/tests/test_compos.js && node /home/claude/tests/test_compos_core.js   # compos (règles, serveur, Spond simulé)
 python3 /home/claude/tests/e2e_v14.py 390 844                      # Playwright, site servi en local (voir mkdemo.sh)
 python3 /home/claude/tests/e2e_mission.py 390 844                  # la mission « Prépare le jeu à 10 » (joueur, parent, éduc)
+python3 /home/claude/tests/e2e_compos.py 390 844                   # les compos (aussi en 1180 820 et 820 1180 pour l'iPad)
 ```

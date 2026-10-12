@@ -76,6 +76,7 @@ MC.ui = (function () {
     spark: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M18 6l-2.5 2.5M8.5 15.5L6 18"/>',
     news: '<path d="M4 5h13v14H6a2 2 0 0 1-2-2zM17 9h3v8a2 2 0 0 1-2 2M8 9h5M8 13h5"/>',
     vest: '<path d="M3 11l9-7 9 7v10h-6v-6H9v6H3z"/>',
+    board: '<rect x="4" y="4" width="16" height="17" rx="1"/><path d="M9 4V2.5h6V4M8 9l2.5 2.5M10.5 9L8 11.5M15 15.5h.01M9 17.5c1.5-3 4-4.5 6-6"/>',
     settings: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>'
   };
   function icon(name, size, extra) {

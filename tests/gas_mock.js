@@ -1,6 +1,7 @@
 // Mock minimal de Google Apps Script pour tester Code.gs + core.js dans Node
 const fs = require('fs'), vm = require('vm'), crypto = require('crypto');
-function makeEnv() {
+function makeEnv(opts) {
+  opts = opts || {};
   const sheets = {};
   function Range(sh, r, c, nr, nc) { this.sh = sh; this.r = r; this.c = c; this.nr = nr; this.nc = nc; }
   Range.prototype.setNumberFormat = function () { return this; };
@@ -47,8 +48,20 @@ function makeEnv() {
     CacheService: { getScriptCache: () => cacheApi },
     console, Date, Math, JSON
   };
+  // Spond (fichier spond.gs) : appels HTTP simulés par opts.spond(url, params) → { code, body }
+  const triggers = [];
+  if (opts.spond) {
+    ctx.UrlFetchApp = { fetch: (url, params) => { const r = opts.spond(url, params || {}); return { getResponseCode: () => r.code, getContentText: () => (typeof r.body === 'string' ? r.body : JSON.stringify(r.body)) }; } };
+    ctx.ScriptApp = {
+      getProjectTriggers: () => triggers.slice(),
+      deleteTrigger: t => { const i = triggers.indexOf(t); if (i >= 0) triggers.splice(i, 1); },
+      newTrigger: fn => ({ timeBased: () => ({ everyHours: h => ({ create: () => { const t = { fn, h, getHandlerFunction: () => fn }; triggers.push(t); return t; } }) }) })
+    };
+  }
   vm.createContext(ctx);
   vm.runInContext(fs.readFileSync('/home/claude/mode-champion/apps-script/serveur-mode-champion.gs', 'utf8'), ctx, { filename: 'serveur.gs' });
+  if (opts.spond) vm.runInContext(fs.readFileSync('/home/claude/mode-champion/apps-script/spond.gs', 'utf8'), ctx, { filename: 'spond.gs' });
+  ctx._triggers = triggers;
   ctx.call = (req) => JSON.parse(ctx.doPost({ postData: { contents: JSON.stringify(req) } }).getContent());
   ctx._sheets = sheets; ctx._logs = logs; ctx._props = props; ctx._cache = cache; ctx._cstats = cstats;
   return ctx;

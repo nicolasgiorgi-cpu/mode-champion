@@ -144,7 +144,7 @@ MC.app = (function () {
   var NAVS = {
     k: [['semaine', '#/semaine', 'calendar', 'Semaine'], ['profil', '#/profil', 'user', 'Profil'], ['classement', '#/classement', 'podium', 'Classement']],
     p: [['p:suivi', '#/parent', 'pulse', 'Suivi'], ['p:progres', '#/parent/progres', 'up', 'Progrès'], ['p:classement', '#/parent/classement', 'podium', 'Classement'], ['p:plus', '#/parent/plus', 'menu', 'Plus']],
-    e: [['e:vestiaire', '#/educ', 'vest', 'Vestiaire'], ['e:joueurs', '#/educ/joueurs', 'group', 'Joueurs'], ['e:classement', '#/educ/classement', 'podium', 'Classement'], ['e:outils', '#/educ/outils', 'wrench', 'Outils']]
+    e: [['e:vestiaire', '#/educ', 'vest', 'Vestiaire'], ['e:joueurs', '#/educ/joueurs', 'group', 'Joueurs'], ['e:compos', '#/educ/compos', 'board', 'Compos'], ['e:classement', '#/educ/classement', 'podium', 'Classement'], ['e:outils', '#/educ/outils', 'wrench', 'Outils']]
   };
   var navActive = null;
   function pendingCount(list) { var n = 0; (list || []).forEach(function (d) { (d.records || []).forEach(function (r) { if (r.statut === 'attente') n++; }); }); return n; }
@@ -153,6 +153,7 @@ MC.app = (function () {
     if (key === 'semaine' && S.me && MC.missions) return MC.missions.pending(S.me).length;
     if (key === 'p:suivi' && c.family) return pendingCount(c.family.enfants);
     if (key === 'e:vestiaire' && c.group) return pendingCount(c.group.joueurs.filter(function (p) { return p.joueur.actif; }));
+    if (key === 'e:compos' && MC.composPending) return MC.composPending();   // contre-propositions en attente
     return 0;
   }
   function paintNav(active) {
@@ -164,7 +165,7 @@ MC.app = (function () {
     navEl.innerHTML = '<span class="brand" aria-hidden="true">' + ui.avatar('M', '#38E8FF', 48).replace('>M<', '>M12<') + '</span>' + items.map(function (it) {
       var on = active === it[0], n = navBadge(it[0]);
       return '<a href="' + it[1] + '" class="' + (on ? 'on' : '') + '"' + (on ? ' aria-current="page"' : '') + '>' + ui.icon(it[2], 22) + '<span>' + it[3] + '</span>' +
-        (n ? '<span class="nb" aria-label="' + n + (it[0] === 'semaine' ? ' mission à faire' : ' à valider') + '">' + n + '</span>' : '') + '</a>';
+        (n ? '<span class="nb" aria-label="' + n + (it[0] === 'semaine' ? ' mission à faire' : it[0] === 'e:compos' ? ' contre-proposition en attente' : ' à valider') + '">' + n + '</span>' : '') + '</a>';
     }).join('');
   }
   // après le chargement des données (pastilles « à valider »)
