@@ -66,6 +66,8 @@ Sur iPad et téléphone : **Partager › Sur l'écran d'accueil** pour l'ouvrir 
 4. L'enfant fait son **bilan 0** (profil › Saisir mon bilan › **Lancer le bilan guidé** : échauffement puis les 12 tests un par un, avec démo, chrono, compteur et 2 min de repos ; ou le formulaire pour noter directement). Ses niveaux N1-N3 se règlent tout seuls. Un parent ou un éduc confirme les résultats pour qu'ils comptent au classement.
 5. Autres éducs : **Les éducs (admin)** › Ajouter un éduc.
 
+**Téléphone partagé** (l'enfant utilise le téléphone ou l'iPad d'un parent) : chaque enfant touche son avatar et tape son code, il reste connecté. « Pas Tom ? Changer de joueur » en haut de la semaine et « J'ai fini » en fin de séance pour passer la main. Si plusieurs enfants utilisent l'appareil, le site demande « C'est bien toi ? » après 30 min sans utilisation. Dès qu'un enfant a utilisé l'appareil, l'espace parent ou éduc se reverrouille (code redemandé après 10 min, ou dès qu'on repasse côté joueur) : un enfant ne peut pas confirmer ses propres résultats. Réglage « Appareil partagé avec un enfant » dans l'espace adulte.
+
 Un éduc qui est aussi parent : dans le vestiaire, **Mon enfant › Choisir**. Son enfant apparaît en haut du vestiaire avec tout le suivi (séances, progression, niveaux, code), sans changer de code. Outils › **Progrès du groupe aux bilans** classe les joueurs test par test selon leur progrès.
 
 Code oublié : le parent (espace parent) ou l'éduc (fiche du joueur) crée un **code provisoire** valable 48 h ; l'enfant choisit ensuite un nouveau code. Ses séances et ses étoiles sont gardées. Après 5 codes faux, le profil se bloque 10 minutes.
