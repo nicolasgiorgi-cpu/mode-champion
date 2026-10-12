@@ -605,3 +605,4 @@ html.net-busy::before{content:'';position:fixed;top:0;left:0;right:0;height:3px;
 .testchips{display:flex;flex-wrap:wrap;gap:6px}
 .testchips .opt{min-height:40px;padding:0 10px;font-size:12px}
 @media (max-width:520px){ .sx{grid-template-columns:minmax(0,1fr) auto;}.sx .sxd{grid-column:1}.sx .sxr{grid-column:1} .prow{grid-template-columns:minmax(0,1fr) auto}.prow .pvals{grid-column:1/-1;grid-row:2} }
+.lvcard .lvanim{display:block;height:84px;margin:4px 0 2px}

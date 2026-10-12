@@ -494,14 +494,17 @@ var Core = (function () {
     }
   };
 
+  // Classement : le joueur, ses parents et les éducs voient les joueurs affichés (+ le joueur lui-même / les enfants de la famille)
   A.league = {
-    auth: ['p'],
+    auth: ['p', 'f', 'e'],
     run: function (req, ctx) {
-      var me = ctx.auth.id;
-      var players = ctx.db.rows('joueurs').filter(function (j) { return j.actif && (j.visible || j.id === me); });
+      var mine = {}, all = ctx.db.rows('joueurs').filter(function (j) { return j.actif; });
+      if (ctx.auth.r === 'p') mine[ctx.auth.id] = true;
+      if (ctx.auth.r === 'f') all.forEach(function (j) { if (j.familleId === ctx.auth.id) mine[j.id] = true; });
+      var players = all.filter(function (j) { return j.visible || mine[j.id]; });
       var ids = {};
       players.forEach(function (j) { ids[j.id] = true; });
-      var recs = ctx.db.rows('records').filter(function (r) { return ids[r.joueurId] && (r.statut === 'ok' || r.joueurId === me); });
+      var recs = ctx.db.rows('records').filter(function (r) { return ids[r.joueurId] && (r.statut === 'ok' || mine[r.joueurId]); });
       return {
         joueurs: players.map(function (j) { return { id: j.id, prenom: j.prenom, couleur: j.couleur, niveaux: j.niveaux || {}, materiel: j.materiel || 'complet' }; }),
         records: recs.map(pubRecord)

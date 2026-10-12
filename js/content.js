@@ -68,10 +68,10 @@ window.MC = window.MC || {};
     },
     pompes: {
       nom: 'Pompes', cle: 'pompes', anim: 'pompes', video: '50Yr6Mm78u0',
-      etapes: ['Mains sous les épaules, sur la pointe des pieds : les genoux ne touchent pas le sol.', 'Corps en planche, fesses serrées. Descends la poitrine, coudes en flèche vers l\'arrière.', 'Remonte. Trop dur ? Mains sur un appui (canapé, marche) : le corps reste droit.'],
-      attention: 'Si le dos se creuse, mets les mains plus haut (canapé, marche) plutôt que les genoux au sol.',
-      doses: [null, R(3, 6, 'mains sur le canapé ou une marche haute'), R(3, 8, 'mains sur une marche, ou 3 × 5 au sol'), R(3, 8, 'au sol'), R(3, 10, 'ou pieds sur une marche')],
-      animNiveau: [null, 'pompes_inclinees', 'pompes_inclinees', 'pompes', 'pompes']
+      etapes: ['Mains sous les épaules, corps en planche, fesses serrées.', 'Descends la poitrine vers le sol, coudes en flèche vers l\'arrière.', 'Remonte. N1-N2 : sur les genoux, le corps reste droit des genoux à la tête. N3-N4 : sur la pointe des pieds, les genoux ne touchent pas le sol.'],
+      attention: 'Si le dos se creuse, reviens sur les genoux.',
+      doses: [null, R(3, 6, 'sur les genoux'), R(3, 8, 'genoux, ou 3 × 5 complètes'), R(3, 8, 'complètes, genoux décollés'), R(3, 10, 'ou pieds sur une marche')],
+      animNiveau: [null, 'pompes_genoux', 'pompes_genoux', 'pompes', 'pompes']
     },
     rowing: {
       nom: 'Rowing élastique', cle: 'pompes', anim: 'rowing', video: 'BI647VkG0iY',

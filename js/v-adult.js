@@ -208,7 +208,7 @@
         return '<button type="button" class="opt' + (on ? ' on' : '') + '" aria-pressed="' + on + '" data-act="parentKid" data-id="' + esc(x.joueur.id) + '" style="min-height:48px;padding:0 14px">' + ui.avatar(x.joueur.prenom, x.joueur.couleur, 28) + esc(x.joueur.prenom) + '</button>';
       }).join('') + '</div>' : '';
       return '<main class="screen nonav">' +
-        '<div class="between" style="align-items:center"><span class="kicker">Espace parent · ' + esc(fam.famille.nom) + '</span><span class="row" style="gap:6px"><a class="tag" href="#/guide" style="min-height:40px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--soft)">' + icon('info', 14) + 'Aide</a><button type="button" class="tag" style="min-height:40px;background:none;cursor:pointer" data-act="adultLogout">' + icon('logout', 14) + ' Sortir</button></span></div>' +
+        '<div class="between" style="align-items:center"><span class="kicker">Espace parent · ' + esc(fam.famille.nom) + '</span><span class="row" style="gap:6px"><a class="tag" href="#/parent/classement" style="min-height:40px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--soft)">' + icon('podium', 14) + 'Classement</a><a class="tag" href="#/guide" style="min-height:40px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--soft)">' + icon('info', 14) + 'Aide</a><button type="button" class="tag" style="min-height:40px;background:none;cursor:pointer" data-act="adultLogout">' + icon('logout', 14) + ' Sortir</button></span></div>' +
         '<div class="row" style="gap:14px">' + ui.avatar(k.prenom, k.couleur, 64) + '<div class="head"><h1 class="big sm">Suivi de ' + esc(k.prenom) + '</h1></div></div>' + sel +
         S.pending + S.tiles +
         '<div class="cols2"><div class="sec" style="gap:20px"><section class="sec"><div class="between"><h2 class="h2">Cette semaine</h2><span class="hud" style="color:var(--gold)">' + S.st.week.stars + ' / 6</span></div>' + S.week + '</section>' +
@@ -280,6 +280,7 @@
       '<section class="sec"><div class="between"><h2 class="h2">Résultats à valider</h2><span class="hud" style="color:var(--pink)">' + pending.length + '</span></div>' +
       (pending.length ? '<p class="small" style="margin:0">Choisissez Confirmer ou Refuser (vous pouvez changer d\'avis), puis <b>Valider mes choix</b> juste en dessous.</p><ul class="list">' + pend + '</ul>' + (pending.length > 1 ? '<button type="button" class="btn2 pink" data-act="decAll" data-ids="' + esc(pending.map(function (x) { return x.r.id; }).join(',')) + '">' + icon('check', 16) + ' Tout confirmer (' + pending.length + ')</button>' : '') + decBar() : '<div class="empty">Tout est validé. Bravo !</div>') + '</section>' +
       '<section class="sec"><h2 class="h2">Outils</h2>' +
+      '<a class="switch" href="#/educ/classement" style="text-decoration:none"><span class="row">' + icon('podium', 20, 'style="color:var(--cyan)"') + '<span class="t1">Le classement (l\'arène)</span></span>' + icon('right', 16) + '</a>' +
       '<a class="switch" href="#/educ/progres" style="text-decoration:none"><span class="row">' + icon('up', 20, 'style="color:var(--cyan)"') + '<span class="t1">Progrès du groupe aux bilans</span></span>' + icon('right', 16) + '</a>' +
       '<a class="switch" href="#/educ/ajouter" style="text-decoration:none">' + '<span class="row">' + icon('plus', 20, 'style="color:var(--cyan)"') + '<span class="t1">Ajouter un joueur</span></span>' + icon('right', 16) + '</a>' +
       '<a class="switch" href="#/educ/familles" style="text-decoration:none"><span class="row">' + icon('key', 20, 'style="color:var(--cyan)"') + '<span class="t1">Familles et codes parents</span></span>' + icon('right', 16) + '</a>' +
@@ -314,6 +315,85 @@
       }).catch(function (e) { ui.toast(e.message, true); });
     });
   };
+
+  // ---------- CLASSEMENT (parents et éducs) ----------
+  // Parents : la ligue de leur enfant, comme il la voit. Éducs : tout le groupe, filtrable par niveau.
+  var arene = { test: 'planche', mode: 'best', lv: 0 };
+  // gardé 2 min : changer d'épreuve ou de ligue ne refait pas d'appel au serveur
+  function loadLeague() {
+    var c = app.S.cache;
+    if (c.league && Date.now() - c.leagueAt < 120000) return Promise.resolve(c.league);
+    return app.adultCall('league').then(function (r) { c.league = r; c.leagueAt = Date.now(); return r; });
+  }
+  function areneHead(back, backTxt) {
+    return '<main class="screen nonav"><a class="back" href="' + back + '">' + icon('left', 18) + esc(backTxt) + '</a>' +
+      '<div class="head"><span class="kicker" style="color:var(--pink)">Classement · M12</span><h1 class="big">L\'arène</h1></div>';
+  }
+  function areneChips() {
+    return '<div class="sec" style="gap:8px"><span class="lab">Épreuve</span><div class="row" style="overflow-x:auto;gap:8px;padding-bottom:4px;-webkit-overflow-scrolling:touch">' + C.TESTS.map(function (tt) {
+      var on = tt.id === arene.test;
+      return '<button type="button" class="opt' + (on ? ' on' : '') + '" style="--oc:var(--pink);flex:none;min-height:44px;padding:0 12px" aria-pressed="' + on + '" data-act="arTest" data-v="' + tt.id + '">' + esc(tt.court) + '</button>';
+    }).join('') + '</div></div>' +
+      '<div class="grid2"><button type="button" class="opt' + (arene.mode === 'best' ? ' on' : '') + '" aria-pressed="' + (arene.mode === 'best') + '" data-act="arMode" data-v="best">Meilleur score</button>' +
+      '<button type="button" class="opt' + (arene.mode === 'prog' ? ' on' : '') + '" style="--oc:var(--green)" aria-pressed="' + (arene.mode === 'prog') + '" data-act="arMode" data-v="prog">Plus gros progrès</button></div>';
+  }
+  function areneRows(rows, t, mineIds, showLv) {
+    var medal = ['#FFC23D', '#C7CEDF', '#E39A5B'];
+    if (!rows.length) return '<div class="empty">' + (arene.mode === 'prog' ? 'Pas encore de progrès à comparer : il faut au moins 2 résultats confirmés.' : 'Personne n\'a encore de résultat confirmé sur cette épreuve ici.') + '</div>';
+    return '<ol class="list">' + rows.map(function (r) {
+      var mine = mineIds.indexOf(r.p.id) >= 0;
+      var v = arene.mode === 'prog' ? (r.prog > 0 ? '+' : '') + ui.fmtVal(r.prog, t.unite, t.decimales) : ui.fmtVal(r.best, t.unite, t.decimales);
+      return '<li class="li' + (mine ? ' me' : '') + '"><span class="rank" style="--rc:' + (r.rank <= 3 ? medal[r.rank - 1] : 'var(--dim)') + '">' + r.rank + '</span>' + ui.hexa(r.p.prenom, r.p.couleur) +
+        '<span class="grow"><span class="t1">' + esc(r.p.prenom.toUpperCase()) + '</span>' + (showLv ? '<span class="t2">N' + r.lv + '</span>' : '') + '</span>' +
+        '<span style="font:700 18px/1 var(--f-hud);color:' + (arene.mode === 'prog' ? 'var(--green)' : mine ? 'var(--cyan)' : 'var(--ink)') + '">' + v + '</span></li>';
+    }).join('') + '</ol>';
+  }
+  app.route('/parent/classement', function () {
+    var famP = app.S.cache.family ? Promise.resolve(app.S.cache.family) : app.swr('mc-fam', 'family', {}, function () { }).then(function (r) { app.S.cache.family = r; return r; });
+    return Promise.all([famP, loadLeague()]).then(function (res) {
+      var fam = res[0], Lg = res[1], kids = fam.enfants;
+      if (!kids.length) return areneHead('#/parent', 'Espace parent') + '<div class="empty">Aucun enfant rattaché.</div></main>';
+      if (!parentSel || !kids.some(function (k) { return k.joueur.id === parentSel; })) parentSel = kids[0].joueur.id;
+      var k = kids.filter(function (x) { return x.joueur.id === parentSel; })[0].joueur;
+      var lg = L.league(Lg, k.id, arene.test, arene.mode), t = lg.test;
+      var lname = lg.lo === lg.hi ? 'Ligue N' + lg.lo : 'Ligue N' + lg.lo + '-N' + lg.hi, lc = C.NIVEAUX[lg.myLv].color;
+      var sel = kids.length > 1 ? '<div class="row" style="gap:8px;flex-wrap:wrap">' + kids.map(function (x) {
+        var on = x.joueur.id === parentSel;
+        return '<button type="button" class="opt' + (on ? ' on' : '') + '" aria-pressed="' + on + '" data-act="arKid" data-id="' + esc(x.joueur.id) + '" style="min-height:48px;padding:0 14px">' + ui.avatar(x.joueur.prenom, x.joueur.couleur, 28) + esc(x.joueur.prenom) + '</button>';
+      }).join('') + '</div>' : '';
+      var inIt = lg.rows.some(function (r) { return r.p.id === k.id; });
+      return areneHead('#/parent', 'Espace parent') + sel +
+        '<section class="row" style="padding:12px 14px;background:' + ui.rgba(lc, 0.1) + ';border:1.5px solid ' + lc + ';align-items:center">' + ui.lvl(lg.myLv, lname.toUpperCase()) +
+        '<span style="font-size:13px;line-height:1.35;color:var(--soft)">' + esc(k.prenom) + ' se mesure aux joueurs de son niveau sur cette épreuve' + (lg.sm ? ' (version mini matériel)' : '') + '.' + (k.visible ? '' : ' Il est masqué : les autres ne le voient pas.') + '</span></section>' +
+        areneChips() + '<div class="between"><h2 class="h2">' + esc(t.nom) + '</h2><span class="small">' + lg.rows.length + ' joueur' + (lg.rows.length > 1 ? 's' : '') + '</span></div>' +
+        (!inIt && lg.rows.length ? '<div class="note">' + icon('info', 20) + '<span>' + esc(k.prenom) + ' n\'apparaît pas encore : il faut un résultat de bilan ou de défi confirmé.</span></div>' : '') +
+        areneRows(lg.rows, t, [k.id], lg.lo !== lg.hi) + '</main>';
+    });
+  }, { adult: 'f', bg: '#2A1640' });
+  app.route('/educ/classement', function () {
+    return Promise.all([loadGroup(), loadLeague()]).then(function (res) {
+      var g = res[0], Lg = res[1];
+      var rk = L.ranking(Lg, arene.test, arene.mode, arene.lv, false), t = rk.test;
+      var lvChips = '<div class="row" style="gap:6px;flex-wrap:wrap">' + [0, 1, 2, 3, 4].map(function (n) {
+        var on = arene.lv === n, col = n ? C.NIVEAUX[n].color : 'var(--cyan)';
+        return '<button type="button" class="opt' + (on ? ' on' : '') + '" style="--oc:' + col + ';min-height:40px;padding:0 12px" aria-pressed="' + on + '" data-act="arLv" data-v="' + n + '">' + (n ? 'Ligue N' + n : 'Tout le groupe') + '</button>';
+      }).join('') + '</div>';
+      var hidden = g.joueurs.filter(function (p) { return p.joueur.actif && !p.joueur.visible; }).length;
+      return areneHead('#/educ', 'Le vestiaire') +
+        '<p class="small" style="margin:0">Les enfants voient la ligue de leur niveau. Ici, tout le groupe, ou une ligue à la fois.' + (hidden ? ' ' + hidden + ' joueur' + (hidden > 1 ? 's' : '') + ' masqué' + (hidden > 1 ? 's' : '') + ' (choix des parents ou compte de test) n\'apparai' + (hidden > 1 ? 'ssent' : 't') + ' pas.' : '') + '</p>' +
+        lvChips + areneChips() + '<div class="between"><h2 class="h2">' + esc(t.nom) + '</h2><span class="small">' + rk.rows.length + ' joueur' + (rk.rows.length > 1 ? 's' : '') + '</span></div>' +
+        areneRows(rk.rows, t, (g.moi.enfants || []), true) + (function () {
+          var inRk = {}; rk.rows.forEach(function (r) { inRk[r.p.id] = 1; });
+          var cle = t.cle, rest = Lg.joueurs.filter(function (p) { return !inRk[p.id] && (!arene.lv || ((p.niveaux && p.niveaux[cle]) || 1) === arene.lv); });
+          return rest.length ? '<p class="small" style="margin:0"><b>Pas encore classés</b> (pas de résultat confirmé' + (arene.mode === 'prog' ? ', ou un seul' : '') + ') : ' + esc(rest.map(function (p) { return p.prenom; }).sort(function (a, b) { return a.localeCompare(b, 'fr'); }).join(', ')) + '.</p>' : '';
+        })() +
+        (t.sm ? '<p class="small" style="margin:0">Les résultats « mini matériel » (SM) ont leur propre classement chez les enfants concernés.</p>' : '') + '</main>';
+    });
+  }, { adult: 'e', bg: '#2A1640' });
+  MC.act.arTest = function (b) { arene.test = b.getAttribute('data-v'); app.rerender(); };
+  MC.act.arMode = function (b) { arene.mode = b.getAttribute('data-v'); app.rerender(); };
+  MC.act.arLv = function (b) { arene.lv = Number(b.getAttribute('data-v')); app.rerender(); };
+  MC.act.arKid = function (b) { parentSel = b.getAttribute('data-id'); app.rerender(); };
 
   // ---------- ÉDUC : progrès du groupe aux bilans ----------
   var progTest = 'pompes';

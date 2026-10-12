@@ -35,9 +35,9 @@ window.MC = window.MC || {};
     },
     pompes: {
       but: 'Pectoraux, épaules, bras et gainage : pour repousser un adversaire et te relever vite.',
-      etapes: ['Mains au sol sous les épaules, doigts vers l\'avant.', 'Jambes tendues, sur la pointe des pieds : les genoux ne touchent pas le sol. Ton corps fait une planche de la tête aux talons.', 'Serre le ventre et les fesses.', 'Descends la poitrine jusqu\'à 5 cm du sol, coudes vers l\'arrière (pas écartés sur les côtés).', 'Pousse fort pour remonter, bras tendus. Souffle en remontant.', 'Trop dur ? Mains sur un appui solide (canapé, marche d\'escalier) : plus l\'appui est haut, plus c\'est facile. Le corps reste droit.'],
+      etapes: ['Mains au sol sous les épaules, doigts vers l\'avant.', 'N1-N2 : sur les genoux. Ton corps fait une ligne droite des genoux à la tête (les fesses ne restent pas en l\'air).', 'N3-N4 : jambes tendues, sur la pointe des pieds, les genoux ne touchent pas le sol. Une planche de la tête aux talons.', 'Serre le ventre et les fesses.', 'Descends la poitrine jusqu\'à 5 cm du sol, coudes vers l\'arrière (pas écartés sur les côtés).', 'Pousse fort pour remonter, bras tendus. Souffle en remontant.'],
       erreurs: ['Fesses en l\'air, ou ventre qui touche le sol en premier.', 'Coudes ouverts sur les côtés.', 'Descendre seulement à moitié.'],
-      securite: ['Appui stable qui ne glisse pas : canapé, marche, chaise calée contre le mur.', 'Si le dos se creuse : mets les mains plus haut.', 'Mal au poignet : pose les mains sur les poings fermés ou sur un livre.']
+      securite: ['Sur les genoux : un tapis ou un coussin sous les genoux.', 'Si le dos se creuse : reviens sur les genoux.', 'Mal au poignet : pose les mains sur les poings fermés ou sur un livre.']
     },
     rowing: {
       but: 'Muscler le haut du dos : de bonnes épaules et une belle posture.',

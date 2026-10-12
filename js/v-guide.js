@@ -164,7 +164,8 @@
       card('p-classement', 'podium', '#B48CFF', 'Classement et données', 'Prénoms seulement',
         ul([
           'Le classement compare les enfants <b>de même niveau</b> sur chaque test, en meilleur score ou en progrès.',
-          'Vous pouvez <b>masquer votre enfant</b> du classement depuis votre espace : il continue de voir sa propre place.',
+          'Bouton <b>Classement</b> en haut de votre espace : la ligue de votre enfant, comme il la voit.',
+          'Tous les enfants y apparaissent par défaut. Vous pouvez <b>masquer votre enfant</b> depuis votre espace : il continue de voir sa propre place.',
           'Le site ne garde que des prénoms et des résultats sportifs, dans un fichier du club. Pas d\'adresse e-mail, pas de nom de famille. Les codes sont enregistrés chiffrés.'
         ])) +
       card('p-rythme', 'heart', '#FF4F6D', 'Rythme et sécurité', 'Court, régulier, sans forcer',
@@ -189,6 +190,7 @@
           'Les étoiles de la semaine de chaque joueur et sa dernière séance.',
           'Le filtre <b>À relancer</b> montre ceux qui n\'ont noté aucune séance depuis 7 jours.',
           '<b>Mon enfant</b> : vous êtes aussi parent d\'un joueur ? Choisissez-le une fois, il apparaît en haut du vestiaire avec tout le suivi parent, sans changer de code.',
+          'Outils › <b>Le classement</b> : tout le groupe ou une ligue à la fois, avec la liste des joueurs pas encore classés.',
           'Outils › <b>Progrès du groupe aux bilans</b> : test par test, les joueurs classés selon leur progrès depuis le bilan d\'avant.',
           '<b>Résultats à valider</b> : les bilans et défis en attente. Confirmer / Refuser (ou Tout confirmer) s\'allument, puis <b>Valider mes choix</b> envoie le tout. Un résultat refusé par erreur se rétablit depuis la fiche du joueur.'
         ])) +

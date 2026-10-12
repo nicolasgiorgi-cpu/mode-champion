@@ -228,9 +228,10 @@
       var info = ui.doseInfo(doses[i]);
       if (i === 4 && !info) info = 'S\'ouvre quand le N3 est « facile » 2 fois de suite';
       else if (i === 4 && lock) info += ' · s\'ouvre quand le N3 est facile 2 fois';
+      var lvAnim = !mini && ex.animNiveau ? '<span class="lvanim" data-anim="' + esc(ex.animNiveau[i]) + '" data-color="' + Lv.color + '" data-label="' + esc(ex.nom + ' niveau ' + i) + '"></span>' : '';
       return '<div class="lvcard' + (me2 ? ' me' : '') + '" style="--lc:' + Lv.color + '"><div class="between" style="align-items:center">' + ui.lvl(i, i === 4 ? 'N4 · CHAMPION' : Lv.code) +
         (me2 ? '<span class="hud" style="font-size:9px;color:' + Lv.color + '">TON NIVEAU</span>' : (lock ? '<span style="color:var(--pink)" aria-label="Verrouillé">' + icon('lock', 16) + '</span>' : '')) +
-        '</div><span class="d">' + esc(ui.doseLabel(doses[i])) + '</span><span class="i">' + esc(info) + '</span></div>';
+        '</div>' + lvAnim + '<span class="d">' + esc(ui.doseLabel(doses[i])) + '</span><span class="i">' + esc(info) + '</span></div>';
     }).join('');
     var t = null;
     C.TESTS.forEach(function (tt) { if (tt.cle === ex.cle && tt.seuils) t = tt; });

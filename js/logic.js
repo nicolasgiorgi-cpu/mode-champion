@@ -400,7 +400,31 @@ MC.logic = (function () {
     return { lo: lo, hi: hi, myLv: myLv, rows: list, sm: mySm, test: t };
   }
 
+  // Classement de tout le groupe sur une épreuve (vue des éducs), filtré sur un niveau (0 = tous)
+  function ranking(L, testId, mode, lvFilter, sm) {
+    var t = testDef(testId), cle = t.cle, vals = {}, rows = [];
+    L.records.forEach(function (r) {
+      if (r.test !== testId || r.statut !== 'ok') return;
+      if (t.sm && isSm(r) !== !!sm) return;
+      (vals[r.joueurId] = vals[r.joueurId] || []).push(r);
+    });
+    L.joueurs.forEach(function (p) {
+      var rs = vals[p.id], lv = (p.niveaux && p.niveaux[cle]) || 1;
+      if (!rs || !rs.length || (lvFilter && lv !== lvFilter)) return;
+      rs.sort(function (a, b) { return (a.date + a.cree) < (b.date + b.cree) ? -1 : 1; });
+      var first = rs[0].valeur, b = null;
+      rs.forEach(function (r) { if (b === null || better(t, r.valeur, b)) b = r.valeur; });
+      rows.push({ p: p, lv: lv, best: b, prog: rs.length >= 2 ? (t.moinsMieux ? first - b : b - first) : null, n: rs.length });
+    });
+    if (mode === 'prog') { rows = rows.filter(function (r) { return r.prog !== null; }); rows.sort(function (a, b) { return b.prog - a.prog; }); }
+    else rows.sort(function (a, b) { return t.moinsMieux ? a.best - b.best : b.best - a.best; });
+    var rank = 0, prev = null;
+    rows.forEach(function (r, i) { var v = mode === 'prog' ? r.prog : r.best; if (v !== prev) rank = i + 1; prev = v; r.rank = rank; });
+    return { rows: rows, test: t };
+  }
+
   return {
+    ranking: ranking,
     today: today, addDays: addDays, dow: dow, monday: monday, daysBetween: daysBetween, dayType: dayType, iso: iso,
     slotOf: slotOf, weeks: weeks, weekInfo: weekInfo, cycleAt: cycleAt, board: board,
     testDef: testDef, isSm: isSm, better: better, bests: bests, bilanRecords: bilanRecords, currentBilan: currentBilan, nextBilan: nextBilan,
