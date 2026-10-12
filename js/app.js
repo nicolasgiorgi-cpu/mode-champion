@@ -14,14 +14,19 @@ MC.app = (function () {
   // ---------- Sessions mémorisées sur l'appareil ----------
   function lsGet(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
   function lsSet(k, v) { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } }
+  // Une session mal formée (appli coupée au mauvais moment, ancienne version…) ne doit jamais bloquer
+  // le démarrage : on la jette, l'enfant ou l'adulte retape simplement son code.
+  function validKid(k) { return !!(k && typeof k === 'object' && typeof k.token === 'string' && k.token && k.joueur && typeof k.joueur === 'object' && k.joueur.id); }
+  function validAdult(a) { return !!(a && typeof a === 'object' && typeof a.token === 'string' && a.token && (a.role === 'e' || a.role === 'f')); }
   function setKid(k) {
+    if (k && !validKid(k)) k = null;
     S.kid = k; S.me = null; S.stats = null; S.league = null; lsSet('mc-kid', k);
     if (k) lsSet('mc-kid-seen', Date.now());
     if (k) rememberKid(k.joueur.id); else lsSet(ME_KEY, null);
   }
   function setAdult(a) { S.adult = a; S.cache = {}; lsSet('mc-adult', a); if (!a) { lsSet('mc-fam', null); lsSet('mc-group', null); } }
   function rememberKid(id) {
-    var r = lsGet('mc-recents') || [];
+    var r = recents();
     r = [id].concat(r.filter(function (x) { return x !== id; })).slice(0, 6);
     lsSet('mc-recents', r);
   }
@@ -33,7 +38,7 @@ MC.app = (function () {
   var OPEN_KEY = 'mc-adult-open', SHARED_KEY = 'mc-shared', SEEN_KEY = 'mc-kid-seen';
   var ADULT_IDLE = 10 * 60000, KID_IDLE = 30 * 60000;
   var adultTarget = null, kidTarget = null, lastAdult = false;
-  function recents() { return lsGet('mc-recents') || []; }
+  function recents() { var r = lsGet('mc-recents'); return Array.isArray(r) ? r.filter(function (x) { return typeof x === 'string'; }) : []; }
   function sharedDevice() { var p = lsGet(SHARED_KEY); if (p === 'off') return false; if (p === 'on') return true; return recents().length > 0; }
   function setShared(on) { lsSet(SHARED_KEY, on ? 'on' : 'off'); if (on) touchAdult(); }
   function adultUnlocked() { if (!S.adult) return false; if (!sharedDevice()) return true; return Number(lsGet(OPEN_KEY) || 0) > Date.now(); }
@@ -66,6 +71,14 @@ MC.app = (function () {
 
   var renderSeq = 0, lastPath = null;
   function render() {
+    try { renderNow(); }
+    catch (e) {
+      try { console.error(e); } catch (x) { }
+      try { if (S.kid && !validKid(S.kid)) setKid(null); if (S.adult && !validAdult(S.adult)) setAdult(null); } catch (x) { }
+      root.innerHTML = errorView(e);
+    }
+  }
+  function renderNow() {
     var ph = parseHash(), r = null, params = {};
     for (var i = 0; i < routes.length; i++) {
       var m = ph.path.match(routes[i].re);
@@ -122,7 +135,8 @@ MC.app = (function () {
     return '<main class="screen nonav"><div class="head"><span class="kicker">Oups</span><h1 class="big sm">Un souci</h1>' +
       '<p class="lead">' + ui.esc(e && e.message ? e.message : 'Erreur inconnue.') + '</p></div>' +
       '<button type="button" class="btn" data-act="reload">' + ui.icon('refresh') + ' Réessayer</button>' +
-      '<a class="btn2 grey" href="#/">Accueil</a></main>';
+      '<a class="btn2 grey" href="#/">Accueil</a>' +
+      '<a class="btn2 grey" href="?reset=1">Réparer l\'appli</a></main>';
   }
 
   function paintNav(active) {
@@ -137,6 +151,8 @@ MC.app = (function () {
   // version connue, puis se met à jour en arrière-plan (le serveur Google répond en 1 à 3 s).
   var ME_KEY = 'mc-me';
   function setMe(res) {
+    if (!res || !res.joueur || !res.joueur.id) return;                       // réponse inattendue : on garde ce qu'on a
+    if (S.kid && S.kid.joueur.id !== res.joueur.id) return;                  // la réponse d'un joueur d'avant (changement de joueur entre-temps)
     S.me = res;
     S.stats = L.compute(res);
     if (S.kid) { S.kid.joueur = res.joueur; lsSet('mc-kid', S.kid); }
@@ -152,7 +168,8 @@ MC.app = (function () {
         return Promise.resolve(S.me);
       }
     }
-    return api.call('me', { token: S.kid.token }).then(function (res) { setMe(res); return res; });
+    var who = S.kid.joueur.id;
+    return api.call('me', { token: S.kid.token }).then(function (res) { if (S.kid && S.kid.joueur.id === who) setMe(res); return res; });
   }
   function refreshMe() {
     var id = S.kid.joueur.id, before = JSON.stringify(S.me);
@@ -232,7 +249,9 @@ MC.app = (function () {
     navEl = document.getElementById('nav');
     bgEl = document.querySelector('.bgfx');
     S.kid = lsGet('mc-kid');
+    if (S.kid && !validKid(S.kid)) { S.kid = null; lsSet('mc-kid', null); lsSet(ME_KEY, null); }
     S.adult = lsGet('mc-adult');
+    if (S.adult && !validAdult(S.adult)) { S.adult = null; lsSet('mc-adult', null); }
     document.addEventListener('click', onClick);
     document.addEventListener('click', function () { if (S.kid && current && current.route.opts.kid) touchKid(); if (current && current.route.opts.adult) touchAdult(); }, true);
     window.addEventListener('unhandledrejection', function (e) {

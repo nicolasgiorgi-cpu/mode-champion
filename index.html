@@ -20,17 +20,25 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Barlow+Condensed:ital,wght@0,600;0,800;1,800;1,900&family=Barlow:wght@400;500;600&display=swap" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Barlow+Condensed:ital,wght@0,600;0,800;1,800;1,900&family=Barlow:wght@400;500;600&display=swap"></noscript>
 <script>
-/* « Réparer l'appli » : ?reset=1 vide le cache de l'appli (on reste connecté), ?reset=2 repart de zéro sur cet appareil */
+/* « Réparer l'appli » : ?reset=1 vide la copie de l'appli et les données gardées (on reste connecté si la session est saine),
+   ?reset=2 repart de zéro sur cet appareil (il faudra retaper les codes) */
 (function () {
   var m = /[?&]reset=(\d)/.exec(location.search);
   if (!m) return;
+  window.__mcResetting = true;
   var tasks = [];
   try { if (navigator.serviceWorker) tasks.push(navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister(); })); })); } catch (e) { }
   try { if (window.caches) tasks.push(caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); })); } catch (e) { }
-  if (m[1] === '2') try { Object.keys(localStorage).forEach(function (k) { if (k.indexOf('mc-') === 0) localStorage.removeItem(k); }); } catch (e) { }
-  window.__mcResetting = true;
-  Promise.all(tasks).catch(function () { }).then(function () { location.replace(location.pathname); });
-  setTimeout(function () { location.replace(location.pathname); }, 3000);
+  function get(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
+  var kid = get('mc-kid'), adult = get('mc-adult');
+  var kidOk = !!(kid && typeof kid.token === 'string' && kid.joueur && kid.joueur.id);
+  var adultOk = !!(adult && typeof adult.token === 'string' && (adult.role === 'e' || adult.role === 'f'));
+  var keep = m[1] === '2' ? [] : ['mc-recents', 'mc-prefs', 'mc-mute', 'mc-shared', 'mc-guide-vu'].concat(kidOk ? ['mc-kid', 'mc-kid-seen'] : []).concat(adultOk ? ['mc-adult', 'mc-adult-open'] : []);
+  try { Object.keys(localStorage).forEach(function (k) { if (k.indexOf('mc-') === 0 && keep.indexOf(k) < 0) localStorage.removeItem(k); }); } catch (e) { }
+  // adresse neuve : on est sûr de recevoir la dernière version du site, pas une copie
+  function again() { location.replace(location.pathname + '?r=' + Date.now()); }
+  Promise.all(tasks).catch(function () { }).then(again);
+  setTimeout(again, 3000);
 })();
 </script>
 <style>
@@ -47,14 +55,15 @@ html,body{background:#070A12;color:#EAF0FF;margin:0}
 .boot .bb{display:flex;flex-direction:column;gap:10px;width:100%;max-width:320px}
 .boot button{min-height:52px;border:0;border-radius:0;font:700 16px/1 system-ui,-apple-system,sans-serif;letter-spacing:.04em;text-transform:uppercase;background:#38E8FF;color:#070A12;cursor:pointer}
 .boot button.g{background:transparent;color:#EAF0FF;border:1px solid #34405F}
+.boot button small{display:block;margin-top:5px;font:500 12px/1.2 system-ui,-apple-system,sans-serif;letter-spacing:0;text-transform:none;color:#AEB9D6}
 .boot code{font-size:12px;color:#7D89A8;word-break:break-all}
 </style>
-<link rel="stylesheet" href="css/style.css?v=12">
+<link rel="stylesheet" href="css/style.css?v=13">
 </head>
 <body>
 <div class="bgfx" aria-hidden="true"></div>
 <div class="offline" id="offline" hidden>Pas de connexion internet</div>
-<div id="app" aria-live="polite"><div class="boot" id="boot" role="status"><b>Mode<br><span>champion</span></b><div class="dots" aria-hidden="true"><i></i><i></i><i></i></div><p id="bootmsg">Chargement…</p><div class="bb" id="bootbtns" hidden><button type="button" onclick="location.reload()">Réessayer</button><button type="button" class="g" onclick="location.replace(location.pathname+'?reset=1')">Réparer l'appli</button></div></div></div>
+<div id="app" aria-live="polite"><div class="boot" id="boot" role="status"><b>Mode<br><span>champion</span></b><div class="dots" aria-hidden="true"><i></i><i></i><i></i></div><p id="bootmsg">Chargement…</p><div class="bb" id="bootbtns" hidden><button type="button" onclick="location.reload()">Réessayer</button><button type="button" class="g" onclick="location.replace(location.pathname+'?reset=1')">Réparer l'appli</button><button type="button" class="g" onclick="location.replace(location.pathname+'?reset=2')">Repartir de zéro<small>il faudra retaper les codes</small></button></div></div></div>
 <script>
 /* si l'appli ne démarre pas (réseau qui bloque, fichier qui manque, erreur), on le dit au lieu d'un écran vide */
 (function () {
@@ -84,25 +93,25 @@ html,body{background:#070A12;color:#EAF0FF;margin:0}
 <nav class="nav" id="nav" aria-label="Navigation principale" hidden></nav>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <noscript><p style="padding:20px;color:#fff">Ce site a besoin de JavaScript.</p></noscript>
-<script src="js/config.js?v=12"></script>
-<script src="js/content.js?v=12"></script>
-<script src="js/fiches.js?v=12"></script>
-<script src="js/core.js?v=12"></script>
-<script src="js/logic.js?v=12"></script>
-<script src="js/demo.js?v=12"></script>
-<script src="js/api.js?v=12"></script>
-<script src="js/ui.js?v=12"></script>
-<script src="js/anims.js?v=12"></script>
-<script src="js/app.js?v=12"></script>
-<script src="js/routine.js?v=12"></script>
-<script src="js/suivi.js?v=12"></script>
-<script src="js/v-login.js?v=12"></script>
-<script src="js/v-kid.js?v=12"></script>
-<script src="js/v-seance.js?v=12"></script>
-<script src="js/v-profil.js?v=12"></script>
-<script src="js/v-bilan.js?v=12"></script>
-<script src="js/v-guide.js?v=12"></script>
-<script src="js/v-adult.js?v=12"></script>
+<script src="js/config.js?v=13"></script>
+<script src="js/content.js?v=13"></script>
+<script src="js/fiches.js?v=13"></script>
+<script src="js/core.js?v=13"></script>
+<script src="js/logic.js?v=13"></script>
+<script src="js/demo.js?v=13"></script>
+<script src="js/api.js?v=13"></script>
+<script src="js/ui.js?v=13"></script>
+<script src="js/anims.js?v=13"></script>
+<script src="js/app.js?v=13"></script>
+<script src="js/routine.js?v=13"></script>
+<script src="js/suivi.js?v=13"></script>
+<script src="js/v-login.js?v=13"></script>
+<script src="js/v-kid.js?v=13"></script>
+<script src="js/v-seance.js?v=13"></script>
+<script src="js/v-profil.js?v=13"></script>
+<script src="js/v-bilan.js?v=13"></script>
+<script src="js/v-guide.js?v=13"></script>
+<script src="js/v-adult.js?v=13"></script>
 <script>if (!window.__mcResetting) MC.app.start();</script>
 </body>
 </html>

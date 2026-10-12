@@ -54,7 +54,7 @@
   var rosterQuery = '';
   app.route('/connexion', function () {
     // la liste gardée sur l'appareil s'affiche tout de suite, puis se met à jour
-    if (!app.S.roster) app.S.roster = app.lsGet('mc-roster');
+    if (!app.S.roster) { var cr = app.lsGet('mc-roster'); app.S.roster = Array.isArray(cr) ? cr : null; }
     var had = !!app.S.roster, before = JSON.stringify(app.S.roster);
     var fresh = api.call('roster', {}, { silent: had }).then(function (res) {
       app.S.roster = res.joueurs;
@@ -75,7 +75,7 @@
   }
   function paintConnexion() {
     var list = app.S.roster || [];
-    var recents = (app.lsGet('mc-recents') || []).map(function (id) { return list.filter(function (k) { return k.id === id; })[0]; }).filter(Boolean);
+    var recents = app.recents().map(function (id) { return list.filter(function (k) { return k.id === id; })[0]; }).filter(Boolean);
     var q = rosterQuery.toLowerCase();
     var shown = list.filter(function (k) { return !q || k.prenom.toLowerCase().indexOf(q) >= 0; });
     var demo = api.DEMO ? '<div class="demo-banner"><b>MODE DÉMO</b> · joueurs fictifs, rien n\'est envoyé. Code des enfants : <b>' + MC.demo.CODES.enfant + '</b> · Rose (1re connexion) : <b>' + MC.demo.CODES.nouveau + '</b> · Parent de Tom : <b>' + MC.demo.CODES.parent + '</b> · Éduc : <b>' + MC.demo.CODES.educ + '</b> <button type="button" class="btn2 sm grey" style="margin-top:8px" data-act="resetDemo">Remettre la démo à zéro</button></div>' : '';
@@ -269,10 +269,12 @@
   MC.act.adultWho = function (b) { adultWho = b.getAttribute('data-w'); app.render(); };
   MC.act.adultForget = function () { app.setAdult(null); app.lockAdult(); app.render(); };
 
+  function rosterList() { var r = app.S.roster || app.lsGet('mc-roster'); return Array.isArray(r) ? r : []; }
+
   // ---------- « C'est bien toi ? » (plusieurs enfants sur le même appareil) ----------
   app.route('/qui', function () {
     return app.loadMe().then(function (me) {
-      var k = me.joueur, list = app.S.roster || app.lsGet('mc-roster') || [];
+      var k = me.joueur, list = rosterList();
       var others = app.recents().filter(function (id) { return id !== k.id; }).map(function (id) { return list.filter(function (x) { return x.id === id; })[0]; }).filter(Boolean);
       return '<main class="screen nonav"><div class="head" style="text-align:center;align-items:center"><span class="kicker">Appareil partagé</span><h1 class="big md">C\'est bien toi ?</h1></div>' +
         '<div style="align-self:center">' + ui.avatar(k.prenom, k.couleur, 120) + '</div>' +
@@ -287,7 +289,7 @@
   MC.act.quiOui = function () { app.touchKid(); app.go(app.takeTarget('kid') || '#/semaine', true); };
   MC.act.quiNon = function () { app.takeTarget('kid'); app.setKid(null); app.go('#/connexion', true); };
   MC.act.quiAutre = function (b) {
-    var id = b.getAttribute('data-id'), list = app.S.roster || app.lsGet('mc-roster') || [];
+    var id = b.getAttribute('data-id'), list = rosterList();
     var k = list.filter(function (x) { return x.id === id; })[0];
     app.takeTarget('kid'); app.setKid(null); app.go('#/connexion', true);
     if (k) setTimeout(function () { pinSheet(k); }, 60);

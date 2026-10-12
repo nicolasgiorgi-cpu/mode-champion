@@ -73,7 +73,10 @@ function staleWhileRevalidate(e, name) {
 }
 
 function page(e) {
-  var net = fetch(e.request);
+  // toujours demander au serveur s'il y a une nouvelle page (réponse « pas changé » très légère sinon),
+  // pour qu'une correction arrive dès la prochaine ouverture
+  var net = fetch(e.request.url, { cache: 'no-cache', credentials: 'same-origin' })
+    .then(function (r) { return r.redirected ? fetch(e.request) : r; }, function () { return fetch(e.request); });
   e.waitUntil(net.then(function (r) {
     if (r && r.ok && !r.redirected && r.type === 'basic') return storeShell(r.clone());
   }).catch(function () { }));
