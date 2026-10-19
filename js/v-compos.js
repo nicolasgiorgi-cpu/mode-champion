@@ -792,7 +792,7 @@ window.MC = window.MC || {};
       var info = '<div class="row" style="gap:10px;align-items:flex-start">' + niveauTag(sel.niveau) + '<span class="grow"><b class="t1" style="display:block;font:700 15px/1.2 var(--f-hud)">' + esc(sel.prenom) + (nv > 1 ? ' <small style="color:var(--dim)">· ' + vName(v) + '</small>' : '') +
         (sel.passerelle ? ' <small style="color:var(--violet)">passerelle ' + sel.niveau + '↔' + sel.passerelle + '</small>' : '') + '</b>' +
         '<span class="small" style="display:block;margin-top:3px">' + starsMini(sel.plaquage) + ' · ' + (ps.length ? ps.map(function (p) { return COURT[p]; }).join(', ') + (sel.postesOk.length ? '' : ' (vœux)') : 'pas encore de poste') +
-        (B.partie ? '' : ' · ' + h.plateaux + ' plateau' + (h.plateaux > 1 ? 'x' : '') + (h.autre ? ', ' + h.autre + ' hors niveau' : '')) + '</span>' +
+        ' · ' + h.plateaux + ' plateau' + (h.plateaux > 1 ? 'x' : '') + (h.entrainements ? ', ' + h.entrainements + ' groupe' + (h.entrainements > 1 ? 's' : '') + ' d\'entraînement' : '') + (h.autre ? ', ' + h.autre + ' hors niveau' : '') + '</span>' +
         (cpsWhere.length ? '<span class="small" style="display:block;margin-top:3px;color:var(--soft)">' + icon('heart', 11) + ' ' + cpsWhere.join(', ') + '</span>' : '') +
         (d.raisons && d.raisons[sel.id] ? '<span class="small" style="display:block;margin-top:3px;color:var(--gold)">' + esc(d.raisons[sel.id]) + '</span>' : '') + '</span>' +
         '<button type="button" class="ibtn" data-act="cPick" data-v="' + v + '" data-id="' + esc(sel.id) + '" aria-label="Fermer">' + icon('x', 18) + '</button></div>';
@@ -991,7 +991,7 @@ window.MC = window.MC || {};
               var n = suivante(false);
               if (n) S.p = n;
               else { S.p = ''; ui.toast(labelEq(T()) + ' : les 10 places sont prises. Ajoutez des remplaçants ou fermez.'); }
-              var pb = host.querySelector('.card>.sec:last-child button[data-i="0"]');
+              var pb = host.querySelector('.mbtns button[data-i="0"]');
               if (S.p === '' && pb && /Passer/.test(pb.textContent)) pb.remove();
             }
             paint(host);
@@ -1434,31 +1434,61 @@ window.MC = window.MC || {};
         (K.postesDe(f).length ? MC.ptags(K.postesDe(f), false) + '<span class="small" style="display:block;margin-top:6px">' + (f.postesOk.length ? 'Principal : <b style="color:var(--ink)">' + esc(COURT[f.postesOk[0]] === '9' ? 'demi de mêlée' : COURT[f.postesOk[0]] === '10' ? 'ouvreur' : K.nomPoste(f.postesOk[0])) + '</b> · ' : '') + typeTxt(K.typeDe(f)) + '</span>' : '<span class="small">Aucun pour l\'instant.</span>') + '</div>' +
         '<button type="button" class="btn2" data-act="tkEdit" data-id="' + esc(id) + '">' + icon('edit', 16) + ' Modifier</button>';
     }
-    var hl = h.liste.slice().reverse().slice(0, 12).map(function (x) {
-      return '<li><b>' + esc(x.titre) + '</b> · ' + esc(ui.fmtDate(x.date)) + ' · ' + esc(x.equipe) + (x.poste ? ' (' + esc(K.nomPoste(x.poste)) + ')' : '') + (x.autre ? ' · <span style="color:var(--violet)">hors niveau</span>' : '') +
-        (x.copains.length ? ' · avec ' + esc(x.copains.map(function (c) { return (F[c] || {}).prenom || '?'; }).join(', ')) : '') + '</li>';
-    }).join('');
-    var hist = '';
-    if (h.plateaux) {
-      var nivs = K.NIV.filter(function (n) { return h.niveaux[n]; }).map(function (n) { return niveauTag(n, true) + ' ' + h.niveaux[n]; }).join(' ');
-      var pos = Object.keys(h.postes).sort(function (a, b) { return h.postes[b] - h.postes[a]; }).map(function (p) { return esc(K.nomPoste(p)) + ' ' + h.postes[p]; }).join(' · ');
-      var cps = f.copains.map(function (c) { return { id: c, n: h.vus[c] || 0 }; }).sort(function (a, b) { return b.n - a.n; });
-      var autres = Object.keys(h.vus).filter(function (c) { return f.copains.indexOf(c) < 0 && F[c]; }).sort(function (a, b) { return h.vus[b] - h.vus[a]; });
-      hist = '<div class="hgrid"><span class="mlab">Niveaux joués</span><span class="row" style="gap:6px;flex-wrap:wrap">' + nivs + (h.autre ? ' <span class="small" style="color:var(--violet)">· ' + h.autre + ' fois hors de son niveau</span>' : '') + '</span>' +
-        (pos ? '<span class="mlab">Postes joués</span><span class="small" style="color:var(--soft)">' + pos + '</span>' : '') + '</div>' +
-        (cps.length ? '<div><span class="mlab">Avec ses copains (secret)</span><ul class="hcops">' + cps.map(function (x) {
-          return '<li class="' + (x.n ? '' : 'jamais') + '"><span>' + esc((F[x.id] || {}).prenom || '?') + '</span><b>' + (x.n ? x.n + ' fois' : 'pas encore') + '</b></li>';
-        }).join('') + '</ul>' + (h.sansCopainSerie ? '<span class="small" style="color:var(--orange)">Sans copain dans son équipe au dernier plateau' + (h.sansCopainSerie > 1 ? ' (' + h.sansCopainSerie + ' fois de suite)' : '') + '.</span>' : '') + '</div>' : '<span class="small">Pas encore de copains choisis (mission « jeu à 10 »).</span>') +
-        (autres.length ? '<details><summary class="small" style="cursor:pointer;color:var(--cyan)">Ses autres coéquipiers (' + autres.length + ')</summary><p class="small" style="margin:6px 0 0;color:var(--soft)">' + autres.map(function (c) { return esc(F[c].prenom) + ' ' + h.vus[c]; }).join(' · ') + '</p></details>' : '') +
-        '<details><summary class="small" style="cursor:pointer;color:var(--cyan)">Plateau par plateau (' + h.plateaux + ')</summary><ul class="small" style="margin:6px 0 0;padding-left:18px;line-height:1.5;color:var(--soft)">' + hl + '</ul></details>';
-    }
+    var hist = histHtml(h, f, F, cd);
     var sp = (g.joueurs.filter(function (p) { return p.joueur.id === id; })[0] || {}).terrain;
     var mb = cd && cd.spond && cd.spond.membres ? cd.spond.membres.filter(function (m) { return sp && m.id === sp.spondId; })[0] : null;
     return '<section class="sec" id="sur-le-terrain" style="scroll-margin-top:76px"><div class="between"><h2 class="h2">Sur le terrain</h2>' + (f.niveau ? '' : '<span class="pill" style="--pc:var(--orange)">À renseigner</span>') + '</div><div class="box" style="display:flex;flex-direction:column;gap:12px">' + body + '</div>' +
-      '<div class="box" style="display:flex;flex-direction:column;gap:8px"><span class="mlab" style="margin:0">Ses plateaux</span>' +
-      (h.plateaux ? '<span class="small" style="color:var(--soft)">' + h.plateaux + ' plateau' + (h.plateaux > 1 ? 'x' : '') + ' joué' + (h.plateaux > 1 ? 's' : '') + (f.copains.length ? ' · avec au moins un copain ' + h.avecCopain + ' fois' : '') + '</span>' + hist : '<span class="small">' + (cd ? 'Pas encore de plateau avec une compo dans l\'appli.' : 'Chargement…') + '</span>') +
+      '<div class="box" style="display:flex;flex-direction:column;gap:8px"><span class="mlab" style="margin:0">Son historique</span>' + hist +
       '<span class="small" style="color:var(--faint)">Spond : ' + (sp && sp.spondId ? 'relié' + (mb ? ' à « ' + esc(mb.nom) + ' »' : '') : 'pas encore relié') + '</span></div></section>';
   };
+  // ---------- l'historique d'un joueur : plateaux, entraînements (ateliers et matchs), ou tout ----------
+  var HV = '';   // le filtre choisi : 'plateau', 'entrainement' ou 'tout' (vide : plateaux s'il y en a)
+  function histHtml(h, f, F, cd) {
+    if (!cd) return '<span class="small">Chargement…</span>';
+    if (!h.liste.length) return '<span class="small">Pas encore de plateau ni d\'entraînement avec des groupes dans l\'appli.</span>';
+    var vue = HV || (h.plateaux ? 'plateau' : 'entrainement');
+    var L2 = h.liste.filter(function (x) { return vue === 'tout' || (vue === 'plateau' ? x.sorte === 'plateau' : x.sorte !== 'plateau'); });
+    var seances = {}; h.liste.forEach(function (x) { if (x.sorte !== 'plateau') seances[x.evenementId] = true; });
+    var nSe = Object.keys(seances).length;
+    var seg = '<div class="seg3 hseg" role="group" aria-label="Historique">' + [['plateau', 'Plateaux', h.plateaux], ['entrainement', 'Entraînements', nSe], ['tout', 'Tout', h.plateaux + nSe]].map(function (o) {
+      return '<button type="button" class="opt' + (vue === o[0] ? ' on' : '') + '" aria-pressed="' + (vue === o[0]) + '" data-act="hvSet" data-v="' + o[0] + '">' + o[1] + ' <small>' + o[2] + '</small></button>';
+    }).join('') + '</div>';
+    if (!L2.length) return seg + '<span class="small">' + (vue === 'plateau' ? 'Pas encore de plateau avec une compo dans l\'appli.' : 'Pas encore d\'entraînement avec des groupes dans l\'appli.') + '</span>';
+    // les compteurs de la vue
+    var niv = {}, pos = {}, vus = {}, autre = 0, avecCop = 0;
+    L2.forEach(function (x) {
+      if (x.niveau) niv[x.niveau] = (niv[x.niveau] || 0) + 1;
+      if (x.poste) pos[x.poste] = (pos[x.poste] || 0) + 1;
+      if (x.autre) autre++;
+      if (x.copains.length) avecCop++;
+      (x.avec || []).forEach(function (c) { vus[c] = (vus[c] || 0) + 1; });
+    });
+    var nP = L2.filter(function (x) { return x.sorte === 'plateau'; }).length, nA = L2.filter(function (x) { return x.sorte === 'ateliers'; }).length, nM = L2.filter(function (x) { return x.sorte === 'matchs'; }).length;
+    var parts = [];
+    if (nP) parts.push(nP + ' plateau' + (nP > 1 ? 'x' : ''));
+    if (nA) parts.push(nA + ' fois en ateliers');
+    if (nM) parts.push(nM + ' fois en matchs');
+    var resume = '<span class="small" style="color:var(--soft)">' + parts.join(' · ') + (f.copains.length ? ' · avec au moins un copain ' + avecCop + ' fois sur ' + L2.length : '') + '</span>';
+    var nivs = K.NIV.filter(function (n) { return niv[n]; }).map(function (n) { return niveauTag(n, true) + ' ' + niv[n]; }).join(' ');
+    var posT = Object.keys(pos).sort(function (a, b) { return pos[b] - pos[a]; }).map(function (p) { return esc(K.nomPoste(p)) + ' ' + pos[p]; }).join(' · ');
+    var cps = f.copains.map(function (c) { return { id: c, n: vus[c] || 0 }; }).sort(function (a, b) { return b.n - a.n; });
+    var autres = Object.keys(vus).filter(function (c) { return f.copains.indexOf(c) < 0 && F[c]; }).sort(function (a, b) { return vus[b] - vus[a]; });
+    var ici = vue === 'plateau' ? 'au plateau' : vue === 'entrainement' ? 'à l\'entraînement' : '';
+    var NOMS = { plateau: 'Plateau', ateliers: 'Ateliers', matchs: 'Match' };
+    var hl = L2.slice().reverse().slice(0, 15).map(function (x) {
+      return '<li><span class="hsorte ' + x.sorte + '">' + NOMS[x.sorte] + '</span> <b>' + esc(x.titre) + '</b> · ' + esc(ui.fmtDate(x.date)) + ' · ' + esc(x.nom || x.equipe) + (x.poste ? ' (' + esc(K.nomPoste(x.poste)) + ')' : '') + (x.autre ? ' · <span style="color:var(--violet)">hors de son niveau</span>' : '') +
+        (x.copains.length ? ' · avec ' + esc(x.copains.map(function (c) { return (F[c] || {}).prenom || '?'; }).join(', ')) : '') + '</li>';
+    }).join('');
+    return seg + resume +
+      '<div class="hgrid">' + (nivs || autre ? '<span class="mlab">Niveaux joués</span><span class="row" style="gap:6px;flex-wrap:wrap">' + (nivs || '<span class="small">groupes mélangés</span>') + (autre ? ' <span class="small" style="color:var(--violet)">· ' + autre + ' fois hors de son niveau' + (ici ? ' ' + ici : '') + '</span>' : '') + '</span>' : '') +
+      (posT ? '<span class="mlab">Postes joués</span><span class="small" style="color:var(--soft)">' + posT + '</span>' : '') + '</div>' +
+      (cps.length ? '<div><span class="mlab">Avec ses copains (secret)' + (ici ? ' · ' + ici : '') + '</span><ul class="hcops">' + cps.map(function (x) {
+        return '<li class="' + (x.n ? '' : 'jamais') + '"><span>' + esc((F[x.id] || {}).prenom || '?') + '</span><b>' + (x.n ? x.n + ' fois' : 'pas encore') + '</b></li>';
+      }).join('') + '</ul>' + (h.sansCopainSerie ? '<span class="small" style="color:var(--orange)">Sans copain dans son équipe ou son groupe la dernière fois' + (h.sansCopainSerie > 1 ? ' (' + h.sansCopainSerie + ' fois de suite, plateaux et entraînements)' : '') + '.</span>' : '') + '</div>' : '<span class="small">Pas encore de copains choisis (mission « jeu à 10 »).</span>') +
+      (autres.length ? '<details><summary class="small" style="cursor:pointer;color:var(--cyan)">Ses autres coéquipiers (' + autres.length + ')</summary><p class="small" style="margin:6px 0 0;color:var(--soft)">' + autres.map(function (c) { return esc(F[c].prenom) + ' ' + vus[c]; }).join(' · ') + '</p></details>' : '') +
+      '<details><summary class="small" style="cursor:pointer;color:var(--cyan)">' + (vue === 'plateau' ? 'Plateau par plateau' : vue === 'entrainement' ? 'Séance par séance' : 'Dans l\'ordre') + ' (' + L2.length + ')</summary><ul class="small" style="margin:6px 0 0;padding-left:18px;line-height:1.6;color:var(--soft)">' + hl + '</ul></details>';
+  }
+  MC.act.hvSet = function (b) { HV = b.getAttribute('data-v'); var y = window.scrollY; app.rerender(); setTimeout(function () { window.scrollTo(0, y); }, 0); };
   // relier le joueur à son membre Spond (quand le prénom ne suffit pas : homonymes, surnom…)
   function spondSelect(g, id, ed) {
     var cd = app.S.cache.compos, l = cd && cd.spond && cd.spond.membres;

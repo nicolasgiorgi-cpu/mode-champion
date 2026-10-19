@@ -39,8 +39,13 @@ MC.accueil = (function () {
   function dots(n, i) { var o = '<div class="obdots" aria-label="Écran ' + (i + 1) + ' sur ' + n + '">'; for (var k = 0; k < n; k++) o += '<i class="' + (k <= i ? 'on' : '') + '"></i>'; return o + '</div>'; }
   function frame(role, n, i, art, kicker, title, body, next, opts) {
     opts = opts || {};
-    return '<main class="screen nonav obscreen">' +
-      '<div class="between" style="align-items:center">' + dots(n, i) + (i < n - 1 ? '<button type="button" class="lnk" data-act="obSkip" data-r="' + role + '" style="color:var(--dim)">Passer</button>' : '<span></span>') + '</div>' +
+    // la barre du haut, comme partout : Retour (l'écran d'avant de la présentation, ou la quitter) et Passer
+    var left = i > 0 ? '<button type="button" class="cbtn" data-act="obPrev" data-r="' + role + '" data-back aria-label="Retour : écran d\'avant">' + icon('left', 20) + '</button>'
+      : '<button type="button" class="cbtn" data-act="obSkip" data-r="' + role + '" data-back aria-label="Quitter la présentation">' + icon('x', 20) + '</button>';
+    var bar = ui.topbar({ left: left, kicker: 'Présentation · ' + (i + 1) + ' / ' + n, title: 'Bienvenue', help: false,
+      right: i < n - 1 ? '<button type="button" class="lnk" data-act="obSkip" data-r="' + role + '" style="color:var(--soft);min-height:44px;padding:0 6px">Passer</button>' : '' });
+    return '<main class="screen nonav obscreen">' + bar +
+      '<div class="between" style="align-items:center">' + dots(n, i) + '<span></span></div>' +
       '<div class="obart">' + art + '</div>' +
       '<div class="head"><span class="kicker"' + (opts.kc ? ' style="color:' + opts.kc + '"' : '') + '>' + (i + 1) + ' / ' + n + ' · ' + esc(kicker) + '</span><h1 class="big md">' + title + '</h1></div>' +
       body + '<div class="sec obbtns">' + next + (i > 0 ? '<button type="button" class="btn2 grey" data-act="obPrev" data-r="' + role + '">' + icon('left', 16) + ' Écran d\'avant</button>' : '') + '</div></main>';

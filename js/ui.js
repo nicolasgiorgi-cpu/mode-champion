@@ -291,13 +291,22 @@ MC.ui = (function () {
       var btns = (opts.actions || [{ label: 'OK', value: true, cls: 'btn' }]).map(function (a, i) {
         return '<button type="button" class="' + (a.cls || 'btn') + '" data-i="' + i + '">' + a.label + '</button>';
       }).join('');
-      host.innerHTML = '<div class="card">' + (opts.title ? '<h2>' + opts.title + '</h2>' : '') + (opts.body || '') + '<div class="sec">' + btns + '</div></div>';
+      // en haut : le titre et une croix pour fermer (toujours visibles) ; en bas : les boutons (toujours visibles)
+      var closable = opts.dismiss !== false;
+      host.innerHTML = '<div class="card">' + (opts.title || closable ? '<div class="mhead">' + (opts.title ? '<h2>' + opts.title + '</h2>' : '<span></span>') +
+        (closable ? '<button type="button" class="ibtn mclose" data-close aria-label="Fermer">' + icon('x', 18) + '</button>' : '') + '</div>' : '') +
+        (opts.body || '') + '<div class="sec mbtns">' + btns + '</div></div>';
       document.body.appendChild(host);
-      function close(v) { host.remove(); document.removeEventListener('keydown', onKey); resolve(v); }
-      function onKey(e) { if (e.key === 'Escape') close(opts.cancelValue === undefined ? null : opts.cancelValue); }
+      var cancel = opts.cancelValue === undefined ? null : opts.cancelValue, done = false;
+      function close(v) { if (done) return; done = true; host.remove(); document.removeEventListener('keydown', onKey); window.removeEventListener('hashchange', onHash); resolve(v); }
+      function onKey(e) { if (e.key === 'Escape' && closable) close(cancel); }
+      // le bouton Retour du téléphone (ou de la barre du haut) ferme la fenêtre au lieu de la laisser ouverte sur un autre écran
+      function onHash() { close(cancel); }
       document.addEventListener('keydown', onKey);
+      window.addEventListener('hashchange', onHash);
       host.addEventListener('click', function (e) {
-        if (e.target === host && opts.dismiss !== false) return close(opts.cancelValue === undefined ? null : opts.cancelValue);
+        if (e.target === host && closable) return close(cancel);
+        if (e.target.closest('[data-close]')) return close(cancel);
         var b = e.target.closest('button[data-i]');
         if (!b) return;
         var a = opts.actions[Number(b.getAttribute('data-i'))];

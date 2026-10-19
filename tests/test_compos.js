@@ -334,9 +334,34 @@ const rp = K.reprendre(prec, auj, FE);
 assert.deepStrictEqual(J(rp.banc), ['Z9']);
 assert.ok(!K.where(rp, 'A0') && K.where(rp, 'B1').t >= 0);
 assert.deepStrictEqual(J(rp.equipes.map(t => t.id)), J(prec.equipes.map(t => t.id)));
-// l'historique des plateaux ignore les groupes d'entraînement
-const hEnt = K.historique([{ evenementId: 'x', statut: 'publiee', partie: 'ateliers', equipes: prec.equipes }], { x: { id: 'x', debut: '2026-10-14T16:30' } }, FE, '2026-10-21');
-assert.deepStrictEqual(J(hEnt), {});
+// l'historique compte aussi les entraînements (passerelles, copains), chaque ligne dit d'où elle vient
+const parNiv = K.proposerEnt(idsE, FE, {}, { partie: 'ateliers', mode: 'niveau', n: 3 }, '2026-10-14');   // A+B, B1, C1
+const mParNiv = K.proposerEnt(idsE, FE, {}, { partie: 'matchs', mode: 'niveau', nbMatchs: 2 }, '2026-10-14');
+assert.strictEqual(parNiv.equipes[0].niveau, 'A', 'le groupe « A+B » est un groupe de niveau A');
+assert.deepStrictEqual(J(mParNiv.equipes.map(t => t.niveau)), ['A', 'A', 'B', 'B']);
+const evH2 = { x: { id: 'x', titre: 'Entraînement', debut: '2026-10-14T16:30' }, p: { id: 'p', titre: 'Plateau 2', debut: '2026-10-10T08:00' } };
+const cH2 = [
+  { evenementId: 'x', statut: 'publiee', partie: 'matchs', equipes: mParNiv.equipes },
+  { evenementId: 'x', statut: 'publiee', partie: 'ateliers', equipes: parNiv.equipes },
+  { evenementId: 'p', statut: 'publiee', equipes: [{ id: 'B1', niveau: 'B', joueurs: [{ id: 'B0', n: 'B', poste: 'centre' }, { id: 'B3', n: 'B' }, { id: 'B4', n: 'B' }] }] }
+];
+const hEnt = K.historique(cH2, evH2, FE, '2026-10-21');
+const b0 = hEnt.B0;
+assert.strictEqual(b0.plateaux, 1); assert.strictEqual(b0.entrainements, 2);
+assert.deepStrictEqual(J(b0.liste.map(l => l.sorte)), ['plateau', 'ateliers', 'matchs'], 'dans l\'ordre : le plateau, puis les ateliers avant les matchs');
+assert.ok(b0.liste[1].autre && b0.liste[1].nom === 'A+B', 'B0 (passerelle vers A) dans « A+B » : il a joué au-dessus');
+assert.strictEqual(b0.dernierAutre, '2026-10-14', 'la passerelle de l\'entraînement compte pour la rotation');
+assert.deepStrictEqual(J(b0.postes), { centre: 1 }, 'les postes : au plateau seulement');
+assert.deepStrictEqual(J(b0.niveaux), { B: 1 }, 'les niveaux du résumé plateaux : au plateau seulement');
+// groupes mélangés : pas de « hors niveau »
+const hMix = K.historique([{ evenementId: 'x', statut: 'publiee', partie: 'ateliers', equipes: prec.equipes }], { x: { id: 'x', debut: '2026-10-14T16:30' } }, FE, '2026-10-21');
+assert.ok(Object.keys(hMix).every(id => hMix[id].autre === 0 && hMix[id].entrainements === 1 && hMix[id].plateaux === 0));
+// les copains : B3 a choisi B4 ; s'il n'est pas avec lui à l'entraînement, ça compte pour « sans copain la dernière fois »
+const seul = JSON.parse(JSON.stringify(prec.equipes)); seul.forEach(t => { t.joueurs = t.joueurs.filter(j => j.id !== 'B4'); }); seul[seul.length - 1].joueurs.push({ id: 'B4', n: 'B' });
+const w3 = seul.findIndex(t => t.joueurs.some(j => j.id === 'B3'));
+if (w3 === seul.length - 1) { seul[w3].joueurs = seul[w3].joueurs.filter(j => j.id !== 'B4'); seul[0].joueurs.push({ id: 'B4', n: 'B' }); }
+const hSeul = K.historique([{ evenementId: 'x', statut: 'publiee', partie: 'matchs', equipes: seul }], { x: { id: 'x', debut: '2026-10-14T16:30' } }, FE, '2026-10-21');
+assert.strictEqual(hSeul.B3.sansCopainSerie, 1);
 // performance : 31 joueurs, ateliers équilibrés et matchs
 let t2 = Date.now();
 K.proposerEnt(idsE, FE, {}, { partie: 'ateliers', mode: 'equilibre', n: 6 }, '2026-10-21');

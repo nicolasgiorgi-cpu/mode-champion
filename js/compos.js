@@ -80,38 +80,49 @@ MC.compos = (function () {
     return out;
   }
 
-  // ---------- Historique des plateaux (compos publiées des événements passés) ----------
+  // ---------- Historique : plateaux et entraînements (compos publiées des événements passés) ----------
   // compos : lignes du serveur ; evts : { id: événement } ; F : fiches (pour les copains d'aujourd'hui)
+  // Les entraînements comptent aussi pour les passerelles (un groupe de niveau au-dessus du sien) et pour les copains ;
+  // chaque ligne de la liste dit d'où elle vient (sorte : 'plateau', 'ateliers' ou 'matchs') pour les afficher à part.
+  // plateaux / entrainements : nombre de plateaux joués et de séances (ateliers ou matchs) ; postes : au plateau seulement.
+  var ORDRE_PARTIE = { '': 0, ateliers: 1, matchs: 2 };
   function historique(compos, evts, F, today) {
     var H = {};
-    function h(id) { return H[id] || (H[id] = { plateaux: 0, autre: 0, dernierAutre: '', avecCopain: 0, sansCopainSerie: 0, vus: {}, niveaux: {}, postes: {}, liste: [] }); }
+    function h(id) { return H[id] || (H[id] = { plateaux: 0, entrainements: 0, autre: 0, dernierAutre: '', avecCopain: 0, sansCopainSerie: 0, vus: {}, niveaux: {}, postes: {}, liste: [] }); }
     var past = (compos || []).filter(function (c) {
       var e = evts[c.evenementId];
-      return c.statut === 'publiee' && !c.partie && e && String(e.debut).slice(0, 10) < today;   // les groupes d'entraînement ne comptent pas
+      return c.statut === 'publiee' && e && String(e.debut).slice(0, 10) < today;
     }).map(function (c) { return { c: c, e: evts[c.evenementId] }; });
-    past.sort(function (a, b) { return a.e.debut < b.e.debut ? -1 : a.e.debut > b.e.debut ? 1 : 0; });
+    past.sort(function (a, b) {
+      if (a.e.debut !== b.e.debut) return a.e.debut < b.e.debut ? -1 : 1;
+      return (ORDRE_PARTIE[a.c.partie || ''] || 0) - (ORDRE_PARTIE[b.c.partie || ''] || 0);
+    });
     past.forEach(function (x) {
-      var date = String(x.e.debut).slice(0, 10);
+      var date = String(x.e.debut).slice(0, 10), sorte = x.c.partie || 'plateau';
       (x.c.equipes || []).forEach(function (t) {
         var ids = (t.joueurs || []).map(function (j) { return j.id; });
         (t.joueurs || []).forEach(function (j) {
           var o = h(j.id), f = F[j.id] || {}, cps = (f.copains || []).filter(function (c) { return c !== j.id && ids.indexOf(c) >= 0; });
-          o.plateaux++;
-          var autre = !!(j.n && t.niveau !== j.n);
+          if (sorte === 'plateau') o.plateaux++; else o.entrainements++;
+          // hors de son niveau : seulement dans une équipe ou un groupe qui a un niveau (pas dans des groupes mélangés)
+          var autre = !!(j.n && t.niveau && t.niveau !== j.n);
           if (autre) { o.autre++; o.dernierAutre = date; }
           if ((f.copains || []).length) {
             if (cps.length) { o.avecCopain++; o.sansCopainSerie = 0; } else o.sansCopainSerie++;
           }
           ids.forEach(function (c) { if (c !== j.id) o.vus[c] = (o.vus[c] || 0) + 1; });
-          o.niveaux[t.niveau] = (o.niveaux[t.niveau] || 0) + 1;
-          if (j.poste) o.postes[j.poste] = (o.postes[j.poste] || 0) + 1;
-          o.liste.push({ date: date, titre: x.e.titre, evenementId: x.e.id, equipe: t.id, niveau: t.niveau, poste: j.poste || '', autre: autre, copains: cps });
+          if (sorte === 'plateau') {
+            o.niveaux[t.niveau] = (o.niveaux[t.niveau] || 0) + 1;
+            if (j.poste) o.postes[j.poste] = (o.postes[j.poste] || 0) + 1;
+          }
+          o.liste.push({ date: date, titre: x.e.titre, evenementId: x.e.id, sorte: sorte, equipe: t.id, nom: t.nom || t.id, niveau: t.niveau || '', poste: j.poste || '',
+            autre: autre, copains: cps, avec: ids.filter(function (c) { return c !== j.id; }) });
         });
       });
     });
     return H;
   }
-  function hOf(H, id) { return (H && H[id]) || { plateaux: 0, autre: 0, dernierAutre: '', avecCopain: 0, sansCopainSerie: 0, vus: {}, niveaux: {}, postes: {}, liste: [] }; }
+  function hOf(H, id) { return (H && H[id]) || { plateaux: 0, entrainements: 0, autre: 0, dernierAutre: '', avecCopain: 0, sansCopainSerie: 0, vus: {}, niveaux: {}, postes: {}, liste: [] }; }
 
   // ---------- Nombre d'équipes conseillé par niveau ----------
   function suggestNb(ids, F, format) {
@@ -584,8 +595,9 @@ MC.compos = (function () {
       var parts = tranches(ids.slice().sort(triForce(F)), k, F), vu = {}, noms = parts.map(function (part) {
         var c = { A: 0, B: 0, C: 0 };
         part.forEach(function (id) { c[niveauDe(F[id]) || 'B']++; });
-        var lv = NIV.filter(function (x) { return c[x]; }), maj = lv.slice().sort(function (a, b) { return c[b] - c[a] || NIV.indexOf(a) - NIV.indexOf(b); })[0] || 'B';
-        return { base: lv.join('+') || 'B', pur: lv.length < 2, maj: maj };
+        // le niveau du groupe : le plus haut présent (dans « A+B », les B jouent au-dessus de leur niveau)
+        var lv = NIV.filter(function (x) { return c[x]; });
+        return { base: lv.join('+') || 'B', pur: lv.length < 2, maj: lv[0] || 'B' };
       });
       noms.forEach(function (x) { vu[x.base] = (vu[x.base] || 0) + 1; });
       var rang = {};
@@ -622,8 +634,12 @@ MC.compos = (function () {
     }
     var equipes = [];
     paires.forEach(function (pr, i) {
-      equipes.push({ id: 'M' + (i + 1) + 'c', nom: 'Chasubles', cote: 'c', niveau: '', bloc: 'm' + (i + 1), joueurs: pr[0].map(function (id) { return entree(id, F); }) });
-      equipes.push({ id: 'M' + (i + 1) + 'm', nom: 'Maillots', cote: 'm', niveau: '', bloc: 'm' + (i + 1), joueurs: pr[1].map(function (id) { return entree(id, F); }) });
+      // matchs par niveau : le niveau du match est le plus haut présent (ceux du niveau en dessous y jouent « au-dessus ») ;
+      // matchs équilibrés : pas de niveau
+      var niv = '';
+      if (mode === 'niveau') NIV.slice().reverse().forEach(function (n) { if (pr[0].concat(pr[1]).some(function (id) { return (niveauDe(F[id]) || 'B') === n; })) niv = n; });
+      equipes.push({ id: 'M' + (i + 1) + 'c', nom: 'Chasubles', cote: 'c', niveau: niv, bloc: 'm' + (i + 1), joueurs: pr[0].map(function (id) { return entree(id, F); }) });
+      equipes.push({ id: 'M' + (i + 1) + 'm', nom: 'Maillots', cote: 'm', niveau: niv, bloc: 'm' + (i + 1), joueurs: pr[1].map(function (id) { return entree(id, F); }) });
     });
     return { equipes: equipes, raisons: {} };
   }
