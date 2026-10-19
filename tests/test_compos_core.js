@@ -259,7 +259,7 @@ spondEvents = [
 r = g.call({ action: 'syncSpond', token: nico });
 assert.ok(r.ok, JSON.stringify(r));
 assert.strictEqual(r.info.evenements, 2, 'l\'événement d\'un autre sous-groupe est ignoré');
-assert.strictEqual(g._props.SPOND_GROUPE, GID); assert.strictEqual(g._props.SPOND_SOUS_GROUPE, SG, 'le sous-groupe M12 est trouvé tout seul et gardé');
+assert.deepStrictEqual(JSON.parse(g._props.SPOND_SOUS_GROUPES), [{ id: SG, groupeId: GID }], 'sans profil coach : le sous-groupe « M12 » est trouvé tout seul et gardé');
 assert.strictEqual(r.info.membres, 5);
 assert.strictEqual(r.info.nouveauxLiens, 4, 'Tom, Baptiste A., Baptiste D., Léa');
 assert.deepStrictEqual(r.info.joueursSansLien.sort(), ['Hugo', 'Inès', 'Malo', 'Zoé']);
@@ -414,4 +414,108 @@ r = g.call({ action: 'syncSpond', token: nico });
 r = g.call({ action: 'compos', token: nico });
 assert.deepStrictEqual(r.evenements.find(e => e.id === 'sp-E1').presents, [P.Baptiste, P.Zoé]);
 assert.strictEqual(r.evenements.find(e => e.id === 'sp-E2').annule, true);
+// ===================== SPOND branché depuis l'appli (éduc admin), catégories d'après qui les coache =====================
+const MDP = 'MotDePasse-Test-42', EMAIL = 'coach@example.org';
+const membres3 = [
+  { id: 'm-moi', firstName: 'Nico', lastName: 'Coach', profile: { id: 'P-MOI' }, roles: ['r-coach'], subGroups: ['SG12', 'SG14'] },
+  { id: 'm-julien', firstName: 'Julien', lastName: 'Adulte', profile: { id: 'P-J' }, subGroups: ['SG12'] },
+  { id: 'k-tom', firstName: 'Tom', lastName: 'Martin', subGroups: ['SG12'], guardians: [{ id: 'gd1', profile: { id: 'P-MOI' } }] },
+  { id: 'k-lea', firstName: 'Léa', lastName: 'Roux', subGroups: ['SG12'], guardians: [{ id: 'gd2' }] },
+  { id: 'k-sam', firstName: 'Sam', lastName: 'Neuf', subGroups: ['SG12'] },
+  { id: 'k-max', firstName: 'Max', lastName: 'Quatorze', subGroups: ['SG14'] },
+  { id: 'k-dix', firstName: 'Dix', lastName: 'Petit', subGroups: ['SG10'] }
+];
+const J5 = new Date(Date.now() + 5 * 864e5).toISOString(), J8 = new Date(Date.now() + 8 * 864e5).toISOString(), J9 = new Date(Date.now() + 9 * 864e5).toISOString();
+const evE12 = { id: 'E12', heading: 'Plateau 7 - Test', startTimestamp: J5, recipients: { group: { id: 'G1', subGroups: [{ id: 'SG12' }] } }, responses: { acceptedIds: ['k-tom', 'm-julien', 'k-sam'] } };
+const evBoth = { id: 'EB', heading: 'Rassemblement - Test', startTimestamp: J8, recipients: { group: { id: 'G1', subGroups: [{ id: 'SG12' }, { id: 'SG14' }] } }, responses: { acceptedIds: ['k-lea', 'k-max'] } };
+const evE14 = { id: 'E14', heading: 'Entraînement - M14', startTimestamp: J9, recipients: { group: { id: 'G1', subGroups: [{ id: 'SG14' }] } }, responses: { acceptedIds: ['k-max'] } };
+const vus3 = [];
+function http3(url, params) {
+  vus3.push(url + ' ' + (params.payload || ''));
+  if (/login$/.test(url)) {
+    const b = JSON.parse(params.payload);
+    return b.email === EMAIL && b.password === MDP ? { code: 200, body: { accessToken: { token: 'TOK3' } } } : { code: 401, body: { error: 'bad' } };
+  }
+  if (params.headers && params.headers.Authorization !== 'Bearer TOK3') return { code: 401, body: {} };
+  if (/profile$/.test(url)) return { code: 200, body: { id: 'P-MOI', firstName: 'Nico' } };
+  if (/groups\/$/.test(url)) return { code: 200, body: [{ id: 'G1', name: 'EDR Test', members: membres3, subGroups: [{ id: 'SG10', name: 'M10' }, { id: 'SG12', name: 'M12' }, { id: 'SG14', name: 'M14' }] }] };
+  if (/sponds\//.test(url)) {
+    const sg = (url.match(/subgroupId=([^&]+)/) || [])[1];
+    return { code: 200, body: sg === 'SG12' ? [evE12, evBoth] : sg === 'SG14' ? [evE14, evBoth] : sg === 'SG10' ? [{ id: 'E10', heading: 'Plateau M10', startTimestamp: J5 }] : [] };
+  }
+  return { code: 404, body: {} };
+}
+function setup3(opts) {
+  const x = makeEnv(Object.assign({ spond: http3 }, opts || {})); x.installer();
+  const code = x._logs.join('\n').match(/administrateur.*?: (\d{6})/)[1];
+  const adm = x.call({ action: 'adultLogin', code }).token;
+  const cc = x.call({ action: 'addEduc', token: adm, nom: 'Cyril' }).code;
+  const cy = x.call({ action: 'adultLogin', code: cc }).token, PP = {};
+  ['Tom', 'Léa'].forEach(n => { PP[n] = x.call({ action: 'addPlayer', token: adm, prenom: n }).joueur.id; });
+  return { x, adm, cy, PP };
+}
+let S3 = setup3();
+g = S3.x;
+r = g.call({ action: 'compos', token: S3.adm });
+assert.strictEqual(r.spond.branche, false); assert.strictEqual(r.spond.possible, true); assert.strictEqual(r.spond.compte, null);
+r = g.call({ action: 'spondConnexion', token: S3.cy, email: EMAIL, mdp: MDP }); assert.strictEqual(r.error, 'interdit', 'un éduc non admin ne branche pas Spond');
+r = g.call({ action: 'spondConnexion', token: S3.adm, email: 'pas-un-mail', mdp: MDP }); assert.strictEqual(r.error, 'invalide');
+r = g.call({ action: 'spondConnexion', token: S3.adm, email: EMAIL, mdp: 'faux-' + MDP });
+assert.strictEqual(r.error, 'spond'); assert.ok(/refuse/.test(r.message), r.message); assert.ok(r.message.indexOf(MDP) < 0);
+assert.ok(!('SPOND_MDP' in g._props) && !('SPOND_EMAIL' in g._props), 'mot de passe refusé : rien n\'est gardé');
+r = g.call({ action: 'spondConnexion', token: S3.adm, email: EMAIL, mdp: MDP });
+assert.ok(r.ok, JSON.stringify(r));
+assert.strictEqual(r.compte.email, 'c•••@example.org'); assert.strictEqual(r.compte.parQui, 'Admin'); assert.strictEqual(r.avertissement, '');
+assert.deepStrictEqual(r.categories.map(c => [c.nom, c.coach, c.suivie]), [['M10', false, false], ['M12', true, true], ['M14', true, true]], 'les catégories dont le compte est coach sont suivies');
+assert.strictEqual(r.info.evenements, 3, 'E12 + E14 + le rassemblement commun (une seule fois)');
+assert.strictEqual(r.info.membres, 4, 'Tom, Léa, Sam, Max : ni les adultes, ni les M10');
+assert.strictEqual(g._triggers.length, 1, 'synchro toutes les heures programmée');
+assert.ok(!JSON.stringify(r).includes(MDP), 'le mot de passe ne revient jamais au navigateur');
+r = g.call({ action: 'compos', token: S3.adm });
+assert.strictEqual(r.spond.branche, true); assert.strictEqual(r.spond.compte.email, 'c•••@example.org');
+const eb = r.evenements.find(e => e.id === 'sp-EB'), e12 = r.evenements.find(e => e.id === 'sp-E12');
+assert.strictEqual(eb.categorie, 'M12, M14'); assert.strictEqual(r.evenements.find(e => e.id === 'sp-E14').categorie, 'M14');
+assert.deepStrictEqual(e12.presents, [S3.PP.Tom]); assert.deepStrictEqual(e12.inconnus, ['Sam N.'], 'Julien (adulte) n\'est pas listé ; Sam (enfant pas encore dans l\'appli) oui');
+assert.deepStrictEqual(r.spond.membres.map(m => [m.prenom, m.nomFamille, m.categorie, !!m.lie]), [['Léa', 'Roux', 'M12', true], ['Max', 'Quatorze', 'M14', false], ['Sam', 'Neuf', 'M12', false], ['Tom', 'Martin', 'M12', true]]);
+// le mot de passe n'est nulle part ailleurs que dans la propriété SPOND_MDP
+const partout = JSON.stringify(Object.keys(g._sheets).map(k => g._sheets[k])) + JSON.stringify(g._cache) + g._logs.join('\n') +
+  JSON.stringify(Object.keys(g._props).filter(k => k !== 'SPOND_MDP').map(k => g._props[k]));
+assert.ok(partout.indexOf(MDP) < 0, 'mot de passe trouvé hors de SPOND_MDP');
+assert.strictEqual(g._props.SPOND_MDP, MDP);
+// choisir les catégories suivies (admin) : seulement M12 → les événements M14 disparaissent, le commun reste
+r = g.call({ action: 'spondCategories', token: S3.cy, ids: ['SG12'] }); assert.strictEqual(r.error, 'interdit');
+r = g.call({ action: 'spondCategories', token: S3.adm, ids: ['SG12'] });
+assert.ok(r.ok, JSON.stringify(r));
+assert.deepStrictEqual(r.categories.filter(c => c.suivie).map(c => c.nom), ['M12']);
+assert.strictEqual(r.info.evenements, 2); assert.strictEqual(r.info.membres, 3);
+r = g.call({ action: 'compos', token: S3.adm });
+assert.ok(!r.evenements.some(e => e.id === 'sp-E14'), 'l\'événement M14 n\'est plus suivi : il disparaît (pas « annulé »)');
+assert.strictEqual(r.evenements.find(e => e.id === 'sp-EB').annule, false);
+// ajouter un enfant de Spond dans l'appli : relié tout de suite, une seule fois
+r = g.call({ action: 'addPlayer', token: S3.cy, prenom: 'Sam', familleNom: 'Famille Neuf', spondId: 'k-sam' });
+assert.ok(r.ok && r.code && r.familleCode, JSON.stringify(r));
+const samId = r.joueur.id;
+r = g.call({ action: 'addPlayer', token: S3.cy, prenom: 'Sam', spondId: 'k-sam' }); assert.strictEqual(r.error, 'deja');
+r = g.call({ action: 'compos', token: S3.adm });
+assert.strictEqual(r.spond.membres.find(m => m.id === 'k-sam').lie, samId);
+r = g.call({ action: 'syncSpond', token: S3.cy });
+r = g.call({ action: 'compos', token: S3.adm });
+assert.deepStrictEqual(r.evenements.find(e => e.id === 'sp-E12').presents, [S3.PP.Tom, samId]);
+// débrancher (admin) : identifiants, catégories et synchro automatique oubliés
+r = g.call({ action: 'spondDeconnexion', token: S3.cy }); assert.strictEqual(r.error, 'interdit');
+r = g.call({ action: 'spondDeconnexion', token: S3.adm }); assert.ok(r.ok, JSON.stringify(r));
+['SPOND_EMAIL', 'SPOND_MDP', 'SPOND_SOUS_GROUPES'].forEach(k => assert.ok(!(k in g._props), k + ' effacé'));
+assert.strictEqual(g._triggers.length, 0);
+r = g.call({ action: 'compos', token: S3.adm });
+assert.strictEqual(r.spond.branche, false); assert.strictEqual(r.spond.compte, null); assert.deepStrictEqual(r.spond.categories, []);
+r = g.call({ action: 'syncSpond', token: S3.adm }); assert.strictEqual(r.error, 'spond');
+// le propriétaire n'a pas encore autorisé les déclencheurs : Spond est branché, l'appli dit quoi faire
+S3 = setup3({ sansDeclencheur: true }); g = S3.x;
+r = g.call({ action: 'spondConnexion', token: S3.adm, email: EMAIL, mdp: MDP });
+assert.ok(r.ok, JSON.stringify(r)); assert.ok(/autoriserSpond/.test(r.avertissement), r.avertissement); assert.strictEqual(r.compte.declencheur, false);
+// sans le fichier spond.gs (ou en mode démo) : indisponible, avec l'explication
+({ g, nico } = setup());
+r = g.call({ action: 'spondConnexion', token: nico, email: EMAIL, mdp: MDP });
+assert.strictEqual(r.error, 'indispo'); assert.ok(/démo|autoriserSpond/.test(r.message), r.message);
+r = g.call({ action: 'compos', token: nico }); assert.strictEqual(r.spond.possible, false);
 console.log('COMPOS CORE OK');

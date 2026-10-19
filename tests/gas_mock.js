@@ -41,7 +41,7 @@ function makeEnv(opts) {
   const logs = [];
   const ctx = {
     SpreadsheetApp: { getActiveSpreadsheet: () => ss },
-    PropertiesService: { getScriptProperties: () => ({ getProperty: k => (k in props ? props[k] : null), setProperty: (k, v) => { props[k] = String(v); } }) },
+    PropertiesService: { getScriptProperties: () => ({ getProperty: k => (k in props ? props[k] : null), setProperty: (k, v) => { props[k] = String(v); }, deleteProperty: k => { delete props[k]; } }) },
     LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
     ContentService: { MimeType: { JSON: 'json' }, createTextOutput: s => ({ s, setMimeType() { return this; }, getContent() { return s; } }) },
     Logger: { log: m => logs.push(String(m)) },
@@ -52,8 +52,10 @@ function makeEnv(opts) {
   const triggers = [];
   if (opts.spond) {
     ctx.UrlFetchApp = { fetch: (url, params) => { const r = opts.spond(url, params || {}); return { getResponseCode: () => r.code, getContentText: () => (typeof r.body === 'string' ? r.body : JSON.stringify(r.body)) }; } };
+    // opts.sansDeclencheur : le propriétaire n'a pas encore autorisé les déclencheurs
+    const pasAutorise = () => { if (opts.sansDeclencheur) throw new Error('You do not have permission to call ScriptApp.getProjectTriggers'); };
     ctx.ScriptApp = {
-      getProjectTriggers: () => triggers.slice(),
+      getProjectTriggers: () => { pasAutorise(); return triggers.slice(); },
       deleteTrigger: t => { const i = triggers.indexOf(t); if (i >= 0) triggers.splice(i, 1); },
       newTrigger: fn => ({ timeBased: () => ({ everyHours: h => ({ create: () => { const t = { fn, h, getHandlerFunction: () => fn }; triggers.push(t); return t; } }) }) })
     };

@@ -167,7 +167,11 @@ function env_() {
     formulairePostes: lireFormulairePostes_,
     // Spond : seulement si le fichier « spond.gs » a été ajouté au projet (il demande une autorisation de plus)
     spondFetch: typeof lireSpond_ === 'function' ? lireSpond_ : null,
-    spondInfo: typeof spondInfo_ === 'function' ? spondInfo_ : null
+    spondInfo: typeof spondInfo_ === 'function' ? spondInfo_ : null,
+    // branché depuis l'appli par un éduc admin (e-mail et mot de passe gardés dans les propriétés du script)
+    spondConnecter: typeof spondConnecter_ === 'function' ? spondConnecter_ : null,
+    spondChoisir: typeof spondChoisir_ === 'function' ? spondChoisir_ : null,
+    spondDebrancher: typeof spondDebrancher_ === 'function' ? spondDebrancher_ : null
   };
 }
 

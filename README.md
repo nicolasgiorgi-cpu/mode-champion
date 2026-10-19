@@ -56,12 +56,16 @@ Pour aller plus vite, le serveur garde une copie de la feuille en mémoire (20 m
 
 **Mettre à jour le serveur** (si `js/core.js` change) : relancez `outils/fabriquer-serveur.sh`, recollez `apps-script/serveur-mode-champion.gs` dans l'éditeur, puis **Déployer › Gérer les déploiements › crayon › Version : Nouvelle version › Déployer** (l'URL ne change pas).
 
-**Brancher Spond** (facultatif : sans Spond, les éducs ajoutent les plateaux à la main) — le mode d'emploi complet est en tête de `apps-script/spond.gs` :
+**Brancher Spond** (facultatif : sans Spond, les éducs ajoutent les événements à la main) — le mode d'emploi complet est en tête de `apps-script/spond.gs`.
+Une seule fois, **le propriétaire du script** :
 1. Dans l'éditeur Apps Script : **+** à côté de Fichiers › **Script**, nommez-le `spond`, collez `apps-script/spond.gs`, enregistrez.
-2. **Paramètres du projet** (roue dentée) › **Propriétés du script** : `SPOND_EMAIL` et `SPOND_MDP` (le compte Spond qui voit le groupe M12). Ils restent chez Google.
-3. Fonction **`brancherSpond`** › Exécuter : Google demande deux autorisations de plus (service externe, déclencheurs) ; le sous-groupe « M12 » est trouvé tout seul, la synchro tourne tout de suite puis toutes les heures.
-4. **Déployer › Gérer les déploiements › crayon › Nouvelle version › Déployer** (sinon l'appli ne voit pas les nouvelles autorisations).
-`debrancherSpond` arrête la synchro. Lecture seule : événements de J-30 à J+60 et réponses (oui, non, sans réponse). Les membres Spond sont reliés aux joueurs par le prénom (et l'initiale du nom pour les homonymes) ; un lien se corrige dans la feuille, onglet `terrain`, colonne `spondId`.
+2. Fonction **`autoriserSpond`** › Exécuter : Google demande deux autorisations de plus (se connecter à un service externe, gérer les déclencheurs) : Autoriser.
+3. **Déployer › Gérer les déploiements › crayon › Nouvelle version › Déployer** (sinon l'appli ne voit ni le fichier ni les autorisations).
+
+Ensuite, **dans l'appli** : Outils › **Spond**. Un éduc **administrateur** tape lui-même l'e-mail et le mot de passe de **son** compte Spond (actions `spondConnexion`, `spondCategories`, `spondDeconnexion`). Spond vérifie le mot de passe ; il est alors gardé seulement dans les propriétés du script (`SPOND_EMAIL`, `SPOND_MDP`) : jamais dans la feuille, jamais renvoyé au navigateur, jamais dans un message ; l'appli n'affiche que l'e-mail masqué (`spondCompte`). La synchro tourne tout de suite puis toutes les heures (déclencheur `synchroSpond`). « Débrancher » efface l'e-mail, le mot de passe, les catégories et le déclencheur.
+
+**Catégories** : l'appli suit les sous-groupes Spond dont ce compte est **coach** (son propre membre Spond, pas comme parent, en fait partie ; ou un champ du genre « admins » le cite) ; s'il n'en coache aucun, celui qui s'appelle « M12 ». L'admin change ce choix dans Outils › Spond (propriété `SPOND_SOUS_GROUPES`). Les **adultes** des groupes (rôle, propre profil sans parent rattaché, ou soi-même) ne sont ni reliés à des joueurs, ni listés comme « inscrits sans joueur ». Chaque événement garde sa catégorie (colonne `categorie`), affichée quand plusieurs catégories sont suivies. Les enfants Spond pas encore dans l'appli apparaissent dans **Ajouter un joueur › Depuis Spond** : un geste crée le joueur (famille « Famille Nom », reprise si elle existe déjà), ses codes, et le relie à Spond.
+Lecture seule : événements de J-30 à J+60 et réponses (oui, non, sans réponse). Les enfants sont reliés aux joueurs par le prénom (et l'initiale du nom pour les homonymes) ; un lien se corrige sur la fiche du joueur (Sur le terrain › Spond). Sans l'appli : remplir `SPOND_EMAIL` / `SPOND_MDP` dans Paramètres du projet › Propriétés du script et lancer `brancherSpond` ; `debrancherSpond` arrête la synchro. API non officielle (celle du site spond.com) : elle peut changer.
 
 ## 2. Mettre le site en ligne (GitHub Pages)
 
@@ -128,6 +132,8 @@ cp -r /home/claude/mode-champion/tests /home/claude/tests
 cd /home/claude/mode-champion && sh outils/fabriquer-serveur.sh   # le faux serveur charge le .gs fabriqué
 node /home/claude/tests/test_logic.js && node /home/claude/tests/test_core.js && node /home/claude/tests/test_mission.js
 node /home/claude/tests/test_compos.js && node /home/claude/tests/test_compos_core.js   # compos (règles, serveur, Spond simulé)
+python3 /home/claude/tests/e2e_spond.py 390 844                    # Outils › Spond et « Depuis Spond » (mode démo)
+python3 /home/claude/tests/e2e_barre.py 390 844                    # la barre du haut sur tous les écrans
 python3 /home/claude/tests/e2e_v14.py 390 844                      # Playwright, site servi en local (voir mkdemo.sh)
 python3 /home/claude/tests/e2e_mission.py 390 844                  # la mission « Prépare le jeu à 10 » (joueur, parent, éduc)
 python3 /home/claude/tests/e2e_compos.py 390 844                   # les compos (aussi en 1180 820 et 820 1180 pour l'iPad)

@@ -113,7 +113,9 @@ var Core = (function () {
     terrain: [['id', 's'], ['niveau', 's'], ['passerelle', 's'], ['plaquage', 'n'], ['postesOk', 'j'], ['spondId', 's'], ['note', 's'], ['parQui', 's'], ['maj', 's']],
     // événements (Spond ou ajoutés à la main) et leurs présents (ids des joueurs de l'appli)
     evenements: [['id', 's'], ['source', 's'], ['titre', 's'], ['sorte', 's'], ['debut', 's'], ['fin', 's'], ['lieu', 's'], ['presents', 'j'], ['absents', 'j'],
-      ['sansReponse', 'j'], ['ajouts', 'j'], ['retraits', 'j'], ['inconnus', 'j'], ['annule', 'b'], ['parQui', 's'], ['maj', 's']],
+      ['sansReponse', 'j'], ['ajouts', 'j'], ['retraits', 'j'], ['inconnus', 'j'], ['annule', 'b'], ['parQui', 's'], ['maj', 's'],
+      // catégorie Spond (nom du sous-groupe), quand l'appli suit plusieurs catégories
+      ['categorie', 's']],
     // la compo d'un événement (une seule active par partie) ; historique = les versions successives
     // partie : '' = la compo d'un plateau ; 'ateliers' ou 'matchs' = les groupes d'un entraînement (d'abord les ateliers, puis les matchs)
     compos: [['id', 's'], ['evenementId', 's'], ['sorte', 's'], ['version', 'n'], ['auteur', 's'], ['auteurNom', 's'], ['statut', 's'], ['reglages', 'j'],
@@ -815,6 +817,9 @@ var Core = (function () {
     run: function (req, ctx) {
       var prenom = cleanText(req.prenom, 24);
       if (!prenom) fail('invalide', 'Il faut un prénom.');
+      // ajouté depuis Spond : relié tout de suite à son membre Spond (une seule fois)
+      var spondId = req.spondId ? cleanText(String(req.spondId), 64) : '';
+      if (spondId && ctx.db.rows('terrain').some(function (t) { return t.spondId === spondId; })) fail('deja', 'Cet enfant Spond est déjà dans l\'appli.');
       var fam = null, famCode = null;
       if (req.familleId) {
         fam = find(ctx.db.rows('familles'), String(req.familleId));
@@ -834,7 +839,8 @@ var Core = (function () {
         fails: 0, lockUntil: 0, niveaux: {}, materiel: 'complet', visible: true, actif: true, cree: isoNow(ctx.now)
       };
       ctx.db.insert('joueurs', row);
-      return { joueur: pubJoueur(row), code: code, expire: row.tempExp, famille: { id: fam.id, nom: fam.nom }, familleCode: famCode };
+      if (spondId) terrainRow(ctx, id, { spondId: spondId, parQui: ctx.auth.row.nom, maj: isoNow(ctx.now) });
+      return { joueur: pubJoueur(row), code: code, expire: row.tempExp, famille: { id: fam.id, nom: fam.nom }, familleCode: famCode, spondId: spondId };
     }
   };
 
@@ -980,7 +986,7 @@ var Core = (function () {
 
   function pubEvt(e) {
     return { id: e.id, source: e.source, titre: e.titre, sorte: e.sorte, debut: e.debut, fin: e.fin, lieu: e.lieu, presents: e.presents || [], absents: e.absents || [],
-      sansReponse: e.sansReponse || [], ajouts: e.ajouts || [], retraits: e.retraits || [], inconnus: e.inconnus || [], annule: !!e.annule, parQui: e.parQui || '', maj: e.maj };
+      sansReponse: e.sansReponse || [], ajouts: e.ajouts || [], retraits: e.retraits || [], inconnus: e.inconnus || [], annule: !!e.annule, parQui: e.parQui || '', maj: e.maj, categorie: e.categorie || '' };
   }
   function pubCompo(c) {
     return { id: c.id, evenementId: c.evenementId, sorte: c.sorte, partie: c.partie || '', version: Number(c.version) || 1, auteur: c.auteur, auteurNom: c.auteurNom, statut: c.statut, reglages: c.reglages || {},
@@ -991,6 +997,7 @@ var Core = (function () {
     return { id: a.id, compoId: a.compoId, version: Number(a.version) || 1, auteur: a.auteur, auteurNom: a.auteurNom, equipes: a.equipes || [], banc: a.banc || [],
       changements: a.changements || [], justification: a.justification || '', statut: a.statut, reponse: a.reponse || '', parQui: a.parQui || '', cree: a.cree, maj: a.maj };
   }
+  function propJson(ctx, k, d) { try { var v = JSON.parse(ctx.db.getProp(k) || 'null'); return v === null || v === undefined || v === '' ? d : v; } catch (e) { return d; } }
   function sorteEvt(titre) {
     var t = sansAccents(titre);
     if (/plateau|tournoi|festival|rassemblement/.test(t)) return 'plateau';
@@ -1007,10 +1014,14 @@ var Core = (function () {
       var compos = ctx.db.rows('compos').filter(function (c) { return ids[c.evenementId] && c.statut !== 'retiree'; }).map(pubCompo);
       var cids = {}; compos.forEach(function (c) { cids[c.id] = true; });
       var avis = ctx.db.rows('avis').filter(function (a) { return cids[a.compoId]; }).map(pubAvis);
-      var sp = null, mb = []; try { sp = JSON.parse(ctx.db.getProp('spondSync') || 'null'); mb = JSON.parse(ctx.db.getProp('spondMembres') || '[]'); } catch (e) { sp = null; mb = []; }
+      var sp = propJson(ctx, 'spondSync', null), mb = propJson(ctx, 'spondMembres', []);
+      // chaque membre Spond dit s'il est déjà relié à un joueur de l'appli (pour « Ajouter depuis Spond »)
+      var lieA = {}; ctx.db.rows('terrain').forEach(function (t) { if (t.spondId) lieA[t.spondId] = t.id; });
+      mb = (Array.isArray(mb) ? mb : []).map(function (m) { var o = {}; for (var k in m) o[k] = m[k]; o.lie = lieA[m.id] || ''; return o; });
       return {
         evenements: evts, compos: compos, avis: avis,
-        spond: { branche: !!(ctx.env.spondInfo && ctx.env.spondInfo().branche), derniere: sp, membres: Array.isArray(mb) ? mb : [] },
+        spond: { branche: !!(ctx.env.spondInfo && ctx.env.spondInfo().branche), derniere: sp, membres: mb, compte: propJson(ctx, 'spondCompte', null),
+          categories: propJson(ctx, 'spondCategories', []), possible: !!ctx.env.spondConnecter },
         educs: ctx.db.rows('educs').filter(function (x) { return x.actif; }).map(function (x) { return { id: x.id, nom: x.nom }; }),
         moi: { id: ctx.auth.row.id, nom: ctx.auth.row.nom, admin: !!ctx.auth.row.admin }
       };
@@ -1337,7 +1348,8 @@ var Core = (function () {
       membres[mid] = m;
       var k = cleM(m);
       var iniNom = sansAccents(m.nom).replace(/[^a-z]/g, '').charAt(0);
-      liste.push({ id: mid, nom: cleanText(String(m.prenom || '').replace(/\s+([A-Za-z])\.?$/, ' $1.') + (iniNom ? ' ' + iniNom.toUpperCase() + '.' : ''), 40) });
+      liste.push({ id: mid, nom: cleanText(String(m.prenom || '').replace(/\s+([A-Za-z])\.?$/, ' $1.') + (iniNom ? ' ' + iniNom.toUpperCase() + '.' : ''), 40),
+        prenom: cleanText(m.prenom, 24), nomFamille: cleanText(m.nom, 40), categorie: cleanText(m.categorie, 40) });
       if (parSpond[mid]) return;
       var cle = k.cle, ini = k.ini;
       var c = cles.filter(function (x) { return x.cle === cle; });
@@ -1366,19 +1378,31 @@ var Core = (function () {
       if (id === 'sp-') return;
       var inc = [];
       var row = { titre: cleanText(ev.titre, 80) || 'Événement', debut: dateEvt(ev.debut) || String(ev.debut || ''), fin: String(ev.fin || ''), lieu: cleanText(ev.lieu, 80),
-        presents: map(ev.acceptes, inc), absents: map(ev.refuses), sansReponse: map((ev.sansReponse || []).concat(ev.attente || [])), inconnus: inc.slice(0, 40), annule: !!ev.annule, maj: now };
+        presents: map(ev.acceptes, inc), absents: map(ev.refuses), sansReponse: map((ev.sansReponse || []).concat(ev.attente || [])), inconnus: inc.slice(0, 40), annule: !!ev.annule,
+        categorie: cleanText(ev.categorie, 40), maj: now };
       vus[id] = true;
       var cur = find(ctx.db.rows('evenements'), id);
       if (cur) ctx.db.update('evenements', id, row);
       else { row.id = id; row.source = 'spond'; row.sorte = sorteEvt(row.titre); row.ajouts = []; row.retraits = []; row.parQui = 'Spond'; ctx.db.insert('evenements', row); }
       evts++;
     });
-    // un événement Spond de la période lue qui n'y est plus a été supprimé dans Spond
+    // un événement Spond de la période lue qui n'y est plus a été supprimé dans Spond ;
+    // celui d'une catégorie que l'appli ne suit plus disparaît (sauf s'il a déjà des groupes : on le garde tel quel)
     if (Array.isArray(data.evenements)) {
       var dmin = isoDate(ctx.now - 29 * DAY), dmax = isoDate(ctx.now + 59 * DAY);
+      var suivies = Array.isArray(data.categories) ? data.categories.filter(function (c) { return c.suivie; }).map(function (c) { return cleanText(c.nom, 40); }) : null;
+      var avecCompo = {}; ctx.db.rows('compos').forEach(function (c) { avecCompo[c.evenementId] = true; });
       ctx.db.rows('evenements').filter(function (e) { var d = String(e.debut).slice(0, 10); return e.source === 'spond' && !vus[e.id] && !e.annule && d >= dmin && d <= dmax; })
-        .forEach(function (e) { ctx.db.update('evenements', e.id, { annule: true, maj: now }); });
+        .forEach(function (e) {
+          var cats = String(e.categorie || '').split(/\s*,\s*/).filter(Boolean);
+          if (suivies && cats.length && !cats.some(function (n) { return suivies.indexOf(n) >= 0; })) { if (!avecCompo[e.id]) ctx.db.remove('evenements', e.id); return; }
+          ctx.db.update('evenements', e.id, { annule: true, maj: now });
+        });
     }
+    // les catégories (sous-groupes Spond) vues par le compte, et celles que l'appli suit
+    if (Array.isArray(data.categories)) ctx.db.setProp('spondCategories', JSON.stringify(data.categories.slice(0, 40).map(function (c) {
+      return { id: cleanText(String(c.id || ''), 64), nom: cleanText(c.nom, 40), groupe: cleanText(c.groupe, 60), coach: !!c.coach, suivie: !!c.suivie };
+    })));
     var nonLies = joueurs.filter(function (j) { return !lies[j.id]; }).map(function (j) { return j.prenom; });
     var info = { quand: now, evenements: evts, membres: Object.keys(membres).length, nouveauxLiens: nouveaux, joueursSansLien: nonLies };
     ctx.db.setProp('spondSync', JSON.stringify(info));
@@ -1389,8 +1413,67 @@ var Core = (function () {
     run: function (req, ctx) {
       if (!ctx.env.spondFetch) fail('indispo', 'La synchro Spond ne marche que sur le serveur Google.');
       var data;
-      try { data = ctx.env.spondFetch(); } catch (e) { fail('spond', 'Spond ne répond pas : ' + (e && e.message ? e.message : e)); }
+      try { data = ctx.env.spondFetch(); } catch (e) { fail('spond', 'Spond ne répond pas : ' + msgSpond(e)); }
       return { info: syncSpond(ctx, data) };
+    }
+  };
+
+  // ---------- Spond branché depuis l'appli, par un éduc administrateur ----------
+  // L'e-mail et le mot de passe du compte Spond vont seulement dans les propriétés du script Google (fichier spond.gs) :
+  // jamais dans la feuille, jamais renvoyés au navigateur, jamais dans un message d'erreur.
+  var SPOND_INDISPO = 'Spond se branche sur le vrai site (serveur Google du club), pas en mode démo. Le propriétaire du script doit avoir ajouté le fichier « spond » au projet Apps Script et l\'avoir autorisé une fois (fonction autoriserSpond).';
+  function msgSpond(e, secret) {
+    var m = String(e && e.message ? e.message : e || '');
+    if (secret) m = m.split(secret).join('•••');
+    if (/permission|autoris|authoriz|not allowed/i.test(m)) return 'le propriétaire du script doit d\'abord autoriser Spond : dans l\'éditeur Apps Script, choisir la fonction « autoriserSpond » puis ▶ Exécuter, et accepter. Ensuite Déployer › Nouvelle version.';
+    return m.slice(0, 300);
+  }
+  function admin(ctx) { if (!ctx.auth.row.admin) fail('interdit', 'Seul un éduc administrateur peut brancher ou régler Spond.'); }
+  function masqueEmail(email) {
+    var e = String(email || ''), at = e.indexOf('@');
+    return at < 1 ? '•••' : e.charAt(0) + '•••' + e.slice(at);
+  }
+  function syncApres(ctx, secret) {
+    var data;
+    try { data = ctx.env.spondFetch(); } catch (e) { fail('spond', 'Spond ne répond pas : ' + msgSpond(e, secret)); }
+    return syncSpond(ctx, data);
+  }
+  A.spondConnexion = {
+    auth: ['e'],
+    run: function (req, ctx) {
+      admin(ctx);
+      if (!ctx.env.spondConnecter || !ctx.env.spondFetch) fail('indispo', SPOND_INDISPO);
+      var email = String(req.email || '').trim().slice(0, 120), mdp = String(req.mdp || '');
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) fail('invalide', 'L\'e-mail du compte Spond n\'a pas l\'air juste.');
+      if (!mdp || mdp.length > 200) fail('invalide', 'Il faut le mot de passe du compte Spond.');
+      var r;
+      try { r = ctx.env.spondConnecter(email, mdp) || {}; } catch (e) { fail('spond', 'Spond : ' + msgSpond(e, mdp)); }
+      var compte = { email: masqueEmail(email), parQui: ctx.auth.row.nom, quand: isoNow(ctx.now), declencheur: !!r.declencheur };
+      ctx.db.setProp('spondCompte', JSON.stringify(compte));
+      var info = syncApres(ctx, mdp);
+      return { info: info, compte: compte, categories: propJson(ctx, 'spondCategories', []), avertissement: r.declencheur ? '' : msgSpond(r.erreurDeclencheur || 'permission') };
+    }
+  };
+  // les catégories (sous-groupes Spond) que l'appli suit : par défaut celles dont le compte est coach
+  A.spondCategories = {
+    auth: ['e'],
+    run: function (req, ctx) {
+      admin(ctx);
+      if (!ctx.env.spondChoisir || !ctx.env.spondFetch) fail('indispo', SPOND_INDISPO);
+      var ids = (Array.isArray(req.ids) ? req.ids : []).slice(0, 20).map(function (x) { return cleanText(String(x), 64); }).filter(Boolean);
+      if (!ids.length) fail('invalide', 'Choisissez au moins une catégorie.');
+      try { ctx.env.spondChoisir(ids); } catch (e) { fail('spond', 'Spond : ' + msgSpond(e)); }
+      return { info: syncApres(ctx), categories: propJson(ctx, 'spondCategories', []) };
+    }
+  };
+  A.spondDeconnexion = {
+    auth: ['e'],
+    run: function (req, ctx) {
+      admin(ctx);
+      if (!ctx.env.spondDebrancher) fail('indispo', SPOND_INDISPO);
+      try { ctx.env.spondDebrancher(); } catch (e) { fail('spond', 'Spond : ' + msgSpond(e)); }
+      ctx.db.setProp('spondCompte', ''); ctx.db.setProp('spondCategories', '');
+      return { debranche: true };
     }
   };
 

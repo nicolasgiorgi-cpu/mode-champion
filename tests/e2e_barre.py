@@ -43,7 +43,7 @@ with sync_playwright() as p:
     audit(pg, ['#/educ', '#/educ/joueurs', '#/educ/compos', '#/educ/classement', '#/educ/outils', '#/educ/joueur/' + tid, '#/educ/ajouter', '#/educ/familles',
                '#/educ/educs', '#/educ/progres', '#/educ/mission', '#/educ/terrain', '#/educ/evt-nouveau', '#/educ/evt/sp-demo-p3', '#/educ/evt/sp-demo-e1',
                '#/educ/compo/sp-demo-p3', '#/educ/compo/sp-demo-p1', '#/educ/compo/sp-demo-p4', '#/educ/compo/sp-demo-e1?p=ateliers', '#/educ/compo/sp-demo-e0?p=matchs',
-               '#/educ/avis/' + avis, '#/educ/nouveautes', '#/guide?pour=educ&de=educ%2Fcompos'])
+               '#/educ/avis/' + avis, '#/educ/nouveautes', '#/educ/spond', '#/guide?pour=educ&de=educ%2Fcompos'])
     # le tableau d'une compo, une fois proposée (long), et la fenêtre « Composer »
     pg.goto(BASE + '#/educ/compo/sp-demo-p3'); pg.wait_for_timeout(700)
     pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(900)

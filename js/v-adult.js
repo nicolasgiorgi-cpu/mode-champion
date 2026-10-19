@@ -450,6 +450,7 @@
         link('#/educ/terrain', 'shield', 'Fiche terrain du groupe', 'Niveaux A/B/C, passerelles, plaquage (pour les compos)') +
         link('#/educ/progres', 'up', 'Progrès du groupe aux bilans', 'Qui a le plus progressé, test par test') +
         link('#/educ/ajouter', 'plus', 'Ajouter un joueur', 'Son code provisoire et, si besoin, le code parent') +
+        link('#/educ/spond', 'refresh', 'Spond', (function () { var sp = app.S.cache.compos && app.S.cache.compos.spond; return !sp ? 'Les événements et les réponses des familles' : sp.branche ? 'Branché · les événements et les réponses des familles' : 'Pas encore branché : les événements et les réponses des familles'; })()) +
         link('#/educ/familles', 'key', 'Familles et codes parents', 'Un nouveau code si une famille a perdu le sien') +
         (g.moi.admin ? link('#/educ/educs', 'group', 'Les éducs (admin)', 'Les codes des éducs') : '') + '</section>' +
         '<section class="sec"><h2 class="h2">' + (mine.length > 1 ? 'Mes enfants' : 'Mon enfant') + '</h2>' +
@@ -665,11 +666,74 @@
 
   // ---------- ÉDUC : ajouter un joueur ----------
   var add = { prenom: '', fam: 'new', famNom: '' };
+  // les enfants de Spond (catégories suivies) pas encore reliés à un joueur de l'appli
+  function spondAAjouter() {
+    var sp = app.S.cache.compos && app.S.cache.compos.spond;
+    return ((sp && sp.membres) || []).filter(function (m) { return !m.lie; });
+  }
+  function spondListe(g) {
+    var l = spondAAjouter();
+    if (!l.length) return '';
+    return '<section class="sec"><div class="between"><h2 class="h2">Depuis Spond (' + l.length + ')</h2>' + (l.length > 1 ? '<button type="button" class="btn2 sm" data-act="spAddAll">' + icon('plus', 16) + ' Tout ajouter</button>' : '') + '</div>' +
+      '<p class="small" style="margin:0">Inscrits dans Spond, pas encore dans l\'appli. Ajoutés d\'un geste : prénom et famille repris de Spond, reliés à Spond tout de suite, codes créés.</p>' +
+      '<ul class="list">' + l.map(function (m) {
+        return '<li class="li"><span class="grow"><span class="t1">' + esc(m.prenom || m.nom) + (m.nomFamille ? ' ' + esc(m.nomFamille) : '') + '</span><span class="t2">' + esc(m.categorie || 'Spond') + '</span></span>' +
+          '<button type="button" class="btn2 sm" data-act="spAdd" data-id="' + esc(m.id) + '">' + icon('plus', 16) + ' Ajouter</button></li>';
+      }).join('') + '</ul></section>';
+  }
+  // prénom de l'appli (avec l'initiale du nom si le prénom est déjà pris) et famille (« Famille Nom » si elle existe déjà : frère, sœur)
+  function spondParams(g, m) {
+    var prenom = String(m.prenom || m.nom || '').trim(), ini = String(m.nomFamille || '').trim().charAt(0).toUpperCase();
+    var pris = g.joueurs.some(function (p) { return p.joueur.actif && p.joueur.prenom.toLowerCase() === prenom.toLowerCase(); });
+    var p = { prenom: (pris && ini ? prenom + ' ' + ini + '.' : prenom).slice(0, 24), spondId: m.id };
+    var nomFam = m.nomFamille ? 'Famille ' + m.nomFamille : '';
+    var fam = nomFam && g.familles.filter(function (f) { return f.nom.toLowerCase() === nomFam.toLowerCase(); })[0];
+    if (fam) p.familleId = fam.id; else p.familleNom = nomFam;
+    return p;
+  }
+  function apresSpond() { dropGroup(); return Promise.all([loadGroup(true), MC.loadCompos ? MC.loadCompos(true) : null]).then(function () { app.rerender(); }); }
+  MC.act.spAdd = function (b) {
+    var m = spondAAjouter().filter(function (x) { return x.id === b.getAttribute('data-id'); })[0], g = app.S.cache.group;
+    if (!m || !g) return;
+    b.disabled = true;
+    app.adultCall('addPlayer', spondParams(g, m)).then(function (r) {
+      var lines = ['Code provisoire de ' + esc(r.joueur.prenom) + ' (1re connexion, 45 jours) : il choisira ensuite son propre code.', 'Relié à Spond : ses réponses arrivent toutes seules.'];
+      var text = 'Mode champion M12 · Bienvenue ' + r.joueur.prenom + ' ! Site : ' + siteUrl() + ' — touche ton prénom et tape ton code provisoire : ' + r.code + '.';
+      if (r.familleCode) { lines.push('Code parent de « ' + esc(r.famille.nom) + ' » : <b style="color:var(--cyan);font-family:var(--f-hud);letter-spacing:.1em">' + r.familleCode + '</b> (espace adultes › Je suis parent).'); text += ' Code parent (espace adultes) : ' + r.familleCode + '.'; }
+      else lines.push('Famille « ' + esc(r.famille.nom) + ' » : même code parent que ses frères et sœurs.');
+      return showCode(esc(r.joueur.prenom) + ' est ajouté !', r.code, lines, text);
+    }).then(apresSpond).catch(function (e) { b.disabled = false; ui.toast(e.message, true); });
+  };
+  MC.act.spAddAll = function (b) {
+    var l = spondAAjouter(), g = app.S.cache.group, faits = [];
+    if (!l.length || !g) return;
+    b.disabled = true;
+    // un par un : chaque enfant ajouté compte pour le suivant (prénom déjà pris, famille déjà créée)
+    l.reduce(function (pr, m) {
+      return pr.then(function () {
+        return app.adultCall('addPlayer', spondParams(g, m)).then(function (r) {
+          faits.push(r);
+          g.joueurs.push({ joueur: r.joueur }); if (r.familleCode) g.familles.push({ id: r.famille.id, nom: r.famille.nom });
+        });
+      });
+    }, Promise.resolve()).then(function () {
+      var text = 'Mode champion M12 · ' + siteUrl() + ' — codes provisoires (1re connexion) :\n' + faits.map(function (r) { return r.joueur.prenom + ' : ' + r.code + (r.familleCode ? ' · code parent (' + r.famille.nom + ') : ' + r.familleCode : ''); }).join('\n');
+      return ui.modal({
+        title: faits.length + ' joueur' + (faits.length > 1 ? 's' : '') + ' ajouté' + (faits.length > 1 ? 's' : ''),
+        body: '<p class="small" style="margin:0">Notez ou partagez ces codes : ils ne seront plus affichés.</p><ul class="list" style="gap:6px">' + faits.map(function (r) {
+          return '<li class="li"><span class="grow"><span class="t1">' + esc(r.joueur.prenom) + '</span><span class="t2">' + (r.familleCode ? 'Code parent (' + esc(r.famille.nom) + ') : <b style="color:var(--cyan)">' + r.familleCode + '</b>' : esc(r.famille.nom)) + '</span></span><b style="font:700 18px/1 var(--f-hud);letter-spacing:.12em">' + esc(r.code) + '</b></li>';
+        }).join('') + '</ul>',
+        actions: [{ label: icon('copy', 18) + ' Copier / partager', cls: 'btn', onClick: function () { shareCode(text); } }, { label: 'Fermer', value: true, cls: 'btn2 grey' }]
+      });
+    }).then(apresSpond).catch(function (e) { b.disabled = false; ui.toast(e.message + (faits.length ? ' (' + faits.length + ' déjà ajouté' + (faits.length > 1 ? 's' : '') + ')' : ''), true); apresSpond(); });
+  };
   app.route('/educ/ajouter', function () {
-    return loadGroup().then(function (g) {
+    return Promise.all([loadGroup(), MC.loadCompos ? MC.loadCompos().catch(function () { return null; }) : null]).then(function (res) {
+      var g = res[0];
       var fams = g.familles.slice().sort(function (a, b) { return a.nom.localeCompare(b.nom, 'fr'); });
       return '<main class="screen">' + educBar(g, 'Ajouter un joueur', '#/educ/outils', 'Outils') +
         '<div class="head"><span class="kicker">Nouveau joueur</span><h1 class="big md">Ajouter<br>un joueur</h1><p class="lead">Le site crée un code provisoire pour l\'enfant (valable 45 jours, pour sa 1re connexion) et, si c\'est une nouvelle famille, un code parent.</p></div>' +
+        spondListe(g) +
         '<div class="sec"><label class="lab" for="ap">Prénom (ajoutez l\'initiale du nom si deux enfants ont le même prénom)</label><input id="ap" class="txt" maxlength="24" autocomplete="off" data-add="prenom" value="' + esc(add.prenom) + '">' +
         '<label class="lab" for="af">Famille</label><select id="af" class="txt" data-add="fam"><option value="new"' + (add.fam === 'new' ? ' selected' : '') + '>Nouvelle famille…</option>' + fams.map(function (f) { return '<option value="' + esc(f.id) + '"' + (add.fam === f.id ? ' selected' : '') + '>' + esc(f.nom) + ' (frère, sœur…)</option>'; }).join('') + '</select>' +
         (add.fam === 'new' ? '<label class="lab" for="an">Nom de la famille (facultatif)</label><input id="an" class="txt" maxlength="40" placeholder="ex. Famille Martin" data-add="famNom" value="' + esc(add.famNom) + '">' : '') + '</div>' +

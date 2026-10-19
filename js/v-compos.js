@@ -127,6 +127,8 @@ window.MC = window.MC || {};
       return past ? '' : '<span class="pill" style="--pc:' + (dans <= 2 ? 'var(--orange)' : 'var(--line3);color:var(--ink)') + '">' + nm + ' à faire</span>';
     }).join('') || '<span class="pill" style="--pc:var(--line3);color:var(--ink)">Entraînement</span>';
     else chip = '<span class="pill" style="--pc:var(--line3);color:var(--ink)">Événement</span>';
+    var nCat = ((C.cd.spond && C.cd.spond.categories) || []).filter(function (x) { return x.suivie; }).length;
+    if (nCat > 1 && e.categorie) chip = '<span class="pill" style="--pc:var(--line3);color:var(--ink)">' + esc(e.categorie) + '</span>' + chip;
     var sr = (e.sansReponse || []).filter(function (id) { return C.actifs[id] && pres.indexOf(id) < 0; }).length;
     return '<li><a class="li cev' + (past ? ' past' : '') + '" href="#/educ/evt/' + esc(e.id) + '">' +
       '<span class="cdate"><b>' + esc(String(new Date(jour(e) + 'T12:00:00').getDate())) + '</b><small>' + esc(ui.fmtDate(jour(e)).split(' ').slice(-1)[0]) + '</small></span>' +
@@ -144,7 +146,7 @@ window.MC = window.MC || {};
     var sp = cd.spond || {}, d = sp.derniere;
     var spond = MC.api.DEMO ? '<p class="small" style="margin:0;color:var(--yellow)">Mode démo : événements fictifs (Spond n\'est pas branché).</p>' :
       sp.branche ? '<div class="between cspond"><span class="small">' + icon('refresh', 14) + ' Spond : ' + (d ? 'mis à jour ' + esc(relTime(d.quand)) : 'pas encore lu') + '</span><button type="button" class="btn2 sm" data-act="cSync">' + icon('refresh', 14) + ' Actualiser</button></div>' :
-        '<p class="small" style="margin:0">Spond n\'est pas encore branché : ajoutez les plateaux à la main en attendant (les présents se cochent dans l\'appli).</p>';
+        '<p class="small" style="margin:0">Spond n\'est pas encore branché : ajoutez les événements à la main en attendant (les présents se cochent dans l\'appli). Un éduc admin le branche dans <a href="#/educ/spond">Outils › Spond</a>.</p>';
     var pend = pendingAvis(cd), avoter = votesAFaire(cd);
     return '<main class="screen">' + MC.educBar(C.g, 'Les compos') +
       '<div class="head"><span class="kicker" style="color:var(--gold)">Plateaux et entraînements</span><h1 class="big md">Les compos</h1>' + spond + '</div>' +
@@ -165,6 +167,86 @@ window.MC = window.MC || {};
       ui.toast('Spond : ' + i.evenements + ' événement' + (i.evenements > 1 ? 's' : '') + (i.nouveauxLiens ? ', ' + i.nouveauxLiens + ' joueur' + (i.nouveauxLiens > 1 ? 's' : '') + ' relié' + (i.nouveauxLiens > 1 ? 's' : '') : ''));
       return Promise.all([loadCompos(true), MC.loadGroup(true)]);
     }).then(function () { app.rerender(); }).catch(function (e) { b.disabled = false; ui.toast(e.message, true); });
+  };
+
+  // ======================================================================
+  // Spond : brancher le compte (un éduc admin tape lui-même l'e-mail et le mot de passe de SON compte Spond),
+  // choisir les catégories suivies, débrancher. Le mot de passe part au serveur Google du club et n'est gardé nulle part ici.
+  // ======================================================================
+  var SPC = null;   // catégories cochées (id → true), le temps de les enregistrer
+  app.route('/educ/spond', function () {
+    return both().then(function (r) {
+      var g = r[0], cd = r[1], sp = cd.spond || {}, adm = !!g.moi.admin, cats = sp.categories || [], d = sp.derniere, cpt = sp.compte;
+      if (!SPC) { SPC = {}; cats.forEach(function (c) { if (c.suivie) SPC[c.id] = true; }); }
+      var etat = sp.branche
+        ? '<div class="cstate pub">' + icon('check', 18) + '<span><b>Spond est branché</b>' + (cpt ? ' avec le compte ' + esc(cpt.email) + ' (par ' + esc(cpt.parQui) + ', ' + esc(relTime(cpt.quand)) + ')' : '') +
+          '<br><span class="small" style="color:var(--soft)">Dernière synchro : ' + (d ? esc(relTime(d.quand)) + ' · ' + d.evenements + ' événement' + (d.evenements > 1 ? 's' : '') + ' · ' + d.membres + ' enfant' + (d.membres > 1 ? 's' : '') : 'pas encore') + '</span>' +
+          (cpt && cpt.declencheur === false ? '<br><span class="small" style="color:var(--orange)">La synchro automatique n\'est pas encore programmée : le propriétaire du script doit lancer « autoriserSpond » une fois dans l\'éditeur Apps Script.</span>' : '') + '</span></div>'
+        : '<div class="cstate draft">' + icon('info', 18) + '<span><b>Spond n\'est pas branché</b> : en attendant, les événements s\'ajoutent à la main et les présents se cochent dans l\'appli.</span></div>';
+      var indispo = MC.api.DEMO ? '<p class="small" style="margin:0;color:var(--yellow)">Mode démo : Spond ne se branche pas ici. Sur le vrai site, un éduc admin tape dans ce formulaire l\'e-mail et le mot de passe de son compte Spond.</p>'
+        : sp.possible === false ? '<p class="small" style="margin:0;color:var(--orange)">Le serveur ne sait pas encore parler à Spond : le propriétaire du script doit ajouter le fichier « spond » au projet Apps Script et lancer « autoriserSpond » une fois (voir le README).</p>' : '';
+      var off = MC.api.DEMO || sp.possible === false;
+      var form = adm ? '<section class="sec"><h2 class="h2">' + (sp.branche ? 'Changer de compte' : 'Brancher Spond') + '</h2>' + indispo +
+        '<p class="small" style="margin:0">Tapez l\'e-mail et le mot de passe de <b>votre</b> compte Spond, celui avec lequel vous gérez la catégorie. Ils sont gardés sur le serveur Google du club (propriétés du script) : jamais dans la feuille, jamais réaffichés, envoyés seulement à Spond.</p>' +
+        '<form class="sec" data-spform action="#" autocomplete="on"><label class="lab" for="sp-e">E-mail du compte Spond</label><input id="sp-e" name="email" class="txt" type="email" inputmode="email" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="120">' +
+        '<label class="lab" for="sp-p">Mot de passe Spond</label><input id="sp-p" name="password" class="txt" type="password" autocomplete="current-password" maxlength="200">' +
+        '<button type="submit" class="btn" data-spgo' + (off ? ' disabled' : '') + '>' + icon('refresh', 18) + (sp.branche ? ' Brancher ce compte' : ' Brancher Spond') + '</button></form>' +
+        '<p class="small" style="margin:0">L\'appli lit Spond toutes les heures (lecture seule) : les événements des catégories dont ce compte est coach, et les réponses des enfants.</p></section>'
+        : '<p class="small" style="margin:0">Seul un éduc administrateur peut brancher Spond ou changer ses réglages.</p>' + indispo;
+      var catsH = cats.length ? '<section class="sec"><h2 class="h2">Les catégories suivies</h2><p class="small" style="margin:0">Les sous-groupes Spond du compte. Par défaut, ceux dont ce compte est coach.</p><div class="cop-list">' + cats.map(function (c) {
+        var on = !!SPC[c.id];
+        return '<button type="button" class="cop' + (on ? ' on' : '') + '" aria-pressed="' + on + '"' + (adm ? ' data-act="spCat" data-id="' + esc(c.id) + '"' : ' disabled') + '><span class="nm">' + esc(c.nom) + '<small class="csp">' + esc(c.groupe) + (c.coach ? ' · coach' : '') + '</small></span><span class="ck">' + icon('check', 14) + '</span></button>';
+      }).join('') + '</div>' + (adm ? '<button type="button" class="btn2" data-act="spCats">' + icon('check', 16) + ' Enregistrer les catégories</button>' : '') + '</section>' : '';
+      var nonLies = (sp.membres || []).filter(function (m) { return !m.lie; });
+      return '<main class="screen">' + MC.educBar(g, 'Spond', '#/educ/outils', 'Outils') +
+        '<div class="head"><span class="kicker" style="color:var(--cyan)">Événements et présents</span><h1 class="big md">Spond</h1></div>' + etat +
+        (sp.branche ? '<div class="grid2"><button type="button" class="btn2" data-act="cSync"' + (off ? ' disabled' : '') + '>' + icon('refresh', 16) + ' Actualiser</button><a class="btn2" href="#/educ/compos">Les événements</a></div>' : '') +
+        (nonLies.length ? '<a class="li calert-top" href="#/educ/ajouter">' + icon('plus', 20, 'style="color:var(--cyan);flex:none"') + '<span class="grow"><span class="t1">' + nonLies.length + ' enfant' + (nonLies.length > 1 ? 's' : '') + ' de Spond pas encore dans l\'appli</span><span class="t2">Les ajouter (codes créés tout de suite)</span></span>' + icon('right', 16) + '</a>' : '') +
+        form + catsH +
+        (adm && sp.branche ? '<button type="button" class="lnk" data-act="spDeco" style="align-self:flex-start">Débrancher Spond (oublier l\'e-mail et le mot de passe)</button>' : '') +
+        '</main>';
+    });
+  }, { adult: 'e', nav: 'e:outils', bg: BG });
+  // le formulaire : touche Entrée ou bouton
+  document.addEventListener('submit', function (ev) {
+    if (!ev.target || !ev.target.hasAttribute || !ev.target.hasAttribute('data-spform')) return;
+    ev.preventDefault();
+    MC.act.spConnect(ev.target.querySelector('[data-spgo]'));
+  }, true);
+  MC.act.spConnect = function (b) {
+    var e = document.getElementById('sp-e'), p = document.getElementById('sp-p');
+    if (!e || !p || (b && b.disabled && b.getAttribute('aria-busy'))) return;
+    var email = e.value.trim(), mdp = p.value;
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { ui.toast('L\'e-mail du compte Spond n\'a pas l\'air juste.', true); return; }
+    if (!mdp) { ui.toast('Il faut le mot de passe du compte Spond.', true); return; }
+    p.value = '';                                    // le mot de passe ne reste pas à l'écran
+    if (b) { b.disabled = true; b.setAttribute('aria-busy', 'true'); }
+    app.adultCall('spondConnexion', { email: email, mdp: mdp }).then(function (r) {
+      mdp = '';
+      SPC = null;
+      ui.toast('Spond branché : ' + r.info.evenements + ' événement' + (r.info.evenements > 1 ? 's' : '') + ', ' + r.info.membres + ' enfant' + (r.info.membres > 1 ? 's' : '') + (r.avertissement ? ' · ' + r.avertissement : ''), !!r.avertissement);
+      return Promise.all([loadCompos(true), MC.loadGroup(true)]);
+    }).then(function () { app.rerender(); }).catch(function (er) {
+      mdp = '';
+      if (b) { b.disabled = false; b.removeAttribute('aria-busy'); }
+      ui.toast(er.message, true);
+    });
+  };
+  MC.act.spCat = function (b) { var id = b.getAttribute('data-id'); SPC = SPC || {}; if (SPC[id]) delete SPC[id]; else SPC[id] = true; app.rerender(); };
+  MC.act.spCats = function (b) {
+    var ids = Object.keys(SPC || {});
+    if (!ids.length) { ui.toast('Choisissez au moins une catégorie.', true); return; }
+    b.disabled = true;
+    app.adultCall('spondCategories', { ids: ids }).then(function (r) {
+      SPC = null; ui.toast('Catégories enregistrées : ' + r.info.evenements + ' événement' + (r.info.evenements > 1 ? 's' : ''));
+      return Promise.all([loadCompos(true), MC.loadGroup(true)]);
+    }).then(function () { app.rerender(); }).catch(function (er) { b.disabled = false; ui.toast(er.message, true); });
+  };
+  MC.act.spDeco = function () {
+    ui.modal({ title: 'Débrancher Spond ?', body: '<p class="lead">L\'appli oublie l\'e-mail et le mot de passe, et ne lit plus Spond. Les événements déjà là restent.</p>', actions: [{ label: 'Débrancher', value: true, cls: 'btn pink' }, { label: 'Annuler', value: false, cls: 'btn2 grey' }] }).then(function (ok) {
+      if (!ok) return;
+      app.adultCall('spondDeconnexion', {}).then(function () { SPC = null; ui.toast('Spond débranché'); return loadCompos(true); }).then(function () { app.rerender(); }).catch(function (er) { ui.toast(er.message, true); });
+    });
   };
 
   // ---------- ajouter un événement à la main ----------
