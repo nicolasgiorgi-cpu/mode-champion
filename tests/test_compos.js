@@ -256,6 +256,93 @@ assert.strictEqual(HX.x.autre, 1); assert.strictEqual(HX.x.dernierAutre, '2026-0
 assert.strictEqual(HX.x.avecCopain, 1); assert.strictEqual(HX.x.sansCopainSerie, 1);
 assert.deepStrictEqual(J(HX.x.liste.map(l => [l.titre, l.niveau, l.poste, l.copains.length])), [['Plateau 1', 'A', 'centre', 1], ['Plateau 2', 'B', 'centre', 0]]);
 assert.deepStrictEqual(J(K.hOf(HX, 'inconnu').niveaux), {});
+// ======================================================================
+// Entraînements : groupes d'ateliers puis matchs
+// ======================================================================
+const FE = {};
+const POE = [['pilier'], ['talonneur', 'pilier'], ['troisieme-ligne'], ['demi-de-melee'], ['ouvreur'], ['centre'], ['ailier'], ['centre', 'troisieme-ligne'], []];
+let ie = 0;
+[['A', 7], ['B', 15], ['C', 8]].forEach(([n, c]) => { for (let k = 0; k < c; k++) { const id = n + k; FE[id] = { id, prenom: id, niveau: n, passerelle: '', plaquage: n === 'A' ? 4 + (k % 2) : n === 'B' ? 2 + (k % 3) : k % 3, voeux: [], postesOk: POE[ie++ % POE.length], copains: [] }; } });
+FE.B0.passerelle = 'A'; FE.B14.passerelle = 'C';
+FE.A0.copains = ['A1']; FE.B3.copains = ['B4'];
+const idsE = Object.keys(FE);
+const lvE = (p) => p.equipes.map(t => t.joueurs.map(j => FE[j.id].niveau).join(''));
+const tous = (p) => { const s = []; p.equipes.forEach(t => t.joueurs.forEach(j => s.push(j.id))); return s.sort(); };
+// réglages conseillés : groupes de 8 environ, 2 matchs à partir de 20
+let RE = K.regEnt({ partie: 'ateliers' }, idsE, FE);
+assert.strictEqual(RE.n, 4); assert.strictEqual(RE.mode, 'niveau'); assert.strictEqual(RE.separer, false); assert.strictEqual(RE.nbMatchs, 2);
+assert.strictEqual(K.regEnt({ partie: 'matchs', separer: true }, idsE, FE).separer, false);
+// ateliers par niveau : des groupes homogènes, coupés à la limite des niveaux ; tout le monde placé une fois
+let pe = K.proposerEnt(idsE, FE, {}, { partie: 'ateliers', mode: 'niveau', n: 4 }, '2026-10-21');
+assert.deepStrictEqual(J(lvE(pe)), ['AAAAAAA', 'BBBBBBBB', 'BBBBBBB', 'CCCCCCCC']);
+assert.deepStrictEqual(J(pe.equipes.map(t => [t.nom, t.bloc])), [['A1', 'A'], ['B1', 'B'], ['B2', 'B'], ['C1', 'C']]);
+assert.deepStrictEqual(tous(pe), idsE.slice().sort());
+assert.strictEqual(pe.equipes[1].joueurs[0].id, 'B0', 'la passerelle vers A en tête des B');
+assert.ok(pe.equipes[2].joueurs.some(j => j.id === 'B14'), 'la passerelle vers C avec les derniers B');
+// 3 groupes : un groupe réunit deux niveaux voisins (« A+B ») plutôt qu'un groupe de 15
+pe = K.proposerEnt(idsE, FE, {}, { partie: 'ateliers', mode: 'niveau', n: 3 }, '2026-10-21');
+assert.deepStrictEqual(J(pe.equipes.map(t => t.nom)), ['A+B', 'B1', 'C1']);
+assert.ok(Math.max(...pe.equipes.map(t => t.joueurs.length)) - Math.min(...pe.equipes.map(t => t.joueurs.length)) <= 4);
+// ateliers équilibrés : chaque groupe mélange les niveaux, effectifs et plaquage proches
+pe = K.proposerEnt(idsE, FE, {}, { partie: 'ateliers', mode: 'equilibre', n: 4 }, '2026-10-21');
+assert.deepStrictEqual(J(pe.equipes.map(t => t.bloc)), ['g', 'g', 'g', 'g']);
+pe.equipes.forEach(t => { const c = lvE({ equipes: [t] })[0]; assert.ok(/A/.test(c) && /B/.test(c) && /C/.test(c), 'mélangé : ' + c); });
+let ste = pe.equipes.map(t => K.stats(t, FE, 5));
+assert.ok(Math.max(...ste.map(x => x.n)) - Math.min(...ste.map(x => x.n)) <= 1);
+assert.ok(Math.max(...ste.map(x => x.plaq)) - Math.min(...ste.map(x => x.plaq)) < 0.6, JSON.stringify(ste.map(x => x.plaq)));
+assert.deepStrictEqual(J(K.alertesEnt(pe, FE, idsE)), []);
+// avants et arrières séparés : les avants d'un côté, les arrières de l'autre, les sans-poste pour équilibrer
+pe = K.proposerEnt(idsE, FE, {}, { partie: 'ateliers', mode: 'equilibre', separer: true, nAv: 2, nAr: 2 }, '2026-10-21');
+assert.deepStrictEqual(J(pe.equipes.map(t => t.bloc)), ['av', 'av', 'ar', 'ar']);
+pe.equipes.forEach(t => t.joueurs.forEach(j => { const ty = K.typePoste(K.posteDefaut(FE[j.id])); assert.ok(!ty || ty === t.bloc, j.id + ' ' + ty + ' en ' + t.bloc); }));
+assert.deepStrictEqual(tous(pe), idsE.slice().sort());
+const sansP = idsE.filter(id => !K.posteDefaut(FE[id]));
+assert.ok(sansP.every(id => pe.raisons[id]), 'les sans-poste ont leur raison');
+pe = K.proposerEnt(idsE, FE, {}, { partie: 'ateliers', mode: 'niveau', separer: true, nAv: 2, nAr: 2 }, '2026-10-21');
+assert.deepStrictEqual(J(K.blocsDe(pe)), ['av', 'ar']);
+pe.equipes.forEach(t => { const c = lvE({ equipes: [t] })[0]; assert.ok(!(/A/.test(c) && /C/.test(c)), 'groupe de niveau sans A et C ensemble : ' + c); });
+// matchs par niveau : le match 1 réunit les plus avancés ; deux équipes équilibrées par match
+pe = K.proposerEnt(idsE, FE, {}, { partie: 'matchs', mode: 'niveau', nbMatchs: 2 }, '2026-10-21');
+assert.deepStrictEqual(J(pe.equipes.map(t => [t.id, t.nom, t.bloc, t.cote])), [['M1c', 'Chasubles', 'm1', 'c'], ['M1m', 'Maillots', 'm1', 'm'], ['M2c', 'Chasubles', 'm2', 'c'], ['M2m', 'Maillots', 'm2', 'm']]);
+const m1 = lvE({ equipes: pe.equipes.slice(0, 2) }).join(''), m2 = lvE({ equipes: pe.equipes.slice(2) }).join('');
+assert.ok(!/C/.test(m1) && !/A/.test(m2), 'match 1 : A + B ; match 2 : B + C (' + m1 + ' / ' + m2 + ')');
+ste = pe.equipes.map(t => K.stats(t, FE, 5));
+assert.ok(Math.abs(ste[0].plaq - ste[1].plaq) < 0.6 && Math.abs(ste[2].plaq - ste[3].plaq) < 0.6);
+assert.ok(Math.abs(ste[0].n - ste[1].n) <= 1 && Math.abs(ste[2].av - ste[3].av) <= 2);
+// matchs équilibrés : chaque match mélange tout le monde
+pe = K.proposerEnt(idsE, FE, {}, { partie: 'matchs', mode: 'equilibre', nbMatchs: 2 }, '2026-10-21');
+[pe.equipes.slice(0, 2), pe.equipes.slice(2)].forEach(m => { const c = lvE({ equipes: m }).join(''); assert.ok(/A/.test(c) && /C/.test(c), c); });
+assert.deepStrictEqual(J(K.alertesEnt(pe, FE, idsE)), []);
+// un seul match avec tout le monde
+assert.strictEqual(K.proposerEnt(idsE, FE, {}, { partie: 'matchs', nbMatchs: 1 }, '2026-10-21').equipes.length, 2);
+// alertes : présents oubliés, effectifs déséquilibrés (avec la correction), groupe vide
+let ce = K.moveTo(K.moveTo(pe, pe.equipes[0].joueurs[0].id, 'M1m', FE), pe.equipes[0].joueurs[1].id, 'M1m', FE);
+let ale = K.alertesEnt(ce, FE, idsE.concat(['nouveau']));
+assert.ok(ale.some(a => a.k === 'oubli' && /nouveau|\?/.test(a.texte)));
+const tai = ale.filter(a => a.k === 'taille')[0];
+assert.ok(tai && /Match 1/.test(tai.texte) && tai.fix && tai.fix.vers === 'M1c', JSON.stringify(tai));
+const vz = K.videEnt(idsE, FE, { partie: 'ateliers', mode: 'niveau', n: 4 }, '2026-10-21');
+assert.strictEqual(vz.equipes.length, 4); assert.ok(vz.equipes.every(t => !t.joueurs.length)); assert.strictEqual(vz.banc.length, idsE.length);
+assert.ok(K.alertesEnt(vz, FE, idsE).some(a => a.k === 'vide'));
+// les groupes de niveau ne signalent pas l'écart de plaquage (il est voulu)
+assert.ok(!K.alertesEnt(K.proposerEnt(idsE, FE, {}, { partie: 'ateliers', mode: 'niveau', n: 4 }, '2026-10-21'), FE, idsE).some(a => a.k === 'plaquage'));
+// reprendre les groupes de la dernière fois : les absents sortent, les nouveaux attendent
+const prec = K.proposerEnt(idsE, FE, {}, { partie: 'ateliers', mode: 'equilibre', n: 3 }, '2026-10-14');
+const auj = idsE.filter(id => id !== 'A0' && id !== 'C7').concat(['Z9']);
+FE.Z9 = { id: 'Z9', prenom: 'Z9', niveau: 'B', plaquage: 2, voeux: [], postesOk: [], copains: [] };
+const rp = K.reprendre(prec, auj, FE);
+assert.deepStrictEqual(J(rp.banc), ['Z9']);
+assert.ok(!K.where(rp, 'A0') && K.where(rp, 'B1').t >= 0);
+assert.deepStrictEqual(J(rp.equipes.map(t => t.id)), J(prec.equipes.map(t => t.id)));
+// l'historique des plateaux ignore les groupes d'entraînement
+const hEnt = K.historique([{ evenementId: 'x', statut: 'publiee', partie: 'ateliers', equipes: prec.equipes }], { x: { id: 'x', debut: '2026-10-14T16:30' } }, FE, '2026-10-21');
+assert.deepStrictEqual(J(hEnt), {});
+// performance : 31 joueurs, ateliers équilibrés et matchs
+let t2 = Date.now();
+K.proposerEnt(idsE, FE, {}, { partie: 'ateliers', mode: 'equilibre', n: 6 }, '2026-10-21');
+K.proposerEnt(idsE, FE, {}, { partie: 'matchs', mode: 'equilibre', nbMatchs: 3 }, '2026-10-21');
+assert.ok(Date.now() - t2 < 1500, 'entraînement en ' + (Date.now() - t2) + ' ms');
+
 // ----- performance : 44 joueurs, 4 équipes au jeu à 10 -----
 const Q = {};
 for (let i = 0; i < 44; i++) Q['r' + i] = { id: 'r' + i, prenom: 'R' + i, niveau: i < 22 ? 'A' : 'B', passerelle: '', plaquage: i % 6, voeux: [postes[i % 12], postes[(i + 5) % 12]], postesOk: [], copains: ['r' + ((i + 3) % 44), 'r' + ((i + 11) % 44)] };

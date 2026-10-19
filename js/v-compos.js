@@ -44,8 +44,13 @@ window.MC = window.MC || {};
     g.joueurs.forEach(function (p) { if (p.joueur.actif) actifs[p.joueur.id] = true; });
     return { g: g, cd: cd, F: F, evts: evts, actifs: actifs, H: K.historique(cd.compos, evts, F, L.today()), moi: g.moi };
   }
-  // la compo d'un événement : publiée, ou ses 2 versions au vote
-  function compoOf(cd, evtId) { return cd.compos.filter(function (c) { return c.evenementId === evtId && (c.statut === 'publiee' || c.statut === 'vote'); })[0] || null; }
+  // la compo d'un événement : publiée, ou ses 2 versions au vote ; partie : '' (plateau), 'ateliers' ou 'matchs' (entraînement)
+  function compoOf(cd, evtId, partie) { return cd.compos.filter(function (c) { return c.evenementId === evtId && (c.partie || '') === (partie || '') && (c.statut === 'publiee' || c.statut === 'vote'); })[0] || null; }
+  function curC() { return B && compoOf(app.S.cache.compos, B.evtId, B.partie); }
+  function lienCompo(evtId, partie) { return '#/educ/compo/' + evtId + (partie ? '?p=' + partie : ''); }
+  var NOM_PARTIE = { ateliers: 'Les ateliers', matchs: 'Les matchs' };
+  // « la compo du plateau », « la compo des ateliers »…
+  function quoi(partie) { return !partie ? 'du plateau' : partie === 'ateliers' ? 'des ateliers' : 'des matchs'; }
   function avisOf(cd, compoId) { return cd.avis.filter(function (a) { return a.compoId === compoId; }); }
   function pendingAvis(cd) { return ((cd && cd.avis) || []).filter(function (a) { return a.statut === 'attente'; }); }
   // à faire pour moi : les contre-propositions en attente, et les votes où je n'ai pas encore voté
@@ -107,14 +112,21 @@ window.MC = window.MC || {};
   }, { adult: 'e', nav: 'e:compos', bg: BG });
 
   function evtCard(C, e) {
-    var c = compoOf(C.cd, e.id), pres = presentsOf(C, e), av = c ? avisOf(C.cd, c.id).filter(function (a) { return a.statut === 'attente'; }) : [];
+    var c = compoOf(C.cd, e.id), pres = presentsOf(C, e), av = [];
+    C.cd.compos.forEach(function (x) { if (x.evenementId === e.id && (x.statut === 'publiee' || x.statut === 'vote')) av = av.concat(avisOf(C.cd, x.id).filter(function (a) { return a.statut === 'attente'; })); });
     var past = jour(e) < L.today(), dans = L.daysBetween(L.today(), jour(e));
     var chip;
     if (e.annule) chip = '<span class="pill" style="--pc:var(--red)">Annulé</span>';
     else if (c && c.statut === 'vote') chip = '<span class="pill" style="--pc:var(--violet)">Vote : 2 versions</span>' + (c.votes && c.votes[C.moi.id] !== undefined ? '' : '<span class="pill" style="--pc:var(--pink)">À voter</span>');
     else if (c) chip = '<span class="pill" style="--pc:var(--green)">' + (past ? 'Compo jouée' : 'Compo de ' + esc(c.auteurNom)) + '</span>';
     else if (e.sorte === 'plateau') chip = past ? '<span class="pill" style="--pc:var(--faint);color:var(--ink)">Pas de compo</span>' : '<span class="pill" style="--pc:' + (dans <= 14 ? 'var(--orange)' : 'var(--line3);color:var(--ink)') + '">Compo à faire</span>';
-    else chip = '<span class="pill" style="--pc:var(--line3);color:var(--ink)">' + (e.sorte === 'entrainement' ? 'Entraînement' : 'Événement') + '</span>';
+    else if (e.sorte === 'entrainement') chip = K.PARTIES.map(function (x) {
+      var cx = compoOf(C.cd, e.id, x), nm = x === 'ateliers' ? 'Ateliers' : 'Matchs';
+      if (cx && cx.statut === 'vote') return '<span class="pill" style="--pc:var(--violet)">' + nm + ' : vote</span>';
+      if (cx) return '<span class="pill" style="--pc:var(--green)">' + nm + ' ✓</span>';
+      return past ? '' : '<span class="pill" style="--pc:' + (dans <= 2 ? 'var(--orange)' : 'var(--line3);color:var(--ink)') + '">' + nm + ' à faire</span>';
+    }).join('') || '<span class="pill" style="--pc:var(--line3);color:var(--ink)">Entraînement</span>';
+    else chip = '<span class="pill" style="--pc:var(--line3);color:var(--ink)">Événement</span>';
     var sr = (e.sansReponse || []).filter(function (id) { return C.actifs[id] && pres.indexOf(id) < 0; }).length;
     return '<li><a class="li cev' + (past ? ' past' : '') + '" href="#/educ/evt/' + esc(e.id) + '">' +
       '<span class="cdate"><b>' + esc(String(new Date(jour(e) + 'T12:00:00').getDate())) + '</b><small>' + esc(ui.fmtDate(jour(e)).split(' ').slice(-1)[0]) + '</small></span>' +
@@ -137,7 +149,7 @@ window.MC = window.MC || {};
     return '<main class="screen">' + MC.educBar(C.g, 'Les compos') +
       '<div class="head"><span class="kicker" style="color:var(--gold)">Plateaux et entraînements</span><h1 class="big md">Les compos</h1>' + spond + '</div>' +
       (pend.length ? '<a class="li calert-top" href="#/educ/avis/' + esc(pend[0].id) + '">' + icon('swap', 20, 'style="color:var(--pink);flex:none"') + '<span class="grow"><span class="t1">' + pend.length + ' contre-proposition' + (pend.length > 1 ? 's' : '') + ' en attente</span><span class="t2">De ' + esc(pend.map(function (a) { return a.auteurNom; }).join(', ')) + '</span></span>' + icon('right', 16) + '</a>' : '') +
-      avoter.map(function (c) { var e = C.evts[c.evenementId]; return '<a class="li calert-top vote" href="#/educ/compo/' + esc(c.evenementId) + '">' + icon('podium', 20, 'style="color:var(--violet);flex:none"') + '<span class="grow"><span class="t1">À voter : ' + esc(e ? e.titre : 'un plateau') + '</span><span class="t2">' + esc(c.auteurNom) + ' propose 2 versions</span></span>' + icon('right', 16) + '</a>'; }).join('') +
+      avoter.map(function (c) { var e = C.evts[c.evenementId]; return '<a class="li calert-top vote" href="' + lienCompo(esc(c.evenementId), c.partie) + '">' + icon('podium', 20, 'style="color:var(--violet);flex:none"') + '<span class="grow"><span class="t1">À voter : ' + esc(e ? e.titre : 'un plateau') + (c.partie ? ' · ' + (c.partie === 'ateliers' ? 'ateliers' : 'matchs') : '') + '</span><span class="t2">' + esc(c.auteurNom) + ' propose 2 versions</span></span>' + icon('right', 16) + '</a>'; }).join('') +
       '<a class="li cterr" href="#/educ/terrain">' + icon('shield', 22, 'style="color:var(--cyan);flex:none"') + '<span class="grow"><span class="t1">Fiche terrain du groupe</span><span class="t2">Niveaux, passerelles, plaquage</span>' +
       '<span class="row" style="gap:6px;margin-top:6px">' + ['A', 'B', 'C'].map(function (n) { return niveauTag(n, true) + '<b class="cnum">' + cnt[n] + '</b>'; }).join('') +
       (cnt[''] ? '<span class="cmeta" style="color:var(--orange)">' + cnt[''] + ' sans niveau</span>' : '') + '</span></span>' + icon('right', 16) + '</a>' +
@@ -227,9 +239,13 @@ window.MC = window.MC || {};
     var nchg = Object.keys(PR.chg).length;
     var av = c ? avisOf(C.cd, c.id).filter(function (a) { return a.statut === 'attente'; }) : [];
     var compoBlock;
-    if (e.sorte !== 'plateau') {
-      compoBlock = '<p class="small" style="margin:0">Les groupes du mercredi et les matchs de fin d\'entraînement arrivent plus tard. Si c\'est en fait un plateau :</p>' +
-        '<button type="button" class="btn2 grey" data-act="eSorte" data-v="plateau">C\'est un plateau</button>';
+    if (e.sorte === 'entrainement') {
+      compoBlock = partCard(C, e, 'ateliers', 1, past) + partCard(C, e, 'matchs', 2, past) +
+        '<p class="small" style="margin:0">D\'abord les groupes d\'ateliers, ensuite les matchs. Un éduc publie ; le jour de l\'entraînement, tous les éducs peuvent corriger.</p>' +
+        '<button type="button" class="lnk" data-act="eSorte" data-v="plateau" style="align-self:flex-start">C\'est en fait un plateau</button>';
+    } else if (e.sorte !== 'plateau') {
+      compoBlock = '<p class="small" style="margin:0">C\'est un plateau ou un entraînement ?</p><div class="grid2">' +
+        '<button type="button" class="btn2 grey" data-act="eSorte" data-v="plateau">C\'est un plateau</button><button type="button" class="btn2 grey" data-act="eSorte" data-v="entrainement">Un entraînement</button></div>';
     } else if (c && c.statut === 'vote') {
       var mv = c.votes && c.votes[C.moi.id];
       compoBlock = '<a class="li calert-top vote" href="#/educ/compo/' + esc(e.id) + '">' + icon('podium', 20, 'style="color:var(--violet);flex:none"') + '<span class="grow"><span class="t1">Vote des éducs : 2 versions de ' + esc(c.auteurNom) + '</span><span class="t2">' +
@@ -249,7 +265,7 @@ window.MC = window.MC || {};
     return '<main class="screen">' + MC.educBar(C.g, e.titre, '#/educ/compos', 'Les compos') +
       '<div class="head"><span class="kicker" style="color:var(--gold)">' + esc(quand(e)) + (e.lieu ? ' · ' + esc(e.lieu) : '') + '</span><h1 class="big sm">' + esc(e.titre) + '</h1>' +
       '<p class="small" style="margin:0">' + (e.source === 'spond' ? 'Depuis Spond' + (e.annule ? ' · <b style="color:var(--red)">annulé dans Spond</b>' : '') : 'Ajouté à la main par ' + esc(e.parQui || 'un éduc')) + '</p></div>' +
-      '<div class="cols2"><section class="sec"><h2 class="h2">La compo</h2>' + compoBlock + '</section>' +
+      '<div class="cols2"><section class="sec"><h2 class="h2">' + (e.sorte === 'entrainement' ? 'Les groupes' : 'La compo') + '</h2>' + compoBlock + '</section>' +
       '<section class="sec"><div class="between"><h2 class="h2">Présents</h2><span class="hud" style="color:var(--green)">' + groups.oui.length + '</span></div>' +
       '<p class="small" style="margin:0">' + (e.source === 'spond' ? 'D\'après les réponses Spond. Touchez un prénom pour corriger (venu sans répondre, forfait de dernière minute) : la correction reste après chaque synchro.' : 'Touchez les prénoms des enfants présents.') + '</p>' +
       '<div class="cop-list">' + groups.oui.map(chip).join('') + '</div>' +
@@ -260,6 +276,19 @@ window.MC = window.MC || {};
       '</section></div>' +
       (nchg ? '<div class="cp-bar cdock"><span class="grow small" style="color:var(--soft)">' + nchg + ' changement' + (nchg > 1 ? 's' : '') + '</span><button type="button" class="btn2 sm grey" data-act="prCancel">Annuler</button><button type="button" class="btn sm" data-act="prSave">' + icon('check', 16) + ' Enregistrer</button></div>' : '') +
       '</main>';
+  }
+  // une étape de l'entraînement (1. ateliers, 2. matchs) et où elle en est
+  function partCard(C, e, P, n, past) {
+    var c = compoOf(C.cd, e.id, P), dr = app.lsGet(draftKey(e.id, P)), t2, pill = '';
+    if (c && c.statut === 'vote') { t2 = 'Vote : 2 versions de ' + esc(c.auteurNom); pill = '<span class="pill" style="--pc:var(--violet)">Vote</span>'; }
+    else if (c) {
+      var r = c.reglages || {}, m = r.mode === 'equilibre' ? 'équilibré' : 'par niveau', nn = c.equipes.length;
+      t2 = 'De ' + esc(c.auteurNom) + ' · ' + (P === 'matchs' ? (nn / 2) + ' match' + (nn > 2 ? 's' : '') + ' ' + (r.mode === 'equilibre' ? 'équilibré' : 'par niveau') + (nn > 2 ? 's' : '') :
+        nn + ' groupe' + (nn > 1 ? 's' : '') + ' ' + m + (nn > 1 && r.mode !== 'equilibre' ? '' : '') + (r.separer ? ', avants / arrières à part' : '') + ' (' + c.equipes.map(function (t) { return t.joueurs.length; }).join(', ') + ')');
+      pill = '<span class="pill" style="--pc:var(--green)">Publiés</span>';
+    } else if (dr) { t2 = 'Brouillon en cours'; pill = '<span class="pill" style="--pc:var(--gold)">Brouillon</span>'; }
+    else t2 = past ? 'Pas faits' : P === 'ateliers' ? 'Groupes par niveau ou équilibrés, avants et arrières ensemble ou à part' : 'Par niveau ou équilibrés, Chasubles contre Maillots';
+    return '<a class="li cpart' + (c ? ' ok' : '') + '" href="' + lienCompo(esc(e.id), P) + '"><span class="cpnum">' + (c ? icon('check', 14) : n) + '</span><span class="grow"><span class="t1">' + NOM_PARTIE[P] + '</span><span class="t2">' + t2 + '</span></span>' + pill + icon('right', 16) + '</a>';
   }
   MC.act.prToggle = function (b) {
     var id = b.getAttribute('data-id'), e = (app.S.cache.compos.evenements || []).filter(function (x) { return x.id === PR.evtId; })[0];
@@ -302,25 +331,25 @@ window.MC = window.MC || {};
   //   sel  : { v: n° de version, id: joueur choisi }
   // Téléphone d'abord : les niveaux l'un sous l'autre ; dans chaque niveau, la version 1 à gauche et la version 2 à droite.
   var B = null;
-  function draftKey(id) { return 'mc-cdraft:' + ((app.S.adult && app.S.adult.id) || (app.S.cache.group && app.S.cache.group.moi.id) || '') + ':' + id; }
-  function saveDraft() { if (B && B.dirty) app.lsSet(draftKey(B.evtId), { base: B.base, compoId: B.compoId, mode: B.mode, vs: B.vs, undo: B.undo.slice(-15) }); }
-  function dropDraft(id) { app.lsSet(draftKey(id), null); }
+  function draftKey(id, partie) { return 'mc-cdraft:' + ((app.S.adult && app.S.adult.id) || (app.S.cache.group && app.S.cache.group.moi.id) || '') + ':' + id + (partie ? ':' + partie : ''); }
+  function saveDraft() { if (B && B.dirty) app.lsSet(draftKey(B.evtId, B.partie), { base: B.base, compoId: B.compoId, mode: B.mode, vs: B.vs, undo: B.undo.slice(-15) }); }
+  function dropDraft(id, partie) { app.lsSet(draftKey(id, partie), null); }
   function copyCompo(c) { return JSON.parse(JSON.stringify({ reglages: c.reglages, equipes: c.equipes, banc: c.banc || [], raisons: c.raisons || {} })); }
   function canEdit(C, c) { var e = C.evts[c.evenementId]; return c.auteur === C.moi.id || (e && jour(e) === L.today()); }
-  function initBoard(C, e) {
-    var c = compoOf(C.cd, e.id), base = c ? c.version : 0, cid = c ? c.id : null;
-    if (B && B.evtId === e.id && B.base === base && B.compoId === cid && B.moi === C.moi.id) return B;
-    var s = app.lsGet(draftKey(e.id));
+  function initBoard(C, e, partie) {
+    var c = compoOf(C.cd, e.id, partie), base = c ? c.version : 0, cid = c ? c.id : null;
+    if (B && B.evtId === e.id && (B.partie || '') === partie && B.base === base && B.compoId === cid && B.moi === C.moi.id) return B;
+    var s = app.lsGet(draftKey(e.id, partie));
     if (s && (s.vs || s.d) && s.base === base && (s.compoId || null) === cid && !(c && c.statut === 'vote')) {
       // un brouillon « jour J » repris le lendemain devient une contre-proposition
       var mode = s.mode === 'edit' && c && !canEdit(C, c) ? 'counter' : s.mode;
-      B = { evtId: e.id, moi: C.moi.id, base: base, compoId: cid, mode: mode, vs: s.vs || [s.d], undo: s.undo || [], sel: null, dirty: true };
+      B = { evtId: e.id, partie: partie, moi: C.moi.id, base: base, compoId: cid, mode: mode, vs: s.vs || [s.d], undo: s.undo || [], sel: null, dirty: true };
       return B;
     }
-    if (s) { dropDraft(e.id); if (B && B.evtId === e.id && B.dirty) ui.toast('La compo a changé entre-temps : vos changements non envoyés sont effacés.', true); }
-    if (c && c.statut === 'vote') B = { evtId: e.id, moi: C.moi.id, base: base, compoId: c.id, mode: 'vote', vs: JSON.parse(JSON.stringify(c.versions)), undo: [], sel: null, dirty: false };
-    else if (c) B = { evtId: e.id, moi: C.moi.id, base: base, compoId: c.id, mode: canEdit(C, c) ? 'edit' : 'view', vs: [copyCompo(c)], undo: [], sel: null, dirty: false };
-    else B = { evtId: e.id, moi: C.moi.id, base: 0, compoId: null, mode: 'reglages', vs: [], undo: [], sel: null, dirty: false, reg: null };
+    if (s) { dropDraft(e.id, partie); if (B && B.evtId === e.id && (B.partie || '') === partie && B.dirty) ui.toast('La compo a changé entre-temps : vos changements non envoyés sont effacés.', true); }
+    if (c && c.statut === 'vote') B = { evtId: e.id, partie: partie, moi: C.moi.id, base: base, compoId: c.id, mode: 'vote', vs: JSON.parse(JSON.stringify(c.versions)), undo: [], sel: null, dirty: false };
+    else if (c) B = { evtId: e.id, partie: partie, moi: C.moi.id, base: base, compoId: c.id, mode: canEdit(C, c) ? 'edit' : 'view', vs: [copyCompo(c)], undo: [], sel: null, dirty: false };
+    else B = { evtId: e.id, partie: partie, moi: C.moi.id, base: 0, compoId: null, mode: 'reglages', vs: [], undo: [], sel: null, dirty: false, reg: null };
     return B;
   }
   function editable() { return B && (B.mode === 'draft' || B.mode === 'edit' || B.mode === 'counter'); }
@@ -335,15 +364,30 @@ window.MC = window.MC || {};
     return both().then(function (r) {
       var C = ctxOf(r[0], r[1]), e = C.evts[p.id];
       if (!e) return '<main class="screen">' + MC.educBar(C.g, 'Compo', '#/educ/compos', 'Les compos') + '<div class="empty">Événement introuvable.</div></main>';
-      initBoard(C, e);
+      // un entraînement : d'abord les ateliers, ensuite les matchs
+      var partie = e.sorte === 'entrainement' ? (q && q.p === 'matchs' ? 'matchs' : 'ateliers') : '';
+      initBoard(C, e, partie);
       afterPaint(cur);
-      return B.mode === 'reglages' ? paintReglages(C, e) : paintBoard(C, e);
+      return B.mode === 'reglages' ? (partie ? paintReglagesEnt(C, e) : paintReglages(C, e)) : paintBoard(C, e);
     });
   }, { adult: 'e', nav: 'e:compos', bg: BG });
 
   // ---------- réglages : format, nombre d'équipes par niveau, style de proposition ----------
+  // le dernier entraînement (avant celui-ci) qui a des groupes publiés pour cette partie
+  function derniere(C, e, partie) {
+    return C.cd.compos.filter(function (c) {
+      var x = C.evts[c.evenementId];
+      return c.partie === partie && c.statut === 'publiee' && c.evenementId !== e.id && x && jour(x) <= jour(e);
+    }).sort(function (a, b) { return jour(C.evts[a.evenementId]) < jour(C.evts[b.evenementId]) ? 1 : -1; })[0] || null;
+  }
   function regOf(C, e) {
     if (B.reg) return B.reg;
+    if (B.partie) {
+      // mercredi : groupes de niveau ; samedi : niveaux mélangés (règle du groupe)
+      var last = derniere(C, e, B.partie), lr = (last && last.reglages) || {};
+      B.reg = K.regEnt({ partie: B.partie, mode: L.dow(jour(e)) === 5 ? 'equilibre' : 'niveau', separer: !!lr.separer }, presentsOf(C, e), C.F);
+      return B.reg;
+    }
     var ids = presentsOf(C, e), format = jour(e) >= '2026-12-01' ? 10 : 5;
     // reprendre le format du dernier plateau
     var last = C.cd.compos.filter(function (c) { return c.statut === 'publiee'; }).sort(function (a, b) { return a.maj < b.maj ? 1 : -1; })[0];
@@ -384,6 +428,85 @@ window.MC = window.MC || {};
       '<button type="button" class="btn2 grey" data-act="cZero"' + (tot ? '' : ' disabled') + '>Partir de zéro</button>' +
       '<p class="small" style="margin:0">Avec 2 versions, vous les construisez côte à côte, puis vous en publiez une ou vous les soumettez au vote des éducs. Tout se déplace ensuite d\'un geste.</p></div></main>');
   }
+  // ---------- réglages d'un entraînement : par niveau ou équilibrés ; ateliers : avants et arrières ensemble ou séparés ----------
+  function stepsHtml(C, e, P) {
+    return '<nav class="csteps" aria-label="Étapes de l\'entraînement">' + K.PARTIES.map(function (x, i) {
+      var c = compoOf(C.cd, e.id, x), dr = app.lsGet(draftKey(e.id, x));
+      var st = c ? (c.statut === 'vote' ? 'au vote' : 'publiés') : dr ? 'brouillon' : 'à faire';
+      return '<a class="cstp' + (x === P ? ' on' : '') + (c ? ' ok' : '') + '" href="' + lienCompo(esc(e.id), x) + '"' + (x === P ? ' aria-current="page"' : '') + '><b>' + (c ? icon('check', 14) : i + 1) + '</b><span>' + (x === 'ateliers' ? 'Ateliers' : 'Matchs') + '<small>' + st + '</small></span></a>';
+    }).join('') + '</nav>';
+  }
+  var MODES = {
+    ateliers: { niveau: ['Par niveau', 'Chacun avec son niveau : A, B, C. Un groupe peut réunir deux niveaux voisins quand les effectifs le demandent.'], equilibre: ['Équilibrés', 'Chaque groupe mélange les niveaux : plaquage et avants / arrières équilibrés.'] },
+    matchs: { niveau: ['Par niveau', 'Le match 1 réunit les plus avancés, le dernier les Débutants.'], equilibre: ['Équilibrés', 'Chaque match mélange tous les niveaux.'] }
+  };
+  function stepGen(k, label, sub, val, min, max, attr) {
+    attr = attr || 'data-act="cEN" data-k';
+    return '<div class="cstep" style="--lc:var(--cyan)"><span><b>' + label + '</b>' + (sub ? '<small class="small" style="display:block">' + sub + '</small>' : '') + '</span>' +
+      '<span class="row" style="gap:6px"><button type="button" class="ibtn" ' + attr + '="' + k + '" data-d="-1" aria-label="' + esc(label) + ' : un de moins"' + (val <= min ? ' disabled' : '') + '>' + icon('minus', 18) + '</button>' +
+      '<output class="cnbv">' + val + '</output><button type="button" class="ibtn" ' + attr + '="' + k + '" data-d="1" aria-label="' + esc(label) + ' : un de plus"' + (val >= max ? ' disabled' : '') + '>' + icon('plus', 18) + '</button></span></div>';
+  }
+  function cotes(C, ids) {
+    var o = { av: 0, ar: 0, les2: 0, sans: 0 };
+    ids.forEach(function (id) { var f = C.F[id], t = K.typePoste(K.posteDefaut(f)); if (t) o[t]++; else o.sans++; if (K.typeDe(f) === 'les2') o.les2++; });
+    return o;
+  }
+  function par(n, k) { return k ? virg(Math.round(n / k * 10) / 10) : '0'; }
+  // le contenu des réglages (écran, ou fenêtre « Refaire ») ; attrs : les attributs des boutons
+  function regEntHtml(C, reg, ids, A) {
+    var at = reg.partie === 'ateliers', M = MODES[reg.partie], co = cotes(C, ids);
+    var html = '<section class="sec"><h2 class="h2">' + (at ? 'Les groupes' : 'Les matchs') + '</h2><div class="cstyles c2">' + ['niveau', 'equilibre'].map(function (m) {
+      return '<button type="button" class="opt cstyle' + (reg.mode === m ? ' on' : '') + '" aria-pressed="' + (reg.mode === m) + '" ' + A.mode + '="' + m + '"><b>' + M[m][0] + '</b><small>' + M[m][1] + '</small></button>';
+    }).join('') + '</div></section>';
+    if (at) html += '<section class="sec"><h2 class="h2">Avants et arrières</h2><div class="cstyles c2">' + [['0', 'Ensemble', 'Tout le monde dans les mêmes groupes.'], ['1', 'Séparés', 'Des groupes d\'avants et des groupes d\'arrières, pour des ateliers à part.']].map(function (o) {
+      var on = (reg.separer ? '1' : '0') === o[0];
+      return '<button type="button" class="opt cstyle' + (on ? ' on' : '') + '" aria-pressed="' + on + '" ' + A.sep + '="' + o[0] + '"><b>' + o[1] + '</b><small>' + o[2] + '</small></button>';
+    }).join('') + '</div><p class="small" style="margin:0">' + co.av + ' avant' + (co.av > 1 ? 's' : '') + ' · ' + co.ar + ' arrière' + (co.ar > 1 ? 's' : '') + (co.les2 ? ' · dont ' + co.les2 + ' qui jouent les deux' : '') +
+      (co.sans ? ' · <span style="color:var(--orange)">' + co.sans + ' sans poste</span> (placés là où il manque du monde)' : '') + ', d\'après le poste principal de leur fiche.</p></section>';
+    html += '<section class="sec"><h2 class="h2">Combien ?</h2>';
+    if (!at) html += stepGen('nbMatchs', 'Matchs', '2 équipes par match, Chasubles contre Maillots · environ ' + par(ids.length, reg.nbMatchs * 2) + ' par équipe', reg.nbMatchs, 1, 4, A.n);
+    else if (!reg.separer) html += stepGen('n', 'Groupes', 'environ ' + par(ids.length, reg.n) + ' par groupe', reg.n, 1, 8, A.n);
+    else {
+      var nav = co.av, nar = co.ar;
+      for (var i = 0; i < co.sans; i++) { if (nav / reg.nAv <= nar / reg.nAr) nav++; else nar++; }
+      html += stepGen('nAv', 'Groupes d\'avants', nav + ' avants · environ ' + par(nav, reg.nAv) + ' par groupe', reg.nAv, 1, 4, A.n) +
+        stepGen('nAr', 'Groupes d\'arrières', nar + ' arrières · environ ' + par(nar, reg.nAr) + ' par groupe', reg.nAr, 1, 4, A.n);
+    }
+    return html + '</section>';
+  }
+  function paintReglagesEnt(C, e) {
+    var ids = presentsOf(C, e), reg = regOf(C, e), at = B.partie === 'ateliers', last = derniere(C, e, B.partie);
+    var le = last ? C.evts[last.evenementId] : null, autre = reg.mode === 'niveau' ? 'equilibre' : 'niveau';
+    var avant = at ? '' : (function () { var ca = compoOf(C.cd, e.id, 'ateliers'); return ca ? '' : '<p class="small" style="margin:0;color:var(--gold)">Les ateliers ne sont pas encore faits : <a href="' + lienCompo(esc(e.id), 'ateliers') + '">commencer par les ateliers</a>, ou faire les matchs d\'abord.</p>'; })();
+    return '<main class="screen">' + MC.educBar(C.g, (at ? 'Ateliers' : 'Matchs') + ' · ' + e.titre, '#/educ/evt/' + e.id, e.titre) +
+      '<div class="head"><span class="kicker" style="color:var(--gold)">' + esc(quand(e)) + ' · ' + ids.length + ' présents</span><h1 class="big sm">' + NOM_PARTIE[B.partie] + '</h1></div>' +
+      stepsHtml(C, e, B.partie) + avant +
+      (ids.length < 2 ? '<div class="empty">Cochez d\'abord les présents sur la page de l\'entraînement.</div><a class="btn2" href="#/educ/evt/' + esc(e.id) + '">Les présents</a></main>' :
+      regEntHtml(C, reg, ids, { mode: 'data-act="cEMode" data-v', sep: 'data-act="cESep" data-v', n: 'data-act="cEN" data-k' }) +
+      '<div class="sec"><button type="button" class="btn" data-act="cPropose">' + icon('spark', 18) + (at ? ' Proposer les groupes' : ' Proposer les matchs') + '</button>' +
+      '<button type="button" class="btn2" data-act="cPropose2">' + icon('swap', 16) + ' 2 versions côte à côte (' + MODES[B.partie][reg.mode][0].toLowerCase() + ' et ' + MODES[B.partie][autre][0].toLowerCase() + ')</button>' +
+      (last ? '<button type="button" class="btn2" data-act="cReprise">' + icon('refresh', 16) + ' Reprendre ' + (at ? 'les groupes' : 'les équipes') + ' du ' + esc(ui.fmtDate(jour(le))) + '</button>' : '') +
+      '<button type="button" class="btn2 grey" data-act="cZero">Partir de zéro</button>' +
+      '<p class="small" style="margin:0">Tout se déplace ensuite d\'un geste : touchez un joueur, puis son ' + (at ? 'groupe' : 'équipe') + '. Un éduc publie ; le jour même, tous les éducs peuvent corriger.</p></div></main>');
+  }
+  MC.act.cEMode = function (b) { if (!B || !B.reg) return; B.reg.mode = b.getAttribute('data-v'); app.rerender(); };
+  MC.act.cESep = function (b) { if (!B || !B.reg) return; B.reg.separer = b.getAttribute('data-v') === '1'; app.rerender(); };
+  MC.act.cEN = function (b) {
+    if (!B || !B.reg) return;
+    var k = b.getAttribute('data-k'), mx = k === 'n' ? 8 : 4;
+    B.reg[k] = Math.max(1, Math.min(mx, B.reg[k] + Number(b.getAttribute('data-d'))));
+    app.rerender();
+  };
+  MC.act.cReprise = function () {
+    withC(function (C, e) {
+      var last = derniere(C, e, B.partie);
+      if (!last) return;
+      var d = K.reprendre(last, presentsOf(C, e), C.F), le = C.evts[last.evenementId];
+      B.vs = [d]; B.mode = 'draft'; B.dirty = true; B.sel = null; saveDraft();
+      ui.toast('Repris du ' + ui.fmtDate(jour(le)) + (d.banc.length ? ' : ' + d.banc.length + ' à placer (« Pas placés »)' : ''));
+      app.rerender(); window.scrollTo(0, 0);
+    });
+  };
   MC.act.cFmt = function (b) { if (!B || !B.reg) return; B.reg.format = Number(b.getAttribute('data-v')); app.rerender(); };
   MC.act.cNb = function (b) { if (!B || !B.reg) return; var n = b.getAttribute('data-n'); B.reg.nb[n] = Math.max(0, Math.min(6, B.reg.nb[n] + Number(b.getAttribute('data-d')))); app.rerender(); };
   MC.act.cStyle = function (b) { if (!B || !B.reg) return; B.reg.style = b.getAttribute('data-v'); app.rerender(); };
@@ -394,6 +517,11 @@ window.MC = window.MC || {};
     if (e) fn(C, e);
   }
   function proposition(C, e, reg, style) {
+    if (B && B.partie) {
+      var r = JSON.parse(JSON.stringify(reg)); if (style === 'niveau' || style === 'equilibre') r.mode = style;
+      var q = K.proposerEnt(presentsOf(C, e), C.F, C.H, r, L.today());
+      return { reglages: q.reglages, equipes: q.equipes, banc: q.banc, raisons: q.raisons };
+    }
     var p = K.proposer(presentsOf(C, e), C.F, C.H, reg, L.today(), style);
     return { reglages: { format: K.fmt(reg), nb: K.nbOf(reg), style: style || 'equilibre' }, equipes: p.equipes, banc: p.banc, raisons: p.raisons };
   }
@@ -402,28 +530,49 @@ window.MC = window.MC || {};
     withC(function (C, e) {
       var reg = B.reg;
       if (B.vs.length) B.undo.push(JSON.stringify(B.vs));
-      B.vs = [proposition(C, e, reg, reg.style)];
+      B.vs = [proposition(C, e, reg, B.partie ? reg.mode : reg.style)];
       B.mode = 'draft'; B.dirty = true; B.sel = null; saveDraft();
-      ui.toast('Compo proposée : à vous d\'ajuster'); app.rerender(); window.scrollTo(0, 0);
+      ui.toast((B.partie === 'ateliers' ? 'Groupes proposés' : B.partie === 'matchs' ? 'Matchs proposés' : 'Compo proposée') + ' : à vous d\'ajuster'); app.rerender(); window.scrollTo(0, 0);
     });
   };
   MC.act.cPropose2 = function () {
     withC(function (C, e) {
       var reg = B.reg;
-      B.vs = [proposition(C, e, reg, reg.style), proposition(C, e, reg, autreStyle(reg.style))];
+      if (B.partie) {
+        var m2 = reg.mode === 'niveau' ? 'equilibre' : 'niveau';
+        B.vs = [proposition(C, e, reg, reg.mode), proposition(C, e, reg, m2)];
+        ui.toast('2 versions : ' + MODES[B.partie][reg.mode][0].toLowerCase() + ' et ' + MODES[B.partie][m2][0].toLowerCase());
+      } else {
+        B.vs = [proposition(C, e, reg, reg.style), proposition(C, e, reg, autreStyle(reg.style))];
+        ui.toast('2 versions proposées : ' + K.STYLES[reg.style].nom + ' et ' + K.STYLES[autreStyle(reg.style)].nom);
+      }
       B.mode = 'draft'; B.dirty = true; B.sel = null; saveDraft();
-      ui.toast('2 versions proposées : ' + K.STYLES[reg.style].nom + ' et ' + K.STYLES[autreStyle(reg.style)].nom); app.rerender(); window.scrollTo(0, 0);
+      app.rerender(); window.scrollTo(0, 0);
     });
   };
   MC.act.cZero = function () {
     withC(function (C, e) {
-      var reg = B.reg, d = K.vide(presentsOf(C, e), reg);
-      d.reglages = { format: reg.format, nb: K.nbOf(reg) };
+      var reg = B.reg, d;
+      if (B.partie) d = K.videEnt(presentsOf(C, e), C.F, reg, L.today());
+      else { d = K.vide(presentsOf(C, e), reg); d.reglages = { format: reg.format, nb: K.nbOf(reg) }; }
       B.vs = [d]; B.mode = 'draft'; B.dirty = true; saveDraft(); app.rerender(); window.scrollTo(0, 0);
     });
   };
 
   // ---------- le tableau ----------
+  // couleur d'une équipe : son niveau, sinon Chasubles (orange) / Maillots (bleu), sinon une couleur par groupe
+  var PAL = ['#B48CFF', '#FF9A3D', '#3DFFB0', '#4D9BFF', '#FF5C8A', '#FFC23D', '#38E8FF', '#9AA4C0'];
+  var COUL_BLOC = { av: '#FF5C8A', ar: '#38E8FF', g: '#B48CFF' };
+  function coulEq(t, d) {
+    if (t.cote) return t.cote === 'c' ? '#FF9A3D' : '#4D9BFF';
+    if (K.COUL_NIV[t.niveau]) return K.COUL_NIV[t.niveau];
+    var i = d ? d.equipes.indexOf(t) : 0;
+    return PAL[(i < 0 ? 0 : i) % PAL.length];
+  }
+  function coulBloc(k) { return K.COUL_NIV[k] || COUL_BLOC[k] || '#FFC23D'; }
+  // le nom d'une équipe là où on ne voit pas son match : « M1 Chasubles »
+  function labelEq(t) { return t.cote ? 'M' + String(t.bloc || '').slice(1) + ' ' + t.nom : K.nomEq(t); }
+  function alertesOf(C, d, presents) { return d.reglages && d.reglages.partie ? K.alertesEnt(d, C.F, presents) : K.alertes(d, C.F, C.H, presents); }
   function remplTxt(r) {
     var o = [];
     if (r.av) o.push(r.av + ' avant' + (r.av > 1 ? 's' : ''));
@@ -463,11 +612,15 @@ window.MC = window.MC || {};
       ? secHtml(C, t, v, d, moved, 'Avants', sc.av, { compte: st.av + '/5', bad: st.av !== 5, slots: miss.filter(function (p) { return K.typePoste(p) === 'av'; }) }) +
         secHtml(C, t, v, d, moved, 'Arrières', sc.ar, { compte: st.ar + '/5', bad: st.ar !== 5, slots: miss.filter(function (p) { return K.typePoste(p) === 'ar'; }) }) +
         secHtml(C, t, v, d, moved, 'Remplaçants', sc.rempl, { plus: ed ? slotHtml(v, t, '', '+ Remplaçant', false) : '' })
-      : secHtml(C, t, v, d, moved, 'Avants', sc.av) + secHtml(C, t, v, d, moved, 'Arrières', sc.ar) + secHtml(C, t, v, d, moved, 'Pas encore de poste', sc.sans) +
-        (ed ? slotHtml(v, t, '*', '+ Ajouter des joueurs', false) : '');
-    return '<section class="ccol" style="--lc:' + K.COUL_NIV[t.niveau] + '" aria-label="Équipe ' + esc(t.id) + (B && B.vs.length > 1 ? ', ' + vName(v) : '') + '">' +
-      '<button type="button" class="chd' + (dest ? ' dest' : '') + '" data-act="cTeam" data-v="' + v + '" data-t="' + esc(t.id) + '"' + (dest || ed ? '' : ' tabindex="-1"') + (ed && !dest ? ' aria-label="Composer l\'équipe ' + esc(t.id) + '"' : '') + '>' +
-      '<span class="row" style="justify-content:space-between;width:100%"><b class="ctid">' + esc(t.id) + '</b><span class="cn">' + st.n + '</span></span>' +
+      : t.bloc === 'av' || t.bloc === 'ar'
+        // un groupe d'avants ou d'arrières : une seule liste, rangée par poste
+        ? (sc.av.length + sc.ar.length + sc.sans.length ? '<div class="csec"><ul class="cpl">' + sc.av.concat(sc.ar, sc.sans).map(function (j) { return chip(C, t, j, v, d, moved[j.id]); }).join('') + '</ul></div>' : '') + (ed ? slotHtml(v, t, '*', '+ Ajouter des joueurs', false) : '')
+        : secHtml(C, t, v, d, moved, 'Avants', sc.av) + secHtml(C, t, v, d, moved, 'Arrières', sc.ar) + secHtml(C, t, v, d, moved, 'Sans poste', sc.sans) +
+          (ed ? slotHtml(v, t, '*', '+ Ajouter des joueurs', false) : '');
+    var nomT = K.nomEq(t);
+    return '<section class="ccol" style="--lc:' + coulEq(t, d) + '" aria-label="' + (t.cote ? esc(labelEq(t)) : 'Équipe ' + esc(nomT)) + (B && B.vs.length > 1 ? ', ' + vName(v) : '') + '">' +
+      '<button type="button" class="chd' + (dest ? ' dest' : '') + '" data-act="cTeam" data-v="' + v + '" data-t="' + esc(t.id) + '"' + (dest || ed ? '' : ' tabindex="-1"') + (ed && !dest ? ' aria-label="Composer ' + esc(labelEq(t)) + '"' : '') + '>' +
+      '<span class="row" style="justify-content:space-between;width:100%"><b class="ctid' + (nomT.length > 4 ? ' long' : '') + '">' + esc(nomT) + '</b><span class="cn">' + st.n + '</span></span>' +
       '<span class="cind"><span title="Plaquage moyen">' + icon('star', 12) + ' ' + virg(st.plaq) + '</span><span title="Bons plaqueurs (3 étoiles et plus)">' + icon('shield', 12) + ' ' + st.bons + '</span>' +
       (st.ontCopains ? '<span title="Avec au moins un copain">' + icon('heart', 12) + ' ' + st.avecCopain + '/' + st.ontCopains + '</span>' : '') + (st.passerelles ? '<span title="Hors de leur niveau (passerelles)">⇅ ' + st.passerelles + '</span>' : '') + '</span>' +
       avtq + (fmt10 && !ed && st.manquants.length ? '<span class="cmiss">Manque : ' + st.manquants.map(function (p) { return COURT[p]; }).join(', ') + '</span>' : '') +
@@ -478,8 +631,8 @@ window.MC = window.MC || {};
     var f = C.F[j.id] || { prenom: '?', copains: [] }, ids = t ? t.joueurs.map(function (x) { return x.id; }) : [];
     var cps = (f.copains || []).filter(function (x) { return ids.indexOf(x) >= 0; });
     var heart = !(f.copains || []).length ? '' : cps.length ? '<span class="cfl cop-ok" title="Avec un copain">' + icon('heart', 12) + '</span>' : '<span class="cfl cop-no" title="Sans copain">' + icon('heart', 12) + '</span>';
-    var lv = t && f.niveau && f.niveau !== t.niveau ? '<span class="cfl cpas" title="Joue hors de son niveau (' + f.niveau + ')">' + (K.NIV.indexOf(t.niveau) < K.NIV.indexOf(f.niveau) ? '↑' : '↓') + f.niveau + '</span>' : '';
-    var warn = t && (!f.niveau || (f.plaquage || 0) < (K.SEUIL[t.niveau] || 0));
+    var lv = t && t.niveau && f.niveau && f.niveau !== t.niveau ? '<span class="cfl cpas" title="Joue hors de son niveau (' + f.niveau + ')">' + (K.NIV.indexOf(t.niveau) < K.NIV.indexOf(f.niveau) ? '↑' : '↓') + f.niveau + '</span>' : '';
+    var warn = t && (!f.niveau || (!d.reglages.partie && (f.plaquage || 0) < (K.SEUIL[t.niveau] || 0)));
     var ty = K.typeDe(f), tag;
     if (t && d.reglages.format === 10) tag = '<span class="cpo' + (j.poste ? '' : ' none') + '">' + (j.poste ? COURT[j.poste] : 'Remp.') + '</span>';
     else if (t) { var pp = K.posteDefaut(f); tag = pp ? '<span class="cpo ty" title="Poste principal (fiche)' + (ty === 'les2' ? ', joue aussi ' + (K.typePoste(pp) === 'av' ? 'arrière' : 'avant') : '') + '">' + (ty === 'les2' ? '⇄ ' : '') + COURT[pp] + '</span>' : ''; }
@@ -498,16 +651,33 @@ window.MC = window.MC || {};
   // o : { vs, presents, moved: [map par version], ed (modifiable) }
   function boardHtml(C, o) {
     var vs = o.vs, nv = vs.length, html = '';
-    K.NIV.forEach(function (n) {
-      var cols = vs.map(function (d) { return d.equipes.filter(function (t) { return t.niveau === n; }); });
-      if (!cols.some(function (l) { return l.length; })) return;
-      var nj = 0; cols[0].forEach(function (t) { nj += t.joueurs.length; });
-      html += '<section class="clevel" style="--lc:' + K.COUL_NIV[n] + '"><h3 class="clvh">' + niveauTag(n, true) + K.NOM_NIV[n] + (nv === 1 ? '<span class="small"> · ' + nj + ' joueurs</span>' : '') + '</h3>' +
-        '<div class="cvcols nv' + nv + '">' + cols.map(function (l, v) {
-          return '<div class="cvcol">' + (nv > 1 ? '<span class="cvlab">' + vName(v) + '</span>' : '') +
-            (l.length ? l.map(function (t) { return team(C, t, v, vs[v], o.moved[v] || {}, o.ed); }).join('') : '<div class="empty small">Pas d\'équipe ' + n + '</div>') + '</div>';
-        }).join('') + '</div></section>';
-    });
+    // les blocs : niveaux (plateau, groupes de niveau), avants / arrières, groupes mélangés, match 1, match 2…
+    var tous = { equipes: [] }; vs.forEach(function (d) { tous.equipes = tous.equipes.concat(d.equipes); });
+    var blocs = K.blocsDe(tous);
+    function enTete(k, nj, sm) {
+      var lab = K.COUL_NIV[k] ? niveauTag(k, true) + K.NOM_NIV[k] : esc(K.nomBloc(k));
+      return '<h3 class="clvh' + (sm ? ' sm' : '') + '">' + lab + (nj !== null ? '<span class="small"> · ' + nj + ' joueurs' + (/^m\d$/.test(k) ? ', Chasubles contre Maillots' : '') + '</span>' : '') + '</h3>';
+    }
+    function njOf(l) { var n = 0; l.forEach(function (t) { n += t.joueurs.length; }); return n; }
+    var aligne = nv === 1 || blocs.every(function (k) { return vs.every(function (d) { return d.equipes.some(function (t) { return K.blocDe(t) === k; }); }); });
+    if (aligne) {
+      blocs.forEach(function (k) {
+        var cols = vs.map(function (d) { return d.equipes.filter(function (t) { return K.blocDe(t) === k; }); });
+        html += '<section class="clevel" style="--lc:' + coulBloc(k) + '">' + enTete(k, nv === 1 ? njOf(cols[0]) : null) +
+          '<div class="cvcols nv' + nv + '">' + cols.map(function (l, v) {
+            return '<div class="cvcol">' + (nv > 1 ? '<span class="cvlab">' + vName(v) + '</span>' : '') +
+              (l.length ? l.map(function (t) { return team(C, t, v, vs[v], o.moved[v] || {}, o.ed); }).join('') : '<div class="empty small">—</div>') + '</div>';
+          }).join('') + '</div></section>';
+      });
+    } else {
+      // 2 versions organisées autrement (par niveau / équilibrés) : chacune dans sa colonne, ses blocs l'un sous l'autre
+      html += '<section class="clevel" style="--lc:var(--gold)"><div class="cvcols nv' + nv + '">' + vs.map(function (d, v) {
+        return '<div class="cvcol"><span class="cvlab">' + vName(v) + '</span>' + K.blocsDe(d).map(function (k) {
+          var l = d.equipes.filter(function (t) { return K.blocDe(t) === k; });
+          return '<div class="cvbloc" style="--lc:' + coulBloc(k) + '">' + enTete(k, njOf(l), true) + l.map(function (t) { return team(C, t, v, d, o.moved[v] || {}, o.ed); }).join('') + '</div>';
+        }).join('') + '</div>';
+      }).join('') + '</div></section>';
+    }
     // « Pas placés »
     var bancs = vs.map(function (d) { return bancOf(d, o.presents); });
     var selV = B && B.sel ? B.sel.v : -1;
@@ -522,16 +692,16 @@ window.MC = window.MC || {};
   }
   // résumé d'une version (pour comparer) : alertes, écart de plaquage, copains
   function resume(C, d, presents) {
-    var al = K.alertes(d, C.F, C.H, presents), avec = 0, ont = 0, gap = 0;
-    K.NIV.forEach(function (n) {
-      var st = d.equipes.filter(function (t) { return t.niveau === n; }).map(function (t) { return K.stats(t, C.F, d.reglages.format); });
+    var al = alertesOf(C, d, presents), avec = 0, ont = 0, gap = 0;
+    K.blocsDe(d).forEach(function (n) {
+      var st = d.equipes.filter(function (t) { return K.blocDe(t) === n; }).map(function (t) { return K.stats(t, C.F, d.reglages.format); });
       st.forEach(function (s) { avec += s.avecCopain; ont += s.ontCopains; });
       if (st.length > 1) { var p = st.map(function (s) { return s.plaq; }); gap = Math.max(gap, Math.max.apply(null, p) - Math.min.apply(null, p)); }
     });
     return { al: al, avec: avec, ont: ont, gap: Math.round(gap * 10) / 10, warn: al.filter(function (a) { return a.niveau === 'warn'; }).length };
   }
   function alertesHtml(C, d, v, presents, nv) {
-    var al = K.alertes(d, C.F, C.H, presents);
+    var al = alertesOf(C, d, presents);
     var placed = []; d.equipes.forEach(function (t) { t.joueurs.forEach(function (j) { placed.push(j.id); }); });
     var partis = placed.filter(function (id) { return presents.indexOf(id) < 0; });
     if (partis.length) al.unshift({ k: 'parti', niveau: 'warn', texte: 'Plus dans les présents : ' + partis.map(function (id) { return nom(C, id); }).join(', ') + '.', fix: null });
@@ -543,12 +713,14 @@ window.MC = window.MC || {};
     }).join('') + '</ul></details>';
   }
   function paintBoard(C, e) {
-    var vs = B.vs, nv = vs.length, c = compoOf(C.cd, e.id), presents = presentsOf(C, e);
-    var fmt = vs[0].reglages.format;
+    var vs = B.vs, nv = vs.length, c = compoOf(C.cd, e.id, B.partie), presents = presentsOf(C, e);
+    var fmt = vs[0].reglages.format, P = B.partie;
     // ce qui change : par rapport à la compo publiée (modif, contre-proposition), ou entre les 2 versions
     var moved = vs.map(function () { return {}; });
     if (c && c.statut === 'publiee' && (B.mode === 'counter' || (B.mode === 'edit' && B.dirty))) K.diff(c, vs[0]).forEach(function (m) { moved[0][m.id] = true; });
-    if (nv === 2) K.diff(vs[0], vs[1]).forEach(function (m) { moved[0][m.id] = true; moved[1][m.id] = true; });
+    // 2 versions : entourer ce qui diffère, si elles ont des équipes en commun (sinon tout serait entouré)
+    var communes = nv === 2 && (vs[0].reglages.mode || '') === (vs[1].reglages.mode || '') && vs[0].equipes.some(function (t) { return vs[1].equipes.some(function (x) { return x.id === t.id; }); });
+    if (communes) K.diff(vs[0], vs[1]).forEach(function (m) { moved[0][m.id] = true; moved[1][m.id] = true; });
     var av = c ? avisOf(C.cd, c.id) : [], avAtt = av.filter(function (a) { return a.statut === 'attente'; });
     var state;
     if (B.mode === 'draft') state = '<div class="cstate draft">' + icon('edit', 18) + '<span><b>Brouillon</b> : vous seul le voyez. ' + (nv > 1 ? 'Construisez les 2 versions, puis publiez-en une ou soumettez-les au vote des éducs.' : 'Publiez-le quand il vous va.') + '</span></div>';
@@ -564,7 +736,7 @@ window.MC = window.MC || {};
     if (nv === 2) {
       var R = vs.map(function (d) { return resume(C, d, presents); });
       cmp = '<div class="cvcols nv2 ccmp">' + R.map(function (r, v) {
-        var st = vs[v].reglages.style && K.STYLES[vs[v].reglages.style];
+        var rg = vs[v].reglages, st = rg.partie ? { nom: MODES[rg.partie][rg.mode === 'equilibre' ? 'equilibre' : 'niveau'][0] + (rg.separer ? ', avants / arrières à part' : '') } : rg.style && K.STYLES[rg.style];
         return '<div class="cvsum"><b>' + vName(v) + '</b>' + (st ? '<small>' + esc(st.nom) + '</small>' : '') +
           '<span>' + icon('heart', 11) + ' ' + r.avec + '/' + r.ont + ' avec un copain</span><span>' + icon('star', 11) + ' écart ' + virg(r.gap) + '</span><span' + (r.warn ? ' style="color:var(--orange)"' : '') + '>' + icon('warn', 11) + ' ' + r.al.length + ' à regarder</span>' +
           (editable() ? '<span class="row" style="gap:6px;margin-top:4px"><button type="button" class="lnk sm" data-act="cRegl" data-v="' + v + '">Refaire</button><button type="button" class="lnk sm" data-act="cDelV" data-v="' + v + '">Supprimer</button></span>' : '') + '</div>';
@@ -581,14 +753,15 @@ window.MC = window.MC || {};
     var avHist = oldAv.length ? '<details class="box"><summary class="mlab" style="cursor:pointer;margin:0">Contre-propositions traitées (' + oldAv.length + ')</summary><ul class="small" style="margin:8px 0 0;padding-left:18px;line-height:1.5;color:var(--soft)">' +
       oldAv.map(function (a) { return '<li><a href="#/educ/avis/' + esc(a.id) + '">' + esc(a.auteurNom) + '</a> · ' + ({ acceptee: 'acceptée', refusee: 'refusée', retiree: 'retirée' }[a.statut] || a.statut) + (a.reponse ? ' · « ' + esc(a.reponse) + ' »' : '') + '</li>'; }).join('') + '</ul></details>' : '';
     var ed = editable();
-    return '<main class="screen cscreen">' + MC.educBar(C.g, 'Compo · ' + e.titre, '#/educ/evt/' + e.id, e.titre) +
-      '<div class="head"><span class="kicker" style="color:var(--gold)">' + esc(quand(e)) + ' · ' + presents.length + ' présents · jeu à ' + fmt + '</span><h1 class="big sm">La compo</h1></div>' +
-      state + avBlock + cmp +
-      '<p class="small" style="margin:0">' + (ed ? 'Touchez un joueur, puis son équipe d\'arrivée (ou un joueur d\'une autre équipe : ils s\'échangent). Pour composer une équipe, touchez son nom ou une place vide (+).' + (nv > 1 ? ' Chaque version se modifie à part.' : '') : 'Touchez un joueur pour voir sa fiche.') + (nv > 1 ? ' <b style="color:var(--yellow)">Entourés</b> : placés autrement d\'une version à l\'autre.' : '') + '</p>' +
+    var suite = P === 'ateliers' ? '<a class="btn2" href="' + lienCompo(esc(e.id), 'matchs') + '">' + icon('right', 16) + ' Ensuite : les matchs</a>' : '';
+    return '<main class="screen cscreen">' + MC.educBar(C.g, (P ? (P === 'ateliers' ? 'Ateliers' : 'Matchs') : 'Compo') + ' · ' + e.titre, '#/educ/evt/' + e.id, e.titre) +
+      '<div class="head"><span class="kicker" style="color:var(--gold)">' + esc(quand(e)) + ' · ' + presents.length + ' présents' + (P ? '' : ' · jeu à ' + fmt) + '</span><h1 class="big sm">' + (P ? NOM_PARTIE[P] : 'La compo') + '</h1></div>' +
+      (P ? stepsHtml(C, e, P) : '') + state + avBlock + cmp +
+      '<p class="small" style="margin:0">' + (ed ? 'Touchez un joueur, puis son ' + (P === 'ateliers' ? 'groupe' : 'équipe') + ' d\'arrivée (ou un joueur d\'' + (P === 'ateliers' ? 'un autre groupe' : 'une autre équipe') + ' : ils s\'échangent). Pour ' + (P === 'ateliers' ? 'remplir un groupe' : 'composer une équipe') + ', touchez son nom' + (fmt === 10 ? ' ou une place vide (+)' : ' ou « + Ajouter des joueurs »') + '.' + (nv > 1 ? ' Chaque version se modifie à part.' : '') : 'Touchez un joueur pour voir sa fiche.') + (communes ? ' <b style="color:var(--yellow)">Entourés</b> : placés autrement d\'une version à l\'autre.' : '') + '</p>' +
       '<p class="small clegend"><span>' + icon('star', 11) + ' plaquage moyen</span><span>' + icon('shield', 11) + ' bons plaqueurs</span><span>' + icon('heart', 11) + ' avec un copain</span><span>⇅ hors niveau</span><span>Av avants · Ar arrières</span></p>' +
       boardHtml(C, { vs: vs, presents: presents, moved: moved, ed: ed }) +
       '<section class="sec">' + vs.map(function (d, v) { return alertesHtml(C, d, v, presents, nv); }).join('') + '</section>' +
-      rsAll + hist + avHist +
+      rsAll + hist + avHist + suite +
       (B.mode === 'draft' && nv === 1 ? '<button type="button" class="btn2" data-act="cAddV">' + icon('plus', 16) + ' Ajouter une 2e version à côté</button>' : '') +
       (B.mode === 'draft' ? '<button type="button" class="lnk" data-act="cDiscard" style="align-self:flex-start">Effacer le brouillon</button>' :
         B.mode === 'counter' ? '<button type="button" class="lnk" data-act="cDiscard" style="align-self:flex-start">Abandonner ma contre-proposition</button>' :
@@ -603,7 +776,7 @@ window.MC = window.MC || {};
     var par = [[], []];
     Object.keys(votes).forEach(function (k) { if (votes[k] === 0 || votes[k] === 1) par[votes[k]].push(noms[k] || '?'); });
     var mien = votes[C.moi.id];
-    return '<div class="cstate vote">' + icon('podium', 18) + '<span><b>Vote des éducs</b> : ' + esc(c.auteurNom) + ' propose 2 versions. La 1re qui obtient ' + need + ' voix sur ' + tot + ' devient la compo du plateau' + (c.justification ? '<br><span class="small" style="color:var(--soft)">« ' + esc(c.justification) + ' »</span>' : '') +
+    return '<div class="cstate vote">' + icon('podium', 18) + '<span><b>Vote des éducs</b> : ' + esc(c.auteurNom) + ' propose 2 versions. La 1re qui obtient ' + need + ' voix sur ' + tot + ' devient la compo ' + quoi(B && B.partie) + (c.justification ? '<br><span class="small" style="color:var(--soft)">« ' + esc(c.justification) + ' »</span>' : '') +
       '<span class="cvotes">' + [0, 1].map(function (i) { return '<span class="cvote' + (mien === i ? ' mine' : '') + '"><b>' + vName(i) + ' : ' + par[i].length + ' voix</b><small>' + (par[i].length ? esc(par[i].join(', ')) : 'personne pour l\'instant') + '</small></span>'; }).join('') + '</span>' +
       (mien === undefined ? '<span class="small" style="color:var(--pink)">Vous n\'avez pas encore voté.</span>' : '') + '</span></div>';
   }
@@ -613,13 +786,13 @@ window.MC = window.MC || {};
       var v = B.sel.v, d = B.vs[v], w = K.where(d, sel.id), t = w && w.t >= 0 ? d.equipes[w.t] : null, h = K.hOf(C.H, sel.id);
       var cpsWhere = (sel.copains || []).map(function (id) {
         var ww = K.where(d, id); if (!ww) return null;
-        return esc(nom(C, id)) + ' (' + (ww.t >= 0 ? d.equipes[ww.t].id : 'pas placé') + ')';
+        return esc(nom(C, id)) + ' (' + (ww.t >= 0 ? esc(labelEq(d.equipes[ww.t])) : 'pas placé') + ')';
       }).filter(Boolean);
       var ps = K.postesDe(sel);
       var info = '<div class="row" style="gap:10px;align-items:flex-start">' + niveauTag(sel.niveau) + '<span class="grow"><b class="t1" style="display:block;font:700 15px/1.2 var(--f-hud)">' + esc(sel.prenom) + (nv > 1 ? ' <small style="color:var(--dim)">· ' + vName(v) + '</small>' : '') +
         (sel.passerelle ? ' <small style="color:var(--violet)">passerelle ' + sel.niveau + '↔' + sel.passerelle + '</small>' : '') + '</b>' +
         '<span class="small" style="display:block;margin-top:3px">' + starsMini(sel.plaquage) + ' · ' + (ps.length ? ps.map(function (p) { return COURT[p]; }).join(', ') + (sel.postesOk.length ? '' : ' (vœux)') : 'pas encore de poste') +
-        ' · ' + h.plateaux + ' plateau' + (h.plateaux > 1 ? 'x' : '') + (h.autre ? ', ' + h.autre + ' hors niveau' : '') + '</span>' +
+        (B.partie ? '' : ' · ' + h.plateaux + ' plateau' + (h.plateaux > 1 ? 'x' : '') + (h.autre ? ', ' + h.autre + ' hors niveau' : '')) + '</span>' +
         (cpsWhere.length ? '<span class="small" style="display:block;margin-top:3px;color:var(--soft)">' + icon('heart', 11) + ' ' + cpsWhere.join(', ') + '</span>' : '') +
         (d.raisons && d.raisons[sel.id] ? '<span class="small" style="display:block;margin-top:3px;color:var(--gold)">' + esc(d.raisons[sel.id]) + '</span>' : '') + '</span>' +
         '<button type="button" class="ibtn" data-act="cPick" data-v="' + v + '" data-id="' + esc(sel.id) + '" aria-label="Fermer">' + icon('x', 18) + '</button></div>';
@@ -627,7 +800,7 @@ window.MC = window.MC || {};
       if (editable()) {
         moves = '<div class="cmoves">' + d.equipes.map(function (x) {
           var here = t && x.id === t.id;
-          return '<button type="button" class="cmv' + (here ? ' here' : '') + '" style="--lc:' + K.COUL_NIV[x.niveau] + '" data-act="cMove" data-t="' + esc(x.id) + '"' + (here ? ' disabled' : '') + '>' + esc(x.id) + '</button>';
+          return '<button type="button" class="cmv' + (here ? ' here' : '') + '" style="--lc:' + coulEq(x, d) + '" data-act="cMove" data-t="' + esc(x.id) + '"' + (here ? ' disabled' : '') + '>' + esc(labelEq(x)) + '</button>';
         }).join('') + '<button type="button" class="cmv' + (!t ? ' here' : '') + '" style="--lc:var(--dim)" data-act="cMove" data-t="banc"' + (!t ? ' disabled' : '') + '>Pas placé</button></div>';
         if (t && d.reglages.format === 10) {
           var cur = (t.joueurs.filter(function (j) { return j.id === sel.id; })[0] || {}).poste || '';
@@ -724,7 +897,7 @@ window.MC = window.MC || {};
       if (d.reglages.format === 10 && p !== '*') d = K.setPoste(d, id, p);
       B.vs[v] = d;
     });
-    if (quitte && quitte !== tid) ui.toast(nameOf(id) + ' quitte ' + quitte);
+    if (quitte && quitte !== tid) { var tq = B.vs[v].equipes.filter(function (x) { return x.id === quitte; })[0]; ui.toast(nameOf(id) + ' quitte ' + (tq ? labelEq(tq) : quitte)); }
     return quitte;
   }
   var NOMP = { pilier: 'Pilier', talonneur: 'Talonneur', 'troisieme-ligne': '3e ligne', 'demi-de-melee': 'Demi de mêlée', ouvreur: 'Ouvreur', centre: 'Centre', ailier: 'Ailier' };
@@ -746,17 +919,17 @@ window.MC = window.MC || {};
       }
       function titre() {
         var t = T(), nv = B.vs.length > 1 ? ' <small style="font-size:14px;color:var(--dim)">· ' + vName(v) + '</small>' : '';
-        if (S.p === '*') return esc(t.id) + ' · ajouter' + nv;
-        if (S.p === '') return esc(t.id) + ' · remplaçants' + nv;
+        if (S.p === '*') return esc(labelEq(t)) + ' · ajouter' + nv;
+        if (S.p === '') return esc(labelEq(t)) + ' · remplaçants' + nv;
         var m = manquants(), libres = m.filter(function (x) { return x === S.p; }).length;
-        return esc(t.id) + ' · ' + NOMP[S.p] + nv + '<small class="cpk-sub">' + (10 - m.length) + ' place' + (10 - m.length > 1 ? 's' : '') + ' prise' + (10 - m.length > 1 ? 's' : '') + ' sur 10' + (libres > 1 ? ' · encore ' + libres + ' ' + NOMP[S.p].toLowerCase() + 's à choisir' : '') + '</small>';
+        return esc(labelEq(t)) + ' · ' + NOMP[S.p] + nv + '<small class="cpk-sub">' + (10 - m.length) + ' place' + (10 - m.length > 1 ? 's' : '') + ' prise' + (10 - m.length > 1 ? 's' : '') + ' sur 10' + (libres > 1 ? ' · encore ' + libres + ' ' + NOMP[S.p].toLowerCase() + 's à choisir' : '') + '</small>';
       }
       function rowHtml(id, t) {
         var f = C.F[id] || { prenom: '?', copains: [] }, w = K.where(d(), id), ou = 'Pas placé';
-        if (w && w.t >= 0) { var tt = d().equipes[w.t], jj = tt.joueurs[w.j]; ou = 'en ' + tt.id + (d().reglages.format === 10 ? ' · ' + (jj.poste ? COURT[jj.poste] : 'remp.') : ''); }
+        if (w && w.t >= 0) { var tt = d().equipes[w.t], jj = tt.joueurs[w.j]; ou = 'en ' + labelEq(tt) + (d().reglages.format === 10 ? ' · ' + (jj.poste ? COURT[jj.poste] : 'remp.') : ''); }
         var ps = K.postesDe(f), ids = t.joueurs.map(function (j) { return j.id; });
         var cps = (f.copains || []).filter(function (c) { return ids.indexOf(c) >= 0; }).map(function (c) { return nom(C, c); });
-        var hors = f.niveau && f.niveau !== t.niveau && f.passerelle !== t.niveau;
+        var hors = t.niveau && f.niveau && f.niveau !== t.niveau && f.passerelle !== t.niveau;
         return '<button type="button" class="cprow' + (w && w.t >= 0 ? ' ailleurs' : '') + '" data-pk="' + esc(id) + '">' +
           '<span class="row" style="gap:8px;min-width:0">' + niveauTag(f.niveau, true) + '<b class="cprn">' + esc(f.prenom) + '</b>' + starsMini(f.plaquage || 0) + '</span>' +
           '<span class="cprm">' + (ps.length ? ps.map(function (x, i) { return (S.p === x ? '<b>' : '') + COURT[x] + (i === 0 && ps.length > 1 ? '★' : '') + (S.p === x ? '</b>' : ''); }).join(', ') : 'pas encore de poste') +
@@ -772,7 +945,12 @@ window.MC = window.MC || {};
         bancOf(dd, presentsOf(C, e)).forEach(function (id) { if (pool.indexOf(id) < 0) pool.push(id); });
         pool = pool.filter(function (id) { return !dans[id]; });
         function placeAilleurs(id) { var w = K.where(dd, id); return !!(w && w.t >= 0); }
-        function fit(id) { var f = C.F[id] || {}; return !f.niveau || f.niveau === t.niveau || f.passerelle === t.niveau; }
+        function fit(id) {
+          var f = C.F[id] || {}, cote = t.bloc === 'av' || t.bloc === 'ar' ? t.bloc : '', pp = K.posteDefaut(f);
+          var okN = !t.niveau || !f.niveau || f.niveau === t.niveau || f.passerelle === t.niveau;
+          var okS = !cote || !pp || K.typePoste(pp) === cote || K.typeDe(f) === 'les2';
+          return okN && okS;
+        }
         function cle(id) { var f = C.F[id] || {}; return [fit(id) ? 0 : 1, placeAilleurs(id) ? 1 : 0, K.ORDRE.indexOf(K.posteDefaut(f)) < 0 ? 99 : K.ORDRE.indexOf(K.posteDefaut(f)), -(f.plaquage || 0), f.prenom || '']; }
         function tri(a, b) { var x = cle(a), y = cle(b); for (var i = 0; i < x.length; i++) if (x[i] !== y[i]) return x[i] < y[i] ? -1 : 1; return 0; }
         function groupe(lab, ids, ferme) {
@@ -792,7 +970,7 @@ window.MC = window.MC || {};
           var libres = pool.filter(function (id) { return !placeAilleurs(id); }), ailleurs = pool.filter(placeAilleurs);
           html = groupe('Pas placés', libres) + (!libres.length ? '<p class="small" style="margin:0">Tous les présents sont placés.</p>' : '') + groupe('Dans une autre équipe', ailleurs, true);
         }
-        return '<p class="small" style="margin:0">' + (S.p === '*' ? 'Touchez les joueurs à ajouter : la liste reste ouverte.' : S.p === '' ? 'Touchez un joueur : il entre comme remplaçant.' : 'Touchez le joueur qui prend la place ; on passe ensuite à la suivante.') + ' Ceux de son niveau d\'abord.</p>' + html;
+        return '<p class="small" style="margin:0">' + (S.p === '*' ? 'Touchez les joueurs à ajouter : la liste reste ouverte.' : S.p === '' ? 'Touchez un joueur : il entre comme remplaçant.' : 'Touchez le joueur qui prend la place ; on passe ensuite à la suivante.') + ' ' + (t.bloc === 'av' ? 'Les avants' : t.bloc === 'ar' ? 'Les arrières' : t.niveau ? 'Ceux de son niveau' : 'Ceux qui ne sont pas encore placés') + ' d\'abord.</p>' + html;
       }
       ui.modal({
         title: '<span class="cpk-title"></span>', body: '<div class="cpick"></div>',
@@ -812,7 +990,7 @@ window.MC = window.MC || {};
             if (S.p && S.p !== '*') {
               var n = suivante(false);
               if (n) S.p = n;
-              else { S.p = ''; ui.toast(tid + ' : les 10 places sont prises. Ajoutez des remplaçants ou fermez.'); }
+              else { S.p = ''; ui.toast(labelEq(T()) + ' : les 10 places sont prises. Ajoutez des remplaçants ou fermez.'); }
               var pb = host.querySelector('.card>.sec:last-child button[data-i="0"]');
               if (S.p === '' && pb && /Passer/.test(pb.textContent)) pb.remove();
             }
@@ -831,15 +1009,15 @@ window.MC = window.MC || {};
   MC.act.cUndo = function () {
     if (!B || !B.undo.length) return;
     B.vs = JSON.parse(B.undo.pop()); B.sel = null;
-    var c = compoOf(app.S.cache.compos, B.evtId);
+    var c = curC();
     B.dirty = !c || B.mode === 'draft' || B.vs.length > 1 || K.diff(c, B.vs[0]).length > 0 || JSON.stringify(c.reglages) !== JSON.stringify(B.vs[0].reglages);
-    if (B.dirty) saveDraft(); else dropDraft(B.evtId);
+    if (B.dirty) saveDraft(); else dropDraft(B.evtId, B.partie);
     rerenderKeep();
   };
   MC.act.cFix = function (b) {
     withC(function (C, e) {
       var v = Number(b.getAttribute('data-v')) || 0, d = B.vs[v], pres = presentsOf(C, e);
-      var al = K.alertes(d, C.F, C.H, pres);
+      var al = alertesOf(C, d, pres);
       var placed = []; d.equipes.forEach(function (t) { t.joueurs.forEach(function (j) { placed.push(j.id); }); });
       if (placed.some(function (id) { return pres.indexOf(id) < 0; })) al.unshift({ fix: null });
       var a = al[Number(b.getAttribute('data-i'))];
@@ -865,8 +1043,9 @@ window.MC = window.MC || {};
   // une 2e version à côté : une copie, une autre proposition, ou vide
   MC.act.cAddV = function () {
     if (!B || B.vs.length !== 1) return;
-    var d0 = B.vs[0], s0 = d0.reglages.style || 'equilibre';
-    var opts = [['copie', 'Copie de la version 1', 'Pour la modifier à partir de la même base.']].concat(Object.keys(K.STYLES).filter(function (k) { return k !== s0; }).map(function (k) { return [k, 'Proposition « ' + K.STYLES[k].nom + ' »', K.STYLES[k].texte]; })).concat([['vide', 'Vide', 'Tout le monde en « Pas placés ».']]);
+    var d0 = B.vs[0], s0 = d0.reglages.style || 'equilibre', P = B.partie;
+    var opts = P ? [['copie', 'Copie de la version 1', 'Pour la modifier à partir de la même base.']].concat(['niveau', 'equilibre'].filter(function (m) { return m !== d0.reglages.mode; }).map(function (m) { return [m, 'Proposition « ' + MODES[P][m][0] + ' »', MODES[P][m][1]]; })).concat([['vide', 'Vide', 'Tout le monde en « Pas placés ».']]) :
+      [['copie', 'Copie de la version 1', 'Pour la modifier à partir de la même base.']].concat(Object.keys(K.STYLES).filter(function (k) { return k !== s0; }).map(function (k) { return [k, 'Proposition « ' + K.STYLES[k].nom + ' »', K.STYLES[k].texte]; })).concat([['vide', 'Vide', 'Tout le monde en « Pas placés ».']]);
     ui.modal({
       title: 'Version 2', body: '<p class="lead" style="font-size:14px">Elle s\'affiche à côté de la version 1, niveau par niveau.</p><div class="cstyles">' + opts.map(function (o) { return '<button type="button" class="opt cstyle" data-av="' + o[0] + '"><b>' + esc(o[1]) + '</b><small>' + esc(o[2]) + '</small></button>'; }).join('') + '</div>',
       actions: [{ label: 'Annuler', value: null, cls: 'btn2 grey' }],
@@ -876,8 +1055,9 @@ window.MC = window.MC || {};
       withC(function (C, e) {
         change(function () {
           var reg = { format: d0.reglages.format, nb: K.nbOf(d0.reglages) }, d;
+          if (P) reg = JSON.parse(JSON.stringify(d0.reglages));
           if (k === 'copie') { d = JSON.parse(JSON.stringify(d0)); d.reglages.style = ''; }
-          else if (k === 'vide') { d = K.vide(presentsOf(C, e), reg); d.reglages = reg; }
+          else if (k === 'vide') { if (P) d = K.videEnt(presentsOf(C, e), C.F, reg, L.today()); else { d = K.vide(presentsOf(C, e), reg); d.reglages = reg; } }
           else d = proposition(C, e, reg, k);
           B.vs.push(d);
         });
@@ -897,6 +1077,7 @@ window.MC = window.MC || {};
   MC.act.cRegl = function (b) {
     if (!B || !B.vs.length) return;
     var v = Number(b && b.getAttribute('data-v')) || 0, d = B.vs[v];
+    if (B.partie) return reglEnt(v, d);
     var reg = { format: d.reglages.format, nb: JSON.parse(JSON.stringify(K.nbOf(d.reglages))), style: d.reglages.style || 'equilibre' };
     function body() {
       return '<div class="grid2">' + K.FORMATS.map(function (f) { return '<button type="button" class="opt' + (reg.format === f ? ' on' : '') + '" data-rf="' + f + '">Jeu à ' + f + '</button>'; }).join('') + '</div>' +
@@ -932,6 +1113,30 @@ window.MC = window.MC || {};
       });
     });
   };
+  // refaire une version d'un entraînement avec d'autres réglages
+  function reglEnt(v, d) {
+    withC(function (C, e) {
+      var ids = presentsOf(C, e), reg = K.regEnt(JSON.parse(JSON.stringify(d.reglages)), ids, C.F);
+      function body() { return regEntHtml(C, reg, ids, { mode: 'data-rm', sep: 'data-rsep', n: 'data-rk' }); }
+      ui.modal({
+        title: B.vs.length > 1 ? 'Refaire · ' + vName(v) : 'Refaire', body: '<div class="creg">' + body() + '</div>',
+        actions: [{ label: B.partie === 'ateliers' ? 'Refaire les groupes' : 'Refaire les matchs', value: true, cls: 'btn' }, { label: 'Annuler', value: null, cls: 'btn2 grey' }],
+        onOpen: function (host) {
+          host.addEventListener('click', function (ev) {
+            var m = ev.target.closest('[data-rm]'), sp = ev.target.closest('[data-rsep]'), k = ev.target.closest('[data-rk]');
+            if (m) reg.mode = m.getAttribute('data-rm');
+            else if (sp) reg.separer = sp.getAttribute('data-rsep') === '1';
+            else if (k) { var kk = k.getAttribute('data-rk'); reg[kk] = Math.max(1, Math.min(kk === 'n' ? 8 : 4, reg[kk] + Number(k.getAttribute('data-d')))); }
+            else return;
+            host.querySelector('.creg').innerHTML = body();
+          });
+        }
+      }).then(function (ok) {
+        if (!ok) return;
+        withC(function (C2, e2) { change(function () { B.vs[v] = proposition(C2, e2, reg, reg.mode); }); });
+      });
+    });
+  }
   function askText(title, lead, ph, required, okLabel, cls, extra) {
     var choix = null;
     return ui.modal({
@@ -953,12 +1158,12 @@ window.MC = window.MC || {};
     });
   }
   function afterSave(msg) {
-    var id = B.evtId; dropDraft(id); B = null;
+    var id = B.evtId; dropDraft(id, B.partie); B = null;
     return loadCompos(true).then(function () { ui.toast(msg); app.rerender(); });
   }
   function onErr(e) {
     if (e.code === 'conflit') {
-      if (B) dropDraft(B.evtId);
+      if (B) dropDraft(B.evtId, B.partie);
       ui.toast(e.message, true); loadCompos(true).then(function () { B = null; app.rerender(); }); return;
     }
     ui.toast(e.message, true);
@@ -966,9 +1171,9 @@ window.MC = window.MC || {};
   MC.act.cPublish = function (b) {
     if (!B || !B.vs.length) return;
     var v = Number(b.getAttribute('data-v')) || 0, d = B.vs[v];
-    askText(B.vs.length > 1 ? 'Publier la ' + vName(v).toLowerCase() : 'Publier la compo', 'Elle devient la compo du plateau pour tous les éducs' + (B.vs.length > 1 ? ' (l\'autre version est effacée)' : '') + '. Un mot pour expliquer vos choix ? (facultatif)', 'Ex. : Tom monte en A, c\'est son tour.', false, 'Publier').then(function (r) {
+    askText(B.vs.length > 1 ? 'Publier la ' + vName(v).toLowerCase() : B.partie === 'ateliers' ? 'Publier les groupes' : B.partie === 'matchs' ? 'Publier les matchs' : 'Publier la compo', 'Elle devient la compo ' + quoi(B.partie) + ' pour tous les éducs' + (B.vs.length > 1 ? ' (l\'autre version est effacée)' : '') + '. Un mot pour expliquer vos choix ? (facultatif)', 'Ex. : Tom monte en A, c\'est son tour.', false, 'Publier').then(function (r) {
       if (!r) return;
-      app.adultCall('saveCompo', { evenementId: B.evtId, version: 0, reglages: d.reglages, equipes: d.equipes, banc: d.banc, raisons: d.raisons, justification: r.text }).then(function () { return afterSave('Compo publiée'); }).catch(onErr);
+      app.adultCall('saveCompo', { evenementId: B.evtId, partie: B.partie || '', version: 0, reglages: d.reglages, equipes: d.equipes, banc: d.banc, raisons: d.raisons, justification: r.text }).then(function () { return afterSave(B && B.partie === 'ateliers' ? 'Groupes publiés : place aux matchs ensuite' : 'Compo publiée'); }).catch(onErr);
     });
   };
   MC.act.cPublishWhich = function () {
@@ -983,27 +1188,27 @@ window.MC = window.MC || {};
     var pref = '<span class="mlab" style="margin-top:4px">Votre voix (facultatif)</span><div class="seg3">' + [['0', 'V1'], ['1', 'V2'], ['', 'Je ne vote pas']].map(function (o) { return '<button type="button" class="opt" data-pref="' + o[0] + '" aria-pressed="false">' + o[1] + '</button>'; }).join('') + '</div>';
     askText('Soumettre au vote', 'Les éducs voient les 2 versions côte à côte et votent. La 1re version qui obtient la majorité devient la compo ; vous pouvez aussi clore le vote (et départager en cas d\'égalité). Un mot pour expliquer ?', 'Ex. : V1 équilibre le plaquage, V2 garde les copains ensemble.', false, 'Soumettre', 'btn', pref).then(function (r) {
       if (!r) return;
-      var p = { evenementId: B.evtId, version: 0, versions: B.vs, justification: r.text };
+      var p = { evenementId: B.evtId, partie: B.partie || '', version: 0, versions: B.vs, justification: r.text };
       if (r.choix === 0 || r.choix === 1) p.monVote = r.choix;
       app.adultCall('saveCompo', p).then(function (res) { return afterSave(res.compo && res.compo.statut === 'publiee' ? 'Compo publiée' : 'Les 2 versions sont soumises au vote'); }).catch(onErr);
     });
   };
   MC.act.cVoteFor = function (b) {
-    var c = B && compoOf(app.S.cache.compos, B.evtId);
+    var c = curC(), q = quoi(B && B.partie);
     if (!c) return;
     var i = Number(b.getAttribute('data-v'));
     app.adultCall('voteCompo', { compoId: c.id, choix: i }).then(function (r) {
-      return afterSave(r.compo.statut === 'publiee' ? vName(r.compo.choix) + ' choisie : c\'est la compo du plateau' : 'Vote enregistré : ' + vName(i));
+      return afterSave(r.compo.statut === 'publiee' ? vName(r.compo.choix) + ' choisie : c\'est la compo ' + q : 'Vote enregistré : ' + vName(i));
     }).catch(onErr);
   };
   MC.act.cClore = function () {
-    var c = B && compoOf(app.S.cache.compos, B.evtId);
+    var c = curC(), q = quoi(B && B.partie);
     if (!c) return;
-    app.adultCall('cloreVote', { compoId: c.id }).then(function (r) { return afterSave(vName(r.compo.choix) + ' retenue : c\'est la compo du plateau'); }).catch(function (e) {
+    app.adultCall('cloreVote', { compoId: c.id }).then(function (r) { return afterSave(vName(r.compo.choix) + ' retenue : c\'est la compo ' + q); }).catch(function (e) {
       if (e.code !== 'egalite') { onErr(e); return; }
       ui.modal({ title: 'Égalité', body: '<p class="lead">' + esc(e.message) + '</p>', actions: [{ label: 'Garder la version 1', value: 0, cls: 'btn' }, { label: 'Garder la version 2', value: 1, cls: 'btn' }, { label: 'Annuler', value: null, cls: 'btn2 grey' }] }).then(function (i) {
         if (i !== 0 && i !== 1) return;
-        app.adultCall('cloreVote', { compoId: c.id, choix: i }).then(function () { return afterSave(vName(i) + ' retenue : c\'est la compo du plateau'); }).catch(onErr);
+        app.adultCall('cloreVote', { compoId: c.id, choix: i }).then(function () { return afterSave(vName(i) + ' retenue : c\'est la compo ' + q); }).catch(onErr);
       });
     });
   };
@@ -1012,21 +1217,21 @@ window.MC = window.MC || {};
     var d = B.vs[0];
     askText('Enregistrer les changements', 'Ce qui a changé, en quelques mots (facultatif) : les autres éducs le verront dans les versions.', 'Ex. : Inès blessée, Malo la remplace.', false, 'Enregistrer').then(function (r) {
       if (!r) return;
-      app.adultCall('saveCompo', { evenementId: B.evtId, compoId: B.compoId, version: B.base, reglages: d.reglages, equipes: d.equipes, banc: d.banc, raisons: d.raisons, note: r.text }).then(function () { return afterSave('Compo enregistrée'); }).catch(onErr);
+      app.adultCall('saveCompo', { evenementId: B.evtId, partie: B.partie || '', compoId: B.compoId, version: B.base, reglages: d.reglages, equipes: d.equipes, banc: d.banc, raisons: d.raisons, note: r.text }).then(function () { return afterSave('Compo enregistrée'); }).catch(onErr);
     });
   };
   MC.act.cDiscard = function () {
     var draft = B && B.mode === 'draft';
     ui.modal({ title: draft ? 'Effacer le brouillon ?' : 'Annuler vos changements ?', body: '<p class="lead">' + (draft ? 'On revient aux réglages.' : 'On revient à la compo publiée.') + '</p>', actions: [{ label: draft ? 'Effacer' : 'Oui, annuler', value: true, cls: 'btn pink' }, { label: 'Non', value: false, cls: 'btn2 grey' }] }).then(function (ok) {
       if (!ok || !B) return;
-      dropDraft(B.evtId); var keepReg = draft ? B.vs[0].reglages : null; B = null;
+      dropDraft(B.evtId, B.partie); var keepReg = draft ? B.vs[0].reglages : null; B = null;
       app.rerender();
-      if (keepReg) setTimeout(function () { if (B) B.reg = { format: keepReg.format, nb: K.nbOf(keepReg), style: keepReg.style || 'equilibre' }; app.rerender(); }, 0);
+      if (keepReg) setTimeout(function () { if (B) B.reg = keepReg.partie ? JSON.parse(JSON.stringify(keepReg)) : { format: keepReg.format, nb: K.nbOf(keepReg), style: keepReg.style || 'equilibre' }; app.rerender(); }, 0);
     });
   };
   MC.act.cCounter = function () { if (!B) return; B.mode = 'counter'; B.sel = null; app.rerender(); ui.toast('Déplacez les joueurs, puis envoyez votre proposition'); };
   MC.act.cSendCounter = function () {
-    var c = B && compoOf(app.S.cache.compos, B.evtId);
+    var c = curC();
     if (!c) return;
     askText('Contre-proposition', 'Pour ' + esc(c.auteurNom) + ' : pourquoi ces changements ? (obligatoire)', 'Ex. : Léo n\'a pas encore de copain dans son équipe.', true, 'Envoyer', 'btn pink').then(function (r) {
       if (!r) return;
@@ -1034,9 +1239,9 @@ window.MC = window.MC || {};
     });
   };
   MC.act.cRetirer = function () {
-    var c = B && compoOf(app.S.cache.compos, B.evtId);
+    var c = curC();
     if (!c) return;
-    ui.modal({ title: c.statut === 'vote' ? 'Retirer le vote ?' : 'Retirer la compo ?', body: '<p class="lead">Le plateau n\'a plus de compo : on repart des réglages.' + (c.statut === 'vote' ? '' : ' Les contre-propositions en attente sont retirées aussi.') + '</p>', actions: [{ label: 'Retirer', value: true, cls: 'btn pink' }, { label: 'Annuler', value: false, cls: 'btn2 grey' }] }).then(function (ok) {
+    ui.modal({ title: c.statut === 'vote' ? 'Retirer le vote ?' : 'Retirer la compo ?', body: '<p class="lead">Plus de compo ' + quoi(c.partie) + ' : on repart des réglages.' + (c.statut === 'vote' ? '' : ' Les contre-propositions en attente sont retirées aussi.') + '</p>', actions: [{ label: 'Retirer', value: true, cls: 'btn pink' }, { label: 'Annuler', value: false, cls: 'btn2 grey' }] }).then(function (ok) {
       if (!ok) return;
       app.adultCall('retirerCompo', { compoId: c.id }).then(function () { return afterSave(c.statut === 'vote' ? 'Vote retiré' : 'Compo retirée'); }).catch(onErr);
     });
@@ -1072,7 +1277,7 @@ window.MC = window.MC || {};
     B = saveB;
     var stale = att && c && Number(a.version) !== Number(c.version);
     var etat = att ? '<span class="pill" style="--pc:var(--pink)">En attente</span>' : '<span class="pill" style="--pc:' + (a.statut === 'acceptee' ? 'var(--green)' : 'var(--line3);color:var(--ink)') + '">' + ({ acceptee: 'Acceptée', refusee: 'Refusée', retiree: 'Retirée' }[a.statut] || a.statut) + '</span>';
-    return '<main class="screen cscreen">' + MC.educBar(C.g, 'Contre-proposition', e ? '#/educ/compo/' + e.id : '#/educ/compos', e ? 'La compo' : 'Les compos') +
+    return '<main class="screen cscreen">' + MC.educBar(C.g, 'Contre-proposition', e ? lienCompo(e.id, c && c.partie) : '#/educ/compos', e ? 'La compo' : 'Les compos') +
       '<div class="head"><span class="kicker" style="color:var(--pink)">' + (e ? esc(e.titre) + ' · ' : '') + 'compo de ' + esc(c ? c.auteurNom : '?') + '</span><h1 class="big sm">De ' + esc(a.auteurNom) + '</h1>' +
       '<div class="row" style="gap:8px">' + etat + '<span class="small">' + esc(ui.fmtDate(localDay(a.cree))) + '</span></div></div>' +
       '<div class="box"><span class="mlab">Pourquoi</span><p style="margin:0">« ' + esc(a.justification) + ' »</p>' + (a.reponse ? '<span class="mlab" style="margin-top:10px">Réponse de ' + esc(a.parQui || '') + '</span><p style="margin:0">« ' + esc(a.reponse) + ' »</p>' : '') + '</div>' +

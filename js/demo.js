@@ -138,7 +138,8 @@ MC.demo = (function () {
     });
     var cyril = { id: id(), nom: 'Cyril', codeHash: Core._hashAdulte(sec, '700001'), codeV: 1, admin: false, actif: true, cree: nowIso };
     db.insert('educs', cyril);
-    db.insert('educs', { id: id(), nom: 'Julien', codeHash: Core._hashAdulte(sec, '700002'), codeV: 1, admin: false, actif: true, cree: nowIso });
+    var julien = { id: id(), nom: 'Julien', codeHash: Core._hashAdulte(sec, '700002'), codeV: 1, admin: false, actif: true, cree: nowIso };
+    db.insert('educs', julien);
     var nico = db.rows('educs')[0];
     // postes réglés par les éducs (le 1er = poste principal) ; les autres joueurs ont seulement leurs vœux
     var POSTES = { Inès: ['ailier', 'centre'], Léo: ['troisieme-ligne', 'pilier'], Nina: ['demi-de-melee', 'ouvreur'], Sacha: ['centre'], Arthur: ['ailier', 'centre'],
@@ -219,6 +220,15 @@ MC.demo = (function () {
     var votes = {}; votes[cyril.id] = 1;
     db.insert('compos', { id: id(), evenementId: p4.id, sorte: 'plateau', version: 1, auteur: cyril.id, auteurNom: 'Cyril', statut: 'vote', reglages: vers[0].reglages, equipes: vers[0].equipes, banc: [], raisons: vers[0].raisons,
       justification: 'V1 : 4 équipes de 6, plus de temps de jeu. V2 : 3 équipes de 8, les copains ensemble. Votre avis ?', historique: [{ v: 1, par: 'Cyril', quand: nowIso, note: '2 versions proposées au vote' }], cree: nowIso, maj: nowIso, versions: vers, votes: votes, choix: -1 });
+    // l'entraînement de mercredi dernier : groupes d'ateliers par niveau, puis 2 matchs par niveau (publiés par Julien)
+    var merAv = L.addDays(today, -(((L.dow(today) - 2) + 7) % 7 || 7));
+    var e0 = evt({ id: 'sp-demo-e0', titre: 'Entraînement - Saint-Sulpice', debut: merAv + 'T16:30:00.000Z', lieu: 'Saint-Sulpice', presents: sauf(['Rose', 'Côme', 'Lucas', 'Hugo', 'Maël', 'Mila']) });
+    evts[e0.id] = e0;
+    [['ateliers', { partie: 'ateliers', mode: 'niveau', n: 4 }], ['matchs', { partie: 'matchs', mode: 'niveau', nbMatchs: 2 }]].forEach(function (x) {
+      var q = K.proposerEnt(e0.presents, F, {}, x[1], today);
+      db.insert('compos', { id: id(), evenementId: e0.id, sorte: 'entrainement', partie: x[0], version: 1, auteur: julien.id, auteurNom: 'Julien', statut: 'publiee', reglages: q.reglages, equipes: q.equipes, banc: [], raisons: q.raisons,
+        justification: '', historique: [{ v: 1, par: 'Julien', quand: nowIso, note: 'Compo publiée' }], cree: nowIso, maj: nowIso, versions: [], votes: {}, choix: -1 });
+    });
     var mer = L.addDays(today, ((2 - L.dow(today)) + 7) % 7 || 7);
     evt({ id: 'sp-demo-e1', titre: 'Entraînement - Lézat', debut: mer + 'T16:30:00.000Z', lieu: 'Lézat', presents: sauf(['Rose', 'Côme', 'Elio', 'Mila', 'Lucas', 'Gabin', 'Hugo', 'Maël']), sansReponse: [ids['Côme'], ids['Lucas']] });
   }

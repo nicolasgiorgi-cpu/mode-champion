@@ -114,11 +114,12 @@ var Core = (function () {
     // événements (Spond ou ajoutés à la main) et leurs présents (ids des joueurs de l'appli)
     evenements: [['id', 's'], ['source', 's'], ['titre', 's'], ['sorte', 's'], ['debut', 's'], ['fin', 's'], ['lieu', 's'], ['presents', 'j'], ['absents', 'j'],
       ['sansReponse', 'j'], ['ajouts', 'j'], ['retraits', 'j'], ['inconnus', 'j'], ['annule', 'b'], ['parQui', 's'], ['maj', 's']],
-    // la compo d'un événement (une seule active) ; historique = les versions successives
+    // la compo d'un événement (une seule active par partie) ; historique = les versions successives
+    // partie : '' = la compo d'un plateau ; 'ateliers' ou 'matchs' = les groupes d'un entraînement (d'abord les ateliers, puis les matchs)
     compos: [['id', 's'], ['evenementId', 's'], ['sorte', 's'], ['version', 'n'], ['auteur', 's'], ['auteurNom', 's'], ['statut', 's'], ['reglages', 'j'],
       ['equipes', 'j'], ['banc', 'j'], ['raisons', 'j'], ['justification', 's'], ['historique', 'j'], ['cree', 's'], ['maj', 's'],
       // compo proposée en 2 versions au vote des éducs : statut « vote », versions, votes { idÉduc: 0 | 1 }, choix = la version retenue
-      ['versions', 'j'], ['votes', 'j'], ['choix', 'n']],
+      ['versions', 'j'], ['votes', 'j'], ['choix', 'n'], ['partie', 's']],
     // contre-propositions d'un autre éduc sur une compo publiée
     avis: [['id', 's'], ['compoId', 's'], ['version', 'n'], ['auteur', 's'], ['auteurNom', 's'], ['equipes', 'j'], ['banc', 'j'], ['changements', 'j'],
       ['justification', 's'], ['statut', 's'], ['reponse', 's'], ['parQui', 's'], ['cree', 's'], ['maj', 's']]
@@ -982,7 +983,7 @@ var Core = (function () {
       sansReponse: e.sansReponse || [], ajouts: e.ajouts || [], retraits: e.retraits || [], inconnus: e.inconnus || [], annule: !!e.annule, parQui: e.parQui || '', maj: e.maj };
   }
   function pubCompo(c) {
-    return { id: c.id, evenementId: c.evenementId, sorte: c.sorte, version: Number(c.version) || 1, auteur: c.auteur, auteurNom: c.auteurNom, statut: c.statut, reglages: c.reglages || {},
+    return { id: c.id, evenementId: c.evenementId, sorte: c.sorte, partie: c.partie || '', version: Number(c.version) || 1, auteur: c.auteur, auteurNom: c.auteurNom, statut: c.statut, reglages: c.reglages || {},
       equipes: c.equipes || [], banc: c.banc || [], raisons: c.raisons || {}, justification: c.justification || '', historique: c.historique || [], cree: c.cree, maj: c.maj,
       versions: Array.isArray(c.versions) ? c.versions : [], votes: c.votes && typeof c.votes === 'object' ? c.votes : {}, choix: c.choix === '' || c.choix === undefined ? -1 : Number(c.choix) };
   }
@@ -1074,14 +1075,27 @@ var Core = (function () {
     }
   };
 
-  // une compo envoyée par le navigateur, nettoyée : équipes A1…C6, chaque joueur actif une seule fois
-  function cleanCompo(ctx, req) {
+  var PARTIES = ['', 'ateliers', 'matchs'];
+  function partieOf(x) { x = String(x || ''); return PARTIES.indexOf(x) >= 0 ? x : ''; }
+  var BLOCS = ['A', 'B', 'C', 'g', 'av', 'ar', 'm1', 'm2', 'm3', 'm4', 'm5', 'm6'];
+  // une compo envoyée par le navigateur, nettoyée : équipes A1…C6 (plateau) ou groupes / équipes de match (entraînement),
+  // chaque joueur actif une seule fois
+  function cleanCompo(ctx, req, partie) {
     var actifs = {}; ctx.db.rows('joueurs').forEach(function (j) { if (j.actif) actifs[j.id] = true; });
     var seen = {}, tids = {}, equipes = [];
     (Array.isArray(req.equipes) ? req.equipes : []).slice(0, 18).forEach(function (t) {
       if (!t || typeof t !== 'object') return;
-      var niv = NIVS.indexOf(t.niveau) >= 0 ? t.niveau : 'B', id = String(t.id || '');
-      if (!/^[ABC][1-9]$/.test(id) || tids[id] || id.charAt(0) !== niv) { var n = 1; while (tids[niv + n]) n++; id = niv + n; }
+      var niv, id = String(t.id || ''), extra = {};
+      if (partie) {
+        niv = NIVS.indexOf(t.niveau) >= 0 ? t.niveau : '';
+        if (!/^[A-Za-z0-9]{1,6}$/.test(id) || tids[id]) { var k = 1; while (tids['T' + k]) k++; id = 'T' + k; }
+        extra.bloc = BLOCS.indexOf(t.bloc) >= 0 ? t.bloc : (niv || 'g');
+        extra.nom = cleanText(t.nom, 12) || id;
+        if (t.cote === 'c' || t.cote === 'm') extra.cote = t.cote;
+      } else {
+        niv = NIVS.indexOf(t.niveau) >= 0 ? t.niveau : 'B';
+        if (!/^[ABC][1-9]$/.test(id) || tids[id] || id.charAt(0) !== niv) { var n = 1; while (tids[niv + n]) n++; id = niv + n; }
+      }
       tids[id] = true;
       var js = [];
       (Array.isArray(t.joueurs) ? t.joueurs : []).slice(0, 40).forEach(function (x) {
@@ -1090,7 +1104,9 @@ var Core = (function () {
         seen[jid] = true;
         js.push({ id: jid, poste: POSTES_ID.indexOf(x.poste) >= 0 ? x.poste : '', n: NIVS.indexOf(x.n) >= 0 ? x.n : '' });
       });
-      equipes.push({ id: id, niveau: niv, joueurs: js });
+      var eq = { id: id, niveau: niv, joueurs: js };
+      for (var x in extra) eq[x] = extra[x];
+      equipes.push(eq);
     });
     var banc = [];
     (Array.isArray(req.banc) ? req.banc : []).slice(0, 80).forEach(function (x) { x = String(x); if (actifs[x] && !seen[x]) { seen[x] = true; banc.push(x); } });
@@ -1098,7 +1114,13 @@ var Core = (function () {
     NIVS.forEach(function (n) { var v = Math.floor(Number(r.nb && r.nb[n]) || 0); nb[n] = v < 0 ? 0 : v > 6 ? 6 : v; });
     var raisons = {};
     if (req.raisons && typeof req.raisons === 'object') for (var k in req.raisons) if (seen[k]) raisons[k] = cleanText(req.raisons[k], 200);
-    return { equipes: equipes, banc: banc, reglages: { format: Number(r.format) === 10 ? 10 : 5, nb: nb }, raisons: raisons };
+    var reglages = { format: Number(r.format) === 10 ? 10 : 5, nb: nb };
+    if (partie) {
+      var borne = function (v, a, b, d) { v = Math.floor(Number(v)); return isNaN(v) ? d : v < a ? a : v > b ? b : v; };
+      reglages = { format: 5, nb: nb, partie: partie, mode: r.mode === 'equilibre' ? 'equilibre' : 'niveau', separer: partie === 'ateliers' && !!r.separer,
+        n: borne(r.n, 1, 8, 3), nAv: borne(r.nAv, 1, 4, 1), nAr: borne(r.nAr, 1, 4, 1), nbMatchs: borne(r.nbMatchs, 1, 4, 2) };
+    }
+    return { equipes: equipes, banc: banc, reglages: reglages, raisons: raisons };
   }
   function placeOf(c) {
     var p = {};
@@ -1116,8 +1138,8 @@ var Core = (function () {
     return out;
   }
   function jourJ(ctx, e) { return String(e.debut).slice(0, 10) === isoDate(ctx.now); }
-  function compoActive(ctx, evenementId) {
-    var l = ctx.db.rows('compos').filter(function (c) { return c.evenementId === evenementId && (c.statut === 'publiee' || c.statut === 'vote'); });
+  function compoActive(ctx, evenementId, partie) {
+    var l = ctx.db.rows('compos').filter(function (c) { return c.evenementId === evenementId && (c.partie || '') === (partie || '') && (c.statut === 'publiee' || c.statut === 'vote'); });
     return l[0] || null;
   }
   function nbEducs(ctx) { return ctx.db.rows('educs').filter(function (x) { return x.actif; }).length || 1; }
@@ -1140,24 +1162,25 @@ var Core = (function () {
       var e = find(ctx.db.rows('evenements'), String(req.evenementId || ''));
       if (!e) fail('introuvable', 'Événement introuvable.');
       var me = ctx.auth.row, now = isoNow(ctx.now);
-      var cur = compoActive(ctx, e.id), note = cleanText(req.note || req.justification || '', 600);
+      var partie = partieOf(req.partie);
+      var cur = compoActive(ctx, e.id, partie), note = cleanText(req.note || req.justification || '', 600);
       // 2 versions proposées au vote des éducs : la majorité l'emporte, l'auteur départage
       if (Array.isArray(req.versions)) {
         if (cur) fail('conflit', cur.auteurNom + ' a publié une compo entre-temps : la voici.');
-        var vs = req.versions.slice(0, 2).map(function (v) { return cleanCompo(ctx, v || {}); });
+        var vs = req.versions.slice(0, 2).map(function (v) { return cleanCompo(ctx, v || {}, partie); });
         if (vs.length !== 2 || !vs[0].equipes.length || !vs[1].equipes.length) fail('invalide', 'Il faut deux versions, chacune avec au moins une équipe.');
         var votes = {};
         if (req.monVote === 0 || req.monVote === 1) votes[me.id] = req.monVote;
-        var vrow = { id: genId(ctx.env), evenementId: e.id, sorte: e.sorte || 'plateau', version: 1, auteur: me.id, auteurNom: me.nom, statut: 'vote', reglages: vs[0].reglages,
+        var vrow = { id: genId(ctx.env), evenementId: e.id, sorte: e.sorte || 'plateau', partie: partie, version: 1, auteur: me.id, auteurNom: me.nom, statut: 'vote', reglages: vs[0].reglages,
           equipes: vs[0].equipes, banc: vs[0].banc, raisons: vs[0].raisons, justification: cleanText(req.justification, 600),
           historique: [{ v: 1, par: me.nom, quand: now, note: '2 versions proposées au vote' }], cree: now, maj: now, versions: vs, votes: votes, choix: -1 };
         ctx.db.insert('compos', vrow);
         return { compo: pubCompo(vrow) };
       }
-      var c = cleanCompo(ctx, req);
+      var c = cleanCompo(ctx, req, partie);
       if (!c.equipes.length) fail('invalide', 'Il faut au moins une équipe.');
       if (!cur) {
-        var row = { id: genId(ctx.env), evenementId: e.id, sorte: e.sorte || 'plateau', version: 1, auteur: me.id, auteurNom: me.nom, statut: 'publiee', reglages: c.reglages,
+        var row = { id: genId(ctx.env), evenementId: e.id, sorte: e.sorte || 'plateau', partie: partie, version: 1, auteur: me.id, auteurNom: me.nom, statut: 'publiee', reglages: c.reglages,
           equipes: c.equipes, banc: c.banc, raisons: c.raisons, justification: cleanText(req.justification, 600), historique: [{ v: 1, par: me.nom, quand: now, note: 'Compo publiée' }], cree: now, maj: now };
         ctx.db.insert('compos', row);
         return { compo: pubCompo(row) };
@@ -1234,7 +1257,7 @@ var Core = (function () {
       if (req.version !== undefined && Number(req.version) !== Number(cur.version)) fail('conflit', 'La compo a changé entre-temps (version ' + cur.version + ') : la voici à jour, refaites vos changements dessus.');
       var just = cleanText(req.justification, 600);
       if (just.length < 3) fail('invalide', 'Expliquez en quelques mots pourquoi.');
-      var c = cleanCompo(ctx, { equipes: req.equipes, banc: req.banc, reglages: cur.reglages });
+      var c = cleanCompo(ctx, { equipes: req.equipes, banc: req.banc, reglages: cur.reglages }, cur.partie || '');
       var ch = diffCompo(actifsSeuls(ctx, cur), c);
       if (!ch.length) fail('invalide', 'Aucun changement par rapport à la compo.');
       var me = ctx.auth.row, now = isoNow(ctx.now);
