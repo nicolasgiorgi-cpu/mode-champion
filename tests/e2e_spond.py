@@ -26,9 +26,9 @@ with sync_playwright() as p:
     check('Spond : pas de défilement horizontal', noscroll(pg))
     pg.screenshot(path='/tmp/compos-shots/%dx%d-spond.png' % (W, H), full_page=True)
     # des enfants Spond (catégorie M12) pas encore dans l'appli : comme après une synchro
-    pg.evaluate("""(() => { const db = JSON.parse(localStorage.getItem('mc-demo-v5'));
+    pg.evaluate("""(() => { const db = JSON.parse(localStorage.getItem('mc-demo-v6'));
       db.props.spondMembres = JSON.stringify([{ id: 'sp-k1', nom: 'Sam N.', prenom: 'Sam', nomFamille: 'Neuf', categorie: 'M12' }, { id: 'sp-k2', nom: 'Tom Z.', prenom: 'Tom', nomFamille: 'Zèbre', categorie: 'M12' }, { id: 'sp-k3', nom: 'Ali B.', prenom: 'Ali', nomFamille: 'Bel', categorie: 'M12' }]);
-      localStorage.setItem('mc-demo-v5', JSON.stringify(db)); localStorage.removeItem('mc-compos'); })()""")
+      localStorage.setItem('mc-demo-v6', JSON.stringify(db)); localStorage.removeItem('mc-compos'); })()""")
     pg.goto(BASE + '#/educ/spond'); pg.reload(); pg.wait_for_timeout(1500)
     check('Spond : « 3 enfants de Spond pas encore dans l\'appli »', '3 enfants de Spond' in pg.inner_text('main'))
     pg.goto(BASE + '#/educ/ajouter'); pg.wait_for_timeout(1000)

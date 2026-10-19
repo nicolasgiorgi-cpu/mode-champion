@@ -135,9 +135,10 @@
     }).join('') + '</ul>' : '<div class="empty">Aucune séance notée pour l\'instant.</div>';
     var pending = (d.records || []).filter(function (r) { return r.statut === 'attente'; });
     var refused = (d.records || []).filter(function (r) { return r.statut === 'refuse'; }).sort(function (a, b) { return a.date < b.date ? 1 : -1; }).slice(0, 12);
-    var pendHtml = pending.length ? '<section class="note pink" style="flex-direction:column;gap:10px"><div><div class="hud" style="color:var(--pink)">' + pending.length + ' résultat' + (pending.length > 1 ? 's' : '') + ' à confirmer</div><div class="small" style="color:var(--soft);margin-top:4px">' + esc(k.prenom) + ' les a notés. Vous étiez là ? Choisissez <b>Confirmer</b> ou <b>Refuser</b> pour chacun (vous pouvez changer d\'avis), puis touchez <b>Valider mes choix</b> juste en dessous.</div></div>' +
+    var attFam = d.enAttente ? '<div class="note">' + icon('info', 18, 'style="color:var(--cyan);flex:none"') + '<span class="small">' + d.enAttente + ' résultat' + (d.enAttente > 1 ? 's attendent' : ' attend') + ' la confirmation de sa famille.</span></div>' : '';
+    var pendHtml = attFam + (pending.length ? '<section class="note pink" style="flex-direction:column;gap:10px"><div><div class="hud" style="color:var(--pink)">' + pending.length + ' résultat' + (pending.length > 1 ? 's' : '') + ' à confirmer</div><div class="small" style="color:var(--soft);margin-top:4px">' + esc(k.prenom) + ' les a notés. Vous étiez là ? Choisissez <b>Confirmer</b> ou <b>Refuser</b> pour chacun (vous pouvez changer d\'avis), puis touchez <b>Valider mes choix</b> juste en dessous.</div></div>' +
       '<ul class="list" style="width:100%">' + pending.map(function (r) { return recLine(r, '', true); }).join('') + '</ul>' +
-      (pending.length > 1 ? '<button type="button" class="btn2 pink" data-act="decAll" data-ids="' + esc(pending.map(function (r) { return r.id; }).join(',')) + '">' + icon('check', 16) + ' Tout confirmer</button>' : '') + decBar() + '</section>' : '';
+      (pending.length > 1 ? '<button type="button" class="btn2 pink" data-act="decAll" data-ids="' + esc(pending.map(function (r) { return r.id; }).join(',')) + '">' + icon('check', 16) + ' Tout confirmer</button>' : '') + decBar() + '</section>' : '');
     if (refused.length) pendHtml += '<details class="note" style="flex-direction:column;gap:8px;display:block"><summary style="cursor:pointer;min-height:32px"><span class="hud" style="color:var(--muted)">' + refused.length + ' résultat' + (refused.length > 1 ? 's' : '') + ' refusé' + (refused.length > 1 ? 's' : '') + '</span> <span class="small">· refusé par erreur ? Rétablissez-le.</span></summary>' +
       '<ul class="list" style="width:100%;margin-top:8px">' + refused.map(function (r) { return recLine(r, '', true); }).join('') + '</ul>' + (pending.length ? '' : decBar()) + '</details>';
     var niv = k.niveaux || {};
@@ -370,6 +371,16 @@
     });
   }, { adult: 'e', nav: 'e:vestiaire', bg: '#2A1640' });
 
+  // Les résultats à confirmer : seulement ceux de mes enfants (reliés à mon profil) ; les autres, c'est leur famille
+  function aConfirmer(g, pending, pend) {
+    var mine = (g.moi.enfants || []).map(function (id) { return g.joueurs.filter(function (p) { return p.joueur.id === id; })[0]; }).filter(Boolean);
+    var noms = mine.map(function (p) { return p.joueur.prenom; }).join(', ');
+    if (!mine.length) return '<h2 class="h2">Résultats à confirmer</h2><div class="note">' + icon('info', 20, 'style="color:var(--cyan);flex:none"') + '<span class="small">Ce sont les familles qui confirment les résultats de leur enfant (bilans et défis). Votre enfant est dans le groupe ? Reliez-le à votre profil : vous confirmerez les siens ici.</span></div>' +
+      '<button type="button" class="btn2 grey" data-act="myKids">' + icon('user', 16) + ' Choisir mon enfant</button>';
+    return '<div class="between"><h2 class="h2">À confirmer · ' + esc(noms) + '</h2><span class="hud" style="color:var(--pink)">' + pending.length + '</span></div>' +
+      (pending.length ? '<p class="small" style="margin:0">Les résultats de ' + esc(noms) + ' : Confirmer ou Refuser (vous pouvez changer d\'avis), puis <b>Valider mes choix</b> juste en dessous. Ceux des autres enfants, c\'est leur famille qui les confirme.</p><ul class="list">' + pend + '</ul>' +
+        (pending.length > 1 ? '<button type="button" class="btn2 pink" data-act="decAll" data-ids="' + esc(pending.map(function (x) { return x.r.id; }).join(',')) + '">' + icon('check', 16) + ' Tout confirmer (' + pending.length + ')</button>' : '') + decBar() : '<div class="empty">Rien à confirmer pour ' + esc(noms) + '.</div>');
+  }
   function paintVestiaire(g) {
     var G = groupStats(g), pending = G.pending;
     var pend = pending.slice(0, 30).map(function (x) { return recLine(x.r, x.p.joueur.prenom, true); }).join('');
@@ -391,8 +402,7 @@
       '<div class="grid3"><div class="tile"><span class="v">' + G.sessionsWeek + '</span><span class="l" style="text-transform:none;font-family:var(--f-body);letter-spacing:0;font-size:12px">séances cette semaine</span></div>' +
       '<div class="tile"><span class="v" style="color:var(--green)">' + G.active + '<small style="font-size:13px;color:var(--dim)"> / ' + G.players.length + '</small></span><span class="l" style="text-transform:none;font-family:var(--f-body);letter-spacing:0;font-size:12px">actifs sur 7 jours</span></div>' +
       '<a class="tile" href="#/educ/joueurs?filtre=late" style="text-decoration:none;border-color:rgba(255,138,61,.5);background:rgba(255,138,61,.08)"><span class="v" style="color:var(--orange)">' + G.late.length + '</span><span class="l" style="text-transform:none;font-family:var(--f-body);letter-spacing:0;font-size:12px;color:var(--soft)">à relancer ›</span></a></div>' +
-      '<div class="cols2"><section class="sec"><div class="between"><h2 class="h2">À valider</h2><span class="hud" style="color:var(--pink)">' + pending.length + '</span></div>' +
-      (pending.length ? '<p class="small" style="margin:0">Choisissez Confirmer ou Refuser (vous pouvez changer d\'avis), puis <b>Valider mes choix</b> juste en dessous.</p><ul class="list">' + pend + '</ul>' + (pending.length > 1 ? '<button type="button" class="btn2 pink" data-act="decAll" data-ids="' + esc(pending.map(function (x) { return x.r.id; }).join(',')) + '">' + icon('check', 16) + ' Tout confirmer (' + pending.length + ')</button>' : '') + decBar() : '<div class="empty">Tout est validé. Bravo !</div>') + '</section>' +
+      '<div class="cols2"><section class="sec">' + aConfirmer(g, pending, pend) + '</section>' +
       '<section class="sec"><div class="between"><h2 class="h2">Ça bouge</h2><a class="lnk" href="#/educ/joueurs">Les joueurs</a></div>' + (feed ? '<ul class="list">' + feed + '</ul>' : '<div class="empty">Pas encore de séance notée.</div>') + '</section></div>' +
       '</main>';
   }

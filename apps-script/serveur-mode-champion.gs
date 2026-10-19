@@ -282,12 +282,18 @@ var Core = (function () {
     return { id: m.id, joueurId: m.joueurId, mission: m.mission, reponses: out, faite: !!m.faite, date: m.date || '', source: m.source || '', maj: m.maj || m.cree || '' };
   }
 
+  // Les résultats en attente de confirmation : l'enfant, sa famille, et l'éduc qui est son parent (enfant relié à son profil).
+  // Les autres éducs ne voient que les résultats confirmés (et combien attendent la famille).
+  function mesEnfantsEduc(ctx) { if (!ctx.auth || ctx.auth.r !== 'e') return null; return Array.isArray(ctx.auth.row.enfants) ? ctx.auth.row.enfants : []; }
+  function voitAttente(ctx, joueurId) { var m = mesEnfantsEduc(ctx); return !m || m.indexOf(joueurId) >= 0; }
+  function recordsVus(ctx, joueurId, recs) { return voitAttente(ctx, joueurId) ? recs : recs.filter(function (r) { return r.statut !== 'attente'; }); }
+  function nbAttente(ctx, joueurId, recs) { return voitAttente(ctx, joueurId) ? 0 : recs.filter(function (r) { return r.statut === 'attente'; }).length; }
   function dossier(ctx, joueur, full) {
-    var db = ctx.db, parent = !!(ctx.auth && ctx.auth.r === 'f');
+    var db = ctx.db, parent = !!(ctx.auth && ctx.auth.r === 'f'), recs = where(db.rows('records'), 'joueurId', joueur.id);
     return {
       joueur: pubJoueur(joueur),
       seances: where(db.rows('seances'), 'joueurId', joueur.id).map(function (s) { return pubSeance(s, full); }),
-      records: where(db.rows('records'), 'joueurId', joueur.id).map(pubRecord),
+      records: recordsVus(ctx, joueur.id, recs).map(pubRecord), enAttente: nbAttente(ctx, joueur.id, recs),
       journal: where(db.rows('journal'), 'joueurId', joueur.id).map(pubJournal),
       missions: where(db.rows('missions'), 'joueurId', joueur.id).map(function (m) { return pubMission(m, parent); })
     };
@@ -724,6 +730,8 @@ var Core = (function () {
         var r = find(ctx.db.rows('records'), String(dec[i].id));
         if (!r) continue;
         kidFor(ctx, r.joueurId);
+        // un éduc ne confirme que les résultats de son enfant ; ceux des autres, c'est leur famille
+        if (!voitAttente(ctx, r.joueurId)) fail('interdit', 'Ce sont ses parents qui confirment les résultats de cet enfant.');
         ctx.db.update('records', r.id, { statut: statut, parQui: qui });
         done++; if (statut === 'ok') ok++; else refus++;
         out.push(pubRecord(find(ctx.db.rows('records'), r.id)));
@@ -771,7 +779,7 @@ var Core = (function () {
           joueur: pubJoueur(j),
           famille: (find(fams, j.familleId) || {}).nom || '',
           seances: where(seances, 'joueurId', j.id).map(function (s) { return pubSeance(s, false); }),
-          records: where(records, 'joueurId', j.id).map(pubRecord),
+          records: recordsVus(ctx, j.id, where(records, 'joueurId', j.id)).map(pubRecord), enAttente: nbAttente(ctx, j.id, where(records, 'joueurId', j.id)),
           journal: where(journal, 'joueurId', j.id).map(pubJournal),
           missions: where(missions, 'joueurId', j.id).map(function (m) { return pubMission(m, false); }),
           terrain: pubTerrain(find(terrain, j.id))

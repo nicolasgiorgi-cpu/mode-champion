@@ -20,7 +20,8 @@ MC.demo = (function () {
     function ri(a, b) { return a + Math.floor(rnd() * (b - a + 1)); }
     function id() { var a = 'abcdefghijkmnpqrstuvwxyz23456789', o = ''; for (var i = 0; i < 10; i++) o += a.charAt(Math.floor(rnd() * a.length)); return o; }
 
-    db.insert('educs', { id: id(), nom: 'Coach Nico', codeHash: Core._hashAdulte(sec, CODES.educ), codeV: 1, admin: true, actif: true, cree: nowIso });
+    var nico = { id: id(), nom: 'Coach Nico', codeHash: Core._hashAdulte(sec, CODES.educ), codeV: 1, admin: true, actif: true, cree: nowIso };
+    db.insert('educs', nico);
     var famTom = { id: id(), nom: 'Famille de Tom et Lou', codeHash: Core._hashAdulte(sec, CODES.parent), codeV: 1, cree: nowIso };
     db.insert('familles', famTom);
 
@@ -176,6 +177,8 @@ MC.demo = (function () {
         sansReponse: o.sansReponse || [], ajouts: [], retraits: [], inconnus: o.inconnus || [], annule: false, parQui: o.parQui || 'Spond', maj: nowIso };
       db.insert('evenements', row); return row;
     }
+    // Coach Nico est aussi le papa de Tom : il confirme les résultats de Tom depuis son espace éduc
+    db.update('educs', nico.id, { enfants: [ids['Tom']] });
     var evts = {}, compos = [];
     function compo(e, auteur, nb, extra) {
       var H = K.historique(compos, evts, F, today);

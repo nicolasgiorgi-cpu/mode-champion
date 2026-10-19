@@ -204,12 +204,12 @@
         ]), true) +
       card('e-vestiaire', 'group', '#3DFFB0', 'Le vestiaire', 'Tout le groupe d\'un coup d\'œil',
         ul([
-          '5 onglets en bas : <b>Vestiaire</b> (à valider, ce qui bouge), <b>Joueurs</b>, <b>Compos</b>, <b>Classement</b>, <b>Outils</b>. Une pastille rose sur Vestiaire = des résultats attendent ; sur Compos = une contre-proposition ou un vote attend.',
+          '5 onglets en bas : <b>Vestiaire</b> (les résultats de votre enfant à confirmer, ce qui bouge), <b>Joueurs</b>, <b>Compos</b>, <b>Classement</b>, <b>Outils</b>. Une pastille rose sur Vestiaire = des résultats de votre enfant attendent ; sur Compos = une contre-proposition ou un vote attend.',
           'Onglet <b>Joueurs</b> : les étoiles de la semaine de chacun et sa dernière séance. Le filtre <b>À relancer</b> montre ceux qui n\'ont rien noté depuis 7 jours.',
           '<b>Mon enfant</b> : vous êtes aussi parent d\'un joueur ? Choisissez-le dans Outils : son bouclier apparaît en haut de votre espace, avec tout le suivi parent, sans changer de code.',
           'Onglet <b>Classement</b> : tout le groupe ou une ligue à la fois, avec la liste des joueurs pas encore classés.',
           'Outils › <b>Progrès du groupe aux bilans</b> : test par test, les joueurs classés selon leur progrès depuis le bilan d\'avant.',
-          '<b>À valider</b> (Vestiaire) : les bilans et défis en attente. Confirmer / Refuser (ou Tout confirmer) s\'allument, puis <b>Valider mes choix</b> envoie le tout. Un résultat refusé par erreur se rétablit depuis la fiche du joueur.'
+          '<b>À confirmer</b> (Vestiaire) : les bilans et défis de <b>votre enfant</b> (relié à votre profil dans Outils › Mon enfant). Confirmer / Refuser (ou Tout confirmer) s\'allument, puis <b>Valider mes choix</b> envoie le tout. Les résultats des autres enfants sont confirmés par leur famille : vous ne voyez que ceux qui sont confirmés. Un résultat refusé par erreur se rétablit depuis la fiche.'
         ])) +
       card('e-fiche', 'user', '#FFC23D', 'La fiche d\'un joueur', 'Touchez un prénom',
         ul([

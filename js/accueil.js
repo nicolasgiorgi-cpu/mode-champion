@@ -132,11 +132,11 @@ MC.accueil = (function () {
     if (i === 0) {
       var pend = 0; players.forEach(function (p) { p.records.forEach(function (r) { if (r.statut === 'attente') pend++; }); });
       return frame('e', n, i, '<div class="grid3" style="width:100%"><div class="tile"><span class="v">' + players.length + '</span><span class="l">joueurs</span></div><div class="tile"><span class="v" style="color:var(--green)">' + players.filter(function (p) { return p.joueur.aUnCode; }).length + '</span><span class="l">connectés</span></div><div class="tile"><span class="v" style="color:var(--pink)">' + pend + '</span><span class="l">à valider</span></div></div>', 'espace éduc',
-        'Bienvenue au vestiaire, ' + esc(g.moi.nom), '<p class="lead">Le tableau de bord du groupe M12 : qui s\'entraîne, qui décroche, les résultats à valider et les progrès de chacun.</p>', nextBtn, { kc: 'var(--violet)' });
+        'Bienvenue au vestiaire, ' + esc(g.moi.nom), '<p class="lead">Le tableau de bord du groupe M12 : qui s\'entraîne, qui décroche et les progrès de chacun.</p>', nextBtn, { kc: 'var(--violet)' });
     }
     if (i === 1) return frame('e', n, i, '', 'votre semaine type · 5 minutes', 'Trois réflexes',
       '<div class="sec">' +
-      '<div class="note pink"><span class="pill" style="--pc:var(--pink)">1</span><span><b>Valider les résultats</b> : une pastille rose sur Vestiaire vous prévient. Confirmer ou Refuser, puis « Valider mes choix ».</span></div>' +
+      '<div class="note pink"><span class="pill" style="--pc:var(--pink)">1</span><span><b>Confirmer les résultats de votre enfant</b> (s\'il est dans le groupe) : une pastille rose sur Vestiaire vous prévient. Ceux des autres enfants, c\'est leur famille.</span></div>' +
       '<div class="note gold"><span class="pill" style="--pc:var(--gold)">2</span><span><b>Relancer ceux qui décrochent</b> : Joueurs › « À relancer » (rien depuis 7 jours, ou jamais connecté).</span></div>' +
       '<div class="note"><span class="pill" style="--pc:var(--cyan)">3</span><span><b>Préparer les bilans</b> : Classement, et Outils › Progrès du groupe.</span></div></div>', nextBtn, { kc: 'var(--violet)' });
     if (!pick) pick = (g.moi.enfants || []).slice();

@@ -53,6 +53,19 @@ r = g.call({ action: 'submitRecords', token: pt, bilan: '0', valeurs: [{ test: '
 assert.ok(r.ok && r.records.length === 3);
 r = g.call({ action: 'submitRecords', token: pt, bilan: '0', valeurs: [{ test: 'planche', valeur: 85 }] }); assert.strictEqual(r.records[0].valeur, 85);
 r = g.call({ action: 'me', token: pt }); assert.strictEqual(r.records.length, 3);
+// un éduc ne voit pas les résultats en attente des autres enfants et ne peut pas les confirmer ; ceux de son enfant, si
+r = g.call({ action: 'group', token: et });
+let tg = r.joueurs.find(p => p.joueur.id === tom.id);
+assert.strictEqual(tg.records.length, 0, 'résultats en attente cachés'); assert.strictEqual(tg.enAttente, 3);
+r = g.call({ action: 'kid', token: et, joueurId: tom.id }); assert.strictEqual(r.records.length, 0); assert.strictEqual(r.enAttente, 3);
+r = g.call({ action: 'confirm', token: et, ids: [g.call({ action: 'me', token: pt }).records[0].id] }); assert.strictEqual(r.error, 'interdit');
+r = g.call({ action: 'mesEnfants', token: et, ids: [tom.id] }); assert.ok(r.ok);
+r = g.call({ action: 'group', token: et });
+tg = r.joueurs.find(p => p.joueur.id === tom.id);
+assert.strictEqual(tg.records.length, 3, 'son enfant : il voit tout'); assert.strictEqual(tg.enAttente, 0);
+r = g.call({ action: 'confirm', token: et, decisions: [{ id: tg.records[0].id, statut: 'ok' }] }); assert.ok(r.ok && r.faits === 1, JSON.stringify(r));
+r = g.call({ action: 'confirm', token: et, decisions: [{ id: tg.records[0].id, statut: 'attente' }] });
+g.call({ action: 'mesEnfants', token: et, ids: [] });
 // parent
 r = g.call({ action: 'adultLogin', code: famCode }); assert.ok(r.ok && r.role === 'f'); const ft = r.token;
 r = g.call({ action: 'family', token: ft }); assert.strictEqual(r.enfants.length, 2);
