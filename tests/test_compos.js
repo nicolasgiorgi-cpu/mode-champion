@@ -185,6 +185,67 @@ const E8 = {};
 ap = K.apparier(Object.keys(E8), E8);
 assert.strictEqual(Object.values(ap.poste).filter(Boolean).length, 8, JSON.stringify(ap));
 assert.deepStrictEqual(J(ap.manquants).sort(), ['troisieme-ligne', 'troisieme-ligne']);
+
+// ----- postes de la fiche : le 1er est le poste principal, sinon les vœux de l'enfant -----
+assert.deepStrictEqual(J(K.postesDe({ postesOk: ['ailier', 'centre'], voeux: ['pilier'] })), ['ailier', 'centre']);
+assert.deepStrictEqual(J(K.postesDe({ postesOk: [], voeux: ['pilier', 'pilier', 'talonneur'] })), ['pilier', 'talonneur']);
+assert.strictEqual(K.posteDefaut({ postesOk: ['ouvreur', 'centre'] }), 'ouvreur');
+assert.strictEqual(K.posteDefaut({}), '');
+assert.strictEqual(K.typePoste('troisieme-ligne'), 'av');
+assert.strictEqual(K.typePoste('demi-de-melee'), 'tq');
+assert.strictEqual(K.typeDe({ postesOk: ['pilier', 'talonneur'] }), 'av');
+assert.strictEqual(K.typeDe({ postesOk: ['centre', 'troisieme-ligne'] }), 'les2');
+assert.strictEqual(K.typeDe({ voeux: ['ailier'] }), 'tq');
+assert.strictEqual(K.typeDe({}), '');
+// au jeu à 10, chacun prend en priorité son poste principal
+const G10 = {};
+[['pilier'], ['pilier'], ['talonneur'], ['troisieme-ligne', 'centre'], ['troisieme-ligne'], ['demi-de-melee'], ['ouvreur'], ['centre', 'ailier'], ['centre'], ['ailier', 'pilier'], ['ailier'], ['centre', 'troisieme-ligne']]
+  .forEach((ps, i) => { G10['g' + i] = { id: 'g' + i, prenom: 'G' + i, niveau: 'A', plaquage: 3, voeux: ['ouvreur'], postesOk: ps, copains: [] }; });
+let ap10 = K.apparier(Object.keys(G10), G10);
+assert.deepStrictEqual(J(ap10.manquants), [], JSON.stringify(ap10));
+['g0', 'g1', 'g2', 'g4', 'g5', 'g6', 'g8'].forEach(id => assert.strictEqual(ap10.poste[id], G10[id].postesOk[0], id + ' à son poste principal'));
+assert.ok(ap10.poste.g6 === 'ouvreur' && Object.values(ap10.poste).filter(p => p === 'ouvreur').length === 1, 'les vœux ne remplacent pas la fiche');
+// avants / trois-quarts : au jeu à 10 d'après le poste du plateau, les remplaçants à part
+let t10 = { id: 'A1', niveau: 'A', joueurs: Object.keys(G10).map(id => ({ id, poste: ap10.poste[id] || '', n: 'A' })) };
+let s10 = K.stats(t10, G10, 10);
+assert.strictEqual(s10.av, 5); assert.strictEqual(s10.tq, 5); assert.strictEqual(s10.rempl, 2);
+assert.strictEqual(s10.remplTypes.av + s10.remplTypes.tq + s10.remplTypes.les2 + s10.remplTypes.inconnus, 2);
+assert.deepStrictEqual(J(s10.manquants), []);
+// un changement de poste au plateau change le décompte
+t10 = K.setPoste({ reglages: { format: 10 }, equipes: [t10], banc: [] }, 'g3', 'centre').equipes[0];
+s10 = K.stats(t10, G10, 10);
+assert.ok(s10.av <= 5 && s10.av + s10.tq + s10.rempl === 12, JSON.stringify(s10));
+// au jeu à 5 : d'après la fiche (polyvalents et sans poste à part)
+const s5 = K.stats({ id: 'A1', niveau: 'A', joueurs: [{ id: 'g0' }, { id: 'g3' }, { id: 'g7' }, { id: 'zz' }] }, Object.assign({ zz: { id: 'zz', voeux: [], postesOk: [] } }, G10), 5);
+assert.deepStrictEqual([s5.av, s5.tq, s5.les2, s5.inconnus, s5.rempl], [1, 1, 1, 1, 0]);
+
+// ----- styles de proposition -----
+assert.deepStrictEqual(Object.keys(K.STYLES), ['equilibre', 'copains', 'strict']);
+const pStrict = K.proposer(ids, F, {}, { format: 5, nb }, '2026-10-19', 'strict');
+pStrict.equipes.forEach(t => t.joueurs.forEach(j => assert.strictEqual(t.niveau, F[j.id].niveau, 'strict : ' + j.id + ' reste en ' + F[j.id].niveau)));
+const pCop = K.proposer(ids, F, {}, { format: 5, nb }, '2026-10-19', 'copains');
+function nbAvec(pp) { let n = 0; pp.equipes.forEach(t => { const st = K.stats(t, F, 5); n += st.avecCopain; }); return n; }
+assert.ok(nbAvec(pCop) >= nbAvec(K.proposer(ids, F, {}, { format: 5, nb }, '2026-10-19', 'equilibre')), 'copains d\'abord : au moins autant d\'enfants avec un copain');
+pCop.equipes.forEach(t => t.joueurs.forEach(j => assert.ok(t.niveau === F[j.id].niveau || t.niveau === F[j.id].passerelle)));
+
+// ----- historique : niveaux et postes joués, copains -----
+const evH = { e1: { id: 'e1', titre: 'Plateau 1', debut: '2026-09-20T10:00' }, e2: { id: 'e2', titre: 'Plateau 2', debut: '2026-10-04T10:00' }, e3: { id: 'e3', titre: 'Plateau 3', debut: '2026-11-04T10:00' } };
+const FH = { x: { id: 'x', copains: ['y'] }, y: { id: 'y', copains: [] }, z: { id: 'z', copains: [] } };
+const cH = [
+  { evenementId: 'e1', statut: 'publiee', equipes: [{ id: 'A1', niveau: 'A', joueurs: [{ id: 'x', poste: 'centre', n: 'B' }, { id: 'y', poste: 'pilier', n: 'A' }] }, { id: 'B1', niveau: 'B', joueurs: [{ id: 'z', n: 'B' }] }] },
+  { evenementId: 'e2', statut: 'publiee', equipes: [{ id: 'B1', niveau: 'B', joueurs: [{ id: 'x', poste: 'centre', n: 'B' }, { id: 'z', poste: 'ailier', n: 'B' }] }] },
+  { evenementId: 'e3', statut: 'publiee', equipes: [{ id: 'A1', niveau: 'A', joueurs: [{ id: 'x', poste: 'ouvreur', n: 'B' }] }] },   // à venir : pas compté
+  { evenementId: 'e2', statut: 'vote', equipes: [{ id: 'C1', niveau: 'C', joueurs: [{ id: 'x', n: 'B' }] }] }                          // pas publiée : pas comptée
+];
+const HX = K.historique(cH, evH, FH, '2026-10-19');
+assert.strictEqual(HX.x.plateaux, 2);
+assert.deepStrictEqual(J(HX.x.niveaux), { A: 1, B: 1 });
+assert.deepStrictEqual(J(HX.x.postes), { centre: 2 });
+assert.deepStrictEqual(J(HX.x.vus), { y: 1, z: 1 });
+assert.strictEqual(HX.x.autre, 1); assert.strictEqual(HX.x.dernierAutre, '2026-09-20');
+assert.strictEqual(HX.x.avecCopain, 1); assert.strictEqual(HX.x.sansCopainSerie, 1);
+assert.deepStrictEqual(J(HX.x.liste.map(l => [l.titre, l.niveau, l.poste, l.copains.length])), [['Plateau 1', 'A', 'centre', 1], ['Plateau 2', 'B', 'centre', 0]]);
+assert.deepStrictEqual(J(K.hOf(HX, 'inconnu').niveaux), {});
 // ----- performance : 44 joueurs, 4 équipes au jeu à 10 -----
 const Q = {};
 for (let i = 0; i < 44; i++) Q['r' + i] = { id: 'r' + i, prenom: 'R' + i, niveau: i < 22 ? 'A' : 'B', passerelle: '', plaquage: i % 6, voeux: [postes[i % 12], postes[(i + 5) % 12]], postesOk: [], copains: ['r' + ((i + 3) % 44), 'r' + ((i + 11) % 44)] };

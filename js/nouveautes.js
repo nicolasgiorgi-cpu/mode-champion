@@ -10,7 +10,7 @@ window.MC = window.MC || {};
 MC.NEWS = [
   { id: '2026-10-compos', date: '2026-10-13', pour: ['e'],
     titre: 'Les compos des plateaux, dans l\'appli',
-    texte: 'Nouvel onglet Compos : la fiche terrain (niveaux, passerelles, plaquage), les présents, une compo proposée en un geste, puis un éduc publie et les autres peuvent faire une contre-proposition.',
+    texte: 'Nouvel onglet Compos : la fiche terrain (niveaux, passerelles, plaquage, postes), les présents, une compo proposée en un geste, 2 versions côte à côte à soumettre au vote des éducs, les postes du plateau et l\'historique de chaque joueur.',
     lien: '#/educ/compos' },
   { id: '2026-10-13-mission-jeu10', date: '2026-10-13', pour: ['k', 'f', 'e'],
     titre: { k: 'Mission spéciale : prépare le jeu à 10', f: 'Mission spéciale : le jeu à 10', e: 'Les postes et les copains, dans l\'appli' },

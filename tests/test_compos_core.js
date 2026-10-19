@@ -286,6 +286,52 @@ assert.deepStrictEqual(r.evenement.presents, [P.Tom, P['Léa'], P.Zoé]);
 r = g.call({ action: 'setEvenement', token: cyril, id: et.id, marques: { [P['Inès']]: true } });
 assert.deepStrictEqual(r.evenement.presents, [P.Tom, P['Léa'], P.Zoé, P['Inès']], 'la correction de l\'autre éduc reste');
 
+// ----- 2 versions soumises au vote des éducs : la majorité l'emporte, l'auteur départage -----
+r = g.call({ action: 'addEduc', token: nico, nom: 'Julien' }); const julien = g.call({ action: 'adultLogin', code: r.code }).token;
+r = g.call({ action: 'setEvenement', token: nico, titre: 'Plateau vote', debut: '2026-12-12', presents: [P.Tom, P['Léa'], P.Hugo, P.Zoé] });
+const ev = r.evenement;
+const V1 = { reglages: { format: 5, nb: { A: 1, B: 1 } }, equipes: [{ id: 'A1', niveau: 'A', joueurs: [{ id: P.Tom }, { id: P['Léa'] }] }, { id: 'B1', niveau: 'B', joueurs: [{ id: P.Hugo }, { id: P.Zoé }] }], banc: [] };
+const V2 = { reglages: { format: 5, nb: { A: 1, B: 1 } }, equipes: [{ id: 'A1', niveau: 'A', joueurs: [{ id: P.Tom }, { id: P.Zoé }] }, { id: 'B1', niveau: 'B', joueurs: [{ id: P.Hugo }, { id: P['Léa'] }] }], banc: [] };
+r = g.call({ action: 'saveCompo', token: nico, evenementId: ev.id, version: 0, versions: [V1], justification: 'x' });
+assert.strictEqual(r.error, 'invalide', 'il faut deux versions');
+r = g.call({ action: 'saveCompo', token: nico, evenementId: ev.id, version: 0, versions: [V1, V2], monVote: 0, justification: 'Copains ou plaquage ?' });
+assert.ok(r.ok, JSON.stringify(r));
+let cv = r.compo;
+assert.strictEqual(cv.statut, 'vote'); assert.strictEqual(cv.versions.length, 2); assert.strictEqual(cv.votes[Object.keys(cv.votes)[0]], 0);
+// pendant le vote : pas de modification directe, pas de contre-proposition, pas de 2e compo
+r = g.call({ action: 'saveCompo', token: nico, evenementId: ev.id, compoId: cv.id, version: 1, reglages: V1.reglages, equipes: V1.equipes, banc: [] });
+assert.strictEqual(r.error, 'interdit');
+r = g.call({ action: 'contreProposition', token: cyril, compoId: cv.id, version: 1, equipes: V2.equipes, banc: [], justification: 'autre' });
+assert.strictEqual(r.error, 'introuvable');
+r = g.call({ action: 'saveCompo', token: cyril, evenementId: ev.id, version: 0, reglages: V1.reglages, equipes: V1.equipes, banc: [] });
+assert.strictEqual(r.error, 'conflit');
+// 3 éducs actifs (Admin, Cyril, Julien) : 2 voix suffisent
+r = g.call({ action: 'voteCompo', token: cyril, compoId: cv.id, choix: 1 });
+assert.strictEqual(r.compo.statut, 'vote');
+r = g.call({ action: 'voteCompo', token: cyril, compoId: cv.id, choix: 0 });   // il change d'avis : 2 voix pour la version 1
+assert.strictEqual(r.compo.statut, 'publiee'); assert.strictEqual(r.compo.choix, 0); assert.strictEqual(r.compo.version, 2);
+assert.deepStrictEqual(r.compo.equipes[0].joueurs.map(j => j.id), [P.Tom, P['Léa']]);
+assert.ok(/2 voix sur 3/.test(r.compo.historique[1].note), r.compo.historique[1].note);
+r = g.call({ action: 'voteCompo', token: julien, compoId: cv.id, choix: 1 });
+assert.strictEqual(r.error, 'introuvable', 'vote terminé');
+// égalité : l'auteur départage en clôturant
+g.call({ action: 'retirerCompo', token: nico, compoId: cv.id });
+r = g.call({ action: 'saveCompo', token: nico, evenementId: ev.id, version: 0, versions: [V1, V2] });
+cv = r.compo;
+g.call({ action: 'voteCompo', token: cyril, compoId: cv.id, choix: 0 });
+g.call({ action: 'voteCompo', token: julien, compoId: cv.id, choix: 1 });
+r = g.call({ action: 'cloreVote', token: cyril, compoId: cv.id });
+assert.strictEqual(r.error, 'interdit', 'seul l\'auteur clôt (hors jour J)');
+r = g.call({ action: 'cloreVote', token: nico, compoId: cv.id });
+assert.strictEqual(r.error, 'egalite');
+r = g.call({ action: 'cloreVote', token: nico, compoId: cv.id, choix: 1 });
+assert.strictEqual(r.compo.statut, 'publiee'); assert.strictEqual(r.compo.choix, 1);
+assert.deepStrictEqual(r.compo.equipes[0].joueurs.map(j => j.id), [P.Tom, P.Zoé]);
+assert.ok(/départagée par Admin/.test(r.compo.historique[1].note));
+r = g.call({ action: 'compos', token: cyril });
+assert.strictEqual(r.educs.length, 3);
+assert.strictEqual(r.compos.find(c => c.id === cv.id).versions.length, 2, 'les 2 versions restent visibles');
+
 // Spond : un seul « Baptiste » dans l'appli mais deux dans Spond → pas de lien au hasard ; « Zoé M » sans nom de famille
 const members2 = [
   { id: 'm-b1', firstName: 'Baptiste', lastName: 'Abadie', subGroups: [SG] }, { id: 'm-b2', firstName: 'Baptiste', lastName: 'Durand', subGroups: [SG] },

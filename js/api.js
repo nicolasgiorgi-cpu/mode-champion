@@ -7,7 +7,7 @@ window.MC = window.MC || {};
 
 MC.api = (function () {
   var DEMO = !MC.CONFIG.API_URL;
-  var KEY = 'mc-demo-v2';   // v2 : 28 joueurs, compos et événements fictifs
+  var KEY = 'mc-demo-v3';   // v3 : 28 joueurs, compos (dont un vote en 2 versions), postes des fiches
 
   function ApiError(res) {
     this.code = res.error || 'serveur';
@@ -22,7 +22,7 @@ MC.api = (function () {
     try { mem = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { mem = null; }
     if (!mem || !mem.tables) {
       mem = { tables: { joueurs: [], familles: [], educs: [], seances: [], records: [], journal: [], missions: [], terrain: [], evenements: [], compos: [], avis: [] }, props: {} };
-      try { localStorage.removeItem('mc-demo-v1'); } catch (e) { }
+      try { localStorage.removeItem('mc-demo-v1'); localStorage.removeItem('mc-demo-v2'); } catch (e) { }
       MC.demo.seed(localDb(), env());
       save();
     }

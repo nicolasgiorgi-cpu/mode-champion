@@ -35,16 +35,27 @@ MC.compos = (function () {
     return out;
   }
   function niveauDe(f) { return f && NIV.indexOf(f.niveau) >= 0 ? f.niveau : ''; }
+  // Les postes d'un joueur, dans l'ordre : ceux de sa fiche (le 1er = son poste principal, réglé par les éducs),
+  // sinon les vœux de l'enfant (mission « jeu à 10 »).
   function postesDe(f) {
-    var o = [];
-    ((f && f.voeux) || []).concat((f && f.postesOk) || []).forEach(function (p) { if (p && o.indexOf(p) < 0) o.push(p); });
+    var l = (f && f.postesOk && f.postesOk.length) ? f.postesOk : ((f && f.voeux) || []), o = [];
+    l.forEach(function (p) { if (p && o.indexOf(p) < 0) o.push(p); });
     return o;
   }
-  // rang d'un poste pour un joueur : 0, 1, 2 = ses vœux ; 3 = compatible (coché par les éducs) ; sinon 9
+  function posteDefaut(f) { return postesDe(f)[0] || ''; }
+  // rang d'un poste pour un joueur : 0 = poste principal, 1, 2… = ses autres postes ; sinon 9
   function rang(f, poste) {
-    var i = ((f && f.voeux) || []).indexOf(poste);
-    if (i >= 0) return i;
-    return ((f && f.postesOk) || []).indexOf(poste) >= 0 ? 3 : 9;
+    var i = postesDe(f).indexOf(poste);
+    return i >= 0 ? i : 9;
+  }
+  // avant (piliers, talonneur, 3es lignes) ou trois-quarts (9, 10, centres, ailiers)
+  var AVANTS = ['pilier', 'talonneur', 'troisieme-ligne'];
+  function typePoste(p) { return !p ? '' : AVANTS.indexOf(p) >= 0 ? 'av' : 'tq'; }
+  // 'av', 'tq', 'les2' (peut jouer les deux) ou '' (pas encore de poste)
+  function typeDe(f) {
+    var av = false, tq = false;
+    postesDe(f).forEach(function (p) { if (typePoste(p) === 'av') av = true; else tq = true; });
+    return av && tq ? 'les2' : av ? 'av' : tq ? 'tq' : '';
   }
 
   // ---------- Fiches des joueurs : terrain + mission « jeu à 10 » ----------
@@ -70,7 +81,7 @@ MC.compos = (function () {
   // compos : lignes du serveur ; evts : { id: événement } ; F : fiches (pour les copains d'aujourd'hui)
   function historique(compos, evts, F, today) {
     var H = {};
-    function h(id) { return H[id] || (H[id] = { plateaux: 0, autre: 0, dernierAutre: '', avecCopain: 0, sansCopainSerie: 0, vus: {}, liste: [] }); }
+    function h(id) { return H[id] || (H[id] = { plateaux: 0, autre: 0, dernierAutre: '', avecCopain: 0, sansCopainSerie: 0, vus: {}, niveaux: {}, postes: {}, liste: [] }); }
     var past = (compos || []).filter(function (c) {
       var e = evts[c.evenementId];
       return c.statut === 'publiee' && e && String(e.debut).slice(0, 10) < today;
@@ -89,13 +100,15 @@ MC.compos = (function () {
             if (cps.length) { o.avecCopain++; o.sansCopainSerie = 0; } else o.sansCopainSerie++;
           }
           ids.forEach(function (c) { if (c !== j.id) o.vus[c] = (o.vus[c] || 0) + 1; });
+          o.niveaux[t.niveau] = (o.niveaux[t.niveau] || 0) + 1;
+          if (j.poste) o.postes[j.poste] = (o.postes[j.poste] || 0) + 1;
           o.liste.push({ date: date, titre: x.e.titre, evenementId: x.e.id, equipe: t.id, niveau: t.niveau, poste: j.poste || '', autre: autre, copains: cps });
         });
       });
     });
     return H;
   }
-  function hOf(H, id) { return (H && H[id]) || { plateaux: 0, autre: 0, dernierAutre: '', avecCopain: 0, sansCopainSerie: 0, vus: {}, liste: [] }; }
+  function hOf(H, id) { return (H && H[id]) || { plateaux: 0, autre: 0, dernierAutre: '', avecCopain: 0, sansCopainSerie: 0, vus: {}, niveaux: {}, postes: {}, liste: [] }; }
 
   // ---------- Nombre d'équipes conseillé par niveau ----------
   function suggestNb(ids, F, format) {
@@ -124,7 +137,7 @@ MC.compos = (function () {
       }
       return false;
     }
-    [0, 1, 2, 3].forEach(function (maxR) {
+    [0, 1, 2, 3, 4, 5, 6].forEach(function (maxR) {
       ids.forEach(function (pid) { if (slotOf[pid] === undefined) tryAssign(pid, maxR, {}); });
     });
     var poste = {}, manquants = [];
@@ -136,13 +149,19 @@ MC.compos = (function () {
   // ---------- Score d'une répartition dans un niveau (plus petit = mieux) ----------
   // somme des scores des équipes ; les moyennes du niveau ne changent pas pendant les échanges
   var W = { taille: 5, plaq: 4, bons: 1.5, copain: 1, seul: 0.75, poste: 1.5 };
-  function niveauCtx(teams, F) {
+  // styles de proposition : « equilibre » (par défaut), « copains » (copains d'abord), « strict » (sans passerelles)
+  var STYLES = {
+    equilibre: { nom: 'Équilibrée', texte: 'Plaquage équilibré, passerelles à tour de rôle, un copain pour chacun quand c\'est possible.', w: W },
+    copains: { nom: 'Copains d\'abord', texte: 'Chacun avec ses copains en priorité, le plaquage reste équilibré.', w: { taille: 5, plaq: 2, bons: 1, copain: 3, seul: 1.5, poste: 1.5 } },
+    strict: { nom: 'Niveaux stricts', texte: 'Chacun dans son niveau (pas de passerelle), plaquage équilibré.', w: W, sansPasserelles: true }
+  };
+  function niveauCtx(teams, F, w) {
     var tot = 0, totP = 0, totB = 0, k = teams.length || 1;
     teams.forEach(function (t) { t.forEach(function (id) { tot++; var p = (F[id] || {}).plaquage || 0; totP += p; if (p >= BON) totB++; }); });
-    return { avgN: tot / k, mean: tot ? totP / tot : 0, avgB: totB / k };
+    return { avgN: tot / k, mean: tot ? totP / tot : 0, avgB: totB / k, w: w || W };
   }
   function scoreEquipe(t, cx, F, H, format) {
-    var sp = 0, sb = 0, s = 0;
+    var sp = 0, sb = 0, s = 0, W = cx.w;
     t.forEach(function (id) { var p = (F[id] || {}).plaquage || 0; sp += p; if (p >= BON) sb++; });
     s += W.taille * Math.abs(t.length - cx.avgN);
     if (t.length) s += W.plaq * Math.abs(sp / t.length - cx.mean);
@@ -156,15 +175,15 @@ MC.compos = (function () {
     });
     return s;
   }
-  function scoreNiveau(teams, F, H, format) {
-    var cx = niveauCtx(teams, F), s = 0;
+  function scoreNiveau(teams, F, H, format, w) {
+    var cx = niveauCtx(teams, F, w), s = 0;
     teams.forEach(function (t) { s += scoreEquipe(t, cx, F, H, format); });
     return s;
   }
   // améliore la répartition par échanges deux à deux (et déplacements si les effectifs s'écartent) ;
   // seules les deux équipes touchées sont recalculées
-  function ameliorer(teams, F, H, format) {
-    var cx = niveauCtx(teams, F), ts = teams.map(function (t) { return scoreEquipe(t, cx, F, H, format); });
+  function ameliorer(teams, F, H, format, w) {
+    var cx = niveauCtx(teams, F, w), ts = teams.map(function (t) { return scoreEquipe(t, cx, F, H, format); });
     var guard = 0, improved = true;
     function sc(i) { return scoreEquipe(teams[i], cx, F, H, format); }
     while (improved && guard++ < 120) {
@@ -205,8 +224,8 @@ MC.compos = (function () {
   // ---------- Proposition automatique ----------
   // ids : présents ; F : fiches ; H : historique ; reglages : { format: 5|10, nb: { A, B, C } }
   // renvoie { equipes: [{ id, niveau, joueurs: [{ id, poste, n }] }], banc: [], raisons: { id: texte } }
-  function proposer(ids, F, H, reglages, today) {
-    var format = fmt(reglages), nb = nbOf(reglages), raisons = {};
+  function proposer(ids, F, H, reglages, today, style) {
+    var format = fmt(reglages), nb = nbOf(reglages), raisons = {}, S = STYLES[style] || STYLES.equilibre;
     var tids = teamIds(nb);
     if (!tids.length) return { equipes: [], banc: ids.slice(), raisons: {} };
     function ok(n) { return nb[n] > 0; }
@@ -227,7 +246,7 @@ MC.compos = (function () {
     var total = ids.length, per = total / tids.length;
     function count(n) { var c = 0; ids.forEach(function (id) { if (lv[id] === n) c++; }); return c; }
     function ecart(n) { return count(n) - nb[n] * per; }
-    var guard = 0;
+    var guard = S.sansPasserelles ? 60 : 0;
     while (guard++ < 60) {
       var move = null;
       NIV.forEach(function (from) {
@@ -263,7 +282,7 @@ MC.compos = (function () {
       var k = nb[n], teams = [];
       for (var i = 0; i < k; i++) teams.push([]);
       list.forEach(function (id, i) { var r = Math.floor(i / k), c = i % k; teams[r % 2 ? k - 1 - c : c].push(id); });
-      ameliorer(teams, F, H, format);
+      ameliorer(teams, F, H, format, S.w);
       teams.forEach(function (t, i) {
         var po = format === 10 ? apparier(t, F).poste : {};
         equipes.push({ id: n + (i + 1), niveau: n, joueurs: t.map(function (id) { return { id: id, poste: po[id] || '', n: princ[id] || '' }; }) });
@@ -294,6 +313,15 @@ MC.compos = (function () {
       if (p < (SEUIL[t.niveau] || 0)) sousSeuil.push(id);
     });
     var o = { n: n, plaq: n ? Math.round(sp / n * 10) / 10 : 0, bons: bons, avecCopain: avec, ontCopains: avecCps, passerelles: pass, sousSeuil: sousSeuil, manquants: [] };
+    // avants / trois-quarts : au jeu à 10, d'après le poste du plateau (les remplaçants d'après leur fiche) ;
+    // au jeu à 5, d'après la fiche (« les2 » = peut jouer les deux, « inconnus » = pas encore de poste)
+    // (remplaçants du jeu à 10 : à part, avec le type de leur fiche dans o.remplTypes)
+    o.av = 0; o.tq = 0; o.les2 = 0; o.inconnus = 0; o.rempl = 0; o.remplTypes = { av: 0, tq: 0, les2: 0, inconnus: 0 };
+    (t.joueurs || []).forEach(function (j) {
+      var r = format === 10 && !j.poste, ty = format === 10 && j.poste ? typePoste(j.poste) : typeDe(F[j.id]), k = ty || 'inconnus';
+      if (r) { o.rempl++; o.remplTypes[k]++; return; }
+      o[k]++;
+    });
     if (format === 10) {
       var cover = {};
       (t.joueurs || []).forEach(function (j) { if (j.poste) cover[j.poste] = (cover[j.poste] || 0) + 1; });
@@ -486,6 +514,7 @@ MC.compos = (function () {
     fiches: fiches, historique: historique, hOf: hOf, suggestNb: suggestNb, teamIds: teamIds, nbOf: nbOf, fmt: fmt,
     proposer: proposer, vide: vide, stats: stats, alertes: alertes, apparier: apparier, scoreNiveau: scoreNiveau,
     moveTo: moveTo, swap: swap, setPoste: setPoste, where: where, diff: diff, presents: presents, sorteDuTitre: sorteDuTitre,
-    nomPoste: nomPoste, frDate: frDate
+    nomPoste: nomPoste, frDate: frDate,
+    STYLES: STYLES, AVANTS: AVANTS, postesDe: postesDe, posteDefaut: posteDefaut, typePoste: typePoste, typeDe: typeDe
   };
 })();

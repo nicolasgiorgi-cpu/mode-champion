@@ -586,6 +586,7 @@
         var mine = (g.moi.enfants || []).indexOf(k.id) >= 0;
         return '<main class="screen">' + educBar(g, (mine ? 'Mon enfant · ' : '') + k.prenom, '#/educ/joueurs', 'Les joueurs') +
           '<div class="row" style="gap:14px">' + ui.avatar(k.prenom, k.couleur, 64) + '<div class="head"><span class="kicker">' + esc(fam ? fam.nom : '') + (k.actif ? '' : ' · désactivé') + '</span><h1 class="big sm">' + esc(k.prenom) + '</h1></div></div>' +
+          (MC.terrainResume ? MC.terrainResume(d, g) : '') +
           S.pending + S.tiles +
           '<div class="cols2"><div class="sec" style="gap:20px"><section class="sec"><div class="between"><h2 class="h2">Cette semaine</h2><span class="hud" style="color:var(--gold)">' + S.st.week.stars + ' / 6</span></div>' + S.week + '</section>' +
           '<section class="sec"><h2 class="h2">Séances</h2>' + (d.seances && d.seances.length && !d.seances.some(function (x) { return x.details; }) ? '<p class="small" style="margin:0">Chargement du détail…</p>' : '') + S.hist + '</section>' +

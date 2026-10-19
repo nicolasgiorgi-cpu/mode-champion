@@ -116,7 +116,9 @@ var Core = (function () {
       ['sansReponse', 'j'], ['ajouts', 'j'], ['retraits', 'j'], ['inconnus', 'j'], ['annule', 'b'], ['parQui', 's'], ['maj', 's']],
     // la compo d'un événement (une seule active) ; historique = les versions successives
     compos: [['id', 's'], ['evenementId', 's'], ['sorte', 's'], ['version', 'n'], ['auteur', 's'], ['auteurNom', 's'], ['statut', 's'], ['reglages', 'j'],
-      ['equipes', 'j'], ['banc', 'j'], ['raisons', 'j'], ['justification', 's'], ['historique', 'j'], ['cree', 's'], ['maj', 's']],
+      ['equipes', 'j'], ['banc', 'j'], ['raisons', 'j'], ['justification', 's'], ['historique', 'j'], ['cree', 's'], ['maj', 's'],
+      // compo proposée en 2 versions au vote des éducs : statut « vote », versions, votes { idÉduc: 0 | 1 }, choix = la version retenue
+      ['versions', 'j'], ['votes', 'j'], ['choix', 'n']],
     // contre-propositions d'un autre éduc sur une compo publiée
     avis: [['id', 's'], ['compoId', 's'], ['version', 'n'], ['auteur', 's'], ['auteurNom', 's'], ['equipes', 'j'], ['banc', 'j'], ['changements', 'j'],
       ['justification', 's'], ['statut', 's'], ['reponse', 's'], ['parQui', 's'], ['cree', 's'], ['maj', 's']]
@@ -981,7 +983,8 @@ var Core = (function () {
   }
   function pubCompo(c) {
     return { id: c.id, evenementId: c.evenementId, sorte: c.sorte, version: Number(c.version) || 1, auteur: c.auteur, auteurNom: c.auteurNom, statut: c.statut, reglages: c.reglages || {},
-      equipes: c.equipes || [], banc: c.banc || [], raisons: c.raisons || {}, justification: c.justification || '', historique: c.historique || [], cree: c.cree, maj: c.maj };
+      equipes: c.equipes || [], banc: c.banc || [], raisons: c.raisons || {}, justification: c.justification || '', historique: c.historique || [], cree: c.cree, maj: c.maj,
+      versions: Array.isArray(c.versions) ? c.versions : [], votes: c.votes && typeof c.votes === 'object' ? c.votes : {}, choix: c.choix === '' || c.choix === undefined ? -1 : Number(c.choix) };
   }
   function pubAvis(a) {
     return { id: a.id, compoId: a.compoId, version: Number(a.version) || 1, auteur: a.auteur, auteurNom: a.auteurNom, equipes: a.equipes || [], banc: a.banc || [],
@@ -1007,6 +1010,7 @@ var Core = (function () {
       return {
         evenements: evts, compos: compos, avis: avis,
         spond: { branche: !!(ctx.env.spondInfo && ctx.env.spondInfo().branche), derniere: sp, membres: Array.isArray(mb) ? mb : [] },
+        educs: ctx.db.rows('educs').filter(function (x) { return x.actif; }).map(function (x) { return { id: x.id, nom: x.nom }; }),
         moi: { id: ctx.auth.row.id, nom: ctx.auth.row.nom, admin: !!ctx.auth.row.admin }
       };
     }
@@ -1039,7 +1043,7 @@ var Core = (function () {
       if (!e) fail('introuvable', 'Événement introuvable.');
       if (req.supprimer) {
         if (e.source !== 'manuel') fail('interdit', 'Un événement Spond se supprime dans Spond.');
-        if (ctx.db.rows('compos').some(function (c) { return c.evenementId === e.id && c.statut === 'publiee'; })) fail('interdit', 'Il y a déjà une compo pour cet événement.');
+        if (ctx.db.rows('compos').some(function (c) { return c.evenementId === e.id && (c.statut === 'publiee' || c.statut === 'vote'); })) fail('interdit', 'Il y a déjà une compo pour cet événement.');
         ctx.db.remove('evenements', e.id);
         return { supprime: true };
       }
@@ -1113,8 +1117,21 @@ var Core = (function () {
   }
   function jourJ(ctx, e) { return String(e.debut).slice(0, 10) === isoDate(ctx.now); }
   function compoActive(ctx, evenementId) {
-    var l = ctx.db.rows('compos').filter(function (c) { return c.evenementId === evenementId && c.statut === 'publiee'; });
+    var l = ctx.db.rows('compos').filter(function (c) { return c.evenementId === evenementId && (c.statut === 'publiee' || c.statut === 'vote'); });
     return l[0] || null;
+  }
+  function nbEducs(ctx) { return ctx.db.rows('educs').filter(function (x) { return x.actif; }).length || 1; }
+  function compteVotes(c) {
+    var n = [0, 0], v = c.votes || {};
+    Object.keys(v).forEach(function (k) { if (v[k] === 0 || v[k] === 1) n[v[k]]++; });
+    return n;
+  }
+  // la version choisie devient la compo du plateau
+  function adopter(ctx, c, i, note) {
+    var V = c.versions[i], now = isoNow(ctx.now), v = (Number(c.version) || 1) + 1;
+    var hist = (c.historique || []).concat([{ v: v, par: ctx.auth.row.nom, quand: now, note: note }]).slice(-30);
+    ctx.db.update('compos', c.id, { statut: 'publiee', choix: i, equipes: V.equipes, banc: V.banc, raisons: V.raisons, reglages: V.reglages, version: v, historique: hist, maj: now });
+    return find(ctx.db.rows('compos'), c.id);
   }
   // publier une compo (1re fois) ou la modifier (son auteur ; tout éduc le jour J, « dernière minute »)
   A.saveCompo = {
@@ -1122,8 +1139,22 @@ var Core = (function () {
     run: function (req, ctx) {
       var e = find(ctx.db.rows('evenements'), String(req.evenementId || ''));
       if (!e) fail('introuvable', 'Événement introuvable.');
-      var c = cleanCompo(ctx, req), me = ctx.auth.row, now = isoNow(ctx.now);
+      var me = ctx.auth.row, now = isoNow(ctx.now);
       var cur = compoActive(ctx, e.id), note = cleanText(req.note || req.justification || '', 600);
+      // 2 versions proposées au vote des éducs : la majorité l'emporte, l'auteur départage
+      if (Array.isArray(req.versions)) {
+        if (cur) fail('conflit', cur.auteurNom + ' a publié une compo entre-temps : la voici.');
+        var vs = req.versions.slice(0, 2).map(function (v) { return cleanCompo(ctx, v || {}); });
+        if (vs.length !== 2 || !vs[0].equipes.length || !vs[1].equipes.length) fail('invalide', 'Il faut deux versions, chacune avec au moins une équipe.');
+        var votes = {};
+        if (req.monVote === 0 || req.monVote === 1) votes[me.id] = req.monVote;
+        var vrow = { id: genId(ctx.env), evenementId: e.id, sorte: e.sorte || 'plateau', version: 1, auteur: me.id, auteurNom: me.nom, statut: 'vote', reglages: vs[0].reglages,
+          equipes: vs[0].equipes, banc: vs[0].banc, raisons: vs[0].raisons, justification: cleanText(req.justification, 600),
+          historique: [{ v: 1, par: me.nom, quand: now, note: '2 versions proposées au vote' }], cree: now, maj: now, versions: vs, votes: votes, choix: -1 };
+        ctx.db.insert('compos', vrow);
+        return { compo: pubCompo(vrow) };
+      }
+      var c = cleanCompo(ctx, req);
       if (!c.equipes.length) fail('invalide', 'Il faut au moins une équipe.');
       if (!cur) {
         var row = { id: genId(ctx.env), evenementId: e.id, sorte: e.sorte || 'plateau', version: 1, auteur: me.id, auteurNom: me.nom, statut: 'publiee', reglages: c.reglages,
@@ -1134,6 +1165,7 @@ var Core = (function () {
       // on modifie toujours une version précise : sinon on écraserait le travail d'un autre éduc
       if (req.compoId !== cur.id) fail('conflit', cur.auteurNom + ' a publié une compo entre-temps : la voici. Faites une contre-proposition si vous n\'êtes pas d\'accord.');
       if (Number(req.version) !== Number(cur.version)) fail('conflit', 'La compo a changé entre-temps (version ' + cur.version + ') : la voici à jour.');
+      if (cur.statut === 'vote') fail('interdit', 'Le vote des éducs est en cours : votez, ou attendez le résultat.');
       var auteur = cur.auteur === me.id, dm = jourJ(ctx, e);
       if (!auteur && !dm) fail('interdit', 'C\'est la compo de ' + cur.auteurNom + ' : faites plutôt une contre-proposition.');
       var ch = diffCompo(actifsSeuls(ctx, cur), c);
@@ -1151,11 +1183,46 @@ var Core = (function () {
     auth: ['e'],
     run: function (req, ctx) {
       var c = find(ctx.db.rows('compos'), String(req.compoId || ''));
-      if (!c || c.statut !== 'publiee') fail('introuvable', 'Compo introuvable.');
+      if (!c || (c.statut !== 'publiee' && c.statut !== 'vote')) fail('introuvable', 'Compo introuvable.');
       if (c.auteur !== ctx.auth.id && !ctx.auth.row.admin) fail('interdit', 'Seul son auteur peut retirer cette compo.');
       ctx.db.update('compos', c.id, { statut: 'retiree', maj: isoNow(ctx.now) });
       ctx.db.rows('avis').filter(function (a) { return a.compoId === c.id && a.statut === 'attente'; }).forEach(function (a) { ctx.db.update('avis', a.id, { statut: 'retiree', maj: isoNow(ctx.now) }); });
       return {};
+    }
+  };
+  // voter pour une des 2 versions (on peut changer d'avis) ; la majorité des éducs actifs l'emporte tout de suite
+  A.voteCompo = {
+    auth: ['e'],
+    run: function (req, ctx) {
+      var c = find(ctx.db.rows('compos'), String(req.compoId || ''));
+      if (!c || c.statut !== 'vote') fail('introuvable', 'Ce vote est terminé.');
+      var i = Number(req.choix);
+      if (i !== 0 && i !== 1) fail('invalide', 'Choisissez la version 1 ou la version 2.');
+      var votes = c.votes && typeof c.votes === 'object' ? clone(c.votes) : {};
+      votes[ctx.auth.id] = i;
+      ctx.db.update('compos', c.id, { votes: votes, maj: isoNow(ctx.now) });
+      c = find(ctx.db.rows('compos'), c.id);
+      var n = compteVotes(c), total = nbEducs(ctx);
+      if (n[i] > total / 2) c = adopter(ctx, c, i, 'Version ' + (i + 1) + ' choisie par le vote (' + n[i] + ' voix sur ' + total + ' éducs)');
+      return { compo: pubCompo(c) };
+    }
+  };
+  // clore le vote (l'auteur, l'admin, ou tout éduc le jour J) : la version qui a le plus de voix ; à égalité, celle que choisit l'auteur
+  A.cloreVote = {
+    auth: ['e'],
+    run: function (req, ctx) {
+      var c = find(ctx.db.rows('compos'), String(req.compoId || ''));
+      if (!c || c.statut !== 'vote') fail('introuvable', 'Ce vote est terminé.');
+      var e = find(ctx.db.rows('evenements'), c.evenementId);
+      if (c.auteur !== ctx.auth.id && !ctx.auth.row.admin && !(e && jourJ(ctx, e))) fail('interdit', 'C\'est à ' + c.auteurNom + ' de clore le vote.');
+      var n = compteVotes(c), i;
+      if (n[0] !== n[1]) i = n[0] > n[1] ? 0 : 1;
+      else {
+        i = Number(req.choix);
+        if (i !== 0 && i !== 1) fail('egalite', 'Égalité (' + n[0] + ' voix partout) : choisissez la version à garder.');
+      }
+      c = adopter(ctx, c, i, 'Vote clos : version ' + (i + 1) + ' (' + n[0] + ' voix pour la 1, ' + n[1] + ' pour la 2)' + (n[0] === n[1] ? ', départagée par ' + ctx.auth.row.nom : ''));
+      return { compo: pubCompo(c) };
     }
   };
   // contre-proposition d'un autre éduc : déplacements + justification (obligatoire)

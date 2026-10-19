@@ -138,14 +138,19 @@ MC.demo = (function () {
     });
     var cyril = { id: id(), nom: 'Cyril', codeHash: Core._hashAdulte(sec, '700001'), codeV: 1, admin: false, actif: true, cree: nowIso };
     db.insert('educs', cyril);
+    db.insert('educs', { id: id(), nom: 'Julien', codeHash: Core._hashAdulte(sec, '700002'), codeV: 1, admin: false, actif: true, cree: nowIso });
     var nico = db.rows('educs')[0];
+    // postes réglés par les éducs (le 1er = poste principal) ; les autres joueurs ont seulement leurs vœux
+    var POSTES = { Inès: ['ailier', 'centre'], Léo: ['troisieme-ligne', 'pilier'], Nina: ['demi-de-melee', 'ouvreur'], Sacha: ['centre'], Arthur: ['ailier', 'centre'],
+      Gabin: ['pilier', 'troisieme-ligne'], Louise: ['ouvreur', 'centre'], Tom: ['centre', 'ailier', 'troisieme-ligne'], Enzo: ['pilier', 'talonneur'], Chloé: ['ouvreur'],
+      Jules: ['demi-de-melee'], Adam: ['talonneur', 'pilier'], Noah: ['troisieme-ligne', 'centre'], Zoé: ['centre', 'ailier'], Malo: ['pilier'], Raphaël: ['talonneur'] };
     // fiche terrain : [prénom, niveau, passerelle, plaquage] (Nathan, Côme et Rose : niveau pas encore renseigné)
     [['Inès', 'A', '', 5], ['Léo', 'A', '', 4], ['Nina', 'A', '', 4], ['Sacha', 'A', '', 4], ['Arthur', 'A', '', 5], ['Gabin', 'A', 'B', 3], ['Louise', 'A', '', 4],
       ['Tom', 'B', 'A', 3], ['Enzo', 'B', '', 3], ['Chloé', 'B', 'A', 3], ['Jules', 'B', '', 2], ['Adam', 'B', '', 3], ['Lina', 'B', '', 2], ['Noah', 'B', '', 3], ['Timéo', 'B', 'C', 2],
       ['Zoé', 'B', '', 3], ['Hugo', 'B', '', 2], ['Lucas', 'B', '', 2],
       ['Lou', 'C', 'B', 1], ['Jade', 'C', '', 1], ['Maël', 'C', '', 0], ['Raphaël', 'C', '', 1], ['Malo', 'C', 'B', 2], ['Elio', 'C', '', 0], ['Mila', 'C', '', 1]
     ].forEach(function (t) {
-      db.insert('terrain', { id: ids[t[0]], niveau: t[1], passerelle: t[2], plaquage: t[3], postesOk: [], spondId: '', note: '', parQui: 'Coach Nico', maj: nowIso });
+      db.insert('terrain', { id: ids[t[0]], niveau: t[1], passerelle: t[2], plaquage: t[3], postesOk: POSTES[t[0]] || [], spondId: '', note: '', parQui: 'Coach Nico', maj: nowIso });
     });
     // copains et postes du reste du groupe (mission « jeu à 10 » faite)
     [['Arthur', ['ailier', 'centre'], ['Gabin', 'Louise']], ['Gabin', ['pilier'], ['Arthur']], ['Jules', ['demi-de-melee'], ['Adam', 'Noah']], ['Adam', ['talonneur', 'pilier'], ['Jules']],
@@ -203,6 +208,17 @@ MC.demo = (function () {
       justification: tomIn ? 'Chloé n\'est pas encore montée en A cette saison : son tour avant Tom.' : 'Tom n\'est pas encore monté en A : c\'est son tour.', statut: 'attente', reponse: '', parQui: '', cree: nowIso, maj: nowIso });
     evt({ id: 'sp-demo-p3', titre: 'Plateau 3 - Muret', debut: L.addDays(today, 32) + 'T08:00:00.000Z', lieu: 'Muret', presents: sauf(['Rose', 'Nathan', 'Côme', 'Maël', 'Lucas']),
       absents: [ids['Maël']], sansReponse: [ids['Nathan'], ids['Côme'], ids['Lucas']], inconnus: ['Julien C.'] });
+    // plateau 4 : Cyril a proposé 2 versions au vote des éducs (il a voté pour la 2)
+    var p4 = evt({ id: 'sp-demo-p4', titre: 'Plateau 4 - Saint-Gaudens', debut: L.addDays(today, 46) + 'T08:00:00.000Z', lieu: 'Saint-Gaudens', presents: sauf(['Rose', 'Côme', 'Lucas', 'Hugo']) });
+    evts[p4.id] = p4;
+    var H4 = K.historique(compos, evts, F, today), nb4 = { A: 1, B: 2, C: 1 };
+    // V1 : 4 équipes de 6 ; V2 : 3 équipes de 8, copains d'abord
+    var nb4b = { A: 1, B: 1, C: 1 };
+    var vA = K.proposer(p4.presents, F, H4, { format: 5, nb: nb4 }, today, 'equilibre'), vB = K.proposer(p4.presents, F, H4, { format: 5, nb: nb4b }, today, 'copains');
+    var vers = [{ reglages: { format: 5, nb: nb4, style: 'equilibre' }, equipes: vA.equipes, banc: [], raisons: vA.raisons }, { reglages: { format: 5, nb: nb4b, style: 'copains' }, equipes: vB.equipes, banc: [], raisons: vB.raisons }];
+    var votes = {}; votes[cyril.id] = 1;
+    db.insert('compos', { id: id(), evenementId: p4.id, sorte: 'plateau', version: 1, auteur: cyril.id, auteurNom: 'Cyril', statut: 'vote', reglages: vers[0].reglages, equipes: vers[0].equipes, banc: [], raisons: vers[0].raisons,
+      justification: 'V1 : 4 équipes de 6, plus de temps de jeu. V2 : 3 équipes de 8, les copains ensemble. Votre avis ?', historique: [{ v: 1, par: 'Cyril', quand: nowIso, note: '2 versions proposées au vote' }], cree: nowIso, maj: nowIso, versions: vers, votes: votes, choix: -1 });
     var mer = L.addDays(today, ((2 - L.dow(today)) + 7) % 7 || 7);
     evt({ id: 'sp-demo-e1', titre: 'Entraînement - Lézat', debut: mer + 'T16:30:00.000Z', lieu: 'Lézat', presents: sauf(['Rose', 'Côme', 'Elio', 'Mila', 'Lucas', 'Gabin', 'Hugo', 'Maël']), sansReponse: [ids['Côme'], ids['Lucas']] });
   }
