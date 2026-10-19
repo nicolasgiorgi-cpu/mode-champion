@@ -374,7 +374,7 @@ window.MC = window.MC || {};
       (ids.length < 2 ? '<div class="empty">Cochez d\'abord les présents sur la page de l\'événement.</div><a class="btn2" href="#/educ/evt/' + esc(e.id) + '">Les présents</a></main>' :
       '<section class="sec"><h2 class="h2">Le format</h2><div class="grid2">' + K.FORMATS.map(function (f) {
         return '<button type="button" class="opt' + (reg.format === f ? ' on' : '') + '" aria-pressed="' + (reg.format === f) + '" data-act="cFmt" data-v="' + f + '">Jeu à ' + f + '</button>';
-      }).join('') + '</div><p class="small" style="margin:0">' + (reg.format === 10 ? 'Jeu à 10 : chaque joueur a son poste du plateau, par défaut celui de sa fiche (mêlée 3 + 2, demi de mêlée, ouvreur, 2 centres, 1 ailier).' : 'Jeu à 5 : pas de postes dans la compo ; l\'appli compte quand même les avants et les trois-quarts de chaque équipe, d\'après leur fiche.') + '</p></section>' +
+      }).join('') + '</div><p class="small" style="margin:0">' + (reg.format === 10 ? 'Jeu à 10 : chaque joueur a son poste du plateau, par défaut celui de sa fiche (mêlée 3 + 2, demi de mêlée, ouvreur, 2 centres, 1 ailier).' : 'Jeu à 5 : pas de postes dans la compo ; l\'appli range quand même chaque équipe en avants et arrières, d\'après le poste principal de leur fiche.') + '</p></section>' +
       '<section class="sec"><h2 class="h2">Équipes par niveau</h2>' + stepperHtml('A', reg, cnt, sug, 'data-act="cNb" data-n') + stepperHtml('B', reg, cnt, sug, 'data-act="cNb" data-n') + stepperHtml('C', reg, cnt, sug, 'data-act="cNb" data-n') +
       '<p class="small" style="margin:0">' + tot + ' équipe' + (tot > 1 ? 's' : '') + (tot ? ', environ ' + virg(per) + ' joueurs par équipe' : '') + '. Un niveau sans équipe joue dans le niveau voisin.</p>' +
       (noLv.length ? '<p class="small" style="margin:0;color:var(--orange)">Sans niveau (placés en B en attendant) : ' + noLv.map(function (id) { return esc(nom(C, id)); }).join(', ') + '. <a href="#/educ/terrain">Fiche terrain</a></p>' : '') + '</section>' +
@@ -427,26 +427,52 @@ window.MC = window.MC || {};
   function remplTxt(r) {
     var o = [];
     if (r.av) o.push(r.av + ' avant' + (r.av > 1 ? 's' : ''));
-    if (r.tq) o.push(r.tq + ' trois-quarts');
+    if (r.ar) o.push(r.ar + ' arrière' + (r.ar > 1 ? 's' : ''));
     if (r.les2) o.push(r.les2 + ' polyvalent' + (r.les2 > 1 ? 's' : ''));
     if (r.inconnus) o.push(r.inconnus + ' sans poste');
     return o.join(', ');
   }
-  // une équipe : en-tête (effectif, plaquage, copains, passerelles, avants / trois-quarts) et ses joueurs
+  // une section de l'équipe : « Avants », « Arrières », « Remplaçants », « Pas encore de poste »
+  // o : { compte, bad, slots: [postes libres] (places vides à toucher, rangées avec les joueurs), plus: html après la liste }
+  function secHtml(C, t, v, d, moved, nom, list, o) {
+    o = o || {};
+    var fmt10 = d.reglages.format === 10, items = list.map(function (j, i) {
+      return { r: (fmt10 && j.poste ? K.ORDRE.indexOf(j.poste) : 99) * 1000 + i, h: chip(C, t, j, v, d, moved[j.id]) };
+    });
+    (o.slots || []).forEach(function (p, i) { items.push({ r: K.ORDRE.indexOf(p) * 1000 + 900 + i, h: slotHtml(v, t, p, '+ ' + NOMP[p]) }); });
+    items.sort(function (a, b) { return a.r - b.r; });
+    if (!items.length && o.compte == null && !o.plus) return '';
+    return '<div class="csec">' + (list.length || o.compte != null ? '<p class="csech"><span>' + nom + '</span><b' + (o.bad ? ' class="bad"' : '') + '>' + (o.compte != null ? o.compte : list.length) + '</b></p>' : '') +
+      (items.length ? '<ul class="cpl">' + items.map(function (x) { return x.h; }).join('') + '</ul>' : '') + (o.plus || '') + '</div>';
+  }
+  // une place vide : on la touche pour choisir qui la prend (ou pour y mettre le joueur choisi)
+  function slotHtml(v, t, p, label, li) {
+    var b = '<button type="button" class="cslot" data-act="cSlot" data-v="' + v + '" data-t="' + esc(t.id) + '" data-p="' + p + '">' + esc(label) + '</button>';
+    return li === false ? b : '<li>' + b + '</li>';
+  }
+  // une équipe : en-tête (effectif, plaquage, copains, passerelles, avants / arrières) puis ses joueurs,
+  // rangés en sections : les avants en haut (piliers, talonneur, 3es lignes), les arrières dessous (9, 10, centres, ailiers)
   function team(C, t, v, d, moved, ed) {
     var st = K.stats(t, C.F, d.reglages.format), fmt10 = d.reglages.format === 10;
     var sel = B && B.sel && B.sel.v === v ? B.sel.id : null, w = sel ? K.where(d, sel) : null;
     var dest = !!sel && ed && (!w || w.t < 0 || d.equipes[w.t].id !== t.id);
-    var avtq = fmt10 ? '<span class="cavtq' + (st.av < 5 || st.tq < 5 ? ' bad' : '') + '" title="Avants et trois-quarts (postes du plateau)' + (st.rempl ? ' · remplaçants : ' + remplTxt(st.remplTypes) : '') + '">Av ' + st.av + '/5 · 3/4 ' + st.tq + '/5' + (st.rempl ? ' · remp. ' + st.rempl : '') + '</span>'
-      : '<span class="cavtq" title="D\'après les fiches : avants, trois-quarts, polyvalents">Av ' + st.av + ' · 3/4 ' + st.tq + (st.les2 ? ' · ⇄' + st.les2 : '') + (st.inconnus ? ' · ?' + st.inconnus : '') + '</span>';
+    var avtq = fmt10 ? '<span class="cavtq' + (st.av < 5 || st.ar < 5 ? ' bad' : '') + '" title="Avants et arrières (postes du plateau)' + (st.rempl ? ' · remplaçants : ' + remplTxt(st.remplTypes) : '') + '">Av ' + st.av + '/5 · Ar ' + st.ar + '/5' + (st.rempl ? ' · Remp. ' + st.rempl : '') + '</span>'
+      : '<span class="cavtq" title="D\'après le poste principal de la fiche ; ⇄ = peuvent jouer avant et arrière ; ? = pas encore de poste">Av ' + st.av + ' · Ar ' + st.ar + (st.les2 ? ' · ⇄' + st.les2 : '') + (st.inconnus ? ' · ?' + st.inconnus : '') + '</span>';
+    var sc = K.sections(t, C.F, d.reglages.format), miss = ed && fmt10 ? st.manquants : [];
+    var corps = fmt10
+      ? secHtml(C, t, v, d, moved, 'Avants', sc.av, { compte: st.av + '/5', bad: st.av !== 5, slots: miss.filter(function (p) { return K.typePoste(p) === 'av'; }) }) +
+        secHtml(C, t, v, d, moved, 'Arrières', sc.ar, { compte: st.ar + '/5', bad: st.ar !== 5, slots: miss.filter(function (p) { return K.typePoste(p) === 'ar'; }) }) +
+        secHtml(C, t, v, d, moved, 'Remplaçants', sc.rempl, { plus: ed ? slotHtml(v, t, '', '+ Remplaçant', false) : '' })
+      : secHtml(C, t, v, d, moved, 'Avants', sc.av) + secHtml(C, t, v, d, moved, 'Arrières', sc.ar) + secHtml(C, t, v, d, moved, 'Pas encore de poste', sc.sans) +
+        (ed ? slotHtml(v, t, '*', '+ Ajouter des joueurs', false) : '');
     return '<section class="ccol" style="--lc:' + K.COUL_NIV[t.niveau] + '" aria-label="Équipe ' + esc(t.id) + (B && B.vs.length > 1 ? ', ' + vName(v) : '') + '">' +
-      '<button type="button" class="chd' + (dest ? ' dest' : '') + '" data-act="cTeam" data-v="' + v + '" data-t="' + esc(t.id) + '"' + (dest ? '' : ' tabindex="-1"') + '>' +
+      '<button type="button" class="chd' + (dest ? ' dest' : '') + '" data-act="cTeam" data-v="' + v + '" data-t="' + esc(t.id) + '"' + (dest || ed ? '' : ' tabindex="-1"') + (ed && !dest ? ' aria-label="Composer l\'équipe ' + esc(t.id) + '"' : '') + '>' +
       '<span class="row" style="justify-content:space-between;width:100%"><b class="ctid">' + esc(t.id) + '</b><span class="cn">' + st.n + '</span></span>' +
       '<span class="cind"><span title="Plaquage moyen">' + icon('star', 12) + ' ' + virg(st.plaq) + '</span><span title="Bons plaqueurs (3 étoiles et plus)">' + icon('shield', 12) + ' ' + st.bons + '</span>' +
       (st.ontCopains ? '<span title="Avec au moins un copain">' + icon('heart', 12) + ' ' + st.avecCopain + '/' + st.ontCopains + '</span>' : '') + (st.passerelles ? '<span title="Hors de leur niveau (passerelles)">⇅ ' + st.passerelles + '</span>' : '') + '</span>' +
-      avtq + (fmt10 && st.manquants.length ? '<span class="cmiss">Manque : ' + st.manquants.map(function (p) { return COURT[p]; }).join(', ') + '</span>' : '') +
+      avtq + (fmt10 && !ed && st.manquants.length ? '<span class="cmiss">Manque : ' + st.manquants.map(function (p) { return COURT[p]; }).join(', ') + '</span>' : '') +
       (dest ? '<span class="cdest">' + icon('down', 12) + ' Ici</span>' : '') + '</button>' +
-      '<ul class="cpl">' + t.joueurs.map(function (j) { return chip(C, t, j, v, d, moved[j.id]); }).join('') + '</ul></section>';
+      corps + '</section>';
   }
   function chip(C, t, j, v, d, moved) {
     var f = C.F[j.id] || { prenom: '?', copains: [] }, ids = t ? t.joueurs.map(function (x) { return x.id; }) : [];
@@ -456,7 +482,8 @@ window.MC = window.MC || {};
     var warn = t && (!f.niveau || (f.plaquage || 0) < (K.SEUIL[t.niveau] || 0));
     var ty = K.typeDe(f), tag;
     if (t && d.reglages.format === 10) tag = '<span class="cpo' + (j.poste ? '' : ' none') + '">' + (j.poste ? COURT[j.poste] : 'Remp.') + '</span>';
-    else tag = ty ? '<span class="cpo ty">' + (ty === 'av' ? 'Av' : ty === 'tq' ? '3/4' : 'Av·3/4') + '</span>' : '';
+    else if (t) { var pp = K.posteDefaut(f); tag = pp ? '<span class="cpo ty" title="Poste principal (fiche)' + (ty === 'les2' ? ', joue aussi ' + (K.typePoste(pp) === 'av' ? 'arrière' : 'avant') : '') + '">' + (ty === 'les2' ? '⇄ ' : '') + COURT[pp] + '</span>' : ''; }
+    else tag = ty ? '<span class="cpo ty">' + (ty === 'av' ? 'Av' : ty === 'ar' ? 'Ar' : 'Av·Ar') + '</span>' : '';
     var on = B && B.sel && B.sel.v === v && B.sel.id === j.id;
     return '<li><button type="button" class="cpj' + (on ? ' sel' : '') + (moved ? ' moved' : '') + (warn ? ' warn' : '') + '" data-act="cPick" data-v="' + v + '" data-id="' + esc(j.id) + '" aria-pressed="' + !!on + '">' +
       '<span class="cpn">' + esc(f.prenom) + '</span>' + tag + '<span class="row cfls">' + starsMini(f.plaquage || 0) + lv + heart + (f.niveau ? '' : '<span class="cfl cq" title="Niveau à renseigner">?</span>') + '</span></button></li>';
@@ -557,8 +584,8 @@ window.MC = window.MC || {};
     return '<main class="screen cscreen">' + MC.educBar(C.g, 'Compo · ' + e.titre, '#/educ/evt/' + e.id, e.titre) +
       '<div class="head"><span class="kicker" style="color:var(--gold)">' + esc(quand(e)) + ' · ' + presents.length + ' présents · jeu à ' + fmt + '</span><h1 class="big sm">La compo</h1></div>' +
       state + avBlock + cmp +
-      '<p class="small" style="margin:0">' + (ed ? 'Touchez un joueur, puis son équipe d\'arrivée (ou un joueur d\'une autre équipe : ils s\'échangent).' + (nv > 1 ? ' Chaque version se modifie à part.' : '') : 'Touchez un joueur pour voir sa fiche.') + (nv > 1 ? ' <b style="color:var(--yellow)">Entourés</b> : placés autrement d\'une version à l\'autre.' : '') + '</p>' +
-      '<p class="small clegend"><span>' + icon('star', 11) + ' plaquage moyen</span><span>' + icon('shield', 11) + ' bons plaqueurs</span><span>' + icon('heart', 11) + ' avec un copain</span><span>⇅ hors niveau</span><span>Av · 3/4 avants, trois-quarts</span></p>' +
+      '<p class="small" style="margin:0">' + (ed ? 'Touchez un joueur, puis son équipe d\'arrivée (ou un joueur d\'une autre équipe : ils s\'échangent). Pour composer une équipe, touchez son nom ou une place vide (+).' + (nv > 1 ? ' Chaque version se modifie à part.' : '') : 'Touchez un joueur pour voir sa fiche.') + (nv > 1 ? ' <b style="color:var(--yellow)">Entourés</b> : placés autrement d\'une version à l\'autre.' : '') + '</p>' +
+      '<p class="small clegend"><span>' + icon('star', 11) + ' plaquage moyen</span><span>' + icon('shield', 11) + ' bons plaqueurs</span><span>' + icon('heart', 11) + ' avec un copain</span><span>⇅ hors niveau</span><span>Av avants · Ar arrières</span></p>' +
       boardHtml(C, { vs: vs, presents: presents, moved: moved, ed: ed }) +
       '<section class="sec">' + vs.map(function (d, v) { return alertesHtml(C, d, v, presents, nv); }).join('') + '</section>' +
       rsAll + hist + avHist +
@@ -666,7 +693,140 @@ window.MC = window.MC || {};
     });
   }
   MC.act.cMove = function (b) { moveSel(b.getAttribute('data-t')); };
-  MC.act.cTeam = function (b) { if (B && B.sel && editable() && B.sel.v === (Number(b.getAttribute('data-v')) || 0)) moveSel(b.getAttribute('data-t')); };
+  MC.act.cTeam = function (b) {
+    if (!B || !editable()) return;
+    var v = Number(b.getAttribute('data-v')) || 0, tid = b.getAttribute('data-t');
+    if (B.sel && B.sel.v === v) { moveSel(tid); return; }
+    // personne de choisi : composer l'équipe (jeu à 10 : la 1re place vide, dans l'ordre des postes)
+    var d = B.vs[v], t = d.equipes.filter(function (x) { return x.id === tid; })[0];
+    if (!t) return;
+    if (d.reglages.format !== 10) return composer(v, tid, '*');
+    var m = K.stats(t, K.fiches(app.S.cache.group), 10).manquants;
+    composer(v, tid, m.length ? m[0] : '');
+  };
+  // une place vide : avec un joueur choisi, il la prend ; sinon, on choisit qui la prend
+  MC.act.cSlot = function (b) {
+    if (!B || !editable()) return;
+    var v = Number(b.getAttribute('data-v')) || 0, tid = b.getAttribute('data-t'), p = b.getAttribute('data-p');
+    if (B.sel && B.sel.v === v) {
+      var id = B.sel.id; B.sel = null;
+      placer(v, id, tid, p);
+      return;
+    }
+    composer(v, tid, p);
+  };
+  // place un joueur dans une équipe (p : poste du plateau, '' remplaçant, '*' jeu à 5) ; renvoie l'équipe qu'il quitte
+  function placer(v, id, tid, p) {
+    var F = K.fiches(app.S.cache.group), avant = K.where(B.vs[v], id), quitte = avant && avant.t >= 0 ? B.vs[v].equipes[avant.t].id : '';
+    if (quitte === tid && !(B.vs[v].reglages.format === 10 && p !== '*')) return '';
+    change(function () {
+      var d = quitte === tid ? B.vs[v] : K.moveTo(B.vs[v], id, tid, F);
+      if (d.reglages.format === 10 && p !== '*') d = K.setPoste(d, id, p);
+      B.vs[v] = d;
+    });
+    if (quitte && quitte !== tid) ui.toast(nameOf(id) + ' quitte ' + quitte);
+    return quitte;
+  }
+  var NOMP = { pilier: 'Pilier', talonneur: 'Talonneur', 'troisieme-ligne': '3e ligne', 'demi-de-melee': 'Demi de mêlée', ouvreur: 'Ouvreur', centre: 'Centre', ailier: 'Ailier' };
+  // Composer une équipe : la liste des joueurs à placer, les mieux adaptés d'abord.
+  // Jeu à 10 : place par place, dans l'ordre (piliers, talonneur, 3es lignes, 9, 10, centres, ailier), puis les remplaçants.
+  // Jeu à 5 : on ajoute les joueurs un par un, la liste reste ouverte.
+  function composer(v, tid, p0) {
+    withC(function (C, e) {
+      var S = { p: p0 };
+      function d() { return B && B.vs[v]; }
+      function T() { var dd = d(); return dd && dd.equipes.filter(function (x) { return x.id === tid; })[0]; }
+      function manquants() { return K.stats(T(), C.F, 10).manquants; }
+      // la place suivante : la 1re libre à partir du poste courant (apres : strictement après), sinon on repart du début
+      function suivante(apres) {
+        var m = manquants(), r = K.ORDRE.indexOf(S.p);
+        if (!m.length) return null;
+        var n = m.filter(function (x) { var i = K.ORDRE.indexOf(x); return apres ? i > r : i >= r; })[0];
+        return n || m[0];
+      }
+      function titre() {
+        var t = T(), nv = B.vs.length > 1 ? ' <small style="font-size:14px;color:var(--dim)">· ' + vName(v) + '</small>' : '';
+        if (S.p === '*') return esc(t.id) + ' · ajouter' + nv;
+        if (S.p === '') return esc(t.id) + ' · remplaçants' + nv;
+        var m = manquants(), libres = m.filter(function (x) { return x === S.p; }).length;
+        return esc(t.id) + ' · ' + NOMP[S.p] + nv + '<small class="cpk-sub">' + (10 - m.length) + ' place' + (10 - m.length > 1 ? 's' : '') + ' prise' + (10 - m.length > 1 ? 's' : '') + ' sur 10' + (libres > 1 ? ' · encore ' + libres + ' ' + NOMP[S.p].toLowerCase() + 's à choisir' : '') + '</small>';
+      }
+      function rowHtml(id, t) {
+        var f = C.F[id] || { prenom: '?', copains: [] }, w = K.where(d(), id), ou = 'Pas placé';
+        if (w && w.t >= 0) { var tt = d().equipes[w.t], jj = tt.joueurs[w.j]; ou = 'en ' + tt.id + (d().reglages.format === 10 ? ' · ' + (jj.poste ? COURT[jj.poste] : 'remp.') : ''); }
+        var ps = K.postesDe(f), ids = t.joueurs.map(function (j) { return j.id; });
+        var cps = (f.copains || []).filter(function (c) { return ids.indexOf(c) >= 0; }).map(function (c) { return nom(C, c); });
+        var hors = f.niveau && f.niveau !== t.niveau && f.passerelle !== t.niveau;
+        return '<button type="button" class="cprow' + (w && w.t >= 0 ? ' ailleurs' : '') + '" data-pk="' + esc(id) + '">' +
+          '<span class="row" style="gap:8px;min-width:0">' + niveauTag(f.niveau, true) + '<b class="cprn">' + esc(f.prenom) + '</b>' + starsMini(f.plaquage || 0) + '</span>' +
+          '<span class="cprm">' + (ps.length ? ps.map(function (x, i) { return (S.p === x ? '<b>' : '') + COURT[x] + (i === 0 && ps.length > 1 ? '★' : '') + (S.p === x ? '</b>' : ''); }).join(', ') : 'pas encore de poste') +
+          ' · <span class="' + (w && w.t >= 0 ? 'cpr-ou' : '') + '">' + ou + '</span>' + (hors ? ' · <span style="color:var(--violet)">niveau ' + f.niveau + '</span>' : '') + '</span>' +
+          (cps.length ? '<span class="cprm" style="color:var(--pink)">' + icon('heart', 11) + ' avec ' + esc(cps.join(', ')) + '</span>' : '') + '</button>';
+      }
+      function corps() {
+        var t = T(), dd = d();
+        if (!t) return '';
+        var dans = {}; t.joueurs.forEach(function (j) { dans[j.id] = 1; });
+        var pool = [];
+        dd.equipes.forEach(function (x) { x.joueurs.forEach(function (j) { pool.push(j.id); }); });
+        bancOf(dd, presentsOf(C, e)).forEach(function (id) { if (pool.indexOf(id) < 0) pool.push(id); });
+        pool = pool.filter(function (id) { return !dans[id]; });
+        function placeAilleurs(id) { var w = K.where(dd, id); return !!(w && w.t >= 0); }
+        function fit(id) { var f = C.F[id] || {}; return !f.niveau || f.niveau === t.niveau || f.passerelle === t.niveau; }
+        function cle(id) { var f = C.F[id] || {}; return [fit(id) ? 0 : 1, placeAilleurs(id) ? 1 : 0, K.ORDRE.indexOf(K.posteDefaut(f)) < 0 ? 99 : K.ORDRE.indexOf(K.posteDefaut(f)), -(f.plaquage || 0), f.prenom || '']; }
+        function tri(a, b) { var x = cle(a), y = cle(b); for (var i = 0; i < x.length; i++) if (x[i] !== y[i]) return x[i] < y[i] ? -1 : 1; return 0; }
+        function groupe(lab, ids, ferme) {
+          if (!ids.length) return '';
+          var rows = '<div class="cprows">' + ids.sort(tri).map(function (id) { return rowHtml(id, t); }).join('') + '</div>';
+          return ferme ? '<details class="cpgrp"><summary class="mlab">' + lab + ' (' + ids.length + ')</summary>' + rows + '</details>' : '<div class="cpgrp"><span class="mlab">' + lab + ' (' + ids.length + ')</span>' + rows + '</div>';
+        }
+        var html = '';
+        if (S.p && S.p !== '*') {
+          var princ = pool.filter(function (id) { return K.posteDefaut(C.F[id]) === S.p; });
+          var peut = pool.filter(function (id) { return princ.indexOf(id) < 0 && K.postesDe(C.F[id]).indexOf(S.p) >= 0; });
+          var autres = pool.filter(function (id) { return princ.indexOf(id) < 0 && peut.indexOf(id) < 0; });
+          html = groupe(NOMP[S.p] + ' en poste principal', princ) + groupe('Peuvent jouer ' + NOMP[S.p].toLowerCase(), peut) +
+            (!princ.length && !peut.length ? '<p class="small" style="margin:0">Personne n\'a ce poste dans sa fiche : choisissez parmi les autres.</p>' : '') +
+            groupe('Les autres', autres, princ.length + peut.length > 0);
+        } else {
+          var libres = pool.filter(function (id) { return !placeAilleurs(id); }), ailleurs = pool.filter(placeAilleurs);
+          html = groupe('Pas placés', libres) + (!libres.length ? '<p class="small" style="margin:0">Tous les présents sont placés.</p>' : '') + groupe('Dans une autre équipe', ailleurs, true);
+        }
+        return '<p class="small" style="margin:0">' + (S.p === '*' ? 'Touchez les joueurs à ajouter : la liste reste ouverte.' : S.p === '' ? 'Touchez un joueur : il entre comme remplaçant.' : 'Touchez le joueur qui prend la place ; on passe ensuite à la suivante.') + ' Ceux de son niveau d\'abord.</p>' + html;
+      }
+      ui.modal({
+        title: '<span class="cpk-title"></span>', body: '<div class="cpick"></div>',
+        actions: (S.p && S.p !== '*' ? [{ label: 'Passer cette place', cls: 'btn2 grey', onClick: function (host) {
+          var n = suivante(true);
+          if (n && n !== S.p) { S.p = n; paint(host); } else ui.toast('C\'est la seule place libre.');
+        } }] : []).concat([{ label: 'Terminé', value: null, cls: 'btn' }]),
+        onOpen: function (host, close) {
+          host.classList.add('cpk');
+          paint(host);
+          host.addEventListener('click', function (ev) {
+            var r = ev.target.closest('[data-pk]');
+            if (!r || !B || !editable()) return;
+            var id = r.getAttribute('data-pk');
+            placer(v, id, tid, S.p);
+            if (!T()) return close(null);
+            if (S.p && S.p !== '*') {
+              var n = suivante(false);
+              if (n) S.p = n;
+              else { S.p = ''; ui.toast(tid + ' : les 10 places sont prises. Ajoutez des remplaçants ou fermez.'); }
+              var pb = host.querySelector('.card>.sec:last-child button[data-i="0"]');
+              if (S.p === '' && pb && /Passer/.test(pb.textContent)) pb.remove();
+            }
+            paint(host);
+          });
+        }
+      });
+      function paint(host) {
+        host.querySelector('.cpk-title').innerHTML = titre();
+        host.querySelector('.cpick').innerHTML = corps();
+        var card = host.querySelector('.card'); if (card) card.scrollTop = 0;
+      }
+    });
+  }
   MC.act.cPoste = function (b) { if (!B || !B.sel) return; var id = B.sel.id, v = B.sel.v, p = b.getAttribute('data-p'); change(function () { B.vs[v] = K.setPoste(B.vs[v], id, p); }); };
   MC.act.cUndo = function () {
     if (!B || !B.undo.length) return;
@@ -1120,7 +1280,7 @@ window.MC = window.MC || {};
   MC.act.tkPoste = function (b) { if (!TK) return; var v = b.getAttribute('data-v'), i = TK.postesOk.indexOf(v); if (i > 0) TK.postesOk.splice(i, 1); else if (i < 0) TK.postesOk.push(v); app.rerender(); };
   // le poste principal est le 1er de la liste
   MC.act.tkPrinc = function (b) { if (!TK) return; var v = b.getAttribute('data-v'); TK.postesOk = [v].concat(TK.postesOk.filter(function (x) { return x !== v; })); app.rerender(); };
-  function typeTxt(t) { return t === 'av' ? 'Avant' : t === 'tq' ? 'Trois-quarts' : t === 'les2' ? 'Avant et trois-quarts (polyvalent)' : 'Avant ou trois-quarts : pas encore de poste'; }
+  function typeTxt(t) { return t === 'av' ? 'Avant' : t === 'ar' ? 'Arrière' : t === 'les2' ? 'Avant et arrière (polyvalent)' : 'Avant ou arrière : pas encore de poste'; }
   MC.act.tkSave = function (b) {
     if (!TK) return;
     b.disabled = true;

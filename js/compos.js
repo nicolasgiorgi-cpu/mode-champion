@@ -10,7 +10,7 @@ MC.compos = (function () {
   var NIV = ['A', 'B', 'C'];
   var NOM_NIV = { A: 'Confirmés', B: 'Débrouillés', C: 'Débutants' };
   var COUL_NIV = { A: '#FFC23D', B: '#38E8FF', C: '#3DFFB0' };
-  // Jeu à 10 (règlement FFR M12) : mêlée 3 + 2, puis 5 trois-quarts sans arrière.
+  // Jeu à 10 (règlement FFR M12) : mêlée 3 + 2 (les avants), puis 5 arrières (dans l'appli, « arrières » = les lignes arrières : 9, 10, centres, ailiers).
   // Derrière la charnière (9 et 10) : 2 centres et 1 ailier (à ajuster ici si le club joue autrement).
   var POSTES10 = [['pilier', 2], ['talonneur', 1], ['troisieme-ligne', 2], ['demi-de-melee', 1], ['ouvreur', 1], ['centre', 2], ['ailier', 1]];
   var SLOTS10 = [];
@@ -48,15 +48,18 @@ MC.compos = (function () {
     var i = postesDe(f).indexOf(poste);
     return i >= 0 ? i : 9;
   }
-  // avant (piliers, talonneur, 3es lignes) ou trois-quarts (9, 10, centres, ailiers)
+  // avant (piliers, talonneur, 3es lignes) ou arrière (9, 10, centres, ailiers)
   var AVANTS = ['pilier', 'talonneur', 'troisieme-ligne'];
-  function typePoste(p) { return !p ? '' : AVANTS.indexOf(p) >= 0 ? 'av' : 'tq'; }
-  // 'av', 'tq', 'les2' (peut jouer les deux) ou '' (pas encore de poste)
+  // l'ordre d'affichage dans une équipe : piliers, talonneur, 3es lignes, puis 9, 10, centres, ailiers
+  var ORDRE = POSTES10.map(function (p) { return p[0]; });
+  function typePoste(p) { return !p ? '' : AVANTS.indexOf(p) >= 0 ? 'av' : 'ar'; }
+  // 'av', 'ar', 'les2' (peut jouer avant et arrière) ou '' (pas encore de poste)
   function typeDe(f) {
-    var av = false, tq = false;
-    postesDe(f).forEach(function (p) { if (typePoste(p) === 'av') av = true; else tq = true; });
-    return av && tq ? 'les2' : av ? 'av' : tq ? 'tq' : '';
+    var av = false, ar = false;
+    postesDe(f).forEach(function (p) { if (typePoste(p) === 'av') av = true; else ar = true; });
+    return av && ar ? 'les2' : av ? 'av' : ar ? 'ar' : '';
   }
+  function rangOrdre(p) { var i = ORDRE.indexOf(p); return i >= 0 ? i : 99; }
 
   // ---------- Fiches des joueurs : terrain + mission « jeu à 10 » ----------
   // g : réponse de l'action « group » (éducs) ; renvoie { id: fiche }
@@ -301,6 +304,22 @@ MC.compos = (function () {
   }
   function frDate(d) { var p = String(d).split('-'); return p.length === 3 ? p[2] + '/' + p[1] : d; }
 
+  // ---------- Les joueurs d'une équipe, rangés : avants puis arrières ----------
+  // Jeu à 10 : d'après le poste du plateau (sans poste = remplaçant) ; jeu à 5 : d'après le poste principal de la fiche.
+  // Dans chaque section : piliers, talonneur, 3es lignes / 9, 10, centres, ailiers ; à poste égal, l'ordre de l'équipe.
+  // renvoie { av: [joueurs], ar: [], rempl: [], sans: [] } (joueurs = les entrées de t.joueurs)
+  function sections(t, F, format) {
+    var o = { av: [], ar: [], rempl: [], sans: [] }, k = {};
+    (t.joueurs || []).forEach(function (j, i) {
+      var p = format === 10 ? j.poste : posteDefaut(F[j.id]), ty = typePoste(p);
+      k[j.id] = rangOrdre(p || posteDefaut(F[j.id])) * 1000 + i;
+      if (ty) o[ty].push(j); else if (format === 10) o.rempl.push(j); else o.sans.push(j);
+    });
+    function tri(a, b) { return k[a.id] - k[b.id]; }
+    o.av.sort(tri); o.ar.sort(tri); o.rempl.sort(tri); o.sans.sort(tri);
+    return o;
+  }
+
   // ---------- Indicateurs d'une équipe ----------
   function stats(t, F, format) {
     var ids = (t.joueurs || []).map(function (j) { return j.id; });
@@ -313,15 +332,14 @@ MC.compos = (function () {
       if (p < (SEUIL[t.niveau] || 0)) sousSeuil.push(id);
     });
     var o = { n: n, plaq: n ? Math.round(sp / n * 10) / 10 : 0, bons: bons, avecCopain: avec, ontCopains: avecCps, passerelles: pass, sousSeuil: sousSeuil, manquants: [] };
-    // avants / trois-quarts : au jeu à 10, d'après le poste du plateau (les remplaçants d'après leur fiche) ;
-    // au jeu à 5, d'après la fiche (« les2 » = peut jouer les deux, « inconnus » = pas encore de poste)
-    // (remplaçants du jeu à 10 : à part, avec le type de leur fiche dans o.remplTypes)
-    o.av = 0; o.tq = 0; o.les2 = 0; o.inconnus = 0; o.rempl = 0; o.remplTypes = { av: 0, tq: 0, les2: 0, inconnus: 0 };
-    (t.joueurs || []).forEach(function (j) {
-      var r = format === 10 && !j.poste, ty = format === 10 && j.poste ? typePoste(j.poste) : typeDe(F[j.id]), k = ty || 'inconnus';
-      if (r) { o.rempl++; o.remplTypes[k]++; return; }
-      o[k]++;
-    });
+    // avants / arrières, comme les sections de l'équipe (voir sections) : au jeu à 10, d'après le poste du plateau,
+    // les remplaçants à part (o.remplTypes : le type de leur fiche) ; au jeu à 5, d'après le poste principal de la fiche
+    // (« les2 » = combien peuvent jouer avant et arrière, « inconnus » = pas encore de poste)
+    var sc = sections(t, F, format);
+    o.av = sc.av.length; o.ar = sc.ar.length; o.rempl = sc.rempl.length; o.inconnus = sc.sans.length; o.les2 = 0;
+    o.remplTypes = { av: 0, ar: 0, les2: 0, inconnus: 0 };
+    (t.joueurs || []).forEach(function (j) { if (typeDe(F[j.id]) === 'les2') o.les2++; });
+    sc.rempl.forEach(function (j) { o.remplTypes[typeDe(F[j.id]) || 'inconnus']++; });
     if (format === 10) {
       var cover = {};
       (t.joueurs || []).forEach(function (j) { if (j.poste) cover[j.poste] = (cover[j.poste] || 0) + 1; });
@@ -515,6 +533,6 @@ MC.compos = (function () {
     proposer: proposer, vide: vide, stats: stats, alertes: alertes, apparier: apparier, scoreNiveau: scoreNiveau,
     moveTo: moveTo, swap: swap, setPoste: setPoste, where: where, diff: diff, presents: presents, sorteDuTitre: sorteDuTitre,
     nomPoste: nomPoste, frDate: frDate,
-    STYLES: STYLES, AVANTS: AVANTS, postesDe: postesDe, posteDefaut: posteDefaut, typePoste: typePoste, typeDe: typeDe
+    STYLES: STYLES, AVANTS: AVANTS, postesDe: postesDe, posteDefaut: posteDefaut, typePoste: typePoste, typeDe: typeDe, sections: sections, ORDRE: ORDRE
   };
 })();

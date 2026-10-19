@@ -192,10 +192,10 @@ assert.deepStrictEqual(J(K.postesDe({ postesOk: [], voeux: ['pilier', 'pilier', 
 assert.strictEqual(K.posteDefaut({ postesOk: ['ouvreur', 'centre'] }), 'ouvreur');
 assert.strictEqual(K.posteDefaut({}), '');
 assert.strictEqual(K.typePoste('troisieme-ligne'), 'av');
-assert.strictEqual(K.typePoste('demi-de-melee'), 'tq');
+assert.strictEqual(K.typePoste('demi-de-melee'), 'ar');
 assert.strictEqual(K.typeDe({ postesOk: ['pilier', 'talonneur'] }), 'av');
 assert.strictEqual(K.typeDe({ postesOk: ['centre', 'troisieme-ligne'] }), 'les2');
-assert.strictEqual(K.typeDe({ voeux: ['ailier'] }), 'tq');
+assert.strictEqual(K.typeDe({ voeux: ['ailier'] }), 'ar');
 assert.strictEqual(K.typeDe({}), '');
 // au jeu à 10, chacun prend en priorité son poste principal
 const G10 = {};
@@ -208,16 +208,26 @@ assert.ok(ap10.poste.g6 === 'ouvreur' && Object.values(ap10.poste).filter(p => p
 // avants / trois-quarts : au jeu à 10 d'après le poste du plateau, les remplaçants à part
 let t10 = { id: 'A1', niveau: 'A', joueurs: Object.keys(G10).map(id => ({ id, poste: ap10.poste[id] || '', n: 'A' })) };
 let s10 = K.stats(t10, G10, 10);
-assert.strictEqual(s10.av, 5); assert.strictEqual(s10.tq, 5); assert.strictEqual(s10.rempl, 2);
-assert.strictEqual(s10.remplTypes.av + s10.remplTypes.tq + s10.remplTypes.les2 + s10.remplTypes.inconnus, 2);
+assert.strictEqual(s10.av, 5); assert.strictEqual(s10.ar, 5); assert.strictEqual(s10.rempl, 2);
+assert.strictEqual(s10.remplTypes.av + s10.remplTypes.ar + s10.remplTypes.les2 + s10.remplTypes.inconnus, 2);
+// sections : avants (piliers, talonneur, 3es lignes) puis arrières (9, 10, centres, ailiers), remplaçants à part
+let sc10 = K.sections(t10, G10, 10);
+assert.deepStrictEqual(J(sc10.av.map(j => j.poste)), ['pilier', 'pilier', 'talonneur', 'troisieme-ligne', 'troisieme-ligne']);
+assert.deepStrictEqual(J(sc10.ar.map(j => j.poste)), ['demi-de-melee', 'ouvreur', 'centre', 'centre', 'ailier']);
+assert.strictEqual(sc10.rempl.length, 2); assert.strictEqual(sc10.sans.length, 0);
+// l'ordre de l'équipe ne compte pas : même rangement si les joueurs arrivent mélangés
+assert.deepStrictEqual(J(K.sections({ joueurs: t10.joueurs.slice().reverse() }, G10, 10).av.map(j => j.poste)), J(sc10.av.map(j => j.poste)));
 assert.deepStrictEqual(J(s10.manquants), []);
 // un changement de poste au plateau change le décompte
 t10 = K.setPoste({ reglages: { format: 10 }, equipes: [t10], banc: [] }, 'g3', 'centre').equipes[0];
 s10 = K.stats(t10, G10, 10);
-assert.ok(s10.av <= 5 && s10.av + s10.tq + s10.rempl === 12, JSON.stringify(s10));
+assert.ok(s10.av <= 5 && s10.av + s10.ar + s10.rempl === 12, JSON.stringify(s10));
 // au jeu à 5 : d'après la fiche (polyvalents et sans poste à part)
 const s5 = K.stats({ id: 'A1', niveau: 'A', joueurs: [{ id: 'g0' }, { id: 'g3' }, { id: 'g7' }, { id: 'zz' }] }, Object.assign({ zz: { id: 'zz', voeux: [], postesOk: [] } }, G10), 5);
-assert.deepStrictEqual([s5.av, s5.tq, s5.les2, s5.inconnus, s5.rempl], [1, 1, 1, 1, 0]);
+// g0 pilier, g3 3e ligne (joue aussi centre), g7 centre (joue aussi ailier), zz sans poste
+assert.deepStrictEqual([s5.av, s5.ar, s5.les2, s5.inconnus, s5.rempl], [2, 1, 1, 1, 0]);
+const sc5 = K.sections({ joueurs: [{ id: 'g7' }, { id: 'zz' }, { id: 'g3' }, { id: 'g0' }] }, Object.assign({ zz: { id: 'zz', voeux: [], postesOk: [] } }, G10), 5);
+assert.deepStrictEqual(J([sc5.av.map(j => j.id), sc5.ar.map(j => j.id), sc5.sans.map(j => j.id)]), [['g0', 'g3'], ['g7'], ['zz']]);
 
 // ----- styles de proposition -----
 assert.deepStrictEqual(Object.keys(K.STYLES), ['equilibre', 'copains', 'strict']);

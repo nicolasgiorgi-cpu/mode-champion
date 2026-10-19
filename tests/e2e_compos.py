@@ -72,7 +72,9 @@ with sync_playwright() as p:
     nteams = len(pg.query_selector_all('.ccol')); nchips = len(pg.query_selector_all('.ccol .cpj'))
     npres = ev(pg, "MC.compos.presents(MC.app.S.cache.compos.evenements.find(e=>e.id==='sp-demo-p3')).length")
     check('proposition : 3 équipes', nteams == 3, nteams)
-    check('avants / trois-quarts sur chaque équipe', len(pg.query_selector_all('.ccol .cavtq')) == 3)
+    check('avants / arrières sur chaque équipe', len(pg.query_selector_all('.ccol .cavtq')) == 3 and 'AR ' in pg.inner_text('.ccol .cavtq').upper() and '3/4' not in pg.inner_text('.cboard2'))
+    secs = ev(pg, "[...document.querySelectorAll('.ccol')].map(c=>[...c.querySelectorAll('.csech span')].map(x=>x.textContent).join('|'))")
+    check('jeu à 5 : sections Avants puis Arrières', all(x.startswith('Avants|Arrières') for x in secs), secs)
     check('niveaux empilés', len(pg.query_selector_all('.clevel')) >= 3)
     check('proposition : tous les présents placés (%d)' % npres, nchips == npres, (nchips, npres))
     check('brouillon', 'BROUILLON' in pg.inner_text('.cstate').upper())
@@ -210,7 +212,7 @@ with sync_playwright() as p:
     pg.click('[data-act="tkSave"]'); pg.wait_for_timeout(800)
     po = ev(pg, "MC.app.S.cache.group.joueurs.find(p=>p.joueur.prenom==='Tom').terrain.postesOk")
     check('poste principal + autres postes enregistrés', po[0] == 'ailier' and 'pilier' in po and 'centre' in po, po)
-    check('fiche : avant et trois-quarts', 'AVANT ET TROIS-QUARTS' in pg.inner_text('main').upper())
+    check('fiche : avant et arrière', 'AVANT ET ARRIÈRE' in pg.inner_text('main').upper())
     check('pas de défilement horizontal (fiche)', noscroll(pg))
     shot(pg, 'k09-fiche', True)
     # ----- Joueurs : le niveau à côté du prénom -----
@@ -231,7 +233,51 @@ with sync_playwright() as p:
     pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(900)
     check('jeu à 10 : postes affichés', len(pg.query_selector_all('.cpj .cpo')) >= 16)
     check('jeu à 10 : bouton Postes auto', pg.query_selector('[data-act="cPostes"]') is not None)
+    ordre = ev(pg, """[...document.querySelectorAll('.ccol')].map(c => [...c.querySelectorAll('.csec')].map(s => s.querySelector('.csech span').textContent + ':' + [...s.querySelectorAll('.cpo')].map(x => x.textContent).join(',')))""")
+    rang = {'Pilier': 0, 'Talon.': 1, '3e L.': 2, '9': 3, '10': 4, 'Centre': 5, 'Ailier': 6}
+    def bien_range(team):
+        if not team or not team[0].startswith('Avants:') or len(team) < 2 or not team[1].startswith('Arrières:'): return False
+        for sec in team[:2]:
+            ps = [x for x in sec.split(':', 1)[1].split(',') if x]
+            if [rang[x] for x in ps] != sorted(rang[x] for x in ps): return False
+        av = [x for x in team[0].split(':', 1)[1].split(',') if x]; ar = [x for x in team[1].split(':', 1)[1].split(',') if x]
+        return all(rang[x] <= 2 for x in av) and all(rang[x] >= 3 for x in ar)
+    check('jeu à 10 : avants (piliers, talonneur, 3es lignes) puis arrières (9, 10, centres, ailiers)', all(bien_range(t) for t in ordre), ordre)
     shot(pg, 'k10-jeu10', True)
+    # ----- composer à la main : partir de zéro, toucher l'équipe, choisir les piliers puis le talonneur… -----
+    pg.click('[data-act="cDiscard"]'); pg.wait_for_timeout(300)
+    pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(700)
+    pg.click('[data-act="cZero"]'); pg.wait_for_timeout(800)
+    check('à la main : places vides dans l\'ordre des postes', ev(pg, "[...document.querySelectorAll('.ccol')[0].querySelectorAll('.cslot')].map(x=>x.textContent).join('|')") == '+ Pilier|+ Pilier|+ Talonneur|+ 3e ligne|+ 3e ligne|+ Demi de mêlée|+ Ouvreur|+ Centre|+ Centre|+ Ailier|+ Remplaçant')
+    pg.click('.ccol >> nth=0 >> .chd'); pg.wait_for_timeout(500)
+    check('à la main : on commence par les piliers', 'PILIER' in pg.inner_text('.modal h2').upper() and 'PILIER EN POSTE PRINCIPAL' in pg.inner_text('.modal .cpick').upper())
+    shot(pg, 'k11-choix-pilier')
+    titres = []
+    for i in range(3):
+        pg.click('.modal .cprow >> nth=0'); pg.wait_for_timeout(400)
+        titres.append(pg.inner_text('.modal h2').split('\n')[0].upper())
+    check('à la main : pilier, pilier, talonneur, puis 3e ligne', titres[0].endswith('PILIER') and titres[1].endswith('TALONNEUR') and titres[2].endswith('3E LIGNE'), titres)
+    pg.click('.modal button:has-text("Passer")'); pg.wait_for_timeout(300)
+    check('à la main : passer une place', pg.inner_text('.modal h2').split('\n')[0].upper().endswith('3E LIGNE') or 'DEMI' in pg.inner_text('.modal h2').upper())
+    pg.click('.modal button:has-text("Terminé")'); pg.wait_for_timeout(500)
+    po0 = ev(pg, "[...document.querySelectorAll('.ccol')[0].querySelectorAll('.cpj .cpo')].map(x=>x.textContent).join(',')")
+    check('à la main : 3 joueurs placés à leur poste', po0 == 'Pilier,Pilier,Talon.', po0)
+    check('à la main : pas de défilement horizontal', noscroll(pg))
+    # un joueur choisi, puis une place vide d'une autre équipe : il la prend, avec ce poste
+    pg.locator('.ccol >> nth=0 >> .cpj >> nth=0').evaluate('e=>e.click()'); pg.wait_for_timeout(300)
+    pg.locator('.ccol >> nth=1 >> .cslot >> nth=2').evaluate('e=>e.click()'); pg.wait_for_timeout(500)
+    po1 = ev(pg, "[...document.querySelectorAll('.ccol')[1].querySelectorAll('.cpj .cpo')].map(x=>x.textContent).join(',')")
+    check('à la main : le joueur choisi prend la place touchée', po1 == 'Talon.', po1)
+    # jeu à 5 : « Ajouter des joueurs », la liste reste ouverte
+    pg.locator('[data-act="cRegl"]').evaluate('e=>e.click()'); pg.wait_for_timeout(400)
+    pg.click('.modal [data-rf="5"]'); pg.wait_for_timeout(200)
+    pg.click('.modal button:has-text("Garder mes placements")'); pg.wait_for_timeout(700)
+    n1 = ev(pg, "document.querySelectorAll('.ccol')[1].querySelectorAll('.cpj').length")
+    pg.locator('.ccol >> nth=1 >> .cslot').evaluate('e=>e.click()'); pg.wait_for_timeout(400)
+    for i in range(3): pg.click('.modal .cprow >> nth=0'); pg.wait_for_timeout(300)
+    shot(pg, 'k12-ajouter5')
+    pg.click('.modal button:has-text("Terminé")'); pg.wait_for_timeout(400)
+    check('jeu à 5 : 3 joueurs ajoutés', ev(pg, "document.querySelectorAll('.ccol')[1].querySelectorAll('.cpj').length") == n1 + 3)
     # en se déconnectant, les compos et les brouillons (ils citent des copains) quittent l'appareil
     pg.goto(BASE + '#/educ/outils'); pg.wait_for_timeout(700)
     pg.click('[data-act="adultLogout"]'); pg.wait_for_timeout(500)
