@@ -11,8 +11,8 @@ MC.compos = (function () {
   var NOM_NIV = { A: 'Confirmés', B: 'Débrouillés', C: 'Débutants' };
   var COUL_NIV = { A: '#FFC23D', B: '#38E8FF', C: '#3DFFB0' };
   // Jeu à 10 (règlement FFR M12) : mêlée 3 + 2 (les avants), puis 5 arrières (dans l'appli, « arrières » = les lignes arrières : 9, 10, centres, ailiers).
-  // Derrière la charnière (9 et 10) : 2 centres et 1 ailier (à ajuster ici si le club joue autrement).
-  var POSTES10 = [['pilier', 2], ['talonneur', 1], ['troisieme-ligne', 2], ['demi-de-melee', 1], ['ouvreur', 1], ['centre', 2], ['ailier', 1]];
+  // Derrière la charnière (9 et 10) : 1 centre et 2 ailiers (décidé par Nicolas le 20/10 ; à ajuster ici si le club joue autrement).
+  var POSTES10 = [['pilier', 2], ['talonneur', 1], ['troisieme-ligne', 2], ['demi-de-melee', 1], ['ouvreur', 1], ['centre', 1], ['ailier', 2]];
   var SLOTS10 = [];
   POSTES10.forEach(function (p) { for (var i = 0; i < p[1]; i++) SLOTS10.push(p[0]); });
   // Étoiles de plaquage attendues pour jouer dans un niveau (proposition, à valider par les éducs) :
@@ -520,7 +520,7 @@ MC.compos = (function () {
   // Entraînements : d'abord les groupes d'ateliers, ensuite les matchs
   // ======================================================================
   // Chaque équipe d'entraînement a un « bloc » (ce qui s'affiche ensemble) : A / B / C (groupes de niveau),
-  // 'g' (groupes mélangés), 'av' / 'ar' (avants et arrières à part), 'm1', 'm2'… (match 1, match 2 : Chasubles contre Maillots).
+  // 'g' (groupes mélangés), 'av' / 'ar' (avants et arrières à part), 'm1', 'm2' (match 1 : Équipe 1 contre Équipe 2 ; match 2 : Équipe 3 contre Équipe 4).
   function blocDe(t) { return (t && (t.bloc || t.niveau)) || ''; }
   function nomEq(t) { return (t && (t.nom || t.id)) || ''; }
   var BLOCS = ['A', 'B', 'C', 'g', 'av', 'ar', 'm1', 'm2', 'm3', 'm4', 'm5', 'm6'];
@@ -544,7 +544,7 @@ MC.compos = (function () {
       mode: r.mode === 'equilibre' ? 'equilibre' : 'niveau', separer: r.partie !== 'matchs' && !!r.separer,
       n: borne(r.n, 1, 8, Math.max(2, Math.min(6, Math.round(n / parGroupe) || 1))),
       nAv: borne(r.nAv, 1, 4, Math.max(1, Math.round(nAv / parGroupe))), nAr: borne(r.nAr, 1, 4, Math.max(1, Math.round(nAr / parGroupe))),
-      nbMatchs: borne(r.nbMatchs, 1, 4, n >= 20 ? 2 : 1)
+      nbMatchs: borne(r.nbMatchs, 1, 2, n >= 20 ? 2 : 1)
     };
   }
   // du plus avancé au moins avancé : niveau (A, B, C ; sans niveau = B), passerelle, puis étoiles de plaquage
@@ -613,11 +613,12 @@ MC.compos = (function () {
       return { id: (pre || 'G') + (i + 1), nom: (pre || 'G') + (i + 1), niveau: '', bloc: side || 'g', joueurs: t.map(function (id) { return entree(id, F); }) };
     }), raisons: {} };
   }
-  // les matchs : chacun à 2 équipes, Chasubles contre Maillots, équilibrées (plaquage, niveaux, avants / arrières, copains)
+  // les matchs : 1 ou 2, chacun à 2 équipes (tout le monde en chasubles : Équipe 1 contre Équipe 2, Équipe 3 contre Équipe 4),
+  // équilibrées (plaquage, niveaux, avants / arrières, copains)
   // « niveau » : le match 1 réunit les plus avancés (les Confirmés et les meilleurs Débrouillés), le dernier les Débutants ;
   // « equilibre » : chaque match mélange tous les niveaux
   function matchsDe(ids, F, H, mode, m) {
-    m = Math.max(1, Math.min(m, Math.floor(ids.length / 2) || 1));
+    m = Math.max(1, Math.min(m, 2, Math.floor(ids.length / 2) || 1));
     var sorted = ids.slice().sort(triForce(F)), paires = [];
     if (mode === 'niveau') {
       var base = Math.floor(sorted.length / m), extra = sorted.length % m, pos = 0;
@@ -638,8 +639,10 @@ MC.compos = (function () {
       // matchs équilibrés : pas de niveau
       var niv = '';
       if (mode === 'niveau') NIV.slice().reverse().forEach(function (n) { if (pr[0].concat(pr[1]).some(function (id) { return (niveauDe(F[id]) || 'B') === n; })) niv = n; });
-      equipes.push({ id: 'M' + (i + 1) + 'c', nom: 'Chasubles', cote: 'c', niveau: niv, bloc: 'm' + (i + 1), joueurs: pr[0].map(function (id) { return entree(id, F); }) });
-      equipes.push({ id: 'M' + (i + 1) + 'm', nom: 'Maillots', cote: 'm', niveau: niv, bloc: 'm' + (i + 1), joueurs: pr[1].map(function (id) { return entree(id, F); }) });
+      [0, 1].forEach(function (s) {
+        var k = 2 * i + s + 1;
+        equipes.push({ id: 'E' + k, nom: 'Équipe ' + k, niveau: niv, bloc: 'm' + (i + 1), joueurs: pr[s].map(function (id) { return entree(id, F); }) });
+      });
     });
     return { equipes: equipes, raisons: {} };
   }

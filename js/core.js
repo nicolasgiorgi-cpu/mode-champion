@@ -1110,7 +1110,6 @@ var Core = (function () {
         if (!/^[A-Za-z0-9]{1,6}$/.test(id) || tids[id]) { var k = 1; while (tids['T' + k]) k++; id = 'T' + k; }
         extra.bloc = BLOCS.indexOf(t.bloc) >= 0 ? t.bloc : (niv || 'g');
         extra.nom = cleanText(t.nom, 12) || id;
-        if (t.cote === 'c' || t.cote === 'm') extra.cote = t.cote;
       } else {
         niv = NIVS.indexOf(t.niveau) >= 0 ? t.niveau : 'B';
         if (!/^[ABC][1-9]$/.test(id) || tids[id] || id.charAt(0) !== niv) { var n = 1; while (tids[niv + n]) n++; id = niv + n; }
@@ -1137,7 +1136,7 @@ var Core = (function () {
     if (partie) {
       var borne = function (v, a, b, d) { v = Math.floor(Number(v)); return isNaN(v) ? d : v < a ? a : v > b ? b : v; };
       reglages = { format: 5, nb: nb, partie: partie, mode: r.mode === 'equilibre' ? 'equilibre' : 'niveau', separer: partie === 'ateliers' && !!r.separer,
-        n: borne(r.n, 1, 8, 3), nAv: borne(r.nAv, 1, 4, 1), nAr: borne(r.nAr, 1, 4, 1), nbMatchs: borne(r.nbMatchs, 1, 4, 2) };
+        n: borne(r.n, 1, 8, 3), nAv: borne(r.nAv, 1, 4, 1), nAr: borne(r.nAr, 1, 4, 1), nbMatchs: borne(r.nbMatchs, 1, 2, 2) };
     }
     return { equipes: equipes, banc: banc, reglages: reglages, raisons: raisons };
   }

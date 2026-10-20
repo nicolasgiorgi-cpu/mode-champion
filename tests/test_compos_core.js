@@ -177,27 +177,28 @@ const ca = r.compo;
 assert.strictEqual(ca.partie, 'ateliers');
 assert.deepStrictEqual(ca.equipes.map(t => [t.id, t.bloc, t.nom]), [['Av1', 'av', 'Av1'], ['Ar1', 'ar', 'Ar1'], ['T1', 'g', 'doublon']], 'ids etE blocs des groupes nettoyés');
 assert.deepStrictEqual(ca.equipes[0].joueurs.map(j => j.id), [P.Tom, P.Hugo], 'un joueur une seule fois');
-assert.deepStrictEqual(ca.reglages, { format: 5, nb: { A: 0, B: 0, C: 0 }, partie: 'ateliers', mode: 'equilibre', separer: true, n: 2, nAv: 1, nAr: 1, nbMatchs: 4 });
+assert.deepStrictEqual(ca.reglages, { format: 5, nb: { A: 0, B: 0, C: 0 }, partie: 'ateliers', mode: 'equilibre', separer: true, n: 2, nAv: 1, nAr: 1, nbMatchs: 2 });
 // les matchs du même entraînement : une autre compo, à côté des ateliers
 const matchs = { evenementId: etE.id, partie: 'matchs', version: 0, reglages: { partie: 'matchs', mode: 'niveau', nbMatchs: 1, separer: true },
-  equipes: [{ id: 'M1c', nom: 'Chasubles', cote: 'c', bloc: 'm1', joueurs: [{ id: P.Tom }, { id: P['Léa'] }, { id: P.Hugo }] }, { id: 'M1m', nom: 'Maillots', cote: 'm', bloc: 'm1', joueurs: [{ id: P.Zoé }, { id: P['Inès'] }, { id: P.Malo }] }], banc: [] };
+  // une vieille compo peut encore envoyer « cote » (chasubles / maillots) : le serveur l'ignore
+  equipes: [{ id: 'E1', nom: 'Équipe 1', cote: 'c', bloc: 'm1', joueurs: [{ id: P.Tom }, { id: P['Léa'] }, { id: P.Hugo }] }, { id: 'E2', nom: 'Équipe 2', bloc: 'm1', joueurs: [{ id: P.Zoé }, { id: P['Inès'] }, { id: P.Malo }] }], banc: [] };
 r = g.call(Object.assign({ action: 'saveCompo', token: cyril }, matchs));
 assert.ok(r.ok, JSON.stringify(r));
 const cm = r.compo;
-assert.strictEqual(cm.partie, 'matchs'); assert.strictEqual(cm.equipes[0].cote, 'c'); assert.strictEqual(cm.reglages.separer, false, 'pas d\'avants / arrières séparés pour les matchs');
+assert.strictEqual(cm.partie, 'matchs'); assert.strictEqual(cm.equipes[0].nom, 'Équipe 1'); assert.ok(!('cote' in cm.equipes[0]), 'plus de côté chasubles / maillots'); assert.strictEqual(cm.reglages.separer, false, 'pas d\'avants / arrières séparés pour les matchs');
 r = g.call({ action: 'compos', token: nico });
 assert.strictEqual(r.compos.filter(x => x.evenementId === etE.id).length, 2);
 // republier les ateliers sans version : conflit (ils existent déjà) ; modifier les matchs de Cyril : contre-proposition (pas le jour J)
 r = g.call(Object.assign({ action: 'saveCompo', token: cyril }, ateliers)); assert.strictEqual(r.error, 'conflit');
 r = g.call(Object.assign({ action: 'saveCompo', token: nico }, matchs, { compoId: cm.id, version: 1 })); assert.strictEqual(r.error, 'interdit');
-r = g.call({ action: 'contreProposition', token: nico, compoId: cm.id, version: 1, justification: 'Hugo avec les Maillots',
-  equipes: [{ id: 'M1c', nom: 'Chasubles', cote: 'c', bloc: 'm1', joueurs: [{ id: P.Tom }, { id: P['Léa'] }] }, { id: 'M1m', nom: 'Maillots', cote: 'm', bloc: 'm1', joueurs: [{ id: P.Zoé }, { id: P['Inès'] }, { id: P.Malo }, { id: P.Hugo }] }], banc: [] });
+r = g.call({ action: 'contreProposition', token: nico, compoId: cm.id, version: 1, justification: 'Hugo dans l\'équipe 2',
+  equipes: [{ id: 'E1', nom: 'Équipe 1', bloc: 'm1', joueurs: [{ id: P.Tom }, { id: P['Léa'] }] }, { id: 'E2', nom: 'Équipe 2', bloc: 'm1', joueurs: [{ id: P.Zoé }, { id: P['Inès'] }, { id: P.Malo }, { id: P.Hugo }] }], banc: [] });
 assert.ok(r.ok, JSON.stringify(r));
-assert.deepStrictEqual(r.avis.changements.map(m => [m.de, m.vers]), [['M1c', 'M1m']]);
+assert.deepStrictEqual(r.avis.changements.map(m => [m.de, m.vers]), [['E1', 'E2']]);
 r = g.call({ action: 'repondreAvis', token: cyril, avisId: r.avis.id, accepte: true, reponse: 'ok' });
 assert.ok(r.ok, JSON.stringify(r));
 assert.deepStrictEqual(r.compo.equipes[1].joueurs.map(j => j.id), [P.Zoé, P['Inès'], P.Malo, P.Hugo]);
-assert.strictEqual(r.compo.equipes[1].nom, 'Maillots', 'le nom de l\'équipe reste');
+assert.strictEqual(r.compo.equipes[1].nom, 'Équipe 2', 'le nom de l\'équipe reste');
 // 2 versions au vote, pour les ateliers d'un autre entraînement
 r = g.call({ action: 'setEvenement', token: nico, titre: 'Entraînement - Saint-Sulpice', debut: '2026-11-07', presents: [P.Tom, P.Hugo, P.Zoé, P.Malo] });
 const etE2 = r.evenement;

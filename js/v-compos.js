@@ -369,7 +369,7 @@ window.MC = window.MC || {};
         nn + ' groupe' + (nn > 1 ? 's' : '') + ' ' + m + (nn > 1 && r.mode !== 'equilibre' ? '' : '') + (r.separer ? ', avants / arrières à part' : '') + ' (' + c.equipes.map(function (t) { return t.joueurs.length; }).join(', ') + ')');
       pill = '<span class="pill" style="--pc:var(--green)">Publiés</span>';
     } else if (dr) { t2 = 'Brouillon en cours'; pill = '<span class="pill" style="--pc:var(--gold)">Brouillon</span>'; }
-    else t2 = past ? 'Pas faits' : P === 'ateliers' ? 'Groupes par niveau ou équilibrés, avants et arrières ensemble ou à part' : 'Par niveau ou équilibrés, Chasubles contre Maillots';
+    else t2 = past ? 'Pas faits' : P === 'ateliers' ? 'Groupes par niveau ou équilibrés, avants et arrières ensemble ou à part' : 'Par niveau ou équilibrés, 1 ou 2 matchs';
     return '<a class="li cpart' + (c ? ' ok' : '') + '" href="' + lienCompo(esc(e.id), P) + '"><span class="cpnum">' + (c ? icon('check', 14) : n) + '</span><span class="grow"><span class="t1">' + NOM_PARTIE[P] + '</span><span class="t2">' + t2 + '</span></span>' + pill + icon('right', 16) + '</a>';
   }
   MC.act.prToggle = function (b) {
@@ -500,7 +500,7 @@ window.MC = window.MC || {};
       (ids.length < 2 ? '<div class="empty">Cochez d\'abord les présents sur la page de l\'événement.</div><a class="btn2" href="#/educ/evt/' + esc(e.id) + '">Les présents</a></main>' :
       '<section class="sec"><h2 class="h2">Le format</h2><div class="grid2">' + K.FORMATS.map(function (f) {
         return '<button type="button" class="opt' + (reg.format === f ? ' on' : '') + '" aria-pressed="' + (reg.format === f) + '" data-act="cFmt" data-v="' + f + '">Jeu à ' + f + '</button>';
-      }).join('') + '</div><p class="small" style="margin:0">' + (reg.format === 10 ? 'Jeu à 10 : chaque joueur a son poste du plateau, par défaut celui de sa fiche (mêlée 3 + 2, demi de mêlée, ouvreur, 2 centres, 1 ailier).' : 'Jeu à 5 : pas de postes dans la compo ; l\'appli range quand même chaque équipe en avants et arrières, d\'après le poste principal de leur fiche.') + '</p></section>' +
+      }).join('') + '</div><p class="small" style="margin:0">' + (reg.format === 10 ? 'Jeu à 10 : chaque joueur a son poste du plateau, par défaut celui de sa fiche (mêlée 3 + 2, demi de mêlée, ouvreur, 1 centre, 2 ailiers).' : 'Jeu à 5 : pas de postes dans la compo ; l\'appli range quand même chaque équipe en avants et arrières, d\'après le poste principal de leur fiche.') + '</p></section>' +
       '<section class="sec"><h2 class="h2">Équipes par niveau</h2>' + stepperHtml('A', reg, cnt, sug, 'data-act="cNb" data-n') + stepperHtml('B', reg, cnt, sug, 'data-act="cNb" data-n') + stepperHtml('C', reg, cnt, sug, 'data-act="cNb" data-n') +
       '<p class="small" style="margin:0">' + tot + ' équipe' + (tot > 1 ? 's' : '') + (tot ? ', environ ' + virg(per) + ' joueurs par équipe' : '') + '. Un niveau sans équipe joue dans le niveau voisin.</p>' +
       (noLv.length ? '<p class="small" style="margin:0;color:var(--orange)">Sans niveau (placés en B en attendant) : ' + noLv.map(function (id) { return esc(nom(C, id)); }).join(', ') + '. <a href="#/educ/terrain">Fiche terrain</a></p>' : '') + '</section>' +
@@ -546,7 +546,7 @@ window.MC = window.MC || {};
     }).join('') + '</div><p class="small" style="margin:0">' + co.av + ' avant' + (co.av > 1 ? 's' : '') + ' · ' + co.ar + ' arrière' + (co.ar > 1 ? 's' : '') + (co.les2 ? ' · dont ' + co.les2 + ' qui jouent les deux' : '') +
       (co.sans ? ' · <span style="color:var(--orange)">' + co.sans + ' sans poste</span> (placés là où il manque du monde)' : '') + ', d\'après le poste principal de leur fiche.</p></section>';
     html += '<section class="sec"><h2 class="h2">Combien ?</h2>';
-    if (!at) html += stepGen('nbMatchs', 'Matchs', '2 équipes par match, Chasubles contre Maillots · environ ' + par(ids.length, reg.nbMatchs * 2) + ' par équipe', reg.nbMatchs, 1, 4, A.n);
+    if (!at) html += stepGen('nbMatchs', 'Matchs', (reg.nbMatchs > 1 ? '4 équipes : Équipe 1 contre Équipe 2, Équipe 3 contre Équipe 4' : '2 équipes : Équipe 1 contre Équipe 2') + ' · environ ' + par(ids.length, reg.nbMatchs * 2) + ' par équipe', reg.nbMatchs, 1, 2, A.n);
     else if (!reg.separer) html += stepGen('n', 'Groupes', 'environ ' + par(ids.length, reg.n) + ' par groupe', reg.n, 1, 8, A.n);
     else {
       var nav = co.av, nar = co.ar;
@@ -575,7 +575,7 @@ window.MC = window.MC || {};
   MC.act.cESep = function (b) { if (!B || !B.reg) return; B.reg.separer = b.getAttribute('data-v') === '1'; app.rerender(); };
   MC.act.cEN = function (b) {
     if (!B || !B.reg) return;
-    var k = b.getAttribute('data-k'), mx = k === 'n' ? 8 : 4;
+    var k = b.getAttribute('data-k'), mx = k === 'n' ? 8 : k === 'nbMatchs' ? 2 : 4;
     B.reg[k] = Math.max(1, Math.min(mx, B.reg[k] + Number(b.getAttribute('data-d'))));
     app.rerender();
   };
@@ -642,18 +642,20 @@ window.MC = window.MC || {};
   };
 
   // ---------- le tableau ----------
-  // couleur d'une équipe : son niveau, sinon Chasubles (orange) / Maillots (bleu), sinon une couleur par groupe
+  // couleur d'une équipe : son niveau, sinon une couleur par groupe (équipes de match comprises)
   var PAL = ['#B48CFF', '#FF9A3D', '#3DFFB0', '#4D9BFF', '#FF5C8A', '#FFC23D', '#38E8FF', '#9AA4C0'];
   var COUL_BLOC = { av: '#FF5C8A', ar: '#38E8FF', g: '#B48CFF' };
   function coulEq(t, d) {
-    if (t.cote) return t.cote === 'c' ? '#FF9A3D' : '#4D9BFF';
     if (K.COUL_NIV[t.niveau]) return K.COUL_NIV[t.niveau];
     var i = d ? d.equipes.indexOf(t) : 0;
     return PAL[(i < 0 ? 0 : i) % PAL.length];
   }
   function coulBloc(k) { return K.COUL_NIV[k] || COUL_BLOC[k] || '#FFC23D'; }
-  // le nom d'une équipe là où on ne voit pas son match : « M1 Chasubles »
-  function labelEq(t) { return t.cote ? 'M' + String(t.bloc || '').slice(1) + ' ' + t.nom : K.nomEq(t); }
+  // le nom d'une équipe : « A1 », « G2 », « Équipe 3 »… (une vieille compo de match peut encore porter « Chasubles » / « Maillots »)
+  function labelEq(t) { return K.nomEq(t); }
+  function estMatch(t) { return /^m\d$/.test(String((t && t.bloc) || '')); }
+  // le titre d'un match : « Équipe 1 contre Équipe 2 », d'après ses équipes
+  function contreDe(l) { return l.map(function (t) { return K.nomEq(t); }).join(' contre '); }
   function alertesOf(C, d, presents) { return d.reglages && d.reglages.partie ? K.alertesEnt(d, C.F, presents) : K.alertes(d, C.F, C.H, presents); }
   function remplTxt(r) {
     var o = [];
@@ -700,7 +702,7 @@ window.MC = window.MC || {};
         : secHtml(C, t, v, d, moved, 'Avants', sc.av) + secHtml(C, t, v, d, moved, 'Arrières', sc.ar) + secHtml(C, t, v, d, moved, 'Sans poste', sc.sans) +
           (ed ? slotHtml(v, t, '*', '+ Ajouter des joueurs', false) : '');
     var nomT = K.nomEq(t);
-    return '<section class="ccol" style="--lc:' + coulEq(t, d) + '" aria-label="' + (t.cote ? esc(labelEq(t)) : 'Équipe ' + esc(nomT)) + (B && B.vs.length > 1 ? ', ' + vName(v) : '') + '">' +
+    return '<section class="ccol" style="--lc:' + coulEq(t, d) + '" aria-label="' + (estMatch(t) ? esc(nomT) : 'Équipe ' + esc(nomT)) + (B && B.vs.length > 1 ? ', ' + vName(v) : '') + '">' +
       '<button type="button" class="chd' + (dest ? ' dest' : '') + '" data-act="cTeam" data-v="' + v + '" data-t="' + esc(t.id) + '"' + (dest || ed ? '' : ' tabindex="-1"') + (ed && !dest ? ' aria-label="Composer ' + esc(labelEq(t)) + '"' : '') + '>' +
       '<span class="row" style="justify-content:space-between;width:100%"><b class="ctid' + (nomT.length > 4 ? ' long' : '') + '">' + esc(nomT) + '</b><span class="cn">' + st.n + '</span></span>' +
       '<span class="cind"><span title="Plaquage moyen">' + icon('star', 12) + ' ' + virg(st.plaq) + '</span><span title="Bons plaqueurs (3 étoiles et plus)">' + icon('shield', 12) + ' ' + st.bons + '</span>' +
@@ -736,16 +738,19 @@ window.MC = window.MC || {};
     // les blocs : niveaux (plateau, groupes de niveau), avants / arrières, groupes mélangés, match 1, match 2…
     var tous = { equipes: [] }; vs.forEach(function (d) { tous.equipes = tous.equipes.concat(d.equipes); });
     var blocs = K.blocsDe(tous);
-    function enTete(k, nj, sm) {
+    function enTete(k, nj, sm, l) {
       var lab = K.COUL_NIV[k] ? niveauTag(k, true) + K.NOM_NIV[k] : esc(K.nomBloc(k));
-      return '<h3 class="clvh' + (sm ? ' sm' : '') + '">' + lab + (nj !== null ? '<span class="small"> · ' + nj + ' joueurs' + (/^m\d$/.test(k) ? ', Chasubles contre Maillots' : '') + '</span>' : '') + '</h3>';
+      var bits = [];
+      if (nj !== null) bits.push(nj + ' joueurs');
+      if (/^m\d$/.test(k) && l && l.length) bits.push(esc(contreDe(l)));
+      return '<h3 class="clvh' + (sm ? ' sm' : '') + '">' + lab + (bits.length ? '<span class="small"> · ' + bits.join(', ') + '</span>' : '') + '</h3>';
     }
     function njOf(l) { var n = 0; l.forEach(function (t) { n += t.joueurs.length; }); return n; }
     var aligne = nv === 1 || blocs.every(function (k) { return vs.every(function (d) { return d.equipes.some(function (t) { return K.blocDe(t) === k; }); }); });
     if (aligne) {
       blocs.forEach(function (k) {
         var cols = vs.map(function (d) { return d.equipes.filter(function (t) { return K.blocDe(t) === k; }); });
-        html += '<section class="clevel" style="--lc:' + coulBloc(k) + '">' + enTete(k, nv === 1 ? njOf(cols[0]) : null) +
+        html += '<section class="clevel" style="--lc:' + coulBloc(k) + '">' + enTete(k, nv === 1 ? njOf(cols[0]) : null, false, cols[0]) +
           '<div class="cvcols nv' + nv + '">' + cols.map(function (l, v) {
             return '<div class="cvcol">' + (nv > 1 ? '<span class="cvlab">' + vName(v) + '</span>' : '') +
               (l.length ? l.map(function (t) { return team(C, t, v, vs[v], o.moved[v] || {}, o.ed); }).join('') : '<div class="empty small">—</div>') + '</div>';
@@ -756,7 +761,7 @@ window.MC = window.MC || {};
       html += '<section class="clevel" style="--lc:var(--gold)"><div class="cvcols nv' + nv + '">' + vs.map(function (d, v) {
         return '<div class="cvcol"><span class="cvlab">' + vName(v) + '</span>' + K.blocsDe(d).map(function (k) {
           var l = d.equipes.filter(function (t) { return K.blocDe(t) === k; });
-          return '<div class="cvbloc" style="--lc:' + coulBloc(k) + '">' + enTete(k, njOf(l), true) + l.map(function (t) { return team(C, t, v, d, o.moved[v] || {}, o.ed); }).join('') + '</div>';
+          return '<div class="cvbloc" style="--lc:' + coulBloc(k) + '">' + enTete(k, njOf(l), true, l) + l.map(function (t) { return team(C, t, v, d, o.moved[v] || {}, o.ed); }).join('') + '</div>';
         }).join('') + '</div>';
       }).join('') + '</div></section>';
     }
@@ -984,7 +989,7 @@ window.MC = window.MC || {};
   }
   var NOMP = { pilier: 'Pilier', talonneur: 'Talonneur', 'troisieme-ligne': '3e ligne', 'demi-de-melee': 'Demi de mêlée', ouvreur: 'Ouvreur', centre: 'Centre', ailier: 'Ailier' };
   // Composer une équipe : la liste des joueurs à placer, les mieux adaptés d'abord.
-  // Jeu à 10 : place par place, dans l'ordre (piliers, talonneur, 3es lignes, 9, 10, centres, ailier), puis les remplaçants.
+  // Jeu à 10 : place par place, dans l'ordre (piliers, talonneur, 3es lignes, 9, 10, centre, ailiers), puis les remplaçants.
   // Jeu à 5 : on ajoute les joueurs un par un, la liste reste ouverte.
   function composer(v, tid, p0) {
     withC(function (C, e) {

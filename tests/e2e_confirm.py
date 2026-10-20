@@ -40,20 +40,20 @@ with sync_playwright() as p:
     first.locator('[data-v="ok"]').click(); pg.wait_for_timeout(150)  # re-toucher = annuler le choix
     assert not pg.is_visible('[data-decbar] >> nth=0')
     # rien n'a été envoyé
-    assert pg.evaluate("JSON.parse(localStorage.getItem('mc-demo-v6')).tables.records.filter(r=>r.statut==='attente').length") >= pend_before
+    assert pg.evaluate("JSON.parse(localStorage.getItem('mc-demo-v7')).tables.records.filter(r=>r.statut==='attente').length") >= pend_before
     pg.click('[data-act="decAll"]'); pg.wait_for_timeout(150)
     pg.locator('.decis').nth(1).locator('[data-v="refuse"]').click(); pg.wait_for_timeout(150)
     txt = pg.text_content('[data-decbar] .decn >> nth=0'); print('barre :', txt); assert 'à refuser' in txt and 'à confirmer' in txt
     pg.screenshot(path='/home/claude/shots/cf-parent-choix.png')
     pg.click('[data-act="decSend"]'); pg.wait_for_timeout(1200)
     pg.screenshot(path='/home/claude/shots/cf-parent-apres.png', full_page=True)
-    st = pg.evaluate("JSON.parse(localStorage.getItem('mc-demo-v6')).tables.records.filter(r=>r.statut==='refuse').map(r=>r.id)")
+    st = pg.evaluate("JSON.parse(localStorage.getItem('mc-demo-v7')).tables.records.filter(r=>r.statut==='refuse').map(r=>r.id)")
     print('refusés', st); assert len(st) == 1
     # rétablir le résultat refusé
     pg.click('details.note summary'); pg.wait_for_timeout(200)
     pg.click('details.note [data-act="decide"][data-v="ok"]'); pg.wait_for_timeout(150)
     pg.click('[data-act="decSend"]'); pg.wait_for_timeout(1200)
-    st = pg.evaluate("JSON.parse(localStorage.getItem('mc-demo-v6')).tables.records.filter(r=>r.statut==='refuse').length")
+    st = pg.evaluate("JSON.parse(localStorage.getItem('mc-demo-v7')).tables.records.filter(r=>r.statut==='refuse').length")
     print('refusés après rétablissement', st); assert st == 0
     pg.evaluate("MC.app.setAdult(null)")
     # ----- l'éduc : vestiaire puis fiche joueur instantanée -----
