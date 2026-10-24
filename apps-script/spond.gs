@@ -11,10 +11,10 @@
    2. En haut, choisissez la fonction « autoriserSpond » puis ▶ Exécuter : Google demande deux autorisations de plus
       (se connecter à un service externe, gérer les déclencheurs) : Autoriser.
    3. Déployer › Gérer les déploiements › crayon › Version : Nouvelle version › Déployer.
-   Ensuite, dans l'appli : Outils › Spond. Un éduc administrateur y tape lui-même l'e-mail et le mot de passe de SON compte Spond.
+   Ensuite, dans l'appli : l'engrenage › Spond. Un éduc administrateur y tape lui-même l'e-mail et le mot de passe de SON compte Spond.
    Ils sont gardés seulement dans les propriétés du script (SPOND_EMAIL, SPOND_MDP) : jamais dans la feuille, jamais réaffichés.
    L'appli suit les catégories (sous-groupes Spond) dont ce compte est coach ; l'admin peut changer ce choix.
-   Synchro toutes les heures, et bouton « Actualiser » dans l'onglet Compos.
+   Synchro toutes les heures, et bouton « Actualiser » dans les onglets Entraîn. et Plateaux.
    (Pour brancher sans l'appli : remplir SPOND_EMAIL et SPOND_MDP dans Paramètres du projet › Propriétés du script,
    puis lancer « brancherSpond ».)
    ========================================================= */
@@ -34,7 +34,7 @@ function spondInfo_() {
 function autoriserSpond() {
   UrlFetchApp.fetch(SPOND_API, { method: 'get', muteHttpExceptions: true });
   ScriptApp.getProjectTriggers();
-  Logger.log('Spond autorisé. Pensez à Déployer › Nouvelle version, puis branchez Spond dans l\'appli (Outils › Spond).');
+  Logger.log('Spond autorisé. Pensez à Déployer › Nouvelle version, puis branchez Spond dans l\'appli (engrenage › Spond).');
 }
 
 // connexion à Spond (deux adresses connues : Spond a changé la sienne en 2025) ; renvoie le jeton
@@ -61,7 +61,7 @@ function spondToken_() {
   if (t) return t;
   var p = PropertiesService.getScriptProperties();
   var email = p.getProperty('SPOND_EMAIL'), mdp = p.getProperty('SPOND_MDP');
-  if (!email || !mdp) throw new Error('identifiants Spond absents : un éduc admin branche Spond dans l\'appli (Outils › Spond)');
+  if (!email || !mdp) throw new Error('identifiants Spond absents : un éduc admin branche Spond dans l\'appli (engrenage › Spond)');
   var tok = connexionSpond_(email, mdp);
   cs.put('spond:token', tok, 3000);
   return tok;
@@ -119,7 +119,7 @@ function suivies_(cats) {
   var l = cats.filter(function (c) { return ids.indexOf(c.id) >= 0; });
   if (!l.length) l = cats.filter(function (c) { return c.coach; });
   if (!l.length) l = cats.filter(function (c) { return SPOND_NOM_SOUS_GROUPE.test(c.nom); });
-  if (!l.length) throw new Error(cats.length ? 'ce compte n\'est coach d\'aucune catégorie Spond : choisissez-les dans l\'appli (Outils › Spond)' : 'pas de groupe Spond pour ce compte');
+  if (!l.length) throw new Error(cats.length ? 'ce compte n\'est coach d\'aucune catégorie Spond : choisissez-les dans l\'appli (engrenage › Spond)' : 'pas de groupe Spond pour ce compte');
   p.setProperty('SPOND_SOUS_GROUPES', JSON.stringify(l.map(function (c) { return { id: c.id, groupeId: c.groupeId }; })));
   return l;
 }
