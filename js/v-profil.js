@@ -264,7 +264,7 @@
   };
 
   // ---------- CLASSEMENT ----------
-  var rank = { test: 'planche', mode: 'best' };
+  var rank = { test: C.TESTS[0].id, mode: 'best' };   // la 1re épreuve affichée
   app.route('/classement', function () {
     return Promise.all([app.loadMe(), app.kidCall('league')]).then(function (res) {
       app.S.league = res[1];
@@ -295,7 +295,7 @@
     return '<main class="screen">' + MC.kidBar(me, app.S.stats) + MC.prepaTabs('classement') + '<div class="head"><span class="kicker" style="color:var(--pink)">Classement · M12</span><h1 class="big">L\'arène</h1></div>' +
       '<section class="row" style="padding:12px 14px;background:' + ui.rgba(lc, 0.1) + ';border:1.5px solid ' + lc + ';align-items:center">' + ui.lvl(lg.myLv, lname.toUpperCase()) +
       '<span style="font-size:13px;line-height:1.35;color:var(--soft)">Tu te mesures aux joueurs de ton niveau sur cette épreuve' + (lg.sm ? ' (version mini matériel)' : '') + '.</span></section>' +
-      '<div class="sec" style="gap:8px"><span class="lab">Épreuve</span><div class="row" style="overflow-x:auto;gap:8px;padding-bottom:4px;-webkit-overflow-scrolling:touch">' + chips + '</div></div>' +
+      '<div class="sec" style="gap:8px"><span class="lab">Épreuve</span><div class="row chipsx" style="overflow-x:auto;gap:8px;padding-bottom:4px;-webkit-overflow-scrolling:touch">' + chips + '</div></div>' +
       '<div class="grid2"><button type="button" class="opt' + (rank.mode === 'best' ? ' on' : '') + '" aria-pressed="' + (rank.mode === 'best') + '" data-act="rkMode" data-v="best">Meilleur score</button>' +
       '<button type="button" class="opt' + (rank.mode === 'prog' ? ' on' : '') + '" style="--oc:var(--green)" aria-pressed="' + (rank.mode === 'prog') + '" data-act="rkMode" data-v="prog">Plus gros progrès</button></div>' +
       '<div class="between"><h2 class="h2">' + esc(t.nom) + '</h2><span class="small">' + lg.rows.length + ' joueur' + (lg.rows.length > 1 ? 's' : '') + '</span></div>' +

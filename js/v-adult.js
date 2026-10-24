@@ -524,7 +524,7 @@
   // CLASSEMENT (onglet des parents et des éducs)
   // Parents : la ligue de leur enfant, comme il la voit. Éducs : tout le groupe, filtrable par niveau.
   // ======================================================================
-  var arene = { test: 'planche', mode: 'best', lv: 0 };
+  var arene = { test: C.TESTS[0].id, mode: 'best', lv: 0 };   // la 1re épreuve affichée
   // gardé 2 min : changer d'épreuve ou de ligue ne refait pas d'appel au serveur
   function loadLeague() {
     var c = app.S.cache;
@@ -535,7 +535,7 @@
     return '<div class="head"><span class="kicker" style="color:var(--pink)">Classement · M12</span><h1 class="big">L\'arène</h1></div>';
   }
   function areneChips() {
-    return '<div class="sec" style="gap:8px"><span class="lab">Épreuve</span><div class="row" style="overflow-x:auto;gap:8px;padding-bottom:4px;-webkit-overflow-scrolling:touch">' + C.TESTS.map(function (tt) {
+    return '<div class="sec" style="gap:8px"><span class="lab">Épreuve</span><div class="row chipsx" style="overflow-x:auto;gap:8px;padding-bottom:4px;-webkit-overflow-scrolling:touch">' + C.TESTS.map(function (tt) {
       var on = tt.id === arene.test;
       return '<button type="button" class="opt' + (on ? ' on' : '') + '" style="--oc:var(--pink);flex:none;min-height:44px;padding:0 12px" aria-pressed="' + on + '" data-act="arTest" data-v="' + tt.id + '">' + esc(tt.court) + '</button>';
     }).join('') + '</div></div>' +

@@ -129,6 +129,8 @@ MC.app = (function () {
     if (!o.keep) window.scrollTo(0, 0); else window.scrollTo(0, y);
     var h = root.querySelector('h1');
     if (h) { h.setAttribute('tabindex', '-1'); }
+    // une rangée de choix qui défile : le choix actif reste visible
+    [].forEach.call(root.querySelectorAll('.chipsx'), function (r) { var on = r.querySelector('.on'); if (!on) return; var a = r.getBoundingClientRect(), b = on.getBoundingClientRect(); if (b.left < a.left || b.right > a.right) r.scrollLeft += b.left - a.left - 16; });
     if (current && current.after) { try { current.after(root); } catch (e) { console.error(e); } }
   }
   function rerender() { render(); }
