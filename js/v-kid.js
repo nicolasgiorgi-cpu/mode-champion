@@ -155,7 +155,8 @@
       '<div class="weeklist">' + days.map(function (d) { return d.list; }).join('') + '</div></section>' +
       '<section class="defi">' + icon('gift', 40, 'style="color:var(--gold);flex:none"') + '<div style="flex:1;display:flex;flex-direction:column;gap:6px"><span class="hud" style="color:var(--gold)">Défi de la semaine</span><span style="font-size:14px;line-height:1.3">' + (wk.bonus ? 'Coffre ouvert : +1 étoile bonus et +' + C.XP.bonus + ' XP !' : 'Gagne les 6 étoiles de la semaine et ouvre le coffre : +1 étoile bonus et +' + C.XP.bonus + ' XP.') + '</span><div class="segs" style="--n:6">' + seg + '</div></div></section>' +
       prochainBilan + '</div></div>' +
-      '<button type="button" class="pastoi" data-act="switchKid">' + icon('user', 14) + ' Pas ' + esc(me.joueur.prenom) + ' ? Changer de joueur</button></main>';
+      '<div class="row" style="gap:8px;flex-wrap:wrap"><button type="button" class="pastoi" data-act="switchKid">' + icon('user', 14) + ' Pas ' + esc(me.joueur.prenom) + ' ? Changer de joueur</button>' +
+      (app.S.adult ? '<a class="pastoi" href="#/adultes" style="text-decoration:none">' + icon('lock', 14) + ' Rendre le téléphone</a>' : '') + '</div></main>';
   }
 
   // ---------- UNE SÉANCE (programme + lancement) ----------
@@ -449,7 +450,8 @@
       (gradeUp ? '<div class="note pink">' + icon('trophy', 22) + '<span><b>Nouveau grade : ' + esc(a.grade.nom) + ' !</b> Montre-le à tes parents.</span></div>' : (a.grade.next ? '<span class="small">Plus que ' + ui.fmtNum(a.grade.next.xp - a.xp) + ' XP pour devenir <b style="color:var(--ink)">' + esc(a.grade.next.nom) + '</b>.</span>' : '')) + '</div>' +
       newB + adj.html + recap + props + clubBtn +
       '<div class="sec"><a class="btn" href="#/profil">Voir mon profil</a><a class="btn2 grey" href="#/semaine">Retour à ma semaine</a>' +
-      (app.recents().length >= 2 || app.S.adult ? '<button type="button" class="btn2 grey" data-act="switchKid">' + icon('user', 16) + ' J\'ai fini : un autre joueur ou je rends l\'appareil</button>' : '') + '</div></main>';
+      (app.S.adult ? '<a class="btn2 grey" href="#/adultes">' + icon('lock', 16) + ' J\'ai fini : je rends le téléphone</a>' : '') +
+      (app.recents().length >= 2 ? '<button type="button" class="btn2 grey" data-act="switchKid">' + icon('user', 16) + ' Un autre joueur</button>' : '') + '</div></main>';
   }
   MC.act.clubSoir = function (b) {
     b.disabled = true;

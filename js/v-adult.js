@@ -220,9 +220,40 @@
     var k = d.joueur, many = fam.enfants.length > 1;
     var who = (many ? '<button type="button" class="tb-switch" data-act="parentPick" aria-label="Enfant suivi : ' + esc(k.prenom) + '. Changer">' : '<span class="tb-switch" style="cursor:default">') +
       ui.avatar(k.prenom, k.couleur, 28) + '<span>' + esc(k.prenom) + '</span>' + (many ? icon('chevd', 16) + '</button>' : '</span>');
-    return ui.topbar({ left: who, kicker: 'Espace parent', title: title, help: ui.helpLink('parent') });
+    return ui.topbar({ left: who, kicker: 'Espace parent', title: title, right: passBtn([k]), help: ui.helpLink('parent') });
   }
   MC.parentBar = parentBar;
+
+  // ----- Passer le téléphone à son enfant -----
+  // Un geste, en haut à droite de l'espace parent (et de l'espace éduc pour un éduc qui est aussi parent) :
+  // l'espace adulte se referme (votre code est redemandé pour revenir) et l'appli passe côté joueur,
+  // directement sur la semaine de l'enfant s'il est déjà connecté sur l'appareil, sinon sur son code secret.
+  var passList = [];
+  function passBtn(kids) {
+    kids = (kids || []).filter(Boolean);
+    if (!kids.length) return '';
+    passList = kids.map(function (k) { return { id: k.id, prenom: k.prenom, couleur: k.couleur }; });
+    var one = kids.length === 1;
+    return '<button type="button" class="tb-pass" data-act="passKid" data-id="' + (one ? esc(kids[0].id) : '') + '" aria-label="' + (one ? 'Passer le téléphone à ' + esc(kids[0].prenom) : 'Passer le téléphone à un de mes enfants') + '">' +
+      icon('play', 14) + '<span>' + (one ? esc(kids[0].prenom) : 'Enfant') + '</span></button>';
+  }
+  MC.passBtn = passBtn;
+  function passTo(k) {
+    app.lockAdult();
+    if (app.S.kid && app.S.kid.joueur && app.S.kid.joueur.id === k.id) { app.go('#/semaine'); ui.toast('À toi ' + k.prenom + ' !'); return; }
+    if (app.S.kid) app.setKid(null);
+    app.go('#/connexion?k=' + encodeURIComponent(k.id));
+  }
+  MC.act.passKid = function (b) {
+    var id = b.getAttribute('data-id');
+    var k = passList.filter(function (x) { return x.id === id; })[0];
+    if (k) return passTo(k);
+    ui.modal({
+      title: 'Passer le téléphone à…',
+      body: '<p class="small" style="margin:0">Il fait sa séance avec son code secret. Pour revenir ici, votre code vous sera redemandé.</p>',
+      actions: passList.map(function (x, i) { return { label: icon('play', 16) + ' ' + esc(x.prenom), value: i + 1, cls: 'btn' }; }).concat([{ label: 'Annuler', value: 0, cls: 'btn2 grey' }])
+    }).then(function (i) { if (i) passTo(passList[i - 1]); });
+  };
   // les sous-onglets de Prépa côté parent : Sa semaine · Bilans · Classement
   function parentPrepaTabs(on) { return ui.subtabs('p:prepa', [['semaine', '#/parent', 'Sa semaine'], ['bilans', '#/parent/bilans', 'Bilans'], ['classement', '#/parent/classement', 'Classement']], on, '#38E8FF', 'Prépa'); }
   MC.parentPrepaTabs = parentPrepaTabs;
@@ -314,7 +345,8 @@
         '<button type="button" class="switch" data-act="kidCode" data-id="' + esc(k.id) + '" data-p="' + esc(k.prenom) + '"><span><span class="t1" style="display:block">Nouveau code secret pour ' + esc(k.prenom) + '</span><span class="t2" style="display:block">S\'il a oublié le sien</span></span>' + icon('right', 18) + '</button></section>' +
         '<section class="sec"><h2 class="h2">Cet appareil</h2>' + sharedSwitch() +
         '<button type="button" class="switch" data-act="howInstall"><span class="row">' + icon('phone', 20, 'style="color:var(--cyan);flex:none"') + '<span><span class="t1" style="display:block">Mettre l\'appli sur l\'écran d\'accueil</span><span class="t2" style="display:block">Elle s\'ouvre alors comme une vraie appli</span></span></span>' + icon('right', 16) + '</button>' +
-        link(app.S.kid ? '#/semaine' : '#/connexion', 'user', 'Côté joueur', 'Ouvrir l\'appli pour votre enfant') + '</section></div>' +
+        '<button type="button" class="switch" data-act="passKid" data-id="' + esc(k.id) + '"><span class="row">' + icon('play', 20, 'style="color:var(--cyan);flex:none"') + '<span><span class="t1" style="display:block">Passer le téléphone à ' + esc(k.prenom) + '</span><span class="t2" style="display:block">Aussi en haut à droite (▶ ' + esc(k.prenom) + '). Pour revenir ici : votre code</span></span></span>' + icon('right', 16) + '</button>' +
+        link(app.S.kid ? '#/semaine' : '#/connexion', 'user', 'Côté joueur', 'Tous les joueurs de cet appareil') + '</section></div>' +
         '<div class="sec" style="gap:20px"><section class="sec"><h2 class="h2">Aide</h2>' +
         link('#/parent/nouveautes', 'news', 'Les nouveautés', 'Ce qui a changé dans l\'appli') +
         link(ui.helpLink('parent'), 'info', 'Comment ça marche ?', 'Le guide pour les parents') +
@@ -355,7 +387,7 @@
   function dropGroup() { app.S.cache.group = null; app.lsSet('mc-group', null); }
   function educBar(g, title, back, backLabel) {
     if (back) return ui.topbar({ back: back, backLabel: backLabel, title: title, help: ui.helpLink('educ') });
-    var right = '<a class="cbtn grey" href="#/educ/reglages" aria-label="Réglages et gestion">' + icon('settings', 20) + '</a>';
+    var right = passBtn(mesEnfants(g).map(function (p) { return p.joueur; })) + '<a class="cbtn grey" href="#/educ/reglages" aria-label="Réglages et gestion">' + icon('settings', 20) + '</a>';
     return ui.topbar({ kicker: 'Éduc · ' + g.moi.nom + (g.moi.admin ? ' · admin' : ''), title: title, right: right, help: ui.helpLink('educ') });
   }
   MC.educBar = educBar;
@@ -495,6 +527,7 @@
         '<div class="cols2"><div class="sec" style="gap:20px"><section class="sec"><h2 class="h2">Moi</h2>' +
         '<button type="button" class="switch" data-act="myKids"><span class="row">' + icon('user', 20, 'style="color:var(--cyan);flex:none"') + '<span><span class="t1" style="display:block">' + (mine.length > 1 ? 'Mes enfants' : 'Mon enfant') + '</span><span class="t2" style="display:block">' + (mine.length ? esc(mine.map(function (p) { return p.joueur.prenom; }).join(', ')) + ' · ses résultats à confirmer, dans Progrès' : 'Vous êtes aussi parent d\'un joueur ? Choisissez-le') + '</span></span></span>' + icon('right', 16) + '</button>' +
         mine.map(function (p) { return link('#/educ/joueur/' + esc(p.joueur.id), 'shield', 'La fiche de ' + esc(p.joueur.prenom), 'Terrain, Skills, missions, prépa, famille et codes'); }).join('') +
+        (mine.length && passBtn(mine.map(function (p) { return p.joueur; })) ? mine.map(function (p) { return '<button type="button" class="switch" data-act="passKid" data-id="' + esc(p.joueur.id) + '"><span class="row">' + icon('play', 20, 'style="color:var(--cyan);flex:none"') + '<span><span class="t1" style="display:block">Passer le téléphone à ' + esc(p.joueur.prenom) + '</span><span class="t2" style="display:block">Aussi en haut à droite des onglets (▶ ' + esc(p.joueur.prenom) + '). Pour revenir : votre code</span></span></span>' + icon('right', 16) + '</button>'; }).join('') : '') +
         '<button type="button" class="switch" data-act="myCode"><span class="row">' + icon('lock', 20, 'style="color:var(--cyan);flex:none"') + '<span class="t1">Changer mon code</span></span>' + icon('right', 16) + '</button></section>' +
         '<section class="sec"><h2 class="h2">Le groupe</h2>' +
         (g.moi.admin ? link('#/educ/educs', 'group', 'Les éducs', 'Les codes des éducs', admin) : '') +

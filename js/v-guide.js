@@ -185,7 +185,9 @@
         ])) +
       card('p-partage', 'phone', '#38E8FF', 'Il utilise votre téléphone', 'Pas de téléphone ou d\'iPad à lui ? Aucun problème',
         ul([
-          'Ouvrez le site sur votre téléphone (Partager › « Sur l\'écran d\'accueil » pour l\'avoir comme une appli). Votre enfant touche son avatar et tape son code : il reste connecté pour les fois suivantes.',
+          'Ouvrez le site sur votre téléphone (Partager › « Sur l\'écran d\'accueil » pour l\'avoir comme une appli).',
+          '<b>Lui passer le téléphone</b> : touchez <b>▶ son prénom</b>, en haut à droite de votre espace. Il tape son code secret la 1re fois, puis il reste connecté : les fois suivantes, il arrive directement sur sa semaine.',
+          '<b>Le récupérer</b> : « J\'ai fini : je rends le téléphone » à la fin de sa séance, ou « Rendre le téléphone » en bas de sa semaine. Vous tapez votre code et vous voilà dans votre espace.',
           'Frères et sœurs sur le même téléphone : chacun a son profil. « Pas Tom ? Changer de joueur » en haut de la semaine, ou « J\'ai fini » à la fin de la séance. S\'il n\'a pas servi depuis 30 min, le site demande « C\'est bien toi ? » avant de commencer.',
           'Votre espace parent est protégé : sur un appareil partagé, votre code est redemandé après 10 min, ou dès qu\'on repasse côté joueur. Votre enfant ne peut donc pas confirmer lui-même ses résultats. Réglage « Appareil partagé avec un enfant » dans l\'onglet <b>Plus</b>.',
           'Une séance commencée est gardée sur le téléphone : si vous en avez besoin au milieu, votre enfant la reprendra là où il en était.'

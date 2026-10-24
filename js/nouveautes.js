@@ -8,6 +8,9 @@
 window.MC = window.MC || {};
 
 MC.NEWS = [
+  { id: '2026-10-passer', date: '2026-10-24', pour: ['f', 'e'],
+    titre: 'Passer le téléphone à votre enfant',
+    texte: { f: 'Touchez ▶ son prénom, en haut à droite : il arrive sur sa séance. Pour revenir : « Rendre le téléphone », puis votre code.', e: 'Votre enfant (engrenage › Mon enfant) a son bouton ▶ en haut à droite. Pour revenir : « Rendre le téléphone », puis votre code.' } },
   { id: '2026-10-codes4', date: '2026-10-24', pour: ['f', 'e'],
     titre: 'Votre code à 4 chiffres',
     texte: { f: 'Pour vous connecter : Adultes › Je suis parent › le prénom de votre enfant, puis votre code. Vous pouvez le changer dans Plus.', e: 'Pour vous connecter : Adultes › Je suis éduc › votre nom, puis votre code. Vous pouvez le changer dans l\'engrenage.' },

@@ -240,7 +240,7 @@ MC.accueil = (function () {
     var notCo = fam.enfants.map(function (e) { return e.joueur; }).filter(function (k) { return !k.aUnCode; });
     ui.modal({
       title: 'Première connexion',
-      body: '<ol class="steps"><li><span class="num" style="--sc:var(--cyan)">1</span><span class="tx">Ouvrez l\'appli, touchez <b>Côté joueur</b> (onglet Plus) : votre enfant touche son prénom.</span></li>' +
+      body: '<ol class="steps"><li><span class="num" style="--sc:var(--cyan)">1</span><span class="tx">Touchez <b>▶ son prénom</b>, en haut à droite de votre espace : le téléphone passe à votre enfant.</span></li>' +
         '<li><span class="num" style="--sc:var(--cyan)">2</span><span class="tx">Il tape son <b>code provisoire</b> (4 chiffres, donné par l\'éducateur), puis choisit sa couleur et son propre code secret.</span></li>' +
         '<li><span class="num" style="--sc:var(--cyan)">3</span><span class="tx">Une petite visite lui explique le jeu. Il peut s\'entraîner tout de suite.</span></li></ol>' +
         '<p class="small">Code provisoire perdu ? Créez-en un nouveau :</p>' +
@@ -289,7 +289,7 @@ MC.accueil = (function () {
     var id = app.S.cache.group && app.S.cache.group.moi.id;
     ui.modal({
       title: 'Côté joueur',
-      body: '<p class="lead">L\'engrenage › <b>Côté joueur</b> : touchez un prénom (un joueur de test ou votre enfant), tapez son code, et lancez une séance pour voir ce que voient les enfants.</p><p class="small">Votre espace éduc reste ouvert : vous y revenez par le bouton Adultes.</p>',
+      body: '<p class="lead">L\'engrenage › <b>Côté joueur</b> : touchez un prénom (un joueur de test ou votre enfant), tapez son code, et lancez une séance pour voir ce que voient les enfants.</p><p class="small">Votre enfant s\'entraîne sur votre téléphone ? Choisissez-le dans l\'engrenage › Mon enfant : un bouton <b>▶ son prénom</b> apparaît en haut à droite et lui passe le téléphone. Vous revenez à votre espace par « Rendre le téléphone » (côté joueur) et votre code.</p>',
       actions: [{ label: 'Y aller', value: 'go', cls: 'btn' }, { label: 'C\'est fait', value: 'ok', cls: 'btn2' }, { label: 'Plus tard', value: null, cls: 'btn2 grey' }]
     }).then(function (v) {
       if (v === 'ok' && id) { set('done:e-joueur:' + id, Date.now()); app.rerender(); }

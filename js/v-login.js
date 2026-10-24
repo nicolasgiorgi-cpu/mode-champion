@@ -52,7 +52,16 @@
 
   // ---------- Écran de connexion ----------
   var rosterQuery = '';
-  app.route('/connexion', function () {
+  app.route('/connexion', function (p, q, cur) {
+    // « Passer le téléphone à Tom » (espace parent ou éduc) : son code secret s'ouvre tout de suite
+    if (q && q.k) {
+      var kid = q.k;
+      cur.after = function () {
+        try { history.replaceState(null, '', '#/connexion'); } catch (e) { }
+        var k = (app.S.roster || []).filter(function (x) { return x.id === kid; })[0];
+        if (k && !document.querySelector('.modal')) pinSheet(k, true);
+      };
+    }
     // la liste gardée sur l'appareil s'affiche tout de suite, puis se met à jour
     if (!app.S.roster) { var cr = app.lsGet('mc-roster'); app.S.roster = Array.isArray(cr) ? cr : null; }
     var had = !!app.S.roster, before = JSON.stringify(app.S.roster);
@@ -114,14 +123,14 @@
     pinSheet(k);
   };
 
-  function pinSheet(k) {
+  function pinSheet(k, passe) {
     var host = document.createElement('div');
     host.className = 'modal';
     host.setAttribute('role', 'dialog');
     host.setAttribute('aria-modal', 'true');
     host.setAttribute('aria-label', 'Code secret de ' + k.prenom);
     host.innerHTML = '<div class="card pin-zone">' +
-      '<div class="row">' + ui.avatar(k.prenom, k.couleur, 48) + '<div style="flex:1"><div class="kicker">' + (k.nouveau ? 'Code provisoire de ton éduc' : 'Code secret') + '</div><div style="font:700 20px/1.1 var(--f-hud);letter-spacing:.04em;margin-top:5px">' + esc(k.prenom.toUpperCase()) + '</div></div>' +
+      '<div class="row">' + ui.avatar(k.prenom, k.couleur, 48) + '<div style="flex:1"><div class="kicker">' + (passe ? 'À toi ! Tape ton code secret' : k.nouveau ? 'Code provisoire de ton éduc' : 'Code secret') + '</div><div style="font:700 20px/1.1 var(--f-hud);letter-spacing:.04em;margin-top:5px">' + esc(k.prenom.toUpperCase()) + '</div></div>' +
       '<button type="button" class="cbtn grey" data-close aria-label="Fermer">' + ui.icon('x') + '</button></div>' +
       digitsHtml(4, '', false) + '<div class="msg" aria-live="polite"></div>' + padHtml(true) +
       '<a href="#/oubli" class="btn2 grey" data-close>Code oublié ?</a></div>';

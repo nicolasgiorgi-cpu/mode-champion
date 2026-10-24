@@ -322,7 +322,7 @@ label.lab{font:600 11px/1.2 var(--f-hud);letter-spacing:.14em;color:var(--dim);t
 .nav .brand{display:none}
 
 /* ---------- barre du haut (la même partout) ---------- */
-.topbar{position:sticky;top:0;z-index:15;display:flex;align-items:center;gap:10px;min-height:calc(62px + env(safe-area-inset-top,0px));margin:calc(-16px - env(safe-area-inset-top,0px)) -16px -4px;padding:calc(9px + env(safe-area-inset-top,0px)) 12px 9px;background:rgba(7,10,18,.95);border-bottom:1px solid var(--line);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.topbar{position:sticky;top:0;z-index:15;display:flex;align-items:center;gap:10px;min-height:calc(62px + env(safe-area-inset-top,0px));margin:calc(-16px - env(safe-area-inset-top,0px)) -16px -4px;padding:calc(9px + env(safe-area-inset-top,0px)) 12px 9px;background:#070A12;border-bottom:1px solid var(--line)}
 .tb-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
 .tb-k{font:600 10px/1.1 var(--f-hud);letter-spacing:.16em;color:var(--dim);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tb-title{font:700 14px/1.15 var(--f-hud);letter-spacing:.1em;color:var(--ink);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -332,6 +332,13 @@ label.lab{font:600 11px/1.2 var(--f-hud);letter-spacing:.14em;color:var(--dim);t
 .tb-cnt span{display:flex;align-items:center;gap:4px}
 .tb-switch{flex:1;min-width:0;display:flex;align-items:center;gap:8px;min-height:44px;padding:0 10px 0 4px;border:1px solid var(--line2);background:#0C1120;color:var(--ink);text-decoration:none;font:700 13px/1 var(--f-hud);letter-spacing:.08em;text-transform:uppercase;cursor:pointer;max-width:max-content}
 .tb-switch svg:last-child{color:var(--dim)}
+/* « Passer le téléphone à Tom » : en haut à droite des espaces parent et éduc */
+.tb-pass{flex:none;display:inline-flex;align-items:center;gap:6px;min-height:44px;max-width:38vw;padding:0 12px;border:1.5px solid var(--cyan);background:rgba(56,232,255,.12);color:var(--cyan);font:700 13px/1 var(--f-hud);letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
+.tb-pass span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tb-pass svg{flex:none}
+/* Les éléments d'interface (boutons, étiquettes, pastilles) ne reprennent jamais l'effet des grands titres :
+   texte net, sans ombres de couleur ni italique, même placés dans un titre stylisé */
+.pill,.cniv,.tag,.nbi,.btn,.btn2,.cbtn,.tb-pass,.tb-switch,button{text-shadow:none}
 /* bouton à coins coupés (Retour, aide, quitter…) : même forme que les autres boutons */
 .cbtn{position:relative;isolation:isolate;flex:none;width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:0;border:0;background:var(--cbc,var(--cyan));color:var(--cbt,var(--cyan));text-decoration:none;cursor:pointer;clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,10px 100%,0 calc(100% - 10px))}
 .cbtn::before{content:'';position:absolute;inset:1.5px;z-index:-1;background:var(--cbg,#0A0F1F);clip-path:polygon(0 0,calc(100% - 9.4px) 0,100% 9.4px,100% 100%,9.4px 100%,0 calc(100% - 9.4px))}
