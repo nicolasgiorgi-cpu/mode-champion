@@ -1,8 +1,7 @@
 /* ===== Mode champion · M12 — style « néon jeu vidéo » (mobile d'abord, tablette ensuite) ===== */
 :root{
-  /* haut de l'écran : la zone de l'heure et de la batterie, plus, dans l'appli installée sur iPhone (iOS 26),
-     la bande que Safari floute sous cette zone (--edge, réglé par js/app.js) : le contenu commence en dessous */
-  --safe-t:calc(env(safe-area-inset-top,0px) + var(--edge,0px));
+  /* haut de l'écran : la zone de l'heure et de la batterie (voir plus bas pour l'appli installée) */
+  --safe-t:env(safe-area-inset-top,0px);
   color-scheme:dark;
   --bg:#070A12; --bg2:#0A0F1F; --panel:#0E1428; --panel2:#0C1120; --line:#1E2740; --line2:#2A3557; --line3:#34405F;
   --ink:#E8ECF7; --soft:#C7CEDF; --muted:#AEB6CC; --dim:#8A93AD; --faint:#4A5578;
@@ -14,6 +13,10 @@
   --safe-b:env(safe-area-inset-bottom,0px);
   --accent:var(--cyan);
 }
+/* Appli installée sur l'écran d'accueil : sur iPhone (iOS 26), Safari floute une bande qui descend sous l'heure
+   et la batterie, sur environ 1,6 fois leur hauteur. Le contenu et la barre du haut commencent sous cette bande
+   (on perd un peu de hauteur, le texte reste net). Sans encoche ni barre d'état (Android, ordinateur) : 0, rien ne change. */
+@media (display-mode: standalone){:root{--safe-t:calc(env(safe-area-inset-top,0px) * 1.75)}}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%;background:var(--bg)}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.45;min-height:100vh;-webkit-font-smoothing:antialiased;overflow-x:hidden}

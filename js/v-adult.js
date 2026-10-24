@@ -216,6 +216,8 @@
     return kids.filter(function (k) { return k.joueur.id === parentSel; })[0];
   }
   MC.famKid = famKid;
+  // le numéro de version (celui des fichiers, ?v=…) : pour vérifier que l'appli est à jour
+  function versionLine() { var l = document.querySelector('link[href*="style.css"]'), m = l && /v=(\d+)/.exec(l.getAttribute('href')); return m ? '<p class="small" style="margin:0;text-align:center;color:var(--dim)">Version ' + m[1] + '</p>' : ''; }
   function parentBar(fam, d, title) {
     var k = d.joueur, many = fam.enfants.length > 1;
     var who = (many ? '<button type="button" class="tb-switch" data-act="parentPick" aria-label="Enfant suivi : ' + esc(k.prenom) + '. Changer">' : '<span class="tb-switch" style="cursor:default">') +
@@ -353,7 +355,7 @@
         link('#/parent/bienvenue?revoir=1', 'play', 'Revoir la visite', 'Les 3 écrans du début') +
         '<div class="note">' + icon('heart', 20) + '<span><b>Le programme en bref.</b> Fait pour les 9-11 ans : poids du corps, pas de charge, 15 à 20 min. Une douleur qui revient (talon, genou) = pause des sauts et avis médical. Le vendredi reste un jour de repos.</span></div></section>' +
         '<a class="btn2 grey" href="#/adultes/code">' + icon('lock', 18) + ' Changer mon code parent</a>' +
-        '<button type="button" class="btn2 grey" data-act="adultLogout">' + icon('logout', 18) + ' Se déconnecter</button></div></div></main>';
+        '<button type="button" class="btn2 grey" data-act="adultLogout">' + icon('logout', 18) + ' Se déconnecter</button>' + versionLine() + '</div></div></main>';
     });
   }, { adult: 'f', nav: 'p:plus', bg: '#12333A' });
   MC.act.howInstall = function () {
@@ -541,7 +543,7 @@
         '<section class="sec"><h2 class="h2">Aide</h2>' +
         link(ui.helpLink('educ'), 'info', 'Comment ça marche ?', 'Le guide pour les éducs') +
         link('#/educ/nouveautes', 'news', 'Nouveautés', 'Ce qui a changé dans l\'appli') +
-        link('#/educ/bienvenue?revoir=1', 'play', 'Revoir la visite', 'Les écrans du début') + '</section></div></div></main>';
+        link('#/educ/bienvenue?revoir=1', 'play', 'Revoir la visite', 'Les écrans du début') + '</section>' + versionLine() + '</div></div></main>';
     });
   }, { adult: 'e', nav: 'e:gear', bg: '#2A1640' });
 

@@ -15,20 +15,6 @@ MC.app = (function () {
   function lsGet(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
   function lsSet(k, v) { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } }
 
-  // iPhone, appli installée sur l'écran d'accueil (iOS 26) : Safari floute une bande sous l'heure et la batterie.
-  // On mesure la zone du haut ; si l'appli dessine dessous (barre transparente), le contenu descend d'autant.
-  (function edgeTop() {
-    try {
-      var ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-      var app = navigator.standalone || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
-      if (!ios || !app) return;
-      var t = document.createElement('div');
-      t.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:0;padding-top:env(safe-area-inset-top,0px);visibility:hidden;pointer-events:none';
-      document.documentElement.appendChild(t);
-      var h = t.offsetHeight; t.remove();
-      if (h > 20) document.documentElement.style.setProperty('--edge', Math.round(h * 0.6) + 'px');
-    } catch (e) { }
-  })();
   // Une session mal formée (appli coupée au mauvais moment, ancienne version…) ne doit jamais bloquer
   // le démarrage : on la jette, l'enfant ou l'adulte retape simplement son code.
   function validKid(k) { return !!(k && typeof k === 'object' && typeof k.token === 'string' && k.token && k.joueur && typeof k.joueur === 'object' && k.joueur.id); }
