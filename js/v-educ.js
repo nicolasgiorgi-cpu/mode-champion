@@ -453,6 +453,7 @@ window.MC = window.MC || {};
       }).join('') + '</div></section></main>';
     }
     var x = jp(gr, st.joueurId), cur = persoDe(gr, st.joueurId), d = { etoiles: (x && x.etoiles) || [] };
+    var bloque = cur && cur.parQui && cur.parQui !== gr.moi.id && !gr.moi.admin;   // la mission d'un autre éduc : lui ou l'admin la remplace
     var doms = '<div class="skdoms">' + SK.DOMAINES.map(function (D) { var on = D.id === st.d; return '<button type="button" class="opt' + (on ? ' on' : '') + '" style="--oc:' + D.color + '" aria-pressed="' + on + '" data-act="nmDom" data-v="' + D.id + '">' + icon(D.icon, 16) + ' ' + esc(D.nom) + ' · ' + SK.carte(d, D.id).n + '/5</button>'; }).join('') + '</div>';
     var stars = st.d ? '<div class="sec" style="gap:6px">' + SK.carte(d, st.d).stars.map(function (s) {
       var on = st.e === s.def.id;
@@ -460,10 +461,11 @@ window.MC = window.MC || {};
     }).join('') + '</div>' : '';
     return '<main class="screen">' + bar + head +
       '<section class="sec"><div class="between"><h2 class="mlab" style="margin:0">Pour ' + esc(x ? x.joueur.prenom : '?') + '</h2>' + (q.joueur ? '' : '<button type="button" class="lnk" data-act="nmKid" data-v="">Changer</button>') + '</div>' +
-      (cur ? '<div class="note gold">' + icon('info', 20) + '<span>Elle remplace sa mission en cours « ' + esc(SK.titreMission(cur)) + ' » (ses +1 restent dans son historique).</span></div>' : '') + '</section>' +
+      (bloque ? '<div class="note">' + icon('info', 20) + '<span>' + esc(x ? x.joueur.prenom : '') + ' a déjà la mission « ' + esc(SK.titreMission(cur)) + ' », donnée par ' + esc(cur.parNom || 'un autre éduc') + ' : seul cet éduc (ou l\'admin) peut la remplacer. Encouragez-le avec un +1 !</span></div>' :
+        cur ? '<div class="note gold">' + icon('info', 20) + '<span>Elle remplace sa mission en cours « ' + esc(SK.titreMission(cur)) + ' » (ses +1 restent dans son historique).</span></div>' : '') + '</section>' +
       '<section class="sec"><h2 class="mlab" style="margin:0">La carte</h2>' + doms + '</section>' +
       (st.d ? '<section class="sec"><h2 class="mlab" style="margin:0">L\'étoile</h2>' + stars + '</section>' : '') +
-      '<button type="button" class="btn gold" data-act="nmPerso"' + (st.d && st.e ? '' : ' disabled') + '>' + icon('star', 18) + ' Donner la mission</button></main>';
+      '<button type="button" class="btn gold" data-act="nmPerso"' + (st.d && st.e && !bloque ? '' : ' disabled') + '>' + icon('star', 18) + ' Donner la mission</button></main>';
   }
   MC.act.nmKid = function (b) { NM.joueurId = b.getAttribute('data-v'); NM.d = ''; NM.e = ''; app.rerender(); };
   MC.act.nmDom = function (b) { NM.d = b.getAttribute('data-v'); NM.e = ''; app.rerender(); };

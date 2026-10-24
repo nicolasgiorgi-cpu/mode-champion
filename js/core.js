@@ -191,7 +191,7 @@ var Core = (function () {
     return d.getFullYear() + '-' + (m < 10 ? '0' : '') + m + '-' + (j < 10 ? '0' : '') + j;
   }
   function isoNow(ms) { return new Date(ms).toISOString(); }
-  function validDate(s) { return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s + 'T12:00:00')); }
+  function validDate(s) { if (typeof s !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false; var d = new Date(s + 'T12:00:00Z'); return !isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s; }
   function cleanText(s, max) {
     s = String(s === undefined || s === null ? '' : s).replace(/[\u0000-\u001f<>]/g, ' ').replace(/\s+/g, ' ').trim();
     return s.slice(0, max || 40);
@@ -1004,7 +1004,7 @@ var Core = (function () {
     pied: ['decolle', 'chandelle', 'rasant', 'ramasse', 'vise']
   };
   var MAX_PLUS1 = 5;
-  function skillOk(d, e) { return !!(SKILLS[d] && SKILLS[d].indexOf(e) >= 0); }
+  function skillOk(d, e) { return typeof d === 'string' && typeof e === 'string' && Object.prototype.hasOwnProperty.call(SKILLS, d) && SKILLS[d].indexOf(e) >= 0; }
   function educNom(ctx) { return ctx.auth.row.nom || 'Un éduc'; }
   function joueurActif(ctx, id) {
     var j = find(ctx.db.rows('joueurs'), String(id || ''));
@@ -1091,8 +1091,10 @@ var Core = (function () {
       var now = isoNow(ctx.now);
       ctx.db.update('etoiles', e.id, { retiree: true, maj: now });
       var rouvertes = [];
-      ctx.db.rows('defmissions').forEach(function (m) {
-        if (m.sorte === 'etoile' && m.statut === 'faite' && m.joueurId === e.joueurId && m.domaine === e.domaine && m.etoile === e.etoile) {
+      // une seule mission perso à la fois : si l'enfant en a déjà une autre en cours, l'ancienne reste « faite »
+      var autre = ctx.db.rows('defmissions').some(function (m) { return m.sorte === 'etoile' && m.statut === 'active' && m.joueurId === e.joueurId; });
+      if (!autre) ctx.db.rows('defmissions').forEach(function (m) {
+        if (!rouvertes.length && m.sorte === 'etoile' && m.statut === 'faite' && m.joueurId === e.joueurId && m.domaine === e.domaine && m.etoile === e.etoile) {
           ctx.db.update('defmissions', m.id, { statut: 'active', faiteLe: '', maj: now });
           rouvertes.push(m.id);
         }
@@ -1105,7 +1107,8 @@ var Core = (function () {
     if (!Array.isArray(qs)) qs = [];
     var out = qs.slice(0, 10).map(function (q) {
       if (!q || typeof q !== 'object') fail('invalide', 'Question invalide.');
-      var t = cleanText(q.q, 160), opts = (Array.isArray(q.opts) ? q.opts : []).slice(0, 4).map(function (o) { return cleanText(o, 90); }).filter(Boolean), ok = Number(q.ok);
+      if (typeof q.q !== 'string' || !Array.isArray(q.opts) || q.opts.some(function (o) { return typeof o !== 'string'; }) || typeof q.ok !== 'number') fail('invalide', 'Question invalide.');
+      var t = cleanText(q.q, 160), opts = q.opts.slice(0, 4).map(function (o) { return cleanText(o, 90); }).filter(Boolean), ok = q.ok;
       if (!t) fail('invalide', 'Une question est vide.');
       if (opts.length < 2) fail('invalide', 'Chaque question a besoin d\'au moins 2 réponses.');
       if (!(ok >= 0 && ok < opts.length && Math.floor(ok) === ok)) fail('invalide', 'Choisissez la bonne réponse de chaque question.');
@@ -1146,13 +1149,16 @@ var Core = (function () {
         parQui: me.id, parNom: educNom(ctx), faiteLe: '', cree: now, maj: now };
       if (sorte === 'etoile') {
         var j = joueurActif(ctx, req.joueurId);
-        if (!skillOk(String(req.domaine), String(req.etoile))) fail('invalide', 'Étoile inconnue.');
-        if (etoileActive(ctx, j.id, req.domaine, req.etoile)) fail('invalide', j.prenom + ' a déjà cette étoile.');
-        m.joueurId = j.id; m.domaine = String(req.domaine); m.etoile = String(req.etoile); m.xp = 0;
+        var dom = String(req.domaine || ''), et = String(req.etoile || '');
+        if (!skillOk(dom, et)) fail('invalide', 'Étoile inconnue.');
+        if (etoileActive(ctx, j.id, dom, et)) fail('invalide', j.prenom + ' a déjà cette étoile.');
+        m.joueurId = j.id; m.domaine = dom; m.etoile = et; m.xp = 0;
         if (!m.titre) m.titre = m.domaine + ' · ' + m.etoile;
         // une seule mission perso à la fois : la nouvelle remplace celle en cours (ses +1 restent dans l'historique)
         var encours = ctx.db.rows('defmissions').filter(function (x) { return x.sorte === 'etoile' && x.statut === 'active' && x.joueurId === j.id; });
         if (encours.length && !req.remplacer) fail('deja', j.prenom + ' a déjà une mission perso en cours.', { missionId: encours[0].id });
+        var autreEduc = encours.filter(function (x) { return x.parQui !== me.id; })[0];
+        if (autreEduc && !me.admin) fail('interdit', 'Sa mission en cours vient de ' + (autreEduc.parNom || 'un autre éduc') + ' : seul cet éduc (ou l\'admin) peut la remplacer.');
         encours.forEach(function (x) { ctx.db.update('defmissions', x.id, { statut: 'retiree', maj: now }); });
       } else {
         if (!m.titre) fail('invalide', 'Il faut un titre.');
@@ -1169,11 +1175,12 @@ var Core = (function () {
     run: function (req, ctx) {
       var me = ctx.auth.row, def = find(ctx.db.rows('defmissions'), String(req.missionId || ''));
       if (!def || def.statut === 'retiree' || (def.sorte !== 'video' && def.sorte !== 'qcm')) fail('introuvable', 'Mission introuvable.');
+      if (def.fin && def.fin < isoDate(ctx.now)) fail('finie', 'Cette mission est terminée.');
       var row = missionRow(ctx, me.id, def.id), r = row && row.reponses ? clone(row.reponses) : {}, qs = Array.isArray(def.questions) ? def.questions : [];
       if (req.vu) r.vu = true;
       if (req.reponses !== undefined && !Array.isArray(r.ans)) {
         if (!Array.isArray(req.reponses) || req.reponses.length !== qs.length) fail('invalide', 'Réponds à toutes les questions.');
-        var ans = req.reponses.map(function (a, i) { a = Number(a); if (!(a >= 0 && a < qs[i].opts.length && Math.floor(a) === a)) fail('invalide', 'Réponse invalide.'); return a; });
+        var ans = req.reponses.map(function (a, i) { if (typeof a !== 'number') fail('invalide', 'Réponse invalide.'); if (!(a >= 0 && a < qs[i].opts.length && Math.floor(a) === a)) fail('invalide', 'Réponse invalide.'); return a; });
         r.ans = ans; r.total = qs.length; r.score = ans.filter(function (a, i) { return a === qs[i].ok; }).length;
       }
       var faite = def.sorte === 'video' ? !!r.vu && (!qs.length || Array.isArray(r.ans)) : Array.isArray(r.ans);

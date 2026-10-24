@@ -104,7 +104,7 @@ window.MC = window.MC || {};
     var m = x.def, qs = m.questions || [], vid = m.sorte === 'video';
     var head = '<div class="head"><span class="kicker" style="color:var(--pink)">Pour toute l\'équipe' + (m.fin ? ' · jusqu\'au ' + jour(m.fin) : '') + (m.xp ? ' · +' + m.xp + ' XP' : '') + '</span><h1 class="big sm">' + esc(m.titre) + '</h1>' + (m.texte ? '<p class="lead">' + esc(m.texte) + '</p>' : '') + '</div>';
     var steps = vid && qs.length ? '<div class="qsteps"><span class="' + (x.vu ? 'done' : 'on') + '">' + (x.vu ? icon('check', 14) : '1') + ' · Vidéo' + (x.vu ? ' vue' : '') + '</span><span class="' + (x.faite ? 'done' : x.vu ? 'on' : '') + '">' + (x.faite ? icon('check', 14) : '2') + ' · Le quiz</span></div>' : '';
-    var video = vid ? '<div class="cp-vid" style="--c:var(--pink)"><div class="cp-vframe"><button type="button" class="cp-vplay" data-act="mVid" data-vid="' + esc(m.video) + '" data-mid="' + esc(m.id) + '" aria-label="Lire la vidéo : ' + esc(m.titre) + '"><img src="https://i.ytimg.com/vi/' + esc(m.video) + '/hqdefault.jpg" alt="" loading="lazy"><span class="pb">' + icon('play', 26, 'style="color:#0A0F1F"') + '</span></button></div></div>' : '';
+    var video = vid ? '<div class="cp-vid" style="--c:var(--pink)"><div class="cp-vframe"><button type="button" class="cp-vplay" data-act="mVid" data-vid="' + esc(m.video) + '" data-mid="' + esc(m.id) + '"' + (R.k ? ' data-k="1"' : '') + ' aria-label="Lire la vidéo : ' + esc(m.titre) + '"><img src="https://i.ytimg.com/vi/' + esc(m.video) + '/hqdefault.jpg" alt="" loading="lazy"><span class="pb">' + icon('play', 26, 'style="color:#0A0F1F"') + '</span></button></div></div>' : '';
     var quiz = '';
     if (x.faite || x.ans) {
       quiz = '<section class="sec"><div class="note green">' + icon('check', 22) + '<span><b>' + T(R, 'Mission faite', 'Mission faite') + ' le ' + jour(x.date) + (qs.length ? ' : ' + x.score + ' / ' + x.total + ' bonne' + (x.score > 1 ? 's' : '') + ' réponse' + (x.score > 1 ? 's' : '') : '') + '.</b>' + (x.xp ? ' +' + x.xp + ' XP' : '') + '</span></div>' +
@@ -140,7 +140,7 @@ window.MC = window.MC || {};
     var fr = b.parentNode, mid = b.getAttribute('data-mid');
     fr.innerHTML = ui.videoIframe(b.getAttribute('data-vid'));
     var me = app.S.me;
-    if (!me || !app.S.kid) return;   // un parent regarde : rien n'est noté
+    if (!me || !app.S.kid || !b.hasAttribute('data-k')) return;   // un parent regarde (même sur l'appareil d'un enfant) : rien n'est noté
     var x = M.groupe(me).filter(function (y) { return y.def.id === mid; })[0];
     if (x && !x.vu) kidRepondre({ missionId: mid, vu: true }).then(function () {
       // la vidéo continue de jouer : seules les étapes et les questions sont redessinées, dessous

@@ -92,6 +92,28 @@ r = g.call({ action: 'me', token: tom }); assert.strictEqual(r.etoiles.length, 1
 r = g.call({ action: 'defMission', token: nico, sorte: 'etoile', joueurId: P.Tom, domaine: 'plaquage', etoile: 'joue', remplacer: true }); assert.strictEqual(r.error, 'invalide');
 r = g.call({ action: 'defMission', token: nico, sorte: 'etoile', joueurId: P.Tom, domaine: 'passe', etoile: 'gauche', remplacer: true }); assert.ok(r.ok);
 r = g.call({ action: 'me', token: tom }); assert.strictEqual(r.defmissions.length, 1, 'l\'ancienne mission perso est retirée'); assert.strictEqual(r.defmissions[0].etoile, 'gauche');
+// la mission perso d'un autre éduc : seul lui (ou l'admin) la remplace
+r = g.call({ action: 'defMission', token: julien, sorte: 'etoile', joueurId: P.Tom, domaine: 'ruck', etoile: 'tete', remplacer: true }); assert.strictEqual(r.error, 'interdit');
+r = g.call({ action: 'me', token: tom }); assert.strictEqual(r.defmissions[0].etoile, 'gauche', 'la mission de Nico reste');
+r = g.call({ action: 'defMission', token: julien, sorte: 'etoile', joueurId: P.Hugo, domaine: 'ruck', etoile: 'dos-plat' }); assert.ok(r.ok); const mHugo = r.mission;
+r = g.call({ action: 'defMission', token: julien, sorte: 'etoile', joueurId: P.Hugo, domaine: 'ruck', etoile: 'appuis', remplacer: true }); assert.ok(r.ok, 'son auteur la remplace'); const mHugo2 = r.mission;
+r = g.call({ action: 'defMission', token: nico, sorte: 'etoile', joueurId: P.Hugo, domaine: 'ruck', etoile: 'tete', remplacer: true }); assert.ok(r.ok, 'l\'admin aussi'); const mHugo3 = r.mission;
+// retirer une étoile quand l'enfant a déjà une autre mission perso en cours : l'ancienne reste faite (jamais 2 en cours)
+r = g.call({ action: 'validerEtoiles', token: nico, etoiles: [{ joueurId: P.Hugo, domaine: 'ruck', etoile: 'tete' }] }); assert.ok(r.ok);
+r = g.call({ action: 'defMission', token: nico, sorte: 'etoile', joueurId: P.Hugo, domaine: 'ruck', etoile: 'gagne' }); assert.ok(r.ok, 'la mission faite ne bloque pas');
+const eT = g.call({ action: 'group', token: nico }).joueurs.find(p => p.joueur.id === P.Hugo).etoiles.find(e => e.etoile === 'tete');
+r = g.call({ action: 'retirerEtoile', token: nico, id: eT.id }); assert.ok(r.ok); assert.deepStrictEqual(r.missionsRouvertes, []);
+r = g.call({ action: 'group', token: nico }); assert.strictEqual(r.defmissions.filter(m => m.sorte === 'etoile' && m.joueurId === P.Hugo && m.statut === 'active').length, 1);
+// entrées bizarres : refusées proprement, sans planter le serveur
+['__proto__', 'constructor', 'toString'].forEach(function (d) {
+  r = g.call({ action: 'validerEtoiles', token: nico, etoiles: [{ joueurId: P.Hugo, domaine: d, etoile: 'x' }] }); assert.notStrictEqual(r.error, 'serveur', d);
+  r = g.call({ action: 'defMission', token: nico, sorte: 'etoile', joueurId: P.Hugo, domaine: d, etoile: 'x', remplacer: true }); assert.strictEqual(r.error, 'invalide', d);
+});
+r = g.call({ action: 'defMission', token: nico, sorte: 'etoile', joueurId: P.Tom, domaine: ['plaquage'], etoile: 'joue', remplacer: true }); assert.strictEqual(r.error, 'invalide', 'étoile déjà gagnée, même écrite en tableau');
+r = g.call({ action: 'defMission', token: nico, sorte: 'qcm', titre: 'X', questions: [{ q: { toString: 1 }, opts: ['a', 'b'], ok: 0 }] }); assert.strictEqual(r.error, 'invalide');
+r = g.call({ action: 'defMission', token: nico, sorte: 'qcm', titre: 'X', questions: [{ q: 'Q', opts: ['a', 'b'], ok: '1' }] }); assert.strictEqual(r.error, 'invalide');
+r = g.call({ action: 'defMission', token: nico, sorte: 'qcm', titre: 'X', fin: '2026-02-31', questions: [{ q: 'Q', opts: ['a', 'b'], ok: 1 }] }); assert.ok(r.ok); assert.strictEqual(r.mission.fin, '', 'date impossible ignorée');
+g.call({ action: 'defMission', token: nico, id: r.mission.id, retirer: true });
 
 // ----- missions du groupe : vidéo + quiz, QCM -----
 const qs = [{ q: 'Au ruck, où est ta tête ?', opts: ['Devant le ballon', 'Au-dessus, dos plat', 'Baissée'], ok: 1 }, { q: 'Tu rentres…', opts: ['Par le côté', 'Dans l\'axe'], ok: 1 }];
@@ -109,6 +131,7 @@ r = g.call({ action: 'repondreMission', token: famTom, missionId: mVid.id, vu: t
 r = g.call({ action: 'repondreMission', token: lea, missionId: mVid.id, vu: true });
 assert.ok(r.ok, JSON.stringify(r)); let ml = r.missions.find(m => m.mission === mVid.id); assert.strictEqual(ml.faite, false); assert.strictEqual(ml.reponses.vu, true);
 r = g.call({ action: 'repondreMission', token: lea, missionId: mVid.id, reponses: [1] }); assert.strictEqual(r.error, 'invalide', 'toutes les questions');
+r = g.call({ action: 'repondreMission', token: lea, missionId: mVid.id, reponses: [null, true] }); assert.strictEqual(r.error, 'invalide', 'réponses = des nombres');
 r = g.call({ action: 'repondreMission', token: lea, missionId: mVid.id, reponses: [1, 0] });
 ml = r.missions.find(m => m.mission === mVid.id); assert.strictEqual(ml.faite, true); assert.strictEqual(ml.reponses.score, 1); assert.strictEqual(ml.reponses.total, 2);
 r = g.call({ action: 'repondreMission', token: lea, missionId: mVid.id, reponses: [1, 1] });
@@ -121,6 +144,10 @@ r = g.call({ action: 'defMission', token: nico, id: mQcm.id, fin: '2026-11-30' }
 r = g.call({ action: 'defMission', token: julien, id: mQcm.id, retirer: true }); assert.ok(r.ok); assert.strictEqual(r.mission.statut, 'retiree');
 r = g.call({ action: 'me', token: lea }); assert.strictEqual(r.defmissions.length, 1);
 r = g.call({ action: 'repondreMission', token: tom, missionId: mQcm.id, reponses: [2] }); assert.strictEqual(r.error, 'introuvable');
+r = g.call({ action: 'defMission', token: nico, sorte: 'qcm', titre: 'Fini', questions: [{ q: 'Q', opts: ['a', 'b'], ok: 1 }] }); const mFini = r.mission;
+r = g.call({ action: 'defMission', token: nico, id: mFini.id, fin: '2020-01-01' }); assert.ok(r.ok);
+r = g.call({ action: 'repondreMission', token: tom, missionId: mFini.id, reponses: [1] }); assert.strictEqual(r.error, 'finie', 'mission terminée : plus de XP');
+g.call({ action: 'defMission', token: nico, id: mFini.id, retirer: true });
 
 // ----- l'éduc voit tout dans le groupe -----
 r = g.call({ action: 'group', token: julien });
