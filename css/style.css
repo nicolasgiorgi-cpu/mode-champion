@@ -1297,3 +1297,12 @@ textarea.txt{min-height:84px;padding:10px 12px;resize:vertical;font:500 16px/1.4
   .skdoms{grid-template-columns:repeat(4,minmax(0,1fr))}
 }
 @media (prefers-reduced-motion:reduce){ .sk-card{transition:none} }
+/* Compos : réponse Spond en attente (horloge dorée) ou plus là (barré, « absent ») ; heure dans le carré de date */
+.cfl.catt{color:var(--gold)}
+.cpj.gone{opacity:.75;border-color:var(--pink)}
+.cpj.gone .cpn{text-decoration:line-through;text-decoration-color:var(--pink)}
+.cpo.cabs{background:var(--pink);color:#070A12}
+.catt-sec .clvh{color:var(--gold)}
+.cdate.h{height:60px}
+.cdate small.ch{color:var(--cyan);letter-spacing:.02em}
+.cattcol{display:flex;flex-direction:column;gap:6px;min-width:0;border:1px dashed color-mix(in srgb,var(--gold) 55%,transparent);border-top:3px solid var(--gold);padding:8px;background:rgba(10,15,31,.4)}

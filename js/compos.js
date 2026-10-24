@@ -736,6 +736,20 @@ MC.compos = (function () {
     (e.presents || []).concat(e.ajouts || []).forEach(function (id) { if (ret.indexOf(id) < 0 && out.indexOf(id) < 0) out.push(id); });
     return out;
   }
+  // les enfants qui n'ont pas encore répondu sur Spond (ni présents, ni absents, ni retirés à la main) :
+  // on peut les placer en attendant ; s'ils répondent « non », la compo le signale
+  function attente(e) {
+    var p = presents(e), non = (e.absents || []).concat(e.retraits || []), out = [];
+    (e.sansReponse || []).forEach(function (id) { if (p.indexOf(id) < 0 && non.indexOf(id) < 0 && out.indexOf(id) < 0) out.push(id); });
+    return out;
+  }
+  // retirer des joueurs d'une compo (ni équipe, ni « Pas placés ») : ceux qui ont répondu absent
+  function retirer(c, ids) {
+    var o = clone(c);
+    (o.equipes || []).forEach(function (t) { t.joueurs = t.joueurs.filter(function (j) { return ids.indexOf(j.id) < 0; }); });
+    o.banc = (o.banc || []).filter(function (id) { return ids.indexOf(id) < 0; });
+    return o;
+  }
   // nature d'un événement d'après son titre (et le jour)
   function sorteDuTitre(titre) {
     var t = String(titre || '').toLowerCase();
@@ -748,7 +762,7 @@ MC.compos = (function () {
     NIV: NIV, NOM_NIV: NOM_NIV, COUL_NIV: COUL_NIV, POSTES10: POSTES10, SEUIL: SEUIL, BON: BON, TAILLE: TAILLE, FORMATS: FORMATS,
     fiches: fiches, historique: historique, hOf: hOf, suggestNb: suggestNb, teamIds: teamIds, nbOf: nbOf, fmt: fmt,
     proposer: proposer, vide: vide, stats: stats, alertes: alertes, apparier: apparier, scoreNiveau: scoreNiveau,
-    moveTo: moveTo, swap: swap, setPoste: setPoste, where: where, diff: diff, presents: presents, sorteDuTitre: sorteDuTitre,
+    moveTo: moveTo, swap: swap, setPoste: setPoste, where: where, diff: diff, presents: presents, attente: attente, retirer: retirer, sorteDuTitre: sorteDuTitre,
     nomPoste: nomPoste, frDate: frDate,
     STYLES: STYLES, AVANTS: AVANTS, postesDe: postesDe, posteDefaut: posteDefaut, typePoste: typePoste, typeDe: typeDe, sections: sections, ORDRE: ORDRE,
     PARTIES: PARTIES, regEnt: regEnt, proposerEnt: proposerEnt, videEnt: videEnt, reprendre: reprendre, alertesEnt: alertesEnt,

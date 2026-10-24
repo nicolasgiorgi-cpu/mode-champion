@@ -70,6 +70,15 @@ window.MC = window.MC || {};
   function navEvt(id) { var cd = app.S.cache.compos; return sorteDe(cd, id) === 'entrainement' ? 'e:entrain' : 'e:plateaux'; }
   MC.evtListe = listeDe;
   function presentsOf(C, e) { return K.presents(e).filter(function (id) { return C.actifs[id]; }); }
+  // pas encore répondu sur Spond : plaçables en attendant leur réponse
+  function attenteOf(C, e) { return K.attente(e).filter(function (id) { return C.actifs[id]; }); }
+  // les joueurs d'une compo publiée qui ne viennent plus (répondu absent, retirés des présents)
+  function partisDe(C, e, c) {
+    if (!c || !c.equipes) return [];
+    var pres = presentsOf(C, e), att = attenteOf(C, e), out = [];
+    c.equipes.forEach(function (t) { t.joueurs.forEach(function (j) { if (pres.indexOf(j.id) < 0 && att.indexOf(j.id) < 0 && out.indexOf(j.id) < 0) out.push(j.id); }); });
+    return out;
+  }
   function jour(e) { return String(e.debut || '').slice(0, 10); }
   function heure(e) {
     if (e.source !== 'spond') return '';
@@ -155,9 +164,14 @@ window.MC = window.MC || {};
     var nCat = ((C.cd.spond && C.cd.spond.categories) || []).filter(function (x) { return x.suivie; }).length;
     if (nCat > 1 && e.categorie) chip = '<span class="pill" style="--pc:var(--line3);color:var(--ink)">' + esc(e.categorie) + '</span>' + chip;
     var sr = (e.sansReponse || []).filter(function (id) { return C.actifs[id] && pres.indexOf(id) < 0; }).length;
+    // entraînement : le titre dit le lieu, le carré la date et l'heure (pas de ligne en plus)
+    var trainC = e.sorte === 'entrainement', h = heure(e);
+    var partis = [];
+    [compoOf(C.cd, e.id)].concat(K.PARTIES.map(function (x) { return compoOf(C.cd, e.id, x); })).forEach(function (cx) { partisDe(C, e, cx).forEach(function (id) { if (partis.indexOf(id) < 0) partis.push(id); }); });
+    if (partis.length && !past) chip += '<span class="pill" style="--pc:var(--pink)">' + partis.length + ' absent' + (partis.length > 1 ? 's' : '') + ' dans ' + (trainC ? 'les groupes' : 'la compo') + '</span>';
     return '<li><a class="li cev' + (past ? ' past' : '') + (prochain ? ' cnext' : '') + '" href="#/educ/evt/' + esc(e.id) + '">' +
-      '<span class="cdate"><b>' + esc(String(new Date(jour(e) + 'T12:00:00').getDate())) + '</b><small>' + esc(ui.fmtDate(jour(e)).split(' ').slice(-1)[0]) + '</small></span>' +
-      '<span class="grow">' + (prochain ? '<span class="hud" style="color:var(--cyan);display:block;margin-bottom:4px">Le prochain</span>' : '') + '<span class="t1">' + esc(e.titre) + '</span><span class="t2">' + esc(quand(e)) + (e.lieu ? ' · ' + esc(e.lieu) : '') + '</span>' +
+      '<span class="cdate' + (trainC && h ? ' h' : '') + '"><b>' + esc(String(new Date(jour(e) + 'T12:00:00').getDate())) + '</b><small>' + esc(ui.fmtDate(jour(e)).split(' ').slice(-1)[0]) + '</small>' + (trainC && h ? '<small class="ch">' + esc(h) + '</small>' : '') + '</span>' +
+      '<span class="grow">' + (prochain ? '<span class="hud" style="color:var(--cyan);display:block;margin-bottom:4px">Le prochain</span>' : '') + '<span class="t1">' + esc(e.titre) + '</span>' + (trainC ? '' : '<span class="t2">' + esc(quand(e)) + (e.lieu ? ' · ' + esc(e.lieu) : '') + '</span>') +
       '<span class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap">' + chip +
       '<span class="cmeta">' + icon('group', 14) + ' ' + pres.length + ' présent' + (pres.length > 1 ? 's' : '') + (sr && !past ? ' · ' + sr + ' sans réponse' : '') + '</span>' +
       (av.length ? '<span class="pill" style="--pc:var(--pink)">' + av.length + ' contre-proposition' + (av.length > 1 ? 's' : '') + '</span>' : '') + '</span></span>' + icon('right', 16) + '</a></li>';
@@ -337,6 +351,7 @@ window.MC = window.MC || {};
   // ======================================================================
   // Un événement : les présents, la compo
   // ======================================================================
+  var ATT = null;   // réponses Spond pour le tableau affiché : { pres: {id:1}, att: {id:1} } (null : on ne marque rien)
   var PR = { evtId: null, chg: {} };   // présents modifiés (id → true présent / false absent), en attente d'enregistrement
   app.route('/educ/evt/:id', function (p, q, cur) {
     return both().then(function (r) {
@@ -832,8 +847,10 @@ window.MC = window.MC || {};
     else if (t) { var pp = K.posteDefaut(f); tag = pp ? '<span class="cpo ty" title="Poste principal (fiche)' + (ty === 'les2' ? ', joue aussi ' + (K.typePoste(pp) === 'av' ? 'arrière' : 'avant') : '') + '">' + (ty === 'les2' ? '⇄ ' : '') + COURT[pp] + '</span>' : ''; }
     else tag = ty ? '<span class="cpo ty">' + (ty === 'av' ? 'Av' : ty === 'ar' ? 'Ar' : 'Av·Ar') + '</span>' : '';
     var on = B && B.sel && B.sel.v === v && B.sel.id === j.id;
-    return '<li><button type="button" class="cpj' + (on ? ' sel' : '') + (moved ? ' moved' : '') + (warn ? ' warn' : '') + '" data-act="cPick" data-v="' + v + '" data-id="' + esc(j.id) + '" aria-pressed="' + !!on + '">' +
-      '<span class="cpn">' + esc(f.prenom) + '</span>' + tag + '<span class="row cfls">' + starsMini(f.plaquage || 0) + lv + heart + (f.niveau ? '' : '<span class="cfl cq" title="Niveau à renseigner">?</span>') + '</span></button></li>';
+    // réponse Spond : en attente (horloge) ou plus là (barré, « absent »)
+    var att = ATT && ATT.att[j.id], gone = ATT && t && !ATT.pres[j.id] && !att;
+    return '<li><button type="button" class="cpj' + (on ? ' sel' : '') + (moved ? ' moved' : '') + (warn ? ' warn' : '') + (gone ? ' gone' : '') + '" data-act="cPick" data-v="' + v + '" data-id="' + esc(j.id) + '" aria-pressed="' + !!on + '">' +
+      '<span class="cpn">' + esc(f.prenom) + '</span>' + (gone ? '<span class="cpo cabs">absent</span>' : tag) + '<span class="row cfls">' + (att ? '<span class="cfl catt" title="Pas encore répondu sur Spond">' + icon('clock', 12) + '</span>' : '') + starsMini(f.plaquage || 0) + lv + heart + (f.niveau ? '' : '<span class="cfl cq" title="Niveau à renseigner">?</span>') + '</span></button></li>';
   }
   // le banc d'une version : « Pas placés » + les présents arrivés après la compo (venus sans répondre…)
   function bancOf(d, presents) {
@@ -885,6 +902,13 @@ window.MC = window.MC || {};
           (bdest ? '<span class="cdest">' + icon('down', 12) + ' Ici</span>' : '') + '</button><ul class="cpl">' + banc.map(function (id) { return chip(C, null, { id: id }, v, vs[v], (o.moved[v] || {})[id]); }).join('') + '</ul></section></div>';
       }).join('') + '</div></section>';
     }
+    // « En attente de réponse » : pas encore répondu sur Spond, à placer si on veut, en attendant
+    var atts = vs.map(function (d) { return (o.attente || []).filter(function (id) { return !K.where(d, id) && (d.banc || []).indexOf(id) < 0; }); });
+    if (atts.some(function (a) { return a.length; })) {
+      html += '<section class="clevel banc catt-sec"><h3 class="clvh">' + icon('clock', 14) + ' En attente de réponse <span class="small">· pas encore répondu sur Spond : vous pouvez les placer en attendant</span></h3><div class="cvcols nv' + nv + '">' + atts.map(function (a, v) {
+        return '<div class="cvcol"><section class="cattcol"><ul class="cpl">' + a.map(function (id) { return chip(C, null, { id: id }, v, vs[v], false); }).join('') + '</ul></section></div>';
+      }).join('') + '</div></section>';
+    }
     return '<div class="cboard2">' + html + '</div>';
   }
   // résumé d'une version (pour comparer) : alertes, écart de plaquage, copains
@@ -897,20 +921,29 @@ window.MC = window.MC || {};
     });
     return { al: al, avec: avec, ont: ont, gap: Math.round(gap * 10) / 10, warn: al.filter(function (a) { return a.niveau === 'warn'; }).length };
   }
-  function alertesHtml(C, d, v, presents, nv) {
-    var al = alertesOf(C, d, presents);
+  // les alertes d'une version + en tête : les absents (à retirer en un geste) et ceux placés en attente de réponse
+  function alertesFull(C, d, presents, att) {
+    var al = alertesOf(C, d, presents); att = att || [];
     var placed = []; d.equipes.forEach(function (t) { t.joueurs.forEach(function (j) { placed.push(j.id); }); });
-    var partis = placed.filter(function (id) { return presents.indexOf(id) < 0; });
-    if (partis.length) al.unshift({ k: 'parti', niveau: 'warn', texte: 'Plus dans les présents : ' + partis.map(function (id) { return nom(C, id); }).join(', ') + '.', fix: null });
+    var enAtt = placed.filter(function (id) { return presents.indexOf(id) < 0 && att.indexOf(id) >= 0; });
+    var partis = placed.filter(function (id) { return presents.indexOf(id) < 0 && att.indexOf(id) < 0; });
+    function noms(l) { return l.map(function (id) { return nom(C, id); }).join(', '); }
+    if (enAtt.length) al.unshift({ k: 'attente', niveau: 'info', texte: 'Placé' + (enAtt.length > 1 ? 's' : '') + ' en attendant sa réponse sur Spond : ' + noms(enAtt) + '. S\'il répond « non », l\'appli le signale ici.' });
+    if (partis.length) al.unshift({ k: 'parti', niveau: 'warn', texte: (partis.length > 1 ? 'Ne viennent plus (absents sur Spond ou retirés des présents) : ' : 'Ne vient plus (absent sur Spond ou retiré des présents) : ') + noms(partis) + '.', fix: { t: 'out', ids: partis, lab: 'Retirer', texte: 'Retiré' + (partis.length > 1 ? 's' : '') + ' : ' + noms(partis) } });
+    return al;
+  }
+  function alertesHtml(C, d, v, presents, nv, att) {
+    var al = alertesFull(C, d, presents, att);
     var head = nv > 1 ? vName(v) : 'À regarder';
     if (!al.length) return '<div class="empty" style="border-color:rgba(61,255,176,.4);color:var(--green)">' + icon('check', 16) + ' ' + (nv > 1 ? vName(v) + ' : rien' : 'Rien') + ' à signaler.</div>';
     return '<details class="calertw"' + (nv > 1 ? '' : ' open') + '><summary class="between"><h2 class="h2">' + head + '</h2><span class="hud" style="color:var(--orange)">' + al.length + ' à regarder</span></summary><ul class="list calerts">' + al.map(function (a, i) {
       return '<li class="li ' + (a.niveau === 'warn' ? 'warn' : 'info') + '">' + icon(a.niveau === 'warn' ? 'warn' : 'info', 18, 'style="flex:none"') + '<span class="grow small" style="color:var(--soft)">' + esc(a.texte) + '</span>' +
-        (a.fix && editable() ? '<button type="button" class="btn2 sm" data-act="cFix" data-v="' + v + '" data-i="' + i + '" title="' + esc(a.fix.texte) + '">Corriger</button>' : '') + '</li>';
+        (a.fix && editable() ? '<button type="button" class="btn2 sm" data-act="cFix" data-v="' + v + '" data-i="' + i + '" title="' + esc(a.fix.texte) + '">' + (a.fix.lab || 'Corriger') + '</button>' : '') + '</li>';
     }).join('') + '</ul></details>';
   }
   function paintBoard(C, e) {
-    var vs = B.vs, nv = vs.length, c = compoOf(C.cd, e.id, B.partie), presents = presentsOf(C, e);
+    var vs = B.vs, nv = vs.length, c = compoOf(C.cd, e.id, B.partie), presents = presentsOf(C, e), att = attenteOf(C, e);
+    ATT = { pres: {}, att: {} }; presents.forEach(function (id) { ATT.pres[id] = 1; }); att.forEach(function (id) { ATT.att[id] = 1; });
     var fmt = vs[0].reglages.format, P = B.partie;
     // ce qui change : par rapport à la compo publiée (modif, contre-proposition), ou entre les 2 versions
     var moved = vs.map(function () { return {}; });
@@ -956,8 +989,8 @@ window.MC = window.MC || {};
       (P ? stepsHtml(C, e, P) : '') + state + avBlock + cmp +
       '<p class="small" style="margin:0">' + (ed ? 'Touchez un joueur, puis son ' + (P === 'ateliers' ? 'groupe' : 'équipe') + ' d\'arrivée (ou un joueur d\'' + (P === 'ateliers' ? 'un autre groupe' : 'une autre équipe') + ' : ils s\'échangent). Pour ' + (P === 'ateliers' ? 'remplir un groupe' : 'composer une équipe') + ', touchez son nom' + (fmt === 10 ? ' ou une place vide (+)' : ' ou « + Ajouter des joueurs »') + '.' + (nv > 1 ? ' Chaque version se modifie à part.' : '') : 'Touchez un joueur pour voir sa fiche.') + (communes ? ' <b style="color:var(--yellow)">Entourés</b> : placés autrement d\'une version à l\'autre.' : '') + '</p>' +
       '<p class="small clegend"><span>' + icon('star', 11) + ' plaquage moyen</span><span>' + icon('shield', 11) + ' bons plaqueurs</span><span>' + icon('heart', 11) + ' avec un copain</span><span>⇅ hors niveau</span><span>Av avants · Ar arrières</span></p>' +
-      boardHtml(C, { vs: vs, presents: presents, moved: moved, ed: ed }) +
-      '<section class="sec">' + vs.map(function (d, v) { return alertesHtml(C, d, v, presents, nv); }).join('') + '</section>' +
+      boardHtml(C, { vs: vs, presents: presents, attente: att, moved: moved, ed: ed }) +
+      '<section class="sec">' + vs.map(function (d, v) { return alertesHtml(C, d, v, presents, nv, att); }).join('') + '</section>' +
       rsAll + hist + avHist + suite +
       (B.mode === 'draft' && nv === 1 ? '<button type="button" class="btn2" data-act="cAddV">' + icon('plus', 16) + ' Ajouter une 2e version à côté</button>' : '') +
       (B.mode === 'draft' ? '<button type="button" class="lnk" data-act="cDiscard" style="align-self:flex-start">Effacer le brouillon</button>' :
@@ -1130,7 +1163,7 @@ window.MC = window.MC || {};
         return '<button type="button" class="cprow' + (w && w.t >= 0 ? ' ailleurs' : '') + '" data-pk="' + esc(id) + '">' +
           '<span class="row" style="gap:8px;min-width:0">' + niveauTag(f.niveau, true) + '<b class="cprn">' + esc(f.prenom) + '</b>' + starsMini(f.plaquage || 0) + '</span>' +
           '<span class="cprm">' + (ps.length ? ps.map(function (x, i) { return (S.p === x ? '<b>' : '') + COURT[x] + (i === 0 && ps.length > 1 ? '★' : '') + (S.p === x ? '</b>' : ''); }).join(', ') : 'pas encore de poste') +
-          ' · <span class="' + (w && w.t >= 0 ? 'cpr-ou' : '') + '">' + ou + '</span>' + (hors ? ' · <span style="color:var(--violet)">niveau ' + f.niveau + '</span>' : '') + '</span>' +
+          ' · <span class="' + (w && w.t >= 0 ? 'cpr-ou' : '') + '">' + ou + '</span>' + (ATT && ATT.att[id] ? ' · <span style="color:var(--gold)">pas encore répondu</span>' : '') + (hors ? ' · <span style="color:var(--violet)">niveau ' + f.niveau + '</span>' : '') + '</span>' +
           (cps.length ? '<span class="cprm" style="color:var(--pink)">' + icon('heart', 11) + ' avec ' + esc(cps.join(', ')) + '</span>' : '') + '</button>';
       }
       function corps() {
@@ -1140,6 +1173,7 @@ window.MC = window.MC || {};
         var pool = [];
         dd.equipes.forEach(function (x) { x.joueurs.forEach(function (j) { pool.push(j.id); }); });
         bancOf(dd, presentsOf(C, e)).forEach(function (id) { if (pool.indexOf(id) < 0) pool.push(id); });
+        attenteOf(C, e).forEach(function (id) { if (pool.indexOf(id) < 0) pool.push(id); });   // pas encore répondu sur Spond
         pool = pool.filter(function (id) { return !dans[id]; });
         function placeAilleurs(id) { var w = K.where(dd, id); return !!(w && w.t >= 0); }
         function fit(id) {
@@ -1214,13 +1248,11 @@ window.MC = window.MC || {};
   MC.act.cFix = function (b) {
     withC(function (C, e) {
       var v = Number(b.getAttribute('data-v')) || 0, d = B.vs[v], pres = presentsOf(C, e);
-      var al = alertesOf(C, d, pres);
-      var placed = []; d.equipes.forEach(function (t) { t.joueurs.forEach(function (j) { placed.push(j.id); }); });
-      if (placed.some(function (id) { return pres.indexOf(id) < 0; })) al.unshift({ fix: null });
+      var al = alertesFull(C, d, pres, attenteOf(C, e));
       var a = al[Number(b.getAttribute('data-i'))];
       if (!a || !a.fix) return;
       var fx = a.fix;
-      change(function () { B.vs[v] = fx.t === 'swap' ? K.swap(d, fx.a, fx.b, C.F) : K.moveTo(d, fx.id, fx.vers, C.F); });
+      change(function () { B.vs[v] = fx.t === 'out' ? K.retirer(d, fx.ids) : fx.t === 'swap' ? K.swap(d, fx.a, fx.b, C.F) : K.moveTo(d, fx.id, fx.vers, C.F); });
       ui.toast(fx.texte);
     });
   };
@@ -1470,6 +1502,7 @@ window.MC = window.MC || {};
     var canDecide = att && c && (c.auteur === me.id || me.admin), mine = att && a.auteur === me.id;
     var prev = { reglages: c ? c.reglages : { format: 5 }, equipes: a.equipes, banc: a.banc };
     var saveB = B; B = { vs: [prev], sel: null, mode: 'view', undo: [] };
+    ATT = null;
     var board = boardHtml(C, { vs: [prev], presents: [], moved: [moved], ed: false });
     B = saveB;
     var stale = att && c && Number(a.version) !== Number(c.version);
