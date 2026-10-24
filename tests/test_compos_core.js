@@ -6,7 +6,7 @@ const { makeEnv } = require('./gas_mock.js');
 function setup(opts) {
   const g = makeEnv(opts);
   g.installer();
-  const adminCode = g._logs.join('\n').match(/administrateur.*?: (\d{6})/)[1];
+  const adminCode = g._logs.join('\n').match(/administrateur.*?: (\d{4})/)[1];
   let r = g.call({ action: 'adultLogin', code: adminCode }); const nico = r.token;
   r = g.call({ action: 'addEduc', token: nico, nom: 'Cyril' }); const cyrilCode = r.code;
   r = g.call({ action: 'adultLogin', code: cyrilCode }); const cyril = r.token;
@@ -395,7 +395,7 @@ function http2(url, params) {
 }
 ({ g, nico, cyril, P } = (function () {
   const x = makeEnv({ spond: http2 }); x.installer();
-  const code = x._logs.join('\n').match(/administrateur.*?: (\d{6})/)[1];
+  const code = x._logs.join('\n').match(/administrateur.*?: (\d{4})/)[1];
   const tok = x.call({ action: 'adultLogin', code }).token, PP = {};
   ['Baptiste', 'Zoé', 'Tom'].forEach(n => { PP[n] = x.call({ action: 'addPlayer', token: tok, prenom: n }).joueur.id; });
   return { g: x, nico: tok, cyril: null, P: PP };
@@ -448,7 +448,7 @@ function http3(url, params) {
 }
 function setup3(opts) {
   const x = makeEnv(Object.assign({ spond: http3 }, opts || {})); x.installer();
-  const code = x._logs.join('\n').match(/administrateur.*?: (\d{6})/)[1];
+  const code = x._logs.join('\n').match(/administrateur.*?: (\d{4})/)[1];
   const adm = x.call({ action: 'adultLogin', code }).token;
   const cc = x.call({ action: 'addEduc', token: adm, nom: 'Cyril' }).code;
   const cy = x.call({ action: 'adultLogin', code: cc }).token, PP = {};

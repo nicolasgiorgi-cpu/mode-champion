@@ -37,7 +37,7 @@ with sync_playwright() as p:
     errs = []; pg.on('pageerror', lambda e: errs.append(str(e)))
     pg.goto(BASE); pg.wait_for_timeout(500); pg.evaluate('localStorage.clear()'); pg.goto(BASE); pg.wait_for_timeout(800)
     # ----- éduc -----
-    pg.evaluate("MC.api.call('adultLogin',{code:MC.demo.CODES.educ}).then(r=>{MC.app.setAdult({token:r.token,role:r.role,nom:r.nom,admin:r.admin});location.hash='#/educ'})"); pg.wait_for_timeout(1500)
+    pg.evaluate("MC.api.call('educsListe',{}).then(l=>MC.api.call('adultLogin',{role:'e',educId:l.educs.find(e=>e.nom==='Coach Nico').id,code:MC.demo.CODES.educ})).then(r=>{MC.app.setAdult({token:r.token,role:r.role,nom:r.nom,admin:r.admin});location.hash='#/educ'})"); pg.wait_for_timeout(1500)
     tid = pg.evaluate("MC.loadGroup().then(g=>g.joueurs.find(p=>p.joueur.prenom==='Tom').joueur.id)")
     avis = pg.evaluate("MC.loadCompos().then(c=>c.avis[0] && c.avis[0].id)")
     audit(pg, ['#/educ', '#/educ/entrainements', '#/educ/plateaux', '#/educ/progres', '#/educ/skills', '#/educ/missions', '#/educ/joueurs', '#/educ/compos', '#/educ/classement', '#/educ/reglages', '#/educ/joueur/' + tid, '#/educ/ajouter', '#/educ/familles',
@@ -55,7 +55,7 @@ with sync_playwright() as p:
     # ----- parent -----
     pg.goto(BASE + '#/educ/reglages'); pg.wait_for_timeout(500)
     pg.evaluate("MC.app.setAdult(null)")
-    pg.evaluate("MC.api.call('adultLogin',{code:MC.demo.CODES.parent}).then(r=>{MC.app.setAdult({token:r.token,role:r.role,nom:r.nom,admin:r.admin});location.hash='#/parent'})"); pg.wait_for_timeout(1500)
+    pg.evaluate("MC.api.call('roster',{}).then(l=>MC.api.call('adultLogin',{role:'f',joueurId:l.joueurs.find(j=>j.prenom==='Tom').id,code:MC.demo.CODES.parent})).then(r=>{MC.app.setAdult({token:r.token,role:r.role,nom:r.nom,admin:r.admin});location.hash='#/parent'})"); pg.wait_for_timeout(1500)
     audit(pg, ['#/parent', '#/parent/bilans', '#/parent/classement', '#/parent/missions', '#/parent/missions/perso', '#/parent/missions/mots', '#/parent/skills', '#/parent/skills/plaquage', '#/parent/plus', '#/parent/nouveautes'])
     pg.evaluate("MC.app.setAdult(null)")
     # ----- enfant -----

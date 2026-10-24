@@ -4,6 +4,8 @@ errs=[]
 def pin(pg, code, sel='.modal'):
     for c in code:
         pg.click('.modal [data-k="%s"], #adultzone [data-k="%s"]'%(c,c)); pg.wait_for_timeout(60)
+def pick(pg, nom):
+    pg.click('[data-act="adultPick"][data-nom="%s"]' % nom); pg.wait_for_timeout(300)
 with sync_playwright() as p:
     b=p.chromium.launch()
     for (w,h,name,touch) in [(390,844,'phone',True),(820,1180,'ipad',True)]:
@@ -32,7 +34,7 @@ with sync_playwright() as p:
         pg.goto(BASE+'#/reglages'); pg.wait_for_timeout(600); assert 'Comment ça marche' in pg.text_content('main')
         # parent
         pg.goto(BASE+'#/adultes'); pg.wait_for_timeout(600); assert 'Comment ça marche' in pg.text_content('main')
-        pin(pg,'123456'); pg.wait_for_timeout(1200)
+        pick(pg, 'Tom'); pin(pg,'1357'); pg.wait_for_timeout(1200)
         assert pg.is_visible('.topbar a[aria-label^="Aide"]'), 'aide parent'
         pg.click('.topbar a[aria-label^="Aide"]'); pg.wait_for_timeout(500)
         print(name, 'onglet parent ouvert :', pg.get_attribute('[data-act="guideTab"][data-v="parent"]','aria-selected'))

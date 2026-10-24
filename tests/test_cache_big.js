@@ -1,7 +1,7 @@
 const assert = require('assert');
 const { makeEnv } = require('./gas_mock.js');
 const g = makeEnv(); g.installer();
-const ac = g._logs.join('\n').match(/administrateur.*?: (\d{6})/)[1];
+const ac = g._logs.join('\n').match(/administrateur.*?: (\d{4})/)[1];
 let x = g.call({ action: 'adultLogin', code: ac }); const et = x.token;
 x = g.call({ action: 'addPlayer', token: et, prenom: 'Max', familleNom: 'F' }); const id = x.joueur.id, tmp = x.code;
 x = g.call({ action: 'login', joueurId: id, pin: tmp }); x = g.call({ action: 'setPin', token: x.token, pin: '4826' }); const t = x.token;

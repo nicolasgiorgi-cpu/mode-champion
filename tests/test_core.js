@@ -11,16 +11,27 @@ console.log('sha256/hmac OK');
 const { makeEnv } = require('./gas_mock.js');
 const g = makeEnv();
 g.installer();
-const adminCode = g._logs.join('\n').match(/administrateur.*?: (\d{6})/)[1];
+const adminCode = g._logs.join('\n').match(/administrateur.*?: (\d{4})/)[1];
 console.log('admin code', adminCode, Object.keys(g._sheets));
 assert.ok(!g._sheets['Feuille 1']);
 let r = g.call({ action: 'ping' }); assert.ok(r.ok, JSON.stringify(r));
-r = g.call({ action: 'adultLogin', code: '000000' }); assert.strictEqual(r.error, 'code');
-r = g.call({ action: 'adultLogin', code: adminCode }); assert.ok(r.ok && r.role === 'e' && r.admin, JSON.stringify(r));
+// ----- connexion des adultes : son nom, puis un code à 4 chiffres -----
+r = g.call({ action: 'educsListe' }); assert.ok(r.ok && r.educs.length === 1); const adminId = r.educs[0].id;
+assert.ok(JSON.stringify(r).indexOf('Hash') < 0, 'pas d\'empreinte dans la liste publique');
+r = g.call({ action: 'adultLogin', role: 'e', educId: adminId, code: '123456' }); assert.strictEqual(r.error, 'invalide', 'plus de code à 6 chiffres');
+r = g.call({ action: 'adultLogin', role: 'e', code: adminCode }); assert.strictEqual(r.error, 'introuvable', 'il faut dire qui');
+const faux = adminCode === '0000' ? '0001' : '0000';
+r = g.call({ action: 'adultLogin', role: 'e', educId: adminId, code: faux }); assert.strictEqual(r.error, 'code'); assert.strictEqual(r.reste, 4);
+r = g.call({ action: 'adultLogin', role: 'e', educId: adminId, code: adminCode }); assert.ok(r.ok && r.role === 'e' && r.admin && r.mustChange, JSON.stringify(r));
+r = g.call({ action: 'setAdultPin', token: r.token, pin: '12a4' }); assert.strictEqual(r.error, 'invalide');
+r = g.call({ action: 'adultLogin', role: 'e', educId: adminId, code: adminCode });
+r = g.call({ action: 'setAdultPin', token: r.token, pin: '1111' }); assert.ok(r.ok && !r.mustChange, 'pas de règle « code trop simple »');
 const et = r.token;
+r = g.call({ action: 'adultLogin', role: 'e', educId: adminId, code: adminCode }); assert.strictEqual(r.error, 'code', 'le code provisoire ne sert plus');
+r = g.call({ action: 'adultLogin', role: 'e', educId: adminId, code: '1111' }); assert.ok(r.ok && !r.mustChange);
 r = g.call({ action: 'addPlayer', token: et, prenom: 'Tom', familleNom: 'Famille Martin' }); assert.ok(r.ok, JSON.stringify(r));
 const tom = r.joueur, tomTemp = r.code, famCode = r.familleCode, famId = r.famille.id;
-assert.ok(/^\d{4}$/.test(tomTemp) && /^\d{6}$/.test(famCode));
+assert.ok(/^\d{4}$/.test(tomTemp) && /^\d{4}$/.test(famCode));
 r = g.call({ action: 'addPlayer', token: et, prenom: 'Léa <b>', familleId: famId }); assert.ok(r.ok); assert.strictEqual(r.joueur.prenom, 'Léa b');
 const lea = r.joueur, leaTemp = r.code;
 r = g.call({ action: 'addPlayer', token: et, prenom: 'Hugo' }); const hugo = r.joueur, hugoTemp = r.code;
@@ -29,7 +40,7 @@ r = g.call({ action: 'roster' }); assert.deepStrictEqual(r.joueurs.map(j => j.pr
 r = g.call({ action: 'login', joueurId: tom.id, pin: '9999' }); assert.strictEqual(r.error, 'code');
 r = g.call({ action: 'login', joueurId: tom.id, pin: tomTemp }); assert.ok(r.ok && r.joueur.mustChange, JSON.stringify(r));
 let pt = r.token;
-r = g.call({ action: 'setPin', token: pt, pin: '1234' }); assert.strictEqual(r.error, 'faible');
+r = g.call({ action: 'setPin', token: pt, pin: '1234' }); assert.ok(r.ok, 'plus de règle « code trop simple »'); pt = r.token;
 r = g.call({ action: 'setPin', token: pt, pin: '7391', couleur: '#FF4FA3' }); assert.ok(r.ok && !r.joueur.mustChange && r.joueur.couleur === '#FF4FA3', JSON.stringify(r));
 const oldPt = pt; pt = r.token;
 r = g.call({ action: 'me', token: oldPt }); assert.strictEqual(r.error, 'session');
@@ -95,9 +106,9 @@ r = g.call({ action: 'resetFamilyCode', token: et, familleId: famId }); assert.o
 r = g.call({ action: 'family', token: ft }); assert.strictEqual(r.error, 'session');
 r = g.call({ action: 'updatePlayer', token: et, joueurId: hugo.id, actif: false }); assert.ok(r.ok);
 r = g.call({ action: 'roster' }); assert.strictEqual(r.joueurs.length, 2);
-g.nouveauCodeAdmin(); const nc = g._logs.join('\n').match(/Nouveau code administrateur.*?: (\d{6})/)[1];
-r = g.call({ action: 'adultLogin', code: nc }); assert.ok(r.ok && r.admin);
-r = g.call({ action: 'group', token: et }); assert.strictEqual(r.error, 'session');
+g.nouveauCodeAdmin(); const nc = g._logs.filter(l => /👉 Code provisoire administrateur pour/.test(l)).pop().match(/: (\d{4})$/)[1];
+r = g.call({ action: 'adultLogin', role: 'e', educId: adminId, code: nc }); assert.ok(r.ok && r.admin, JSON.stringify(r));
+r = g.call({ action: 'group', token: et }); assert.ok(r.ok, 'un nouveau code provisoire ne ferme pas les sessions ouvertes');
 // texte stocké : dates restent du texte
 const sh = g._sheets['seances']; console.log('seances row', sh.data[1].slice(0, 6));
 console.log('ALL TESTS OK');
@@ -105,7 +116,7 @@ console.log('ALL TESTS OK');
 // ---------- nouvelles fonctions : dossiers renvoyés, date du bilan, décisions, cache ----------
 {
   const g2 = makeEnv(); g2.installer();
-  const ac = g2._logs.join('\n').match(/administrateur.*?: (\d{6})/)[1];
+  const ac = g2._logs.join('\n').match(/administrateur.*?: (\d{4})/)[1];
   let x = g2.call({ action: 'adultLogin', code: ac }); const et2 = x.token;
   x = g2.call({ action: 'addPlayer', token: et2, prenom: 'Zoé', familleNom: 'Famille Z' }); const zoe = x.joueur, zt = x.code, fcode = x.familleCode;
   // login avec code provisoire : pas de dossier (doit choisir son code)
@@ -177,7 +188,7 @@ console.log('ALL TESTS OK');
 // v14 : « premiers pas » noté une seule fois
 {
   const g3 = makeEnv(); g3.installer();
-  const ad3 = g3._logs.join('\n').match(/administrateur.*?: (\d{6})/)[1];
+  const ad3 = g3._logs.join('\n').match(/administrateur.*?: (\d{4})/)[1];
   const t0 = g3.call({ action: 'adultLogin', code: ad3 }).token;
   const np = g3.call({ action: 'addPlayer', token: t0, prenom: 'Nouveau', familleNom: 'Famille Neuve' }); assert.ok(np.ok, JSON.stringify(np));
   let lg = g3.call({ action: 'login', joueurId: np.joueur.id, pin: np.code }); assert.ok(lg.ok, JSON.stringify(lg));

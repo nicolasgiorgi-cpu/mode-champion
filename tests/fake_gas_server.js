@@ -3,7 +3,7 @@ const http = require('http');
 const { makeEnv } = require('./gas_mock.js');
 const g = makeEnv();
 g.installer();
-const admin = g._logs.join('\n').match(/administrateur.*?: (\d{6})/)[1];
+const admin = g._logs.join('\n').match(/administrateur.*?: (\d{4})/)[1];
 require('fs').writeFileSync('/tmp/admin_code.txt', admin);
 let last = {};
 http.createServer((req, res) => {

@@ -7,7 +7,7 @@
 window.MC = window.MC || {};
 
 MC.demo = (function () {
-  var CODES = { enfant: '2580', nouveau: '4827', parent: '123456', educ: '654321' };
+  var CODES = { enfant: '2580', nouveau: '4827', parent: '1357', educ: '2468' };   // adultes : nom puis code à 4 chiffres
 
   function seed(db, env) {
     var L = MC.logic, C = MC.CONTENT;
@@ -20,9 +20,11 @@ MC.demo = (function () {
     function ri(a, b) { return a + Math.floor(rnd() * (b - a + 1)); }
     function id() { var a = 'abcdefghijkmnpqrstuvwxyz23456789', o = ''; for (var i = 0; i < 10; i++) o += a.charAt(Math.floor(rnd() * a.length)); return o; }
 
-    var nico = { id: id(), nom: 'Coach Nico', codeHash: Core._hashAdulte(sec, CODES.educ), codeV: 1, admin: true, actif: true, cree: nowIso };
+    var nico = { id: id(), nom: 'Coach Nico', codeHash: '', codeV: 1, admin: true, actif: true, cree: nowIso };
+    nico.pinHash = Core._hashPinA(sec, 'e', nico.id, CODES.educ);
     db.insert('educs', nico);
-    var famTom = { id: id(), nom: 'Famille de Tom et Lou', codeHash: Core._hashAdulte(sec, CODES.parent), codeV: 1, cree: nowIso };
+    var famTom = { id: id(), nom: 'Famille de Tom et Lou', codeHash: '', codeV: 1, cree: nowIso };
+    famTom.pinHash = Core._hashPinA(sec, 'f', famTom.id, CODES.parent);
     db.insert('familles', famTom);
 
     var kids = [
@@ -43,7 +45,7 @@ MC.demo = (function () {
       var famId = k[3];
       if (!famId) {
         famId = id();
-        db.insert('familles', { id: famId, nom: 'Famille de ' + k[0], codeHash: Core._hashAdulte(sec, String(200000 + idx * 7919)), codeV: 1, cree: nowIso });
+        db.insert('familles', { id: famId, nom: 'Famille de ' + k[0], codeHash: '', pinHash: Core._hashPinA(sec, 'f', famId, String(2000 + idx)), codeV: 1, cree: nowIso });
       }
       var pid = id(), isNew = !!k[4];
       ids[k[0]] = pid;
@@ -132,14 +134,16 @@ MC.demo = (function () {
     var L = MC.logic, K = MC.compos;
     autres.forEach(function (p, i) {
       var famId = id();
-      db.insert('familles', { id: famId, nom: 'Famille de ' + p, codeHash: Core._hashAdulte(sec, String(300000 + i * 7121)), codeV: 1, cree: nowIso });
+      db.insert('familles', { id: famId, nom: 'Famille de ' + p, codeHash: '', pinHash: Core._hashPinA(sec, 'f', famId, String(3000 + i)), codeV: 1, cree: nowIso });
       var pid = id(); ids[p] = pid;
       db.insert('joueurs', { id: pid, prenom: p, couleur: COULS[i % COULS.length], familleId: famId, pinHash: '', pinV: 1, tempHash: '', tempExp: 0, mustChange: true, fails: 0, lockUntil: 0,
         niveaux: {}, materiel: 'complet', visible: true, actif: true, cree: nowIso });
     });
-    var cyril = { id: id(), nom: 'Cyril', codeHash: Core._hashAdulte(sec, '700001'), codeV: 1, admin: false, actif: true, cree: nowIso };
+    var cyril = { id: id(), nom: 'Cyril', codeHash: '', codeV: 1, admin: false, actif: true, cree: nowIso };
+    cyril.pinHash = Core._hashPinA(sec, 'e', cyril.id, '7001');
     db.insert('educs', cyril);
-    var julien = { id: id(), nom: 'Julien', codeHash: Core._hashAdulte(sec, '700002'), codeV: 1, admin: false, actif: true, cree: nowIso };
+    var julien = { id: id(), nom: 'Julien', codeHash: '', codeV: 1, admin: false, actif: true, cree: nowIso };
+    julien.pinHash = Core._hashPinA(sec, 'e', julien.id, '7002');
     db.insert('educs', julien);
     var nico = db.rows('educs')[0];
     // postes réglés par les éducs (le 1er = poste principal) ; les autres joueurs ont seulement leurs vœux

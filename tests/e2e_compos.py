@@ -20,7 +20,8 @@ with sync_playwright() as p:
     pg.goto(BASE); pg.evaluate('localStorage.clear()'); pg.reload(); pg.wait_for_timeout(600)
     pg.goto(BASE + '#/adultes'); pg.wait_for_timeout(400)
     pg.click('[data-act="adultWho"][data-w="e"]'); pg.wait_for_timeout(300)
-    for c in '654321': pg.click('#adultzone [data-k="%s"]' % c); pg.wait_for_timeout(40)
+    pg.click('[data-act="adultPick"][data-nom="Coach Nico"]'); pg.wait_for_timeout(300)
+    for c in '2468': pg.click('#adultzone [data-k="%s"]' % c); pg.wait_for_timeout(40)
     pg.wait_for_timeout(1300)
     if '#/educ/bienvenue' in pg.url:
         for i in range(2): pg.click('[data-act="obNext"]'); pg.wait_for_timeout(300)

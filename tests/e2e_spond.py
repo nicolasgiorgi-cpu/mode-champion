@@ -15,7 +15,7 @@ with sync_playwright() as p:
     b = p.chromium.launch(); ctx = b.new_context(viewport={'width': W, 'height': H}, is_mobile=W < 700, has_touch=True); pg = ctx.new_page()
     errs = []; pg.on('pageerror', lambda e: errs.append(str(e)))
     pg.goto(BASE); pg.wait_for_timeout(500); pg.evaluate('localStorage.clear()'); pg.goto(BASE); pg.wait_for_timeout(800)
-    pg.evaluate("MC.api.call('adultLogin',{code:MC.demo.CODES.educ}).then(r=>{MC.app.setAdult({token:r.token,role:r.role,nom:r.nom,admin:r.admin});location.hash='#/educ/outils'})"); pg.wait_for_timeout(1500)
+    pg.evaluate("MC.api.call('educsListe',{}).then(l=>MC.api.call('adultLogin',{role:'e',educId:l.educs.find(e=>e.nom==='Coach Nico').id,code:MC.demo.CODES.educ})).then(r=>{MC.app.setAdult({token:r.token,role:r.role,nom:r.nom,admin:r.admin});location.hash='#/educ/outils'})"); pg.wait_for_timeout(1500)
     check('Outils : lien Spond', pg.query_selector('a[href="#/educ/spond"]') is not None)
     pg.click('a[href="#/educ/spond"]'); pg.wait_for_timeout(900)
     t = pg.inner_text('main')
@@ -26,9 +26,9 @@ with sync_playwright() as p:
     check('Spond : pas de défilement horizontal', noscroll(pg))
     pg.screenshot(path='/tmp/compos-shots/%dx%d-spond.png' % (W, H), full_page=True)
     # des enfants Spond (catégorie M12) pas encore dans l'appli : comme après une synchro
-    pg.evaluate("""(() => { const db = JSON.parse(localStorage.getItem('mc-demo-v8'));
+    pg.evaluate("""(() => { const db = JSON.parse(localStorage.getItem('mc-demo-v9'));
       db.props.spondMembres = JSON.stringify([{ id: 'sp-k1', nom: 'Sam N.', prenom: 'Sam', nomFamille: 'Neuf', categorie: 'M12' }, { id: 'sp-k2', nom: 'Tom Z.', prenom: 'Tom', nomFamille: 'Zèbre', categorie: 'M12' }, { id: 'sp-k3', nom: 'Ali B.', prenom: 'Ali', nomFamille: 'Bel', categorie: 'M12' }]);
-      localStorage.setItem('mc-demo-v8', JSON.stringify(db)); localStorage.removeItem('mc-compos'); })()""")
+      localStorage.setItem('mc-demo-v9', JSON.stringify(db)); localStorage.removeItem('mc-compos'); })()""")
     pg.goto(BASE + '#/educ/spond'); pg.reload(); pg.wait_for_timeout(1500)
     check('Spond : « 3 enfants de Spond pas encore dans l\'appli »', '3 enfants de Spond' in pg.inner_text('main'))
     pg.goto(BASE + '#/educ/ajouter'); pg.wait_for_timeout(1000)

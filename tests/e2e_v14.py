@@ -10,6 +10,8 @@ def check(n,c,i=''): res.append((n,c)); print(('OK  ' if c else 'BAD ')+n, '' if
 def shot(pg,name): pg.screenshot(path=OUT+tag+'-'+name+'.png')
 def pin(pg, code, sel='.modal'):
     for c in code: pg.click('%s [data-k="%s"]'%(sel,c)); pg.wait_for_timeout(40)
+def pick(pg, nom):
+    pg.click('[data-act="adultPick"][data-nom="%s"]' % nom); pg.wait_for_timeout(300)
 with sync_playwright() as p:
     b=p.chromium.launch(); ctx=b.new_context(viewport={'width':W,'height':H}, is_mobile=W<700, has_touch=True); pg=ctx.new_page()
     pg.on('pageerror', lambda e: errs.append(str(e)))
@@ -92,7 +94,7 @@ with sync_playwright() as p:
     shot(pg,'n06-premiers-pas')
     pg.evaluate("MC.app.setKid(null)")
     # --- parent
-    pg.goto(BASE+'#/adultes'); pg.wait_for_timeout(500); pin(pg,'123456','#adultzone'); pg.wait_for_timeout(1200)
+    pg.goto(BASE+'#/adultes'); pg.wait_for_timeout(500); pick(pg, 'Tom'); pin(pg,'1357','#adultzone'); pg.wait_for_timeout(1200)
     check('parent : visite', '#/parent/bienvenue' in pg.url, pg.url)
     for i in range(3):
         shot(pg,'p0%d-visite'%(i+1))
@@ -110,7 +112,7 @@ with sync_playwright() as p:
         check('parent '+h, pg.query_selector('.topbar') is not None and pg.query_selector('.empty, .screen') is not None)
     pg.evaluate("MC.app.setAdult(null)")
     # --- éduc
-    pg.goto(BASE+'#/adultes'); pg.wait_for_timeout(500); pg.click('[data-act="adultWho"][data-w="e"]'); pg.wait_for_timeout(300); pin(pg,'654321','#adultzone'); pg.wait_for_timeout(1200)
+    pg.goto(BASE+'#/adultes'); pg.wait_for_timeout(500); pg.click('[data-act="adultWho"][data-w="e"]'); pg.wait_for_timeout(300); pick(pg, 'Coach Nico'); pin(pg,'2468','#adultzone'); pg.wait_for_timeout(1200)
     check('éduc : visite', '#/educ/bienvenue' in pg.url, pg.url)
     for i in range(3):
         shot(pg,'e0%d-visite'%(i+1))

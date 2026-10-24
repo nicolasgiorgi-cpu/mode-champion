@@ -6,7 +6,7 @@ const g = makeEnv();
 g.installer();
 // une installation d'avant la mission : l'onglet « missions » n'existe pas encore, il doit se créer tout seul
 delete g._sheets.missions;
-const adminCode = g._logs.join('\n').match(/administrateur.*?: (\d{6})/)[1];
+const adminCode = g._logs.join('\n').match(/administrateur.*?: (\d{4})/)[1];
 let r = g.call({ action: 'adultLogin', code: adminCode }); const et = r.token;
 r = g.call({ action: 'addPlayer', token: et, prenom: 'Tom', familleNom: 'Famille Martin' }); const tom = r.joueur, tomTemp = r.code, famCode = r.familleCode;
 r = g.call({ action: 'addPlayer', token: et, prenom: 'Léa' }); const lea = r.joueur;

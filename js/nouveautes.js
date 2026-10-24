@@ -8,6 +8,10 @@
 window.MC = window.MC || {};
 
 MC.NEWS = [
+  { id: '2026-10-codes4', date: '2026-10-24', pour: ['f', 'e'],
+    titre: 'Votre code à 4 chiffres',
+    texte: { f: 'Pour vous connecter : Adultes › Je suis parent › le prénom de votre enfant, puis votre code. Vous pouvez le changer dans Plus.', e: 'Pour vous connecter : Adultes › Je suis éduc › votre nom, puis votre code. Vous pouvez le changer dans l\'engrenage.' },
+    lien: { f: '#/adultes/code', e: '#/adultes/code' } },
   { id: '2026-10-nav4', date: '2026-10-24', pour: ['k', 'f', 'e'],
     titre: { k: 'Ton appli en 4 onglets', f: 'Votre espace en 4 onglets', e: 'Votre espace en 4 onglets' },
     texte: {

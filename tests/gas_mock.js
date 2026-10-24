@@ -64,7 +64,20 @@ function makeEnv(opts) {
   vm.runInContext(fs.readFileSync('/home/claude/mode-champion/apps-script/serveur-mode-champion.gs', 'utf8'), ctx, { filename: 'serveur.gs' });
   if (opts.spond) vm.runInContext(fs.readFileSync('/home/claude/mode-champion/apps-script/spond.gs', 'utf8'), ctx, { filename: 'spond.gs' });
   ctx._triggers = triggers;
-  ctx.call = (req) => JSON.parse(ctx.doPost({ postData: { contents: JSON.stringify(req) } }).getContent());
+  ctx.call = (req) => {
+    // tests : « adultLogin » avec un code seul → on retrouve le compte (le vrai écran fait choisir le nom d'abord)
+    if (req && req.action === 'adultLogin' && !req.role && /^\d{4}$/.test(String(req.code || ''))) {
+      const db = new ctx.SheetDB_(), sec = db.getProp('secret'), c = String(req.code);
+      const hit = (role, r) => (r.tempHash && r.tempHash === ctx.Core._hashTempA(sec, role, r.id, c)) || (r.pinHash && r.pinHash === ctx.Core._hashPinA(sec, role, r.id, c));
+      const e = db.rows('educs').find(r => hit('e', r));
+      if (e) req = Object.assign({}, req, { role: 'e', educId: e.id });
+      else {
+        const f = db.rows('familles').find(r => hit('f', r)), j = f && db.rows('joueurs').find(k => k.familleId === f.id && k.actif);
+        if (j) req = Object.assign({}, req, { role: 'f', joueurId: j.id });
+      }
+    }
+    return JSON.parse(ctx.doPost({ postData: { contents: JSON.stringify(req) } }).getContent());
+  };
   ctx._sheets = sheets; ctx._logs = logs; ctx._props = props; ctx._cache = cache; ctx._cstats = cstats;
   return ctx;
 }

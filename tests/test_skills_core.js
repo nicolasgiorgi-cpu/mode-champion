@@ -5,7 +5,7 @@ const { makeEnv } = require('./gas_mock.js');
 
 const g = makeEnv();
 g.installer();
-const adminCode = g._logs.join('\n').match(/administrateur.*?: (\d{6})/)[1];
+const adminCode = g._logs.join('\n').match(/administrateur.*?: (\d{4})/)[1];
 let r = g.call({ action: 'adultLogin', code: adminCode }); const nico = r.token;
 r = g.call({ action: 'addEduc', token: nico, nom: 'Julien' }); const julCode = r.code;
 r = g.call({ action: 'adultLogin', code: julCode }); const julien = r.token;

@@ -286,30 +286,35 @@ function installer() {
   idb.flush_();
   if (res.code) {
     Logger.log('✅ Installation terminée.');
-    Logger.log('👉 Code administrateur (espace adultes › Je suis éduc) : ' + res.code);
+    Logger.log('👉 Code provisoire administrateur (Adultes › Je suis éduc › votre nom, puis ce code ; vous choisirez ensuite le vôtre) : ' + res.code);
     Logger.log('Note-le bien : il ne sera plus affiché. Pour en avoir un nouveau : fonction nouveauCodeAdmin.');
   } else {
     Logger.log('Déjà installé (admin : ' + res.nom + '). Pour un nouveau code : fonction nouveauCodeAdmin.');
   }
 }
 
-/** Si le code administrateur est perdu : lance cette fonction, le nouveau code s'affiche dans le journal. */
+/** Si le code administrateur est perdu : lance cette fonction, un code provisoire (4 chiffres, 30 jours) s'affiche dans le journal.
+    À la connexion (Adultes › Je suis éduc › son nom › ce code), l'admin choisit son propre code. */
 function nouveauCodeAdmin() {
   var db = new SheetDB_();
-  var e = env_();
-  var admins = db.rows('educs').filter(function (x) { return x.admin && x.actif; });
-  if (!admins.length) { installer(); return; }
-  var sec = db.getProp('secret');
-  var code;
-  for (;;) {
-    code = String(100000 + e.rand(900000));
-    var h = Core._hashAdulte(sec, code);
-    var used = db.rows('familles').some(function (f) { return f.codeHash === h; }) || db.rows('educs').some(function (x) { return x.codeHash === h; });
-    if (!used) break;
-  }
-  db.update('educs', admins[0].id, { codeHash: Core._hashAdulte(sec, code), codeV: Number(admins[0].codeV || 0) + 1 });
+  if (!db.rows('educs').some(function (x) { return x.admin && x.actif; })) { installer(); return; }
+  var r = Core.codesProvisoires(db, env_(), 'admin');
   db.flush_();
-  Logger.log('👉 Nouveau code administrateur pour « ' + admins[0].nom + ' » : ' + code);
+  r.codes.forEach(function (c) { Logger.log('👉 Code provisoire administrateur pour « ' + c.nom + ' » : ' + c.code); });
+}
+
+/** Codes provisoires (4 chiffres, 30 jours) pour TOUS : chaque éduc, chaque famille qui a un enfant inscrit, et chaque enfant.
+    Les anciens codes à 6 chiffres ne servent plus. À la 1re connexion, chacun choisit son propre code à 4 chiffres.
+    La liste s'affiche dans le journal : à transmettre à chacun (ne pas la garder dans un fichier partagé). */
+function nouveauxCodesAdultes() {
+  var db = new SheetDB_();
+  var r = Core.codesProvisoires(db, env_(), 'tous');
+  db.flush_();
+  var d = new Date(r.expire), z = function (n) { return (n < 10 ? '0' : '') + n; };
+  Logger.log('Codes provisoires valables jusqu\'au ' + z(d.getDate()) + '/' + z(d.getMonth() + 1) + '/' + d.getFullYear() + ' :');
+  r.codes.forEach(function (c) {
+    Logger.log(c.role === 'e' ? 'ÉDUC ' + c.nom + (c.admin ? ' (admin)' : '') + ' : ' + c.code : 'FAMILLE ' + c.nom + ' (' + c.enfants.join(', ') + ') : ' + c.code + ' | ' + c.codesEnfants.map(function (k) { return k.prenom + ' ' + k.code; }).join(' | '));
+  });
 }
 
 /** Après une modification faite à la main dans la feuille : lance cette fonction pour que le site la voie tout de suite. */

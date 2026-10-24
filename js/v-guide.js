@@ -150,10 +150,10 @@
     return '<p class="lead">Votre enfant suit sur ce site le programme de préparation physique des M12 (le « carnet de champion »). Votre rôle : l\'encourager, être là pour les tests, et confirmer ses résultats.</p>' +
       card('p-connexion', 'lock', '#38E8FF', 'Se connecter', 'Un code par famille',
         ul([
-          'Bouton <b>Adultes</b> (en haut de l\'écran d\'accueil) › <b>Je suis parent</b> › votre <b>code famille</b> à 6 chiffres, donné par l\'éducateur.',
+          'Bouton <b>Adultes</b> (en haut de l\'écran d\'accueil) › <b>Je suis parent</b> › le <b>prénom de votre enfant</b> › votre <b>code famille</b> à 4 chiffres. La 1re fois, c\'est le code provisoire donné par l\'éducateur : vous choisissez ensuite le vôtre.',
           'Votre espace a 4 onglets en bas, comme celui de votre enfant : <b>Prépa</b> (les résultats à confirmer en premier, sa semaine et ses séances, ses <b>Bilans</b> et son <b>Classement</b>), <b>Missions</b> (ce que demandent les éducs, ses +1 et leurs mots), <b>Skills</b> (son carnet de compétences) et <b>Plus</b> (codes, appareil, aide). Plusieurs enfants ? Touchez son prénom en haut à gauche : vous restez sur le même onglet.',
           'Un seul code pour la famille : les deux parents peuvent l\'utiliser, et il donne accès à tous vos enfants inscrits.',
-          'Vous restez connecté sur l\'appareil. Code perdu : l\'éducateur vous en crée un nouveau.'
+          'Vous restez connecté sur l\'appareil. Pour changer de code : Plus › Changer mon code parent. Code perdu : l\'éducateur vous en crée un provisoire. Après 5 codes faux, l\'accès se bloque 10 minutes.'
         ]), true) +
       card('p-voir', 'eye', '#3DFFB0', 'Ce que vous voyez', 'Le suivi de votre enfant',
         ul([
@@ -215,9 +215,9 @@
     return '<p class="lead">L\'espace éduc sert à suivre le groupe, confirmer les résultats et gérer les joueurs, les familles et les codes.</p>' +
       card('e-connexion', 'lock', '#38E8FF', 'Se connecter', 'Un code personnel par éduc',
         ul([
-          '<b>Adultes</b> › <b>Je suis éduc</b> › votre code à 6 chiffres.',
-          'L\'<b>engrenage</b> (en haut à droite de chaque onglet) › <b>Mon code éduc</b> pour en choisir un autre.',
-          'L\'éduc <b>admin</b> crée les codes des autres éducs (engrenage › Les éducs) et peut en régénérer un.'
+          '<b>Adultes</b> › <b>Je suis éduc</b> › votre nom › votre code à 4 chiffres. La 1re fois, c\'est un code provisoire donné par l\'admin : vous choisissez ensuite le vôtre.',
+          'L\'<b>engrenage</b> (en haut à droite de chaque onglet) › <b>Changer mon code</b> pour en choisir un autre.',
+          'L\'éduc <b>admin</b> crée les codes provisoires des autres éducs (engrenage › Les éducs) et peut en refaire un s\'il est perdu. Après 5 codes faux, l\'accès se bloque 10 minutes.'
         ]), true) +
       card('e-vestiaire', 'group', '#3DFFB0', 'Les 4 onglets et l\'engrenage', 'Un onglet par usage',
         ul([
@@ -268,9 +268,9 @@
       card('e-ajout', 'plus', '#4D9BFF', 'Ajouter des joueurs et des familles', 'En début de saison ou en cours d\'année',
         ul([
           '<b>Ajouter un joueur</b> : prénom (ajoutez l\'initiale du nom si deux enfants ont le même prénom) et famille.',
-          'Le site donne un <b>code provisoire</b> pour l\'enfant (45 jours) et, pour une nouvelle famille, le <b>code parent</b>. Bouton Copier / partager pour l\'envoyer par message.',
+          'Le site donne un <b>code provisoire</b> pour l\'enfant (45 jours) et, pour une nouvelle famille, un <b>code parent provisoire</b> (30 jours). Chacun choisit ensuite le sien. Bouton Copier / partager pour l\'envoyer par message.',
           'Frères et sœurs : choisissez la famille existante, ils partagent le même code parent.',
-          'Engrenage › <b>Familles et codes</b> : régénérer le code d\'une famille.'
+          'Engrenage › <b>Familles et codes</b> : un nouveau code provisoire pour une famille qui a perdu le sien.'
         ])) +
       card('e-regles', 'star', '#FF4FA3', 'Les règles du jeu', 'Ce que voient les enfants',
         '<p style="margin:0">Étoiles, séries, XP et grades, niveaux N1-N4, jauge du cycle, badges, défis, ligues, missions et Skills : tout est expliqué dans l\'onglet <b>Joueur</b>, pour pouvoir en parler avec eux à l\'entraînement.</p>' +

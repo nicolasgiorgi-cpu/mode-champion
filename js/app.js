@@ -98,6 +98,7 @@ MC.app = (function () {
     if (o.adult && !S.adult) { go('#/adultes', true); return; }
     if (o.adult && S.adult && o.adult !== S.adult.role) { go(S.adult.role === 'e' ? '#/educ' : '#/parent', true); return; }
     if (o.adult && !adultUnlocked()) { adultTarget = location.hash; go('#/adultes', true); return; }
+    if (o.adult && S.adult.mustChange) { go('#/adultes/code', true); return; }   // 1re connexion : il choisit d'abord son code
     if (o.kid && !o.first && !o.busy && kidCheckNeeded()) { kidTarget = location.hash; go('#/qui', true); return; }
     if (o.adult) touchAdult();
     else if (lastAdult && !o.neutral && sharedDevice()) lockAdult();   // retour côté joueur : l'espace adulte se referme

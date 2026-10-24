@@ -8,6 +8,8 @@ errs=[]
 def pin(pg, code):
     for c in code: pg.click('.modal [data-k="%s"], #firstzone [data-k="%s"], #adultzone [data-k="%s"]'%(c,c,c)); pg.wait_for_timeout(40)
 def shot(pg, name, full=False): pg.screenshot(path=OUT+tag+'-v9-'+name+'.png', full_page=full)
+def pick(pg, nom):
+    pg.click('[data-act="adultPick"][data-nom="%s"]' % nom); pg.wait_for_timeout(300)
 with sync_playwright() as p:
     b=p.chromium.launch(); ctx=b.new_context(viewport={'width':W,'height':H}, has_touch=T, is_mobile=T); pg=ctx.new_page(); pg.add_init_script("window.__MC_QUIET=1")
     pg.on('pageerror', lambda e: errs.append(('pageerror', str(e))))
@@ -20,7 +22,7 @@ with sync_playwright() as p:
     if pg.query_selector('.li.sess summary'): pg.click('.li.sess summary >> nth=0'); pg.wait_for_timeout(300); print('détail séance', pg.inner_text('.li.sess .sbody >> nth=0')[:120].replace('\n',' | '))
     # parent
     pg.evaluate("localStorage.clear()"); pg.goto(BASE+'#/adultes'); pg.reload(); pg.wait_for_timeout(800)
-    pg.click('[data-act="adultWho"][data-w="f"]'); pg.wait_for_timeout(200); pin(pg,'123456'); pg.wait_for_timeout(1200)
+    pg.click('[data-act="adultWho"][data-w="f"]'); pg.wait_for_timeout(200); pick(pg, 'Tom'); pin(pg,'1357'); pg.wait_for_timeout(1200)
     print('parent url', pg.url)
     shot(pg,'02-parent', True)
     pg.goto(BASE+'#/parent/progres'); pg.wait_for_timeout(800)
@@ -33,7 +35,7 @@ with sync_playwright() as p:
     print('après enregistrement', pg.query_selector('[data-act="lvPick"]') is None, pg.inner_text('#toast'))
     # éduc
     pg.evaluate("localStorage.clear()"); pg.goto(BASE+'#/adultes'); pg.reload(); pg.wait_for_timeout(800)
-    pg.click('[data-act="adultWho"][data-w="e"]'); pg.wait_for_timeout(200); pin(pg,'654321'); pg.wait_for_timeout(1500)
+    pg.click('[data-act="adultWho"][data-w="e"]'); pg.wait_for_timeout(200); pick(pg, 'Coach Nico'); pin(pg,'2468'); pg.wait_for_timeout(1500)
     print('educ url', pg.url)
     pg.goto(BASE+'#/educ/reglages'); pg.wait_for_timeout(700)
     pg.click('[data-act="myKids"]'); pg.wait_for_timeout(300); shot(pg,'03-mykids')

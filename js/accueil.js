@@ -278,7 +278,7 @@ MC.accueil = (function () {
     var id = app.S.cache.group && app.S.cache.group.moi.id;
     ui.modal({
       title: 'Les codes des familles',
-      body: '<p class="lead">Chaque famille a un <b>code parent</b> (6 chiffres) et chaque enfant un <b>code provisoire</b> (4 chiffres) pour sa 1re connexion.</p><p class="small">Les codes ne sont jamais réaffichés (ils sont chiffrés). L\'admin a la liste de départ. Une famille a perdu le sien ? Outils › Familles et codes parents en crée un nouveau.</p>',
+      body: '<p class="lead">Chaque famille a un <b>code parent</b> et chaque enfant un code, tous à 4 chiffres : un code provisoire pour la 1re connexion, puis chacun choisit le sien.</p><p class="small">Les codes ne sont jamais réaffichés (ils sont chiffrés). L\'admin a la liste de départ. Une famille a perdu le sien ? Engrenage › Familles et codes en crée un provisoire.</p>',
       actions: [{ label: 'C\'est fait', value: 'ok', cls: 'btn' }, { label: 'Ouvrir Familles', value: 'fam', cls: 'btn2' }, { label: 'Plus tard', value: null, cls: 'btn2 grey' }]
     }).then(function (v) {
       if (v === 'ok' && id) { set('done:e-codes:' + id, Date.now()); app.rerender(); }

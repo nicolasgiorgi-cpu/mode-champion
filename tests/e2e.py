@@ -15,6 +15,8 @@ def pin(pg, code):
     for c in code:
         pg.click('.modal [data-k="%s"], #firstzone [data-k="%s"], #adultzone [data-k="%s"]'%(c,c,c))
         pg.wait_for_timeout(60)
+def pick(pg, nom):
+    pg.click('[data-act="adultPick"][data-nom="%s"]' % nom); pg.wait_for_timeout(300)
 with sync_playwright() as p:
     b=p.chromium.launch()
     ctx,pg=mk(b,390,844)
@@ -70,12 +72,12 @@ with sync_playwright() as p:
     pg.goto(BASE+'#/semaine'); pg.wait_for_timeout(1000); shot(pg,'33-rose-semaine')
     # adultes
     pg.goto(BASE+'#/adultes'); pg.wait_for_timeout(800); shot(pg,'40-adultes',False)
-    pin(pg,'123456'); pg.wait_for_timeout(1500); shot(pg,'41-parent')
+    pick(pg, 'Tom'); pin(pg,'1357'); pg.wait_for_timeout(1500); shot(pg,'41-parent')
     pg.click('[data-act="parentKid"]:has-text("Lou")') if pg.query_selector('[data-act="parentKid"]:has-text("Lou")') else None
     pg.wait_for_timeout(500)
     pg.evaluate("localStorage.removeItem('mc-adult')"); pg.goto(BASE+'#/adultes'); pg.wait_for_timeout(500); pg.reload(); pg.wait_for_timeout(800)
     pg.click('[data-act="adultWho"][data-w="e"]'); pg.wait_for_timeout(300)
-    pin(pg,'654321'); pg.wait_for_timeout(1500); shot(pg,'42-educ')
+    pick(pg, 'Coach Nico'); pin(pg,'2468'); pg.wait_for_timeout(1500); shot(pg,'42-educ')
     pg.goto(BASE+'#/educ/joueurs'); pg.wait_for_timeout(900)
     pg.click('#edlist a >> nth=0'); pg.wait_for_timeout(1200); shot(pg,'43-educ-joueur')
     pg.goto(BASE+'#/educ/ajouter'); pg.wait_for_timeout(900); pg.fill('#ap','Paul'); pg.fill('#an','Famille Durand'); pg.click('[data-act="addPlayer"]'); pg.wait_for_timeout(1200); shot(pg,'44-educ-ajout',False)

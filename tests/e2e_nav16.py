@@ -30,6 +30,8 @@ def visit(pg, h, name, tab, must=None):
     shot(pg, name)
     return t
 
+def pick(pg, nom):
+    pg.click('[data-act="adultPick"][data-nom="%s"]' % nom); pg.wait_for_timeout(300)
 with sync_playwright() as p:
     b = p.chromium.launch(); ctx = b.new_context(viewport={'width': W, 'height': H}, is_mobile=W < 700, has_touch=True)
     ctx.add_init_script('window.__MC_QUIET = 1')
@@ -101,7 +103,7 @@ with sync_playwright() as p:
     check('pas de paillettes sur la carte du jour', pg.evaluate("(()=>{const a=document.querySelector('.mission .art');return !a||getComputedStyle(a,'::after').backgroundImage==='none'})()"))
     # ======================== PARENT (Tom et Lou) ========================
     pg.evaluate('MC.app.setKid(null)')
-    go(pg, '#/adultes', 500); pin(pg, '123456', '#adultzone'); pg.wait_for_timeout(1300)
+    go(pg, '#/adultes', 500); pick(pg, 'Tom'); pin(pg,'1357', '#adultzone'); pg.wait_for_timeout(1300)
     check('parent : 4 onglets Prépa · Missions · Skills · Plus', tabs(pg) == ['PRÉPA', 'MISSIONS', 'SKILLS', 'PLUS'], tabs(pg))
     t = visit(pg, '#/parent', 'p01-prepa', 'Prépa')
     check('parent Prépa : à confirmer en premier', pg.query_selector('main .stabs + .note.pink, main .stabs + section.note.pink') is not None or (t.find('confirmer') >= 0 and t.find('confirmer') < t.find('cette semaine')))
@@ -119,7 +121,7 @@ with sync_playwright() as p:
     check('parent : ni copains, ni niveaux A/B/C, ni essais', '"copains"' not in fam and '"terrain"' not in fam and '"essais"' not in fam)
     # ======================== ÉDUC (Coach Nico) ========================
     pg.evaluate('MC.app.setAdult(null)')
-    go(pg, '#/adultes', 500); pg.click('[data-act="adultWho"][data-w="e"]'); pg.wait_for_timeout(300); pin(pg, '654321', '#adultzone'); pg.wait_for_timeout(1400)
+    go(pg, '#/adultes', 500); pg.click('[data-act="adultWho"][data-w="e"]'); pg.wait_for_timeout(300); pick(pg, 'Coach Nico'); pin(pg,'2468', '#adultzone'); pg.wait_for_timeout(1400)
     check('éduc : 4 onglets Entraîn. · Plateaux · Progrès · Enfants', tabs(pg) == ['ENTRAÎN.', 'PLATEAUX', 'PROGRÈS', 'ENFANTS'], tabs(pg))
     check('éduc : on arrive sur Entraîn.', on_tab(pg) == 'ENTRAÎN.', (pg.url, on_tab(pg)))
     check('éduc : l\'engrenage en haut', pg.query_selector('.topbar a[href="#/educ/reglages"]') is not None)

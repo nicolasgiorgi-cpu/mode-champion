@@ -320,6 +320,7 @@
         link(ui.helpLink('parent'), 'info', 'Comment ça marche ?', 'Le guide pour les parents') +
         link('#/parent/bienvenue?revoir=1', 'play', 'Revoir la visite', 'Les 3 écrans du début') +
         '<div class="note">' + icon('heart', 20) + '<span><b>Le programme en bref.</b> Fait pour les 9-11 ans : poids du corps, pas de charge, 15 à 20 min. Une douleur qui revient (talon, genou) = pause des sauts et avis médical. Le vendredi reste un jour de repos.</span></div></section>' +
+        '<a class="btn2 grey" href="#/adultes/code">' + icon('lock', 18) + ' Changer mon code parent</a>' +
         '<button type="button" class="btn2 grey" data-act="adultLogout">' + icon('logout', 18) + ' Se déconnecter</button></div></div></main>';
     });
   }, { adult: 'f', nav: 'p:plus', bg: '#12333A' });
@@ -494,7 +495,7 @@
         '<div class="cols2"><div class="sec" style="gap:20px"><section class="sec"><h2 class="h2">Moi</h2>' +
         '<button type="button" class="switch" data-act="myKids"><span class="row">' + icon('user', 20, 'style="color:var(--cyan);flex:none"') + '<span><span class="t1" style="display:block">' + (mine.length > 1 ? 'Mes enfants' : 'Mon enfant') + '</span><span class="t2" style="display:block">' + (mine.length ? esc(mine.map(function (p) { return p.joueur.prenom; }).join(', ')) + ' · ses résultats à confirmer, dans Progrès' : 'Vous êtes aussi parent d\'un joueur ? Choisissez-le') + '</span></span></span>' + icon('right', 16) + '</button>' +
         mine.map(function (p) { return link('#/educ/joueur/' + esc(p.joueur.id), 'shield', 'La fiche de ' + esc(p.joueur.prenom), 'Terrain, Skills, missions, prépa, famille et codes'); }).join('') +
-        '<button type="button" class="switch" data-act="myCode"><span class="row">' + icon('lock', 20, 'style="color:var(--cyan);flex:none"') + '<span class="t1">Mon code éduc</span></span>' + icon('right', 16) + '</button></section>' +
+        '<button type="button" class="switch" data-act="myCode"><span class="row">' + icon('lock', 20, 'style="color:var(--cyan);flex:none"') + '<span class="t1">Changer mon code</span></span>' + icon('right', 16) + '</button></section>' +
         '<section class="sec"><h2 class="h2">Le groupe</h2>' +
         (g.moi.admin ? link('#/educ/educs', 'group', 'Les éducs', 'Les codes des éducs', admin) : '') +
         link('#/educ/familles', 'key', 'Familles et codes', sansCode ? sansCode + ' famille' + (sansCode > 1 ? 's' : '') + ' sans enfant connecté' : 'Un nouveau code si une famille a perdu le sien') +
@@ -511,14 +512,7 @@
     });
   }, { adult: 'e', nav: 'e:gear', bg: '#2A1640' });
 
-  MC.act.myCode = function () {
-    ui.modal({ title: 'Nouveau code éduc ?', body: '<p class="lead">Votre code actuel ne marchera plus. Notez bien le nouveau.</p>', actions: [{ label: 'Créer mon nouveau code', value: true, cls: 'btn' }, { label: 'Annuler', value: false, cls: 'btn2 grey' }] }).then(function (ok) {
-      if (!ok) return;
-      app.adultCall('resetEducCode', {}).then(function (r) {
-        showCode('Votre nouveau code', r.code, ['Notez-le : il ne sera plus affiché.', 'Vous allez devoir vous reconnecter avec.'], 'Mode champion M12 · mon code éduc : ' + r.code).then(function () { app.setAdult(null); app.go('#/adultes'); });
-      }).catch(function (e) { ui.toast(e.message, true); });
-    });
-  };
+  MC.act.myCode = function () { app.go('#/adultes/code'); };
 
   // ======================================================================
   // CLASSEMENT (onglet des parents et des éducs)
@@ -777,7 +771,7 @@
     app.adultCall('addPlayer', spondParams(g, m)).then(function (r) {
       var lines = ['Code provisoire de ' + esc(r.joueur.prenom) + ' (1re connexion, 45 jours) : il choisira ensuite son propre code.', 'Relié à Spond : ses réponses arrivent toutes seules.'];
       var text = 'Mode champion M12 · Bienvenue ' + r.joueur.prenom + ' ! Site : ' + siteUrl() + ' — touche ton prénom et tape ton code provisoire : ' + r.code + '.';
-      if (r.familleCode) { lines.push('Code parent de « ' + esc(r.famille.nom) + ' » : <b style="color:var(--cyan);font-family:var(--f-hud);letter-spacing:.1em">' + r.familleCode + '</b> (espace adultes › Je suis parent).'); text += ' Code parent (espace adultes) : ' + r.familleCode + '.'; }
+      if (r.familleCode) { lines.push('Code parent provisoire de « ' + esc(r.famille.nom) + ' » : <b style="color:var(--cyan);font-family:var(--f-hud);letter-spacing:.1em">' + r.familleCode + '</b> (Adultes › Je suis parent › le prénom de l\'enfant ; 30 jours, puis le parent choisit le sien).'); text += ' Code parent provisoire (Adultes › Je suis parent › ' + r.joueur.prenom + ') : ' + r.familleCode + '.'; }
       else lines.push('Famille « ' + esc(r.famille.nom) + ' » : même code parent que ses frères et sœurs.');
       return showCode(esc(r.joueur.prenom) + ' est ajouté !', r.code, lines, text);
     }).then(apresSpond).catch(function (e) { b.disabled = false; ui.toast(e.message, true); });
@@ -830,7 +824,7 @@
       add = { prenom: '', fam: 'new', famNom: '' };
       var lines = ['Code provisoire de ' + esc(r.joueur.prenom) + ' (1re connexion, 45 jours) : il choisira ensuite son propre code.'];
       var text = 'Mode champion M12 · Bienvenue ' + r.joueur.prenom + ' ! Site : ' + siteUrl() + ' — touche ton prénom et tape ton code provisoire : ' + r.code + '.';
-      if (r.familleCode) { lines.push('Code parent de « ' + esc(r.famille.nom) + ' » : <b style="color:var(--cyan);font-family:var(--f-hud);letter-spacing:.1em">' + r.familleCode + '</b> (espace adultes › Je suis parent).'); text += ' Code parent (espace adultes) : ' + r.familleCode + '.'; }
+      if (r.familleCode) { lines.push('Code parent provisoire de « ' + esc(r.famille.nom) + ' » : <b style="color:var(--cyan);font-family:var(--f-hud);letter-spacing:.1em">' + r.familleCode + '</b> (Adultes › Je suis parent › le prénom de l\'enfant ; 30 jours, puis le parent choisit le sien).'); text += ' Code parent provisoire (Adultes › Je suis parent › ' + r.joueur.prenom + ') : ' + r.familleCode + '.'; }
       return showCode(esc(r.joueur.prenom) + ' est ajouté !', r.code, lines, text);
     }).then(function () { app.go('#/educ/joueurs'); }).catch(function (e) { b.disabled = false; ui.toast(e.message, true); });
   };
@@ -850,10 +844,10 @@
   }, { adult: 'e', nav: 'e:outils', bg: '#16223F' });
   MC.act.famCode = function (b) {
     var nom = b.getAttribute('data-n');
-    ui.modal({ title: 'Nouveau code parent ?', body: '<p class="lead">L\'ancien code de « ' + esc(nom) + ' » ne marchera plus.</p>', actions: [{ label: 'Créer le code', value: true, cls: 'btn' }, { label: 'Annuler', value: false, cls: 'btn2 grey' }] }).then(function (ok) {
+    ui.modal({ title: 'Nouveau code parent ?', body: '<p class="lead">L\'ancien code de « ' + esc(nom) + ' » ne marchera plus. Le nouveau est provisoire : le parent choisira le sien.</p>', actions: [{ label: 'Créer le code', value: true, cls: 'btn' }, { label: 'Annuler', value: false, cls: 'btn2 grey' }] }).then(function (ok) {
       if (!ok) return;
       app.adultCall('resetFamilyCode', { familleId: b.getAttribute('data-id') }).then(function (r) {
-        showCode('Code parent', r.code, ['Pour « ' + esc(r.famille.nom) + ' » : espace adultes › Je suis parent.'], 'Mode champion M12 · ' + r.famille.nom + ' : votre code parent est ' + r.code + ' (espace adultes du site ' + siteUrl() + ').');
+        showCode('Code parent provisoire', r.code, ['Pour « ' + esc(r.famille.nom) + ' » : Adultes › Je suis parent › le prénom de l\'enfant, puis ce code.', 'Valable 30 jours : à la 1re connexion, le parent choisit son propre code.'], 'Mode champion M12 · ' + r.famille.nom + ' : votre code parent provisoire est ' + r.code + ' (' + siteUrl() + ' › Adultes › Je suis parent › le prénom de votre enfant). Vous choisirez ensuite votre propre code.');
       }).catch(function (e) { ui.toast(e.message, true); });
     });
   };
@@ -880,13 +874,13 @@
     b.disabled = true;
     app.adultCall('addEduc', { nom: newEduc }).then(function (r) {
       newEduc = '';
-      return showCode('Code de ' + esc(r.educ.nom), r.code, ['Espace adultes › Je suis éduc.', 'Notez-le : il ne sera plus affiché.'], 'Mode champion M12 · ton code éduc : ' + r.code + ' (espace adultes du site ' + siteUrl() + ').');
+      return showCode('Code provisoire de ' + esc(r.educ.nom), r.code, ['Adultes › Je suis éduc › son nom, puis ce code (30 jours).', 'À la 1re connexion, il choisit son propre code.'], 'Mode champion M12 · ton code éduc provisoire : ' + r.code + ' (' + siteUrl() + ' › Adultes › Je suis éduc › ton nom). Tu choisiras ensuite ton propre code.');
     }).then(function () { app.rerender(); }).catch(function (e) { b.disabled = false; ui.toast(e.message, true); });
   };
   MC.act.educCode = function (b) {
     app.adultCall('resetEducCode', { educId: b.getAttribute('data-id') }).then(function (r) {
       var mine = b.getAttribute('data-id') === app.S.cache.group.moi.id;
-      showCode('Code de ' + esc(r.nom), r.code, ['L\'ancien code ne marche plus.'], 'Mode champion M12 · code éduc : ' + r.code).then(function () { if (mine) { app.setAdult(null); app.go('#/adultes'); } });
+      showCode('Code provisoire de ' + esc(r.nom), r.code, ['L\'ancien code ne marche plus. Adultes › Je suis éduc › son nom, puis ce code (30 jours) : il choisira ensuite le sien.'], 'Mode champion M12 · ton code éduc provisoire : ' + r.code + ' (' + siteUrl() + ' › Adultes › Je suis éduc › ton nom). Tu choisiras ensuite ton propre code.').then(function () { if (mine) { app.setAdult(null); app.go('#/adultes'); } });
     }).catch(function (e) { ui.toast(e.message, true); });
   };
   MC.act.educActive = function (b) {

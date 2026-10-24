@@ -44,7 +44,7 @@ Site statique (HTML/CSS/JS, rien à installer) + une Google Sheet qui sert de ba
 2. Dans la feuille : menu **Extensions › Apps Script**.
 3. Dans l'éditeur : effacez tout le contenu de `Code.gs`, puis collez **tout** le contenu du fichier `apps-script/serveur-mode-champion.gs`. Cliquez sur l'icône disquette (Enregistrer).
 4. En haut, choisissez la fonction **`installer`** puis **▶ Exécuter**. Google demande l'autorisation : **Examiner les autorisations**, choisissez votre compte, puis **Paramètres avancés › Accéder au projet (non sécurisé)** (c'est votre propre script) et **Autoriser**.
-5. En bas, dans le **Journal d'exécution**, notez le **code administrateur** (6 chiffres). C'est votre code éduc.
+5. En bas, dans le **Journal d'exécution**, notez le **code provisoire administrateur** (4 chiffres). Dans l'appli : Adultes › Je suis éduc › votre nom, puis ce code ; vous choisissez ensuite votre propre code.
 6. En haut à droite : **Déployer › Nouveau déploiement**. Icône roue dentée › **Application Web**.
    - Exécuter en tant que : **Moi**
    - Qui a accès : **Tout le monde**
@@ -55,7 +55,7 @@ La feuille contient ensuite un onglet par table (`joueurs`, `familles`, `educs`,
 
 Pour aller plus vite, le serveur garde une copie de la feuille en mémoire (20 minutes). Si vous modifiez la feuille **à la main** (renommer un éduc, corriger un résultat…), lancez ensuite la fonction `viderCache` dans l'éditeur Apps Script (menu des fonctions › `viderCache` › Exécuter) pour que l'appli voie le changement tout de suite.
 
-**Code admin perdu ?** Dans l'éditeur Apps Script, exécutez la fonction `nouveauCodeAdmin` : le nouveau code s'affiche dans le journal.
+**Code admin perdu ?** Dans l'éditeur Apps Script, exécutez la fonction `nouveauCodeAdmin` : un code provisoire (4 chiffres) s'affiche dans le journal.
 
 **Mettre à jour le serveur** (si `js/core.js` change) : relancez `outils/fabriquer-serveur.sh`, recollez `apps-script/serveur-mode-champion.gs` dans l'éditeur, puis **Déployer › Gérer les déploiements › crayon › Version : Nouvelle version › Déployer** (l'URL ne change pas).
 
@@ -94,8 +94,8 @@ Sur iPad et téléphone : **Partager › Sur l'écran d'accueil** pour l'ouvrir 
 ## 3. Démarrer avec le groupe
 
 1. Espace adultes › **Je suis éduc** › code administrateur.
-2. **Ajouter un joueur** pour chaque enfant : le site donne un **code provisoire** à l'enfant (valable 45 jours) et, pour une nouvelle famille, un **code parent** (6 chiffres). Bouton **Copier / partager** pour l'envoyer par WhatsApp. Frères et sœurs : choisissez la famille existante.
-3. À la 1re connexion, l'enfant choisit sa couleur et son propre code à 4 chiffres (les codes trop faciles comme 1234 sont refusés).
+2. **Ajouter un joueur** pour chaque enfant : le site donne un **code provisoire** à l'enfant (valable 45 jours) et, pour une nouvelle famille, un **code parent provisoire** (4 chiffres, 30 jours). Bouton **Copier / partager** pour l'envoyer par WhatsApp. Frères et sœurs : choisissez la famille existante.
+3. À la 1re connexion, l'enfant choisit sa couleur et son propre code à 4 chiffres. Les adultes aussi : **tous les codes font 4 chiffres**, sans règle « code trop simple ». Un adulte se connecte en touchant son nom (éduc) ou le prénom de son enfant (parent), puis son code ; après 5 codes faux, l'accès se bloque 10 minutes. Nouveaux codes provisoires pour tous les adultes : fonction `nouveauxCodesAdultes` de l'éditeur Apps Script (liste dans le journal).
 4. L'enfant fait son **bilan 0** (profil › Saisir mon bilan › **Lancer le bilan guidé** : échauffement puis les 12 tests un par un, avec démo, chrono, compteur et 2 min de repos ; ou le formulaire pour noter directement). Ses niveaux N1-N3 se règlent tout seuls. Un parent ou un éduc confirme les résultats pour qu'ils comptent au classement.
 5. Autres éducs : **Les éducs (admin)** › Ajouter un éduc.
 
@@ -137,6 +137,7 @@ cd /home/claude/mode-champion && sh outils/fabriquer-serveur.sh   # le faux serv
 node /home/claude/tests/test_logic.js && node /home/claude/tests/test_core.js && node /home/claude/tests/test_mission.js
 node /home/claude/tests/test_compos.js && node /home/claude/tests/test_compos_core.js   # compos (règles, serveur, Spond simulé)
 node /home/claude/tests/test_skills_core.js                         # Skills, +1, missions des éducs (serveur)
+node /home/claude/tests/test_codes_adultes.js                       # codes adultes : nom puis 4 chiffres, provisoires, blocage
 python3 /home/claude/tests/e2e_spond.py 390 844                    # Réglages › Spond et « Depuis Spond » (mode démo)
 python3 /home/claude/tests/e2e_barre.py 390 844                    # la barre du haut sur tous les écrans
 python3 /home/claude/tests/e2e_v14.py 390 844                      # Playwright, site servi en local (voir mkdemo.sh)

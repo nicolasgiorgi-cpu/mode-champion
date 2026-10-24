@@ -100,8 +100,8 @@ var Core = (function () {
     joueurs: [['id', 's'], ['prenom', 's'], ['couleur', 's'], ['familleId', 's'], ['pinHash', 's'], ['pinV', 'n'],
       ['tempHash', 's'], ['tempExp', 'n'], ['mustChange', 'b'], ['fails', 'n'], ['lockUntil', 'n'], ['niveaux', 'j'],
       ['materiel', 's'], ['visible', 'b'], ['actif', 'b'], ['cree', 's']],
-    familles: [['id', 's'], ['nom', 's'], ['codeHash', 's'], ['codeV', 'n'], ['cree', 's']],
-    educs: [['id', 's'], ['nom', 's'], ['codeHash', 's'], ['codeV', 'n'], ['admin', 'b'], ['actif', 'b'], ['cree', 's'], ['enfants', 'j']],
+    familles: [['id', 's'], ['nom', 's'], ['codeHash', 's'], ['codeV', 'n'], ['cree', 's'], ['pinHash', 's'], ['tempHash', 's'], ['tempExp', 'n'], ['mustChange', 'b'], ['fails', 'n'], ['lockUntil', 'n']],
+    educs: [['id', 's'], ['nom', 's'], ['codeHash', 's'], ['codeV', 'n'], ['admin', 'b'], ['actif', 'b'], ['cree', 's'], ['enfants', 'j'], ['pinHash', 's'], ['tempHash', 's'], ['tempExp', 'n'], ['mustChange', 'b'], ['fails', 'n'], ['lockUntil', 'n']],
     seances: [['id', 's'], ['joueurId', 's'], ['date', 's'], ['type', 's'], ['mode', 's'], ['ressenti', 's'], ['details', 'j'], ['cree', 's']],
     records: [['id', 's'], ['joueurId', 's'], ['bilan', 's'], ['test', 's'], ['valeur', 'n'], ['extra', 'j'], ['statut', 's'],
       ['parQui', 's'], ['date', 's'], ['cree', 's']],
@@ -225,7 +225,10 @@ var Core = (function () {
   // Empreintes des codes
   function hashPin(sec, joueurId, pin) { return sha256(sec + '|pin|' + joueurId + '|' + pin); }
   function hashTemp(sec, joueurId, code) { return sha256(sec + '|tmp|' + joueurId + '|' + code); }
-  function hashAdulte(sec, code) { return sha256(sec + '|adulte|' + code); }
+  function hashAdulte(sec, code) { return sha256(sec + '|adulte|' + code); }   // anciens codes à 6 chiffres (plus utilisés pour se connecter)
+  // codes adultes à 4 chiffres : liés au compte (famille ou éduc), comme les codes des enfants
+  function hashPinA(sec, role, id, pin) { return sha256(sec + '|apin|' + role + '|' + id + '|' + pin); }
+  function hashTempA(sec, role, id, code) { return sha256(sec + '|atmp|' + role + '|' + id + '|' + code); }
 
   // ---------------------------------------------------------
   // Jetons de session (signés, sans stockage)
@@ -343,19 +346,11 @@ var Core = (function () {
     do { c = genDigits(env, 4); } while (pinFaible(c));
     return c;
   }
-  function newAdultCode(ctx) {
-    var c, h, used;
-    var fam = ctx.db.rows('familles'), edu = ctx.db.rows('educs');
-    for (var tries = 0; tries < 50; tries++) {
-      c = genDigits(ctx.env, 6);
-      if (c.charAt(0) === '0') continue;
-      h = hashAdulte(ctx.secret, c);
-      used = false;
-      for (var i = 0; i < fam.length; i++) if (fam[i].codeHash === h) used = true;
-      for (i = 0; i < edu.length; i++) if (edu[i].codeHash === h) used = true;
-      if (!used) return { code: c, hash: h };
-    }
-    fail('serveur', 'Impossible de créer un code, réessaie.');
+  // Code provisoire d'un adulte (4 chiffres, valable 30 jours) : à la 1re connexion, il choisit le sien.
+  var TEMP_ADULTE = 30 * DAY;
+  function adultTemp(ctx, role, id) {
+    var code = genDigits(ctx.env, 4);
+    return { code: code, patch: { tempHash: hashTempA(ctx.secret, role, id, code), tempExp: ctx.now + TEMP_ADULTE, mustChange: true, fails: 0, lockUntil: 0 } };
   }
 
   function checkPinFormat(pin) {
@@ -439,7 +434,6 @@ var Core = (function () {
     run: function (req, ctx) {
       var pin = String(req.pin || '');
       checkPinFormat(pin);
-      if (pinFaible(pin)) fail('faible', 'Trop facile à deviner ! Évite 1234, 0000 ou 1212.');
       var j = ctx.auth.row;
       var patch = { pinHash: hashPin(ctx.secret, j.id, pin), pinV: Number(j.pinV || 0) + 1, tempHash: '', tempExp: 0, mustChange: false };
       if (req.couleur && /^#[0-9A-Fa-f]{6}$/.test(req.couleur)) patch.couleur = req.couleur;
@@ -722,26 +716,66 @@ var Core = (function () {
   };
 
   // ----- Adultes -----
+  // les éducs (prénom seulement) : on touche son nom avant de taper son code
+  A.educsListe = {
+    run: function (req, ctx) {
+      var l = ctx.db.rows('educs').filter(function (e) { return e.actif; }).map(function (e) { return { id: e.id, nom: e.nom }; });
+      l.sort(function (a, b) { return a.nom.localeCompare(b.nom, 'fr'); });
+      return { educs: l };
+    }
+  };
+  // Connexion d'un adulte : qui (l'éduc, ou l'enfant pour sa famille) puis son code à 4 chiffres.
+  // 5 codes faux : le compte se bloque 10 minutes (comme pour les enfants).
   A.adultLogin = {
     run: function (req, ctx) {
       adultThrottle(ctx);
-      var code = String(req.code || '');
-      if (!/^\d{6}$/.test(code)) fail('invalide', 'Le code fait 6 chiffres.');
-      var h = hashAdulte(ctx.secret, code);
-      var fam = ctx.db.rows('familles'), i;
-      for (i = 0; i < fam.length; i++) {
-        if (fam[i].codeHash === h) {
-          return { token: makeToken(ctx.secret, 'f', fam[i].id, Number(fam[i].codeV || 0), ctx.now + TOKEN_ADULTE), role: 'f', nom: fam[i].nom, admin: false };
-        }
+      var role = req.role === 'e' ? 'e' : req.role === 'f' ? 'f' : '', code = String(req.code || ''), table, row, nomEnfant = '';
+      if (!role) fail('invalide', 'Choisissez d\'abord : parent ou éduc.');
+      if (!/^\d{4}$/.test(code)) fail('invalide', 'Le code fait 4 chiffres.');
+      if (role === 'e') {
+        table = 'educs'; row = find(ctx.db.rows('educs'), String(req.educId || ''));
+        if (!row || !row.actif) fail('introuvable', 'Éduc introuvable.');
+      } else {
+        var j = find(ctx.db.rows('joueurs'), String(req.joueurId || ''));
+        if (!j || !j.actif) fail('introuvable', 'Enfant introuvable.');
+        table = 'familles'; row = find(ctx.db.rows('familles'), j.familleId); nomEnfant = j.prenom;
+        if (!row) fail('introuvable', 'Famille introuvable.');
       }
-      var edu = ctx.db.rows('educs');
-      for (i = 0; i < edu.length; i++) {
-        if (edu[i].actif && edu[i].codeHash === h) {
-          return { token: makeToken(ctx.secret, 'e', edu[i].id, Number(edu[i].codeV || 0), ctx.now + TOKEN_ADULTE), role: 'e', nom: edu[i].nom, admin: !!edu[i].admin };
-        }
+      if (Number(row.lockUntil) > ctx.now) fail('bloque', 'Trop d\'essais. Réessayez dans ' + Math.ceil((row.lockUntil - ctx.now) / 60000) + ' min.', { minutes: Math.ceil((row.lockUntil - ctx.now) / 60000) });
+      var ok = false, temp = false;
+      if (row.pinHash && row.pinHash === hashPinA(ctx.secret, role, row.id, code)) ok = true;
+      else if (row.tempHash && Number(row.tempExp) > ctx.now && row.tempHash === hashTempA(ctx.secret, role, row.id, code)) { ok = true; temp = true; }
+      if (!ok) {
+        adultThrottle(ctx, true);
+        var fails = Number(row.fails || 0) + 1, patch = { fails: fails };
+        if (fails >= 5) { patch.fails = 0; patch.lockUntil = ctx.now + 10 * 60000; }
+        ctx.db.update(table, row.id, patch);
+        if (patch.lockUntil) fail('bloque', 'Trop d\'essais : ce compte est bloqué 10 minutes.', { minutes: 10 });
+        fail('code', 'Code incorrect.', { reste: 5 - fails });
       }
-      adultThrottle(ctx, true);
-      fail('code', 'Code incorrect.');
+      var p = { fails: 0, lockUntil: 0 };
+      // code provisoire : il choisit son code… sauf si l'autre parent l'a déjà fait (un seul code par famille)
+      if (temp && !row.pinHash) p.mustChange = true;
+      ctx.db.update(table, row.id, p);
+      row = find(ctx.db.rows(table), row.id);
+      return { token: makeToken(ctx.secret, role, row.id, Number(row.codeV || 0), ctx.now + TOKEN_ADULTE), role: role, nom: row.nom, admin: role === 'e' && !!row.admin, mustChange: !!row.mustChange, enfant: nomEnfant, provisoire: temp };
+    }
+  };
+  // L'adulte choisit son code à 4 chiffres (1re connexion, ou pour en changer). Pas de règle « code trop simple ».
+  A.setAdultPin = {
+    auth: ['e', 'f'],
+    run: function (req, ctx) {
+      var pin = String(req.pin || '');
+      if (!/^\d{4}$/.test(pin)) fail('invalide', 'Le code doit faire 4 chiffres.');
+      var role = ctx.auth.r, table = role === 'e' ? 'educs' : 'familles', row = ctx.auth.row;
+      // 1er choix : les autres appareils restent connectés (l'autre parent) ; un changement ensuite les déconnecte.
+      // Famille : le code provisoire reste valable jusqu'à sa date, pour que l'autre parent puisse entrer avec.
+      var patch = { pinHash: hashPinA(ctx.secret, role, row.id, pin), codeHash: '', mustChange: false, fails: 0, lockUntil: 0 };
+      if (row.pinHash) patch.codeV = Number(row.codeV || 0) + 1;
+      if (role === 'e' || row.pinHash) { patch.tempHash = ''; patch.tempExp = 0; }
+      ctx.db.update(table, row.id, patch);
+      row = find(ctx.db.rows(table), row.id);
+      return { token: makeToken(ctx.secret, role, row.id, Number(row.codeV), ctx.now + TOKEN_ADULTE), role: role, nom: row.nom, admin: role === 'e' && !!row.admin, mustChange: false };
     }
   };
 
@@ -885,10 +919,11 @@ var Core = (function () {
         if (!fam) fail('introuvable', 'Famille introuvable.');
       } else {
         var nom = cleanText(req.familleNom, 40) || ('Famille de ' + prenom);
-        var c = newAdultCode(ctx);
-        fam = { id: genId(ctx.env), nom: nom, codeHash: c.hash, codeV: 1, cree: isoNow(ctx.now) };
+        fam = { id: genId(ctx.env), nom: nom, codeHash: '', codeV: 1, cree: isoNow(ctx.now), pinHash: '' };
+        var tf = adultTemp(ctx, 'f', fam.id);
+        for (var kf in tf.patch) fam[kf] = tf.patch[kf];
         ctx.db.insert('familles', fam);
-        famCode = c.code;
+        famCode = tf.code;
       }
       var couleurs = ['#38E8FF', '#FF4FA3', '#3DFFB0', '#FFC23D', '#B48CFF', '#FF8A3D', '#4D9BFF', '#FF4F6D', '#7CFF6B'];
       var id = genId(ctx.env), code = newKidTemp(ctx.env);
@@ -923,10 +958,11 @@ var Core = (function () {
     run: function (req, ctx) {
       var nom = cleanText(req.nom, 40);
       if (!nom) fail('invalide', 'Il faut un nom.');
-      var c = newAdultCode(ctx);
-      var row = { id: genId(ctx.env), nom: nom, codeHash: c.hash, codeV: 1, cree: isoNow(ctx.now) };
+      var row = { id: genId(ctx.env), nom: nom, codeHash: '', codeV: 1, cree: isoNow(ctx.now), pinHash: '' };
+      var t = adultTemp(ctx, 'f', row.id);
+      for (var k in t.patch) row[k] = t.patch[k];
       ctx.db.insert('familles', row);
-      return { famille: { id: row.id, nom: row.nom }, code: c.code };
+      return { famille: { id: row.id, nom: row.nom }, code: t.code, expire: row.tempExp };
     }
   };
 
@@ -935,9 +971,10 @@ var Core = (function () {
     run: function (req, ctx) {
       var f = find(ctx.db.rows('familles'), String(req.familleId || ''));
       if (!f) fail('introuvable', 'Famille introuvable.');
-      var c = newAdultCode(ctx);
-      ctx.db.update('familles', f.id, { codeHash: c.hash, codeV: Number(f.codeV || 0) + 1 });
-      return { code: c.code, famille: { id: f.id, nom: f.nom } };
+      var t = adultTemp(ctx, 'f', f.id);
+      t.patch.pinHash = ''; t.patch.codeHash = ''; t.patch.codeV = Number(f.codeV || 0) + 1;
+      ctx.db.update('familles', f.id, t.patch);
+      return { code: t.code, expire: t.patch.tempExp, famille: { id: f.id, nom: f.nom } };
     }
   };
 
@@ -955,10 +992,11 @@ var Core = (function () {
       requireAdmin(ctx);
       var nom = cleanText(req.nom, 30);
       if (!nom) fail('invalide', 'Il faut un nom.');
-      var c = newAdultCode(ctx);
-      var row = { id: genId(ctx.env), nom: nom, codeHash: c.hash, codeV: 1, admin: !!req.admin, actif: true, cree: isoNow(ctx.now) };
+      var row = { id: genId(ctx.env), nom: nom, codeHash: '', codeV: 1, admin: !!req.admin, actif: true, cree: isoNow(ctx.now), pinHash: '' };
+      var t = adultTemp(ctx, 'e', row.id);
+      for (var k in t.patch) row[k] = t.patch[k];
       ctx.db.insert('educs', row);
-      return { educ: { id: row.id, nom: row.nom, admin: row.admin, actif: true }, code: c.code };
+      return { educ: { id: row.id, nom: row.nom, admin: row.admin, actif: true }, code: t.code, expire: row.tempExp };
     }
   };
 
@@ -969,9 +1007,10 @@ var Core = (function () {
       if (id !== ctx.auth.id) requireAdmin(ctx);
       var e = find(ctx.db.rows('educs'), id);
       if (!e) fail('introuvable', 'Éduc introuvable.');
-      var c = newAdultCode(ctx);
-      ctx.db.update('educs', e.id, { codeHash: c.hash, codeV: Number(e.codeV || 0) + 1 });
-      return { code: c.code, nom: e.nom };
+      var t = adultTemp(ctx, 'e', e.id);
+      t.patch.pinHash = ''; t.patch.codeHash = ''; t.patch.codeV = Number(e.codeV || 0) + 1;
+      ctx.db.update('educs', e.id, t.patch);
+      return { code: t.code, expire: t.patch.tempExp, nom: e.nom };
     }
   };
 
@@ -1780,10 +1819,37 @@ var Core = (function () {
     var ctx = { db: db, env: env, now: env.now(), secret: db.getProp('secret') };
     var admins = db.rows('educs').filter(function (e) { return e.admin && e.actif; });
     if (admins.length && !created) return { code: null, deja: true, nom: admins[0].nom };
-    var c = newAdultCode(ctx);
-    var row = { id: genId(env), nom: cleanText(nom || 'Admin', 30), codeHash: c.hash, codeV: 1, admin: true, actif: true, cree: isoNow(ctx.now) };
+    var row = { id: genId(env), nom: cleanText(nom || 'Admin', 30), codeHash: '', codeV: 1, admin: true, actif: true, cree: isoNow(ctx.now), pinHash: '' };
+    var t = adultTemp(ctx, 'e', row.id);
+    for (var k in t.patch) row[k] = t.patch[k];
     db.insert('educs', row);
-    return { code: c.code, nom: row.nom };
+    return { code: t.code, nom: row.nom };
+  }
+  // Nouveaux codes provisoires (4 chiffres, 30 jours) pour l'admin ou pour tous les adultes : fonctions de l'éditeur Apps Script.
+  // Les sessions ouvertes restent ouvertes (codeV inchangé) ; les anciens codes à 6 chiffres ne servent plus.
+  function codesProvisoires(db, env, quoi) {
+    var ctx = { db: db, env: env, now: env.now(), secret: db.getProp('secret') }, out = [];
+    var kids = db.rows('joueurs').filter(function (j) { return j.actif; });
+    db.rows('educs').forEach(function (e) {
+      if (!e.actif || (quoi !== 'tous' && (!e.admin || out.length))) return;   // 'admin' : le 1er admin seulement
+      var t = adultTemp(ctx, 'e', e.id); t.patch.pinHash = ''; t.patch.codeHash = '';
+      db.update('educs', e.id, t.patch);
+      out.push({ role: 'e', id: e.id, nom: e.nom, admin: !!e.admin, code: t.code });
+    });
+    if (quoi === 'tous') db.rows('familles').forEach(function (f) {
+      var enf = kids.filter(function (j) { return j.familleId === f.id; }).map(function (j) { return j.prenom; });
+      if (!enf.length) return;
+      var t = adultTemp(ctx, 'f', f.id); t.patch.pinHash = ''; t.patch.codeHash = '';
+      db.update('familles', f.id, t.patch);
+      // et ses enfants : un code provisoire chacun (même ceux qui avaient choisi le leur)
+      var codesEnf = kids.filter(function (j) { return j.familleId === f.id; }).map(function (j) {
+        var c = newKidTemp(env);
+        db.update('joueurs', j.id, { tempHash: hashTemp(ctx.secret, j.id, c), tempExp: ctx.now + TEMP_ADULTE, mustChange: true, pinHash: '', fails: 0, lockUntil: 0 });
+        return { id: j.id, prenom: j.prenom, code: c };
+      });
+      out.push({ role: 'f', id: f.id, nom: f.nom, enfants: enf, code: t.code, codesEnfants: codesEnf });
+    });
+    return { codes: out, expire: ctx.now + TEMP_ADULTE };
   }
 
   return {
@@ -1792,10 +1858,11 @@ var Core = (function () {
     SKILLS: SKILLS, MAX_PLUS1: MAX_PLUS1,
     handle: handle,
     install: install,
+    codesProvisoires: codesProvisoires,
     rowFromCells: rowFromCells,
     cellsFromRow: cellsFromRow,
     // outils exposés pour le mode démo et les tests
-    _sha256: sha256, _hmac: hmac, _hashPin: hashPin, _hashTemp: hashTemp, _hashAdulte: hashAdulte, _pinFaible: pinFaible, _clone: clone,
+    _sha256: sha256, _hmac: hmac, _hashPin: hashPin, _hashTemp: hashTemp, _hashAdulte: hashAdulte, _hashPinA: hashPinA, _hashTempA: hashTempA, _pinFaible: pinFaible, _clone: clone,
     _posteDuTexte: posteDuTexte, _sansAccents: sansAccents,
     importPostesDepuis: function (db, env, rows) { return importPostes({ db: db, env: env, now: env.now() }, rows); },
     syncSpondDepuis: function (db, env, data) { return syncSpond({ db: db, env: env, now: env.now() }, data || {}); },

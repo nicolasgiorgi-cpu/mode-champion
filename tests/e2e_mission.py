@@ -18,6 +18,8 @@ def nb(pg): return pg.evaluate("(function(){var a=document.querySelectorAll('#na
 def close_news(pg):
     if pg.query_selector('.modal.sheet-news'):
         pg.click('.modal.sheet-news button[data-i="0"]'); pg.wait_for_timeout(300)
+def pick(pg, nom):
+    pg.click('[data-act="adultPick"][data-nom="%s"]' % nom); pg.wait_for_timeout(300)
 with sync_playwright() as p:
     b = p.chromium.launch(); ctx = b.new_context(viewport={'width': W, 'height': H}, is_mobile=W < 700, has_touch=True); pg = ctx.new_page()
     pg.on('pageerror', lambda e: errs.append(str(e)))
@@ -103,7 +105,7 @@ with sync_playwright() as p:
     check('mission : accomplie', 'MISSION ACCOMPLIE' in pg.inner_text('main').upper())
     # --- parent de Tom : l'état de la mission, sans les copains
     pg.evaluate("MC.app.setKid(null)")
-    pg.goto(BASE + '#/adultes'); pg.wait_for_timeout(500); pin(pg, '123456', '#adultzone'); pg.wait_for_timeout(1200)
+    pg.goto(BASE + '#/adultes'); pg.wait_for_timeout(500); pick(pg, 'Tom'); pin(pg,'1357', '#adultzone'); pg.wait_for_timeout(1200)
     if '#/parent/bienvenue' in pg.url:
         for i in range(2): pg.click('[data-act="obNext"]'); pg.wait_for_timeout(300)
         pg.click('[data-act="obShared"][data-v="1"]'); pg.wait_for_timeout(200)
@@ -120,7 +122,7 @@ with sync_playwright() as p:
     shot(pg, 'm13-parent')
     # --- éduc
     pg.evaluate("MC.app.setAdult(null)")
-    pg.goto(BASE + '#/adultes'); pg.wait_for_timeout(500); pg.click('[data-act="adultWho"][data-w="e"]'); pg.wait_for_timeout(300); pin(pg, '654321', '#adultzone'); pg.wait_for_timeout(1200)
+    pg.goto(BASE + '#/adultes'); pg.wait_for_timeout(500); pg.click('[data-act="adultWho"][data-w="e"]'); pg.wait_for_timeout(300); pick(pg, 'Coach Nico'); pin(pg,'2468', '#adultzone'); pg.wait_for_timeout(1200)
     if '#/educ/bienvenue' in pg.url:
         for i in range(2): pg.click('[data-act="obNext"]'); pg.wait_for_timeout(300)
         pg.click('[data-act="obPick"] >> nth=0'); pg.wait_for_timeout(200)
