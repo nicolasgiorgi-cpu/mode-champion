@@ -45,16 +45,27 @@
   MC.act.switchKid = function () { app.setKid(null); app.go('#/connexion'); };
 
   // ---------- barre du haut côté joueur (les 3 onglets) : qui je suis, mes étoiles, l'aide ----------
+  // en haut à droite, à la place du ▶ de l'espace adulte : le retour vers l'espace parent ou éduc (son code est redemandé)
+  function adultBtn() {
+    var A = app.S.adult;
+    if (!A) return '';
+    var w = A.role === 'e' ? 'Éduc' : 'Parent';
+    return '<a class="tb-pass" href="#/adultes" aria-label="Revenir à l\'espace ' + w.toLowerCase() + ' (code demandé)">' + icon('lock', 14) + '<span>' + w + '</span></a>';
+  }
+  MC.kidAdultBtn = adultBtn;
+  // la série (étoiles d'affilée, sans en rater) et le total d'étoiles : sur la ligne sous le prénom, à gauche
   function kidBar(me, st, right) {
     var k = me.joueur, g = st.grade;
     return ui.topbar({
-      mid: '<a class="tb-who" href="#/profil" aria-label="Mon profil">' + ui.avatar(k.prenom, k.couleur, 38) + '<span class="tb-t"><span class="tb-title">' + esc(k.prenom) + '</span><span class="tb-k" style="color:var(--cyan)">' + esc(g.nom) + ' · ' + ui.fmtNum(st.xp) + ' XP</span></span></a>',
-      right: '<span class="tb-cnt"><span style="color:var(--orange)" title="Série d\'étoiles">' + icon('flame', 14) + st.streak + '</span><span style="color:var(--gold)" title="Étoiles">' + icon('star', 14) + st.stars + '</span></span>' + (right || ''),
+      mid: '<a class="tb-who" href="#/profil" aria-label="Mon profil">' + ui.avatar(k.prenom, k.couleur, 38) + '<span class="tb-t"><span class="tb-title tb-kc">' + esc(k.prenom) +
+        '<span style="color:var(--orange)" title="Série : étoiles d\'affilée">' + icon('flame', 13) + st.streak + '</span><span style="color:var(--gold)" title="Étoiles gagnées">' + icon('star', 13) + st.stars + '</span></span>' +
+        '<span class="tb-k" style="color:var(--cyan)">' + esc(g.nom) + ' · ' + ui.fmtNum(st.xp) + ' XP</span></span></a>',
+      right: (right || '') + adultBtn(),
       help: ui.helpLink('joueur'), xp: g.pct
     });
   }
   MC.kidBar = kidBar;
-  function subBar(back, backLabel, title) { return ui.topbar({ back: back, backLabel: backLabel, title: title, help: ui.helpLink('joueur') }); }
+  function subBar(back, backLabel, title) { return ui.topbar({ back: back, backLabel: backLabel, title: title, right: adultBtn(), help: ui.helpLink('joueur') }); }
   MC.kidSubBar = subBar;
   // les sous-onglets de Prépa : Ma semaine · Bilans · Classement
   function prepaTabs(on) {

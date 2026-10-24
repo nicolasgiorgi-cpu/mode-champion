@@ -8,6 +8,9 @@
 window.MC = window.MC || {};
 
 MC.NEWS = [
+  { id: '2026-10-retour-adulte', date: '2026-10-24', pour: ['f', 'e'],
+    titre: 'Revenir à votre espace en un geste',
+    texte: 'Côté enfant, le bouton 🔒 Parent (ou Éduc) est en haut à droite, à la place du ▶ : votre code est redemandé.' },
   { id: '2026-10-2missions', date: '2026-10-24', pour: ['k', 'f', 'e'],
     titre: { k: 'Le jeu à 10 : 2 missions pour toi', f: 'Le jeu à 10 : 2 missions', e: 'Le jeu à 10 : 2 missions séparées' },
     texte: {

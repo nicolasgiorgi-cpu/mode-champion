@@ -14,9 +14,9 @@
   --accent:var(--cyan);
 }
 /* Appli installée sur l'écran d'accueil : sur iPhone (iOS 26), Safari floute une bande qui descend sous l'heure
-   et la batterie, sur environ 1,6 fois leur hauteur. Le contenu et la barre du haut commencent sous cette bande
+   et la batterie, sur environ 1,3 fois leur hauteur. Le contenu et la barre du haut commencent sous cette bande
    (on perd un peu de hauteur, le texte reste net). Sans encoche ni barre d'état (Android, ordinateur) : 0, rien ne change. */
-@media (display-mode: standalone){:root{--safe-t:calc(env(safe-area-inset-top,0px) * 1.75)}}
+@media (display-mode: standalone){:root{--safe-t:calc(env(safe-area-inset-top,0px) * 1.35)}}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%;background:var(--bg)}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.45;min-height:100vh;-webkit-font-smoothing:antialiased;overflow-x:hidden}
@@ -1306,3 +1306,7 @@ textarea.txt{min-height:84px;padding:10px 12px;resize:vertical;font:500 16px/1.4
 .cdate.h{height:60px}
 .cdate small.ch{color:var(--cyan);letter-spacing:.02em}
 .cattcol{display:flex;flex-direction:column;gap:6px;min-width:0;border:1px dashed color-mix(in srgb,var(--gold) 55%,transparent);border-top:3px solid var(--gold);padding:8px;background:rgba(10,15,31,.4)}
+/* la série et les étoiles, à la suite du grade sous le prénom */
+.tb-kc{display:flex;align-items:center;gap:10px}
+.tb-pass{text-decoration:none}
+.tb-kc span{display:inline-flex;align-items:center;gap:3px;flex:none}
