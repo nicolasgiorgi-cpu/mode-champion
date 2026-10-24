@@ -100,7 +100,7 @@
         ul([
           'Onglet <b>Missions</b> : tout ce que tes éducs te demandent. Une pastille rose, et une fois un bandeau « Nouveau dans Missions » en haut de Prépa, te préviennent.',
           '<b>Pour toute l\'équipe</b> : regarder une vidéo puis répondre à quelques questions, ou un QCM. Mission faite = des XP (ils sont écrits sur la mission).',
-          '« <b>Prépare le jeu à 10</b> » : choisis ton poste (1 à 3, dans l\'ordre) avec les 7 cartes ou le test « Aide-moi à choisir », puis tes <b>copains</b>. Tes copains, c\'est <b>secret</b> : seuls les éducs les voient. Mission accomplie : <b>+' + C.XP.mission + ' XP</b> et un badge. Tu peux changer tes choix quand tu veux (Moi › Mes postes et mes copains).',
+          'Pour le jeu à 10, <b>2 missions</b>. « <b>Choisis ton poste</b> » : 1 à 3 postes, dans l\'ordre, avec les 7 cartes ou le test « Aide-moi à choisir ». Puis « <b>Avec qui tu aimes jouer</b> » : tes copains, autant que tu veux, c\'est <b>secret</b> (seuls les éducs les voient). Chaque mission accomplie : <b>+' + C.XP.mission + ' XP</b> et son badge. Tu peux changer tes choix quand tu veux (Moi › Mes postes, Mes copains).',
           '<b>Ta mission perso</b> : une étoile Skills à décrocher, rien que pour toi. Quand un éduc voit que tu es sur la bonne voie, il te donne un <b>+1</b> (avec un petit mot, parfois) : jusqu\'à 5. Un +1 ne donne pas l\'étoile : au 3e, tes éducs peuvent la valider.'
         ])) +
       card('skills', 'star', '#FFC23D', 'Tes Skills', 'Ton carnet de compétences rugby',
@@ -240,10 +240,10 @@
           '<b>Nouveau code provisoire</b> si l\'enfant a oublié le sien.',
           '<b>Masquer du classement</b>, ou <b>désactiver</b> un joueur qui a quitté le groupe (ses données sont gardées).'
         ])) +
-      card('e-mission', 'ball', '#FFC23D', 'Postes et copains (jeu à 10)', 'La mission « Prépare le jeu à 10 »',
+      card('e-mission', 'ball', '#FFC23D', 'Postes et copains (jeu à 10)', 'Les missions « Choisis ton poste » et « Avec qui tu aimes jouer »',
         ul([
-          'Chaque enfant choisit dans l\'appli 1 à 3 <b>postes</b> (dans l\'ordre) et ses <b>copains</b>, sans limite. Les copains sont secrets : ni les autres enfants ni les parents ne les voient.',
-          'Progrès › Missions › <b>Prépare le jeu à 10</b> : qui l\'a faite, les postes demandés (choix 1 et choix 2-3), les copains de chacun.',
+          'Deux missions séparées, chacune avec ses XP et son badge : « Choisis ton poste » (1 à 3 <b>postes</b>, dans l\'ordre), puis « Avec qui tu aimes jouer » (ses <b>copains</b>, sans limite ; débloquée une fois le poste choisi). Les copains sont secrets : ni les autres enfants ni les parents ne les voient.',
+          'Progrès › Missions › <b>Choisis ton poste</b> ou <b>Avec qui tu aimes jouer</b> : qui a fait chaque mission, les postes demandés (choix 1 et choix 2-3), les copains de chacun.',
           'La fiche d\'un joueur montre ses postes, son test « Aide-moi à choisir », ses copains et ceux qui l\'ont choisi (⇄ = ils se sont choisis l\'un l\'autre).',
           'Les réponses envoyées avec l\'ancien site « Choisis ton poste » se reprennent d\'un bouton, si le Google Form range ses réponses dans la feuille de l\'appli.'
         ])) +

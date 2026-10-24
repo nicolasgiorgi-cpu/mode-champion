@@ -3,15 +3,21 @@
    Une mission = une chose à faire une seule fois dans l'appli, avec une récompense
    (XP.mission + son badge, voir content.js). Elle s'affiche en haut de « Ma semaine »
    tant qu'elle n'est pas faite.
-   1re mission : « Prépare le jeu à 10 » = choisir ses postes (cartes + test « Aide-moi à choisir »,
-   repris du site « Choisis ton poste »), puis ses copains (secret : seuls les éducs les voient).
+   Pour le jeu à 10, deux missions séparées, chacune avec ses XP et son badge :
+   « Choisis ton poste » (cartes + test « Aide-moi à choisir », repris du site « Choisis ton poste »)
+   puis « Avec qui tu aimes jouer » (les copains, secret : seuls les éducs les voient), débloquée une fois le poste choisi.
+   Les deux réponses sont rangées sur la même ligne du serveur (ligne « jeu10 ») : rien à changer côté serveur.
    ========================================================= */
 window.MC = window.MC || {};
 
 MC.MISSIONS = [
   {
-    id: 'jeu10', titre: 'Prépare le jeu à 10', debut: '2026-10-13', fin: '2026-11-02', badge: 'jeu10',
-    texte: 'Choisis ton poste et dis aux éducs avec qui tu aimes jouer.'
+    id: 'poste', ligne: 'jeu10', titre: 'Choisis ton poste', debut: '2026-10-13', fin: '2026-11-02', badge: 'jeu10', lien: '#/mission/postes', icon: 'ball',
+    texte: 'Découvre les 7 postes du jeu à 10 et choisis ton top : 1 à 3 postes.'
+  },
+  {
+    id: 'copains', ligne: 'jeu10', titre: 'Avec qui tu aimes jouer', debut: '2026-10-13', fin: '2026-11-02', badge: 'copains', lien: '#/mission/copains', icon: 'group', apres: 'poste',
+    texte: 'Dis aux éducs avec quels copains tu aimes jouer. C\'est secret.'
   }
 ];
 
@@ -29,15 +35,21 @@ MC.missions = (function () {
   // missions affichées : commencées (date de début passée) et pas encore faites
   function pending(me) {
     var t = MC.logic.today();
-    return MC.MISSIONS.filter(function (M) { var m = of(me, M.id); return t >= M.debut && !(m && m.faite); });
+    return MC.MISSIONS.filter(function (M) { return t >= M.debut && !etat(me, M.id).faite; });
   }
+  // l'état d'une mission : « poste » ou « copains » (sur la ligne « jeu10 »), ou la ligne « jeu10 » elle-même (les deux faites)
   function etat(me, id) {
-    var m = of(me, id), r = (m && m.reponses) || {};
-    return {
-      m: m, faite: !!(m && m.faite),
+    var D = def(id), m = of(me, D && D.ligne ? D.ligne : id), r = (m && m.reponses) || {};
+    var o = {
+      m: m, ligneFaite: !!(m && m.faite),
       postes: (r.postes || []).filter(poste), copains: r.copains || [], copainsFait: !!r.copainsFait,
       quiz: r.quiz || null, quizTop: r.quizTop || null, quizResume: r.quizResume || '', source: (m && m.source) || ''
     };
+    o.posteFait = o.postes.length > 0;
+    o.faite = id === 'poste' ? o.posteFait : id === 'copains' ? o.copainsFait : o.ligneFaite;
+    o.bloquee = !!(D && D.apres && !etat(me, D.apres).faite);
+    o.date = m ? String((o.ligneFaite && m.date) || m.maj || m.cree || '').slice(0, 10) : '';
+    return o;
   }
 
   // ---------- test « Aide-moi à choisir » (repris tel quel du site « Choisis ton poste ») ----------
@@ -124,14 +136,15 @@ MC.missions = (function () {
   }
   // tout ce qui attend l'enfant : la mission spéciale du moment et les missions du groupe pas encore faites (date limite pas passée)
   function aFaire(data) {
-    var l = pending(data).map(function (M) { return { id: M.id, titre: M.titre, statique: true }; });
+    // une mission encore bloquée (les copains avant d'avoir choisi son poste) ne compte pas dans la pastille
+    var l = pending(data).filter(function (M) { return !etat(data, M.id).bloquee; }).map(function (M) { return { id: M.id, titre: M.titre, statique: true }; });
     groupe(data).forEach(function (x) { if (!x.faite && !x.finie) l.push({ id: x.def.id, titre: x.def.titre, statique: false }); });
     return l;
   }
   // missions faites (mission spéciale, missions du groupe, missions perso dont l'étoile est validée)
   function nbFaites(data) {
     var n = 0;
-    MC.MISSIONS.forEach(function (M) { var m = of(data, M.id); if (m && m.faite) n++; });
+    MC.MISSIONS.forEach(function (M) { if (etat(data, M.id).faite) n++; });
     groupe(data).forEach(function (x) { if (x.faite) n++; });
     ((data && data.defmissions) || []).forEach(function (m) { if (m.sorte === 'etoile' && m.statut === 'faite') n++; });
     return n;

@@ -70,7 +70,7 @@ assert.strictEqual(st.xp, 100+300, 'xp '+st.xp);
   assert.ok(s2.badges.champion.earned); assert.strictEqual(s2.badges.champion.date,'2026-07-13');
   s2=L.compute({joueur:{niveaux:{}},seances:many.concat([S('2026-07-12','dupont',{details:{niveau:4}})]),records:[],journal:[]});
   assert.ok(s2.badges.champion.earned,'saisie rapide N4');
-  assert.strictEqual(C.BADGES.length,18);
+  assert.strictEqual(C.BADGES.length,19);
   L._setToday('2026-10-11');
 }
 // classement
@@ -101,15 +101,16 @@ console.log('LOGIC TESTS OK');
   console.log('V14 LOGIC OK');
 }
 
-// mission « Prépare le jeu à 10 » : +200 XP et le badge, seulement quand elle est faite
+// les 2 missions du jeu à 10 (même ligne « jeu10 ») : « poste » (badge jeu10) et « copains » (badge copains), +200 XP et un badge chacune
 {
   const base = { joueur: { niveaux: {} }, seances: [], records: [], journal: [] };
-  const x0 = L.compute(base).xp;
-  let s = L.compute(Object.assign({}, base, { missions: [{ mission: 'jeu10', faite: false, reponses: { postes: ['centre'] }, date: '' }] }));
-  assert.strictEqual(s.xp, x0); assert.ok(!s.badges.jeu10.earned); assert.strictEqual(s.badges.jeu10.prog, 'Mission commencée');
+  const x0 = L.compute(base).xp, un = C.XP.mission + C.XP.badge;
   assert.strictEqual(L.compute(base).badges.jeu10.prog, 'Mission à faire');
-  s = L.compute(Object.assign({}, base, { missions: [{ mission: 'jeu10', faite: true, reponses: { postes: ['centre'] }, date: '2026-10-14' }] }));
-  assert.strictEqual(s.xp, x0 + C.XP.mission + C.XP.badge); assert.ok(s.badges.jeu10.earned); assert.strictEqual(s.badges.jeu10.date, '2026-10-14');
-  assert.strictEqual(s.nbBadges, 1);
+  let s = L.compute(Object.assign({}, base, { missions: [{ mission: 'jeu10', faite: false, reponses: { postes: ['centre'] }, date: '', maj: '2026-10-14T10:00:00.000Z' }] }));
+  assert.strictEqual(s.xp, x0 + un, 'poste choisi : 1re mission faite'); assert.ok(s.badges.jeu10.earned); assert.strictEqual(s.badges.jeu10.date, '2026-10-14');
+  assert.ok(!s.badges.copains.earned); assert.strictEqual(s.nbBadges, 1);
+  s = L.compute(Object.assign({}, base, { missions: [{ mission: 'jeu10', faite: true, reponses: { postes: ['centre'], copains: ['x'], copainsFait: true }, date: '2026-10-15' }] }));
+  assert.strictEqual(s.xp, x0 + 2 * un, 'les 2 missions'); assert.ok(s.badges.copains.earned); assert.strictEqual(s.badges.copains.date, '2026-10-15');
+  assert.strictEqual(s.nbBadges, 2);
   console.log('MISSION LOGIC OK');
 }

@@ -38,15 +38,21 @@ window.MC = window.MC || {};
     nv.enc.forEach(function (x) { luIds[x.id] = true; }); nv.missions.forEach(function (m) { luIds[m.id] = true; });
     var spec = M.pending(d), faitesG = groupe.filter(function (x) { return x.faite; }), aFaireG = groupe.filter(function (x) { return !x.faite && !x.finie; });
     var persoFaites = SK.missionPerso(d, true).filter(function (m) { return m.statut === 'faite'; });
-    var e10 = M.etat(d, 'jeu10'), D10 = M.def('jeu10');
-    var nEnCours = spec.length + aFaireG.length + (mp ? 1 : 0), nFaites = faitesG.length + persoFaites.length + (e10.faite ? 1 : 0);
+    // les missions spéciales (le poste, les copains) : chacune sa ligne, faite ou à faire
+    var specFaites = MC.MISSIONS.filter(function (Dx) { return M.etat(d, Dx.id).faite; });
+    var nEnCours = spec.length + aFaireG.length + (mp ? 1 : 0), nFaites = faitesG.length + persoFaites.length + specFaites.length;
+    function specHref(Dx) { return R.k ? Dx.lien : R.base + '/jeu10'; }
     var tabs = ui.subtabs(navKey(R, 'missions'), [['encours', R.base, 'En cours · ' + nEnCours], ['faites', R.base + '?vue=faites', 'Faites · ' + nFaites]], vue, '#FF4FA3', 'Missions');
     var body = '';
     if (vue === 'faites') {
       var items = [];
       persoFaites.forEach(function (m) { var s = SK.star(m.domaine, m.etoile), D = SK.dom(m.domaine); items.push({ at: m.faiteLe, html: '<a class="li mrow" href="' + R.sk + '/' + esc(m.domaine) + '"><span class="mic gold">' + icon('star', 18) + '</span><span class="grow"><span class="t1">' + esc(SK.titreMission(m)) + '</span><span class="t2">' + T(R, 'Ta mission perso', 'Sa mission perso') + ' · étoile ' + esc(D ? D.nom : '') + ' · ' + esc(s ? s.nom : '') + ' gagnée le ' + jour(m.faiteLe) + '</span></span>' + icon('right', 16) + '</a>' }); });
       faitesG.forEach(function (x) { items.push({ at: x.date, html: '<a class="li mrow" href="' + R.base + '/m/' + esc(x.def.id) + '"><span class="mic">' + icon(x.def.sorte === 'video' ? 'play' : 'list', 18) + '</span><span class="grow"><span class="t1">' + esc(x.def.titre) + '</span><span class="t2">' + (x.total ? x.score + ' / ' + x.total + ' bonnes réponses · ' : '') + 'faite le ' + jour(x.date) + (x.xp ? ' · +' + x.xp + ' XP' : '') + '</span></span>' + icon('right', 16) + '</a>' }); });
-      if (e10.faite && D10) items.push({ at: (e10.m && e10.m.date) || '', html: '<a class="li mrow" href="' + (R.k ? '#/mission' : R.base + '/jeu10') + '"><span class="mic">' + icon('ball', 18) + '</span><span class="grow"><span class="t1">' + esc(D10.titre) + '</span><span class="t2">' + T(R, 'Tes postes', 'Ses postes') + ' : ' + e10.postes.map(function (id) { return esc(M.poste(id).nom); }).join(' · ') + '</span></span>' + icon('right', 16) + '</a>' });
+      specFaites.forEach(function (Dx) {
+        var ex = M.etat(d, Dx.id);
+        var t2 = Dx.id === 'poste' ? T(R, 'Tes postes', 'Ses postes') + ' : ' + ex.postes.map(function (id) { return esc(M.poste(id).nom); }).join(' · ') : T(R, ex.copains.length + ' copain' + (ex.copains.length > 1 ? 's' : '') + ', en secret', 'Ses copains restent secrets');
+        items.push({ at: ex.date, html: '<a class="li mrow" href="' + specHref(Dx) + '"><span class="mic">' + icon(Dx.icon, 18) + '</span><span class="grow"><span class="t1">' + esc(Dx.titre) + '</span><span class="t2">' + t2 + ' · +' + C.XP.mission + ' XP</span></span>' + icon('right', 16) + '</a>' });
+      });
       items.sort(function (a, b) { return (a.at || '') < (b.at || '') ? 1 : -1; });
       body = items.length ? '<ul class="list">' + items.map(function (x) { return '<li>' + x.html + '</li>'; }).join('') + '</ul>' : '<div class="empty">' + T(R, 'Pas encore de mission faite. Elles arrivent ici, avec tes résultats.', 'Pas encore de mission faite.') + '</div>';
     } else {
@@ -72,7 +78,7 @@ window.MC = window.MC || {};
       var eq = '';
       spec.forEach(function (Dx) {
         var ex = M.etat(d, Dx.id);
-        eq += '<li><a class="li mrow" href="' + (R.k ? '#/mission' : R.base + '/jeu10') + '"><span class="mic gold">' + icon('ball', 18) + '</span><span class="grow"><span class="t1">' + esc(Dx.titre) + '</span><span class="t2">' + (ex.postes.length ? 'Postes choisis, copains à faire' : 'Choisir son poste et ses copains') + (Dx.fin >= L.today() ? ' · jusqu\'au ' + jour(Dx.fin) : '') + ' · +' + C.XP.mission + ' XP</span></span>' + icon('right', 16) + '</a></li>';
+        eq += '<li><a class="li mrow" href="' + specHref(Dx) + '"><span class="mic gold">' + icon(ex.bloquee ? 'lock' : Dx.icon, 18) + '</span><span class="grow"><span class="t1">' + esc(Dx.titre) + '</span><span class="t2">' + (ex.bloquee ? 'Se débloque après « ' + esc(M.def(Dx.apres).titre) + ' »' : Dx.id === 'poste' ? T(R, 'Choisis ton top : 1 à 3 postes', 'Choisir son top : 1 à 3 postes') : T(R, 'Autant de copains que tu veux, c\'est secret', 'Ses copains de jeu, en secret')) + (Dx.fin >= L.today() ? ' · jusqu\'au ' + jour(Dx.fin) : '') + ' · +' + C.XP.mission + ' XP</span></span>' + icon('right', 16) + '</a></li>';
       });
       aFaireG.forEach(function (x) {
         var m = x.def, nq = (m.questions || []).length;
@@ -310,9 +316,9 @@ window.MC = window.MC || {};
   app.route('/parent/missions/perso', parentRoute(function (R) { return missionPerso(R); }, true), { adult: 'f', nav: 'p:missions', bg: '#33122A' });
   app.route('/parent/missions/mots', parentRoute(function (R) { return mots(R); }, true), { adult: 'f', nav: 'p:missions', bg: '#12333A' });
   app.route('/parent/missions/jeu10', parentRoute(function (R) {
-    var D = M.def('jeu10'), e = M.etat(R.d, 'jeu10');
-    return '<main class="screen">' + sub(R, R.base, 'Missions', D ? D.titre : 'Mission') +
-      '<div class="head"><span class="kicker" style="color:var(--gold)">Mission spéciale</span><h1 class="big sm">' + esc(D ? D.titre : '') + '</h1></div>' +
+    var e = M.etat(R.d, 'jeu10');
+    return '<main class="screen">' + sub(R, R.base, 'Missions', 'Le jeu à 10') +
+      '<div class="head"><span class="kicker" style="color:var(--gold)">Missions spéciales</span><h1 class="big sm">Le jeu à 10</h1></div>' +
       (MC.missionParent ? MC.missionParent(R.d) : '') +
       '<p class="small" style="margin:0">Les copains choisis restent secrets : seuls ' + esc(prenom(R)) + ' et les éducs les voient.</p>' +
       (e.postes.length ? '<section class="sec"><h2 class="h2">Ses postes</h2>' + (MC.ptags ? MC.ptags(e.postes, true) : '') + '</section>' : '') + '</main>';

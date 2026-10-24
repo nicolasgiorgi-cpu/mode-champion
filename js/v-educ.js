@@ -354,11 +354,11 @@ window.MC = window.MC || {};
     return { kids: kids.length, faits: faits, vus: vus, moyenne: faits && nq ? Math.round(somme / faits * 10) / 10 : null, nq: nq };
   }
   function paintMissions(gr) {
-    var kids = actifs(gr), D10 = M.def('jeu10'), groupe = '';
-    if (D10) {
-      var f10 = kids.filter(function (p) { return M.etat({ missions: p.missions || [] }, 'jeu10').faite; }).length;
-      groupe += '<li><a class="li mrow" href="#/educ/mission"><span class="mtag">Poste</span><span class="grow"><span class="t1">' + esc(D10.titre) + '</span><span class="t2">' + f10 + ' / ' + kids.length + ' l\'ont faite' + (kids.length - f10 ? ' · ' + (kids.length - f10) + ' pas encore' : '') + '</span></span>' + icon('right', 16) + '</a></li>';
-    }
+    var kids = actifs(gr), groupe = '';
+    MC.MISSIONS.forEach(function (Dx) {   // les 2 missions du jeu à 10 : le poste, les copains
+      var f = kids.filter(function (p) { return M.etat({ missions: p.missions || [] }, Dx.id).faite; }).length;
+      groupe += '<li><a class="li mrow" href="#/educ/mission"><span class="mtag">' + (Dx.id === 'poste' ? 'Poste' : 'Copains') + '</span><span class="grow"><span class="t1">' + esc(Dx.titre) + '</span><span class="t2">' + f + ' / ' + kids.length + ' l\'ont faite' + (kids.length - f ? ' · ' + (kids.length - f) + ' pas encore' : '') + '</span></span>' + icon('right', 16) + '</a></li>';
+    });
     (gr.defmissions || []).filter(function (m) { return m.sorte !== 'etoile' && m.statut !== 'retiree'; }).sort(function (a, b) { return a.cree < b.cree ? 1 : -1; }).forEach(function (m) {
       var s = statsGroupe(gr, m);
       groupe += '<li><a class="li mrow" href="#/educ/missions/m/' + esc(m.id) + '"><span class="mtag">' + (m.sorte === 'video' ? 'Vidéo' : 'QCM') + '</span><span class="grow"><span class="t1">' + esc(m.titre) + '</span><span class="t2">' + s.faits + ' / ' + s.kids + ' l\'ont faite' + (s.moyenne !== null ? ' · moyenne ' + String(s.moyenne).replace('.', ',') + ' / ' + s.nq : '') + (m.fin ? ' · jusqu\'au ' + jourTxt(m.fin) : '') + '</span></span>' + icon('right', 16) + '</a></li>';
@@ -580,8 +580,11 @@ window.MC = window.MC || {};
     var faites = persosToutes(gr, id).filter(function (x) { return x.statut === 'faite'; });
     if (faites.length) out += '<details><summary class="small" style="cursor:pointer;color:var(--cyan);min-height:32px">Ses missions perso réussies (' + faites.length + ')</summary><ul class="small" style="margin:6px 0 0;padding-left:18px;line-height:1.6;color:var(--soft)">' + faites.map(function (x) { return '<li>★ ' + esc(SK.titreMission(x)) + ' · ' + jourTxt(x.faiteLe) + '</li>'; }).join('') + '</ul></details>';
     // missions du groupe
-    var D10 = M.def('jeu10'), e10 = M.etat(d, 'jeu10'), lg = '';
-    if (D10) lg += '<li class="li"><span class="mtag">Poste</span><span class="grow"><span class="t1">' + esc(D10.titre) + '</span><span class="t2">' + (e10.faite ? 'faite · ' + e10.postes.map(function (pid) { return esc(M.poste(pid).nom.toLowerCase()); }).join(', ') : e10.postes.length ? 'postes choisis, copains à faire' : '<span style="color:var(--orange)">pas encore</span>') + '</span></span></li>';
+    var lg = '';
+    MC.MISSIONS.forEach(function (Dx) {   // les 2 missions du jeu à 10
+      var ex = M.etat(d, Dx.id);
+      lg += '<li class="li"><span class="mtag">' + (Dx.id === 'poste' ? 'Poste' : 'Copains') + '</span><span class="grow"><span class="t1">' + esc(Dx.titre) + '</span><span class="t2">' + (ex.faite ? 'faite' + (Dx.id === 'poste' ? ' · ' + ex.postes.map(function (pid) { return esc(M.poste(pid).nom.toLowerCase()); }).join(', ') : ' · ' + ex.copains.length + ' copain' + (ex.copains.length > 1 ? 's' : '')) : '<span style="color:var(--orange)">pas encore</span>') + '</span></span></li>';
+    });
     M.groupe(d).forEach(function (x) {
       lg += '<li class="li"><span class="mtag">' + (x.def.sorte === 'video' ? 'Vidéo' : 'QCM') + '</span><span class="grow"><span class="t1">' + esc(x.def.titre) + '</span><span class="t2">' + (x.faite ? 'faite' + (x.total ? ' · ' + x.score + ' / ' + x.total : '') : x.vu ? 'vidéo vue, quiz à faire' : '<span style="color:var(--orange)">pas encore vue</span>') + '</span></span></li>';
     });

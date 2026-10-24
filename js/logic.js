@@ -284,9 +284,9 @@ MC.logic = (function () {
       else if (b.id === 'serie7') { if (st.bestStreak >= 7) ok = { date: '' }; }
       else if (b.id === 'fidele') { if (st.maison >= 25) ok = { date: '' }; }
       else if (b.mission) {
-        var mi = missionOf(data, b.mission);
-        if (mi && mi.faite) ok = { date: mi.date || '' };
-        else { res[b.id] = { earned: false, tier: 0, prog: mi && mi.reponses && mi.reponses.postes && mi.reponses.postes.length ? 'Mission commencée' : 'Mission à faire' }; return; }
+        var mf = missionFaite(data, b.mission);
+        if (mf) ok = { date: mf.date || '' };
+        else { res[b.id] = { earned: false, tier: 0, prog: 'Mission à faire' }; return; }
       }
       res[b.id] = ok ? { earned: true, tier: 1, date: ok.date || '' } : { earned: false, tier: 0 };
     });
@@ -296,6 +296,16 @@ MC.logic = (function () {
     return res;
   }
 
+  // « poste » et « copains » : deux missions rangées sur la même ligne « jeu10 » (voir js/missions.js)
+  function missionFaite(data, id) {
+    if (id === 'poste' || id === 'copains') {
+      var j = missionOf(data, 'jeu10'), r = (j && j.reponses) || {};
+      var ok = id === 'poste' ? !!(r.postes && r.postes.length) : !!r.copainsFait;
+      return ok ? { date: String((j.faite && j.date) || j.maj || j.cree || '').slice(0, 10) } : null;
+    }
+    var mi = missionOf(data, id);
+    return mi && mi.faite ? { date: mi.date || '' } : null;
+  }
   function missionOf(data, id) {
     var l = (data && data.missions) || [];
     for (var i = 0; i < l.length; i++) if (l[i].mission === id) return l[i];
@@ -348,6 +358,12 @@ MC.logic = (function () {
     if ((data.journal || []).some(function (j) { return j.type === 'premiers_pas'; })) xp += X.premiersPas || 0;
     // missions accomplies : la mission spéciale (XP.mission), les missions du groupe (leurs propres XP, gardés sur la ligne)
     (data.missions || []).forEach(function (m) {
+      if (m.mission === 'jeu10') {   // 2 missions sur cette ligne : le poste, puis les copains
+        var r = m.reponses || {};
+        if (r.postes && r.postes.length) xp += X.mission || 0;
+        if (r.copainsFait) xp += X.mission || 0;
+        return;
+      }
       if (!m.faite) return;
       if (m.reponses && m.reponses.xp !== undefined) xp += Number(m.reponses.xp) || 0;
       else xp += X.mission || 0;

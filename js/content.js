@@ -345,7 +345,7 @@ window.MC = window.MC || {};
 
   // Dates des bilans (une séance de tests toutes les ~8 semaines). Modifiable dans config.js.
   // ---------- Badges ----------
-  // 18 badges en 4 familles :
+  // 19 badges en 4 familles :
   //  - exploit    : au bilan ou en défi (un adulte confirme) + Champion (un exo réussi en N4)
   //  - seances    : 10 / 25 / 40 séances d'un même jour → bronze, argent, or
   //  - regularite : automatiques (étoiles, séries)
@@ -379,7 +379,8 @@ window.MC = window.MC || {};
     { id: 'serie7', famille: 'regularite', nom: 'Série de 7', cond: '7 étoiles d\'affilée sans en rater', icon: 'flame', color: '#FF8A3D' },
     { id: 'fidele', famille: 'regularite', nom: 'Fidèle', cond: '25 séances à la maison', icon: 'shield', color: '#B48CFF' },
     { id: 'legende', famille: 'regularite', nom: 'Légende', cond: '56 étoiles sur un cycle de 8 semaines', icon: 'trophy', color: '#FFC23D' },
-    { id: 'jeu10', famille: 'missions', nom: 'Prêt pour le jeu à 10', cond: 'Mission « Prépare le jeu à 10 » accomplie', mission: 'jeu10', lien: '#/mission', icon: 'ball', color: '#38E8FF' }
+    { id: 'jeu10', famille: 'missions', nom: 'Prêt pour le jeu à 10', cond: 'Mission « Choisis ton poste » accomplie', mission: 'poste', lien: '#/mission/postes', icon: 'ball', color: '#38E8FF' },
+    { id: 'copains', famille: 'missions', nom: 'Esprit d\'équipe', cond: 'Mission « Avec qui tu aimes jouer » accomplie', mission: 'copains', lien: '#/mission/copains', icon: 'group', color: '#3DFFB0' }
   ];
   // Défi « Meafou » : un test qui n'est pas dans le bilan
   var DEFI_TESTS = {

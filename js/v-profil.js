@@ -62,7 +62,8 @@
     ].map(function (t) { return '<a class="tile" href="' + t[3] + '" style="text-decoration:none;color:inherit"><span class="v" style="color:' + t[2] + '">' + t[0] + '</span><span class="l" style="text-transform:none;font-family:var(--f-body);letter-spacing:0;font-size:12px;color:var(--soft)">' + t[1] + '</span></a>'; }).join('') + '</div>';
     function row(href, ic, col, t1, t2) { return '<a class="li" href="' + href + '">' + icon(ic, 22, 'style="color:' + col + ';flex:none"') + '<span class="grow"><span class="t1">' + t1 + '</span><span class="t2">' + t2 + '</span></span>' + icon('right', 16) + '</a>'; }
     var links = '<div class="sec" style="gap:6px">' +
-      (e10 && (e10.postes.length || e10.copainsFait) ? row('#/mission', 'ball', 'var(--cyan)', 'Mes postes et mes copains', 'Tes choix, vus par tes éducs seulement') : '') +
+      (e10 && e10.postes.length ? row('#/mission/postes', 'ball', 'var(--cyan)', 'Mes postes', e10.postes.map(function (id) { return MC.missions.poste(id).nom; }).join(' · ')) : '') +
+      (e10 && e10.copainsFait ? row('#/mission/copains', 'group', 'var(--green)', 'Mes copains', 'Secret : vus par tes éducs seulement') : '') +
       row('#/trophees', 'trophy', 'var(--gold)', 'Trophées', st.nbBadges + ' / ' + C.BADGES.length + ' badges · grades et coffres') +
       row('#/aide', 'info', 'var(--cyan)', 'Aide et nouveautés', 'Comment ça marche, revoir la visite') +
       row('#/reglages', 'settings', 'var(--soft)', 'Réglages', 'Le son, mon code, changer de joueur') + '</div>';

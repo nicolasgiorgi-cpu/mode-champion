@@ -8,6 +8,14 @@
 window.MC = window.MC || {};
 
 MC.NEWS = [
+  { id: '2026-10-2missions', date: '2026-10-24', pour: ['k', 'f', 'e'],
+    titre: { k: 'Le jeu à 10 : 2 missions pour toi', f: 'Le jeu à 10 : 2 missions', e: 'Le jeu à 10 : 2 missions séparées' },
+    texte: {
+      k: '« Choisis ton poste » puis « Avec qui tu aimes jouer » : chacune rapporte +200 XP et son badge.',
+      f: 'Votre enfant choisit son poste, puis ses copains (secrets) : deux missions, chacune avec ses XP et son badge.',
+      e: '« Choisis ton poste » et « Avec qui tu aimes jouer » sont séparées. Le suivi des deux : Progrès › Missions.'
+    },
+    lien: { k: '#/missions', f: '#/parent/missions', e: '#/educ/mission' } },
   { id: '2026-10-passer', date: '2026-10-24', pour: ['f', 'e'],
     titre: 'Passer le téléphone à votre enfant',
     texte: { f: 'Touchez ▶ son prénom, en haut à droite : il arrive sur sa séance. Pour revenir : « Rendre le téléphone », puis votre code.', e: 'Votre enfant (engrenage › Mon enfant) a son bouton ▶ en haut à droite. Pour revenir : « Rendre le téléphone », puis votre code.' } },
