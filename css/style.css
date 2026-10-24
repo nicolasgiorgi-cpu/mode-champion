@@ -1,5 +1,8 @@
 /* ===== Mode champion · M12 — style « néon jeu vidéo » (mobile d'abord, tablette ensuite) ===== */
 :root{
+  /* haut de l'écran : la zone de l'heure et de la batterie, plus, dans l'appli installée sur iPhone (iOS 26),
+     la bande que Safari floute sous cette zone (--edge, réglé par js/app.js) : le contenu commence en dessous */
+  --safe-t:calc(env(safe-area-inset-top,0px) + var(--edge,0px));
   color-scheme:dark;
   --bg:#070A12; --bg2:#0A0F1F; --panel:#0E1428; --panel2:#0C1120; --line:#1E2740; --line2:#2A3557; --line3:#34405F;
   --ink:#E8ECF7; --soft:#C7CEDF; --muted:#AEB6CC; --dim:#8A93AD; --faint:#4A5578;
@@ -25,7 +28,7 @@ img{display:block;max-width:100%}
 /* ---------- fond et écran ---------- */
 /* fond uni : plus de halo coloré en haut de l'écran (il donnait un effet de flou derrière le haut des pages) */
 .bgfx{position:fixed;inset:0;z-index:-1;background:var(--bg)}
-.screen{max-width:560px;margin:0 auto;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(var(--nav-h) + 28px + var(--safe-b));display:flex;flex-direction:column;gap:20px}
+.screen{max-width:560px;margin:0 auto;padding:calc(16px + var(--safe-t)) 16px calc(var(--nav-h) + 28px + var(--safe-b));display:flex;flex-direction:column;gap:20px}
 .screen.nonav{padding-bottom:calc(28px + var(--safe-b))}
 .kicker{font:600 11px/1.2 var(--f-hud);letter-spacing:.18em;color:var(--cyan);text-transform:uppercase}
 .big{margin:0;font:italic 900 clamp(42px,12vw,64px)/.86 var(--f-title);text-transform:uppercase;text-shadow:3px 3px 0 var(--pink),-2px -2px 0 var(--cyan)}
@@ -323,7 +326,7 @@ label.lab{font:600 11px/1.2 var(--f-hud);letter-spacing:.14em;color:var(--dim);t
 .nav .brand{display:none}
 
 /* ---------- barre du haut (la même partout) ---------- */
-.topbar{position:sticky;top:0;z-index:15;display:flex;align-items:center;gap:10px;min-height:calc(62px + env(safe-area-inset-top,0px));margin:calc(-16px - env(safe-area-inset-top,0px)) -16px -4px;padding:calc(9px + env(safe-area-inset-top,0px)) 12px 9px;background:#070A12;border-bottom:1px solid var(--line)}
+.topbar{position:sticky;top:0;z-index:15;display:flex;align-items:center;gap:10px;min-height:calc(62px + var(--safe-t));margin:calc(-16px - var(--safe-t)) -16px -4px;padding:calc(9px + var(--safe-t)) 12px 9px;background:#070A12;border-bottom:1px solid var(--line)}
 .tb-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
 .tb-k{font:600 10px/1.1 var(--f-hud);letter-spacing:.16em;color:var(--dim);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tb-title{font:700 14px/1.15 var(--f-hud);letter-spacing:.1em;color:var(--ink);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -349,7 +352,7 @@ label.lab{font:600 11px/1.2 var(--f-hud);letter-spacing:.14em;color:var(--dim);t
 .cbtn:disabled{opacity:.4;cursor:default}
 
 /* ---------- séance guidée ---------- */
-.run{--nc:var(--rc);--ng:rgba(255,255,255,.18);min-height:100vh;min-height:100dvh;max-width:560px;margin:0 auto;padding:calc(12px + env(safe-area-inset-top,0px)) 16px calc(20px + var(--safe-b));display:flex;flex-direction:column;gap:16px}
+.run{--nc:var(--rc);--ng:rgba(255,255,255,.18);min-height:100vh;min-height:100dvh;max-width:560px;margin:0 auto;padding:calc(12px + var(--safe-t)) 16px calc(20px + var(--safe-b));display:flex;flex-direction:column;gap:16px}
 .run .top{display:flex;align-items:center;gap:10px}
 .prog{flex:1;display:grid;grid-template-columns:repeat(var(--n,4),minmax(0,1fr));gap:4px}
 .prog i{height:8px;background:#1E2740;position:relative;overflow:hidden}
@@ -955,7 +958,7 @@ textarea.txt{width:100%;padding:10px 12px;background:#0C1120;border:1px solid va
 .cnbv{min-width:28px;text-align:center;font:700 22px/1 var(--f-hud)}
 .ibtn:disabled,.btn2:disabled{opacity:.38;cursor:default}
 .cselp .grow,.cdock .grow{flex:1;min-width:0}
-body:has(.cdock .cselp) .toast{top:calc(74px + env(safe-area-inset-top,0px));bottom:auto}
+body:has(.cdock .cselp) .toast{top:calc(74px + var(--safe-t));bottom:auto}
 /* état de la compo */
 .cstate{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border:1px solid var(--line2);background:var(--panel);font-size:14px;line-height:1.4}
 .cstate svg{flex:none;margin-top:1px}
