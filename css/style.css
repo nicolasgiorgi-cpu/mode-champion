@@ -23,7 +23,8 @@ img{display:block;max-width:100%}
 :focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 
 /* ---------- fond et écran ---------- */
-.bgfx{position:fixed;inset:0;z-index:-1;background:radial-gradient(120% 520px at 50% 0%, var(--bgtop,#1B2552) 0%, #0A0E1A 60%, var(--bg) 100%) no-repeat, var(--bg);transition:background .4s}
+/* fond uni : plus de halo coloré en haut de l'écran (il donnait un effet de flou derrière le haut des pages) */
+.bgfx{position:fixed;inset:0;z-index:-1;background:var(--bg)}
 .screen{max-width:560px;margin:0 auto;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(var(--nav-h) + 28px + var(--safe-b));display:flex;flex-direction:column;gap:20px}
 .screen.nonav{padding-bottom:calc(28px + var(--safe-b))}
 .kicker{font:600 11px/1.2 var(--f-hud);letter-spacing:.18em;color:var(--cyan);text-transform:uppercase}
