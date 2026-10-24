@@ -127,7 +127,18 @@ var Core = (function () {
       ['versions', 'j'], ['votes', 'j'], ['choix', 'n'], ['partie', 's']],
     // contre-propositions d'un autre éduc sur une compo publiée
     avis: [['id', 's'], ['compoId', 's'], ['version', 'n'], ['auteur', 's'], ['auteurNom', 's'], ['equipes', 'j'], ['banc', 'j'], ['changements', 'j'],
-      ['justification', 's'], ['statut', 's'], ['reponse', 's'], ['parQui', 's'], ['cree', 's'], ['maj', 's']]
+      ['justification', 's'], ['statut', 's'], ['reponse', 's'], ['parQui', 's'], ['cree', 's'], ['maj', 's']],
+    // ---- Skills, encouragements et missions des éducs ----
+    // une étoile Skills validée par un éduc (domaine + étoile) ; retiree = validée par erreur (gardée pour l'historique)
+    etoiles: [['id', 's'], ['joueurId', 's'], ['domaine', 's'], ['etoile', 's'], ['parQui', 's'], ['parNom', 's'], ['date', 's'], ['occasion', 's'],
+      ['evenementId', 's'], ['essais', 'j'], ['retiree', 'b'], ['cree', 's'], ['maj', 's']],
+    // un « +1 » (ou un mot) d'un éduc à un enfant : sur sa mission perso (missionId) ou sur autre chose (mot obligatoire)
+    encouragements: [['id', 's'], ['joueurId', 's'], ['missionId', 's'], ['domaine', 's'], ['etoile', 's'], ['mot', 's'], ['parQui', 's'], ['parNom', 's'],
+      ['date', 's'], ['occasion', 's'], ['evenementId', 's'], ['retire', 'b'], ['cree', 's']],
+    // les missions créées par les éducs : pour le groupe (video : une vidéo + des questions ; qcm) ou individuelles
+    // (etoile : décrocher une étoile précise, pour un enfant). statut : active, faite (étoile validée), retiree
+    defmissions: [['id', 's'], ['sorte', 's'], ['titre', 's'], ['texte', 's'], ['video', 's'], ['questions', 'j'], ['joueurId', 's'], ['domaine', 's'],
+      ['etoile', 's'], ['xp', 'n'], ['debut', 's'], ['fin', 's'], ['statut', 's'], ['parQui', 's'], ['parNom', 's'], ['faiteLe', 's'], ['cree', 's'], ['maj', 's']]
   };
 
   // Valeur brute (texte de la feuille) -> valeur typée
@@ -279,7 +290,32 @@ var Core = (function () {
       copainsFait: !!r.copainsFait
     };
     if (!sansCopains) out.copains = Array.isArray(r.copains) ? r.copains : [];
+    // missions des éducs (vidéo, QCM) : vidéo vue, réponses, score
+    if (r.vu) out.vu = true;
+    if (Array.isArray(r.ans)) { out.ans = r.ans; out.score = Number(r.score) || 0; out.total = Number(r.total) || 0; }
+    if (r.xp !== undefined) out.xp = Number(r.xp) || 0;
     return { id: m.id, joueurId: m.joueurId, mission: m.mission, reponses: out, faite: !!m.faite, date: m.date || '', source: m.source || '', maj: m.maj || m.cree || '' };
+  }
+  function pubEtoile(e, full) {
+    var o = { id: e.id, joueurId: e.joueurId, domaine: e.domaine, etoile: e.etoile, parNom: e.parNom || '', date: e.date || '', occasion: e.occasion || '', cree: e.cree || '' };
+    if (full) { o.parQui = e.parQui || ''; o.essais = Array.isArray(e.essais) ? e.essais : null; }
+    return o;
+  }
+  function pubEnc(x) {
+    return { id: x.id, joueurId: x.joueurId, missionId: x.missionId || '', domaine: x.domaine || '', etoile: x.etoile || '', mot: x.mot || '', parQui: x.parQui || '', parNom: x.parNom || '',
+      date: x.date || '', occasion: x.occasion || '', evenementId: x.evenementId || '', cree: x.cree || '' };
+  }
+  function pubDef(m) {
+    return { id: m.id, sorte: m.sorte, titre: m.titre || '', texte: m.texte || '', video: m.video || '', questions: Array.isArray(m.questions) ? m.questions : [],
+      joueurId: m.joueurId || '', domaine: m.domaine || '', etoile: m.etoile || '', xp: Number(m.xp) || 0, debut: m.debut || '', fin: m.fin || '',
+      statut: m.statut || 'active', parQui: m.parQui || '', parNom: m.parNom || '', faiteLe: m.faiteLe || '', cree: m.cree || '' };
+  }
+  // les missions des éducs qu'un enfant voit : celles du groupe, et sa mission perso
+  function defsDe(db, joueurId) {
+    return db.rows('defmissions').filter(function (m) {
+      if (m.statut === 'retiree') return false;
+      return m.sorte === 'etoile' ? m.joueurId === joueurId : true;
+    }).map(pubDef);
   }
 
   // Les résultats en attente de confirmation : l'enfant, sa famille, et l'éduc qui est son parent (enfant relié à son profil).
@@ -295,7 +331,10 @@ var Core = (function () {
       seances: where(db.rows('seances'), 'joueurId', joueur.id).map(function (s) { return pubSeance(s, full); }),
       records: recordsVus(ctx, joueur.id, recs).map(pubRecord), enAttente: nbAttente(ctx, joueur.id, recs),
       journal: where(db.rows('journal'), 'joueurId', joueur.id).map(pubJournal),
-      missions: where(db.rows('missions'), 'joueurId', joueur.id).map(function (m) { return pubMission(m, parent); })
+      missions: where(db.rows('missions'), 'joueurId', joueur.id).map(function (m) { return pubMission(m, parent); }),
+      etoiles: where(db.rows('etoiles'), 'joueurId', joueur.id).filter(function (e) { return !e.retiree; }).map(function (e) { return pubEtoile(e, ctx.auth && ctx.auth.r === 'e'); }),
+      encouragements: where(db.rows('encouragements'), 'joueurId', joueur.id).filter(function (x) { return !x.retire; }).map(pubEnc),
+      defmissions: defsDe(db, joueur.id)
     };
   }
 
@@ -714,7 +753,15 @@ var Core = (function () {
     run: function (req, ctx) {
       var f = ctx.auth.row;
       var kids = ctx.db.rows('joueurs').filter(function (j) { return j.familleId === f.id && j.actif; });
-      return { famille: { id: f.id, nom: f.nom }, enfants: kids.map(function (k) { return dossier(ctx, k, true); }) };
+      // les prochains rendez-vous du groupe (titre, date, lieu seulement : les présents et les compos restent aux éducs)
+      var auj = isoDate(ctx.now), ids = {};
+      kids.forEach(function (k) { ids[k.id] = true; });
+      // seulement les événements où l'un de ses enfants est invité (Spond) ou coché présent
+      function invite(e) { return [].concat(e.presents || [], e.absents || [], e.sansReponse || [], e.ajouts || []).some(function (id) { return ids[id]; }); }
+      var prochains = ctx.db.rows('evenements').filter(function (e) { return !e.annule && String(e.debut).slice(0, 10) >= auj && invite(e); })
+        .sort(function (a, b) { return String(a.debut) < String(b.debut) ? -1 : 1; }).slice(0, 3)
+        .map(function (e) { return { titre: e.titre, debut: e.debut, lieu: e.lieu || '', sorte: e.sorte || '', source: e.source || '' }; });
+      return { famille: { id: f.id, nom: f.nom }, enfants: kids.map(function (k) { return dossier(ctx, k, true); }), prochains: prochains };
     }
   };
 
@@ -774,6 +821,7 @@ var Core = (function () {
       var db = ctx.db;
       var seances = db.rows('seances'), records = db.rows('records'), journal = db.rows('journal'), missions = db.rows('missions');
       var fams = db.rows('familles'), terrain = db.rows('terrain');
+      var etoiles = db.rows('etoiles').filter(function (e) { return !e.retiree; }), encs = db.rows('encouragements').filter(function (x) { return !x.retire; });
       var joueurs = db.rows('joueurs').map(function (j) {
         return {
           joueur: pubJoueur(j),
@@ -782,7 +830,9 @@ var Core = (function () {
           records: recordsVus(ctx, j.id, where(records, 'joueurId', j.id)).map(pubRecord), enAttente: nbAttente(ctx, j.id, where(records, 'joueurId', j.id)),
           journal: where(journal, 'joueurId', j.id).map(pubJournal),
           missions: where(missions, 'joueurId', j.id).map(function (m) { return pubMission(m, false); }),
-          terrain: pubTerrain(find(terrain, j.id))
+          terrain: pubTerrain(find(terrain, j.id)),
+          etoiles: where(etoiles, 'joueurId', j.id).map(function (e) { return pubEtoile(e, true); }),
+          encouragements: where(encs, 'joueurId', j.id).map(pubEnc)
         };
       });
       var imp = null;
@@ -791,7 +841,8 @@ var Core = (function () {
         moi: { id: ctx.auth.row.id, nom: ctx.auth.row.nom, admin: !!ctx.auth.row.admin, enfants: Array.isArray(ctx.auth.row.enfants) ? ctx.auth.row.enfants : [] },
         joueurs: joueurs,
         familles: fams.map(function (f) { return { id: f.id, nom: f.nom }; }),
-        importPostes: imp
+        importPostes: imp,
+        defmissions: db.rows('defmissions').filter(function (m) { return m.statut !== 'retiree'; }).map(pubDef)
       };
     }
   };
@@ -939,6 +990,204 @@ var Core = (function () {
       if (req.admin !== undefined && e.id !== ctx.auth.id) patch.admin = !!req.admin;
       ctx.db.update('educs', e.id, patch);
       return {};
+    }
+  };
+
+  // ---------------------------------------------------------
+  // Skills, encouragements (+1) et missions des éducs
+  // - Une étoile Skills ne se gagne que si un éduc la valide (un seul éduc suffit).
+  // - Un +1 dit « tu es sur la bonne voie » sur la mission perso d'un enfant (jusqu'à 5 par mission) ;
+  //   il ne donne jamais l'étoile : au 3e, l'appli propose aux éducs de la valider, rien d'automatique.
+  // - Un parent ne donne jamais de +1 ; l'enfant et sa famille voient les +1 et les mots.
+  // ---------------------------------------------------------
+  var SKILLS = {
+    plaquage: ['epaule', 'joue', 'deux-cotes', 'cercle', 'tomber'],
+    passe: ['mains', 'en-courant', 'droite', 'gauche', 'vrillee'],
+    ruck: ['dos-plat', 'appuis', 'tete', 'gagne', 'roulade'],
+    pied: ['decolle', 'chandelle', 'rasant', 'ramasse', 'vise']
+  };
+  var MAX_PLUS1 = 5;
+  function skillOk(d, e) { return !!(SKILLS[d] && SKILLS[d].indexOf(e) >= 0); }
+  function educNom(ctx) { return ctx.auth.row.nom || 'Un éduc'; }
+  function joueurActif(ctx, id) {
+    var j = find(ctx.db.rows('joueurs'), String(id || ''));
+    if (!j || !j.actif) fail('introuvable', 'Joueur introuvable.');
+    return j;
+  }
+  function etoileActive(ctx, joueurId, d, e) {
+    var l = ctx.db.rows('etoiles');
+    for (var i = 0; i < l.length; i++) if (l[i].joueurId === joueurId && l[i].domaine === d && l[i].etoile === e && !l[i].retiree) return l[i];
+    return null;
+  }
+  function plus1De(ctx, missionId) { return ctx.db.rows('encouragements').filter(function (x) { return x.missionId === missionId && !x.retire; }).length; }
+  // le texte de l'occasion : donné par l'appli, sinon déduit de l'événement
+  function occasionDe(ctx, req) {
+    var occ = cleanText(req.occasion, 60), evId = String(req.evenementId || ''), ev = evId ? find(ctx.db.rows('evenements'), evId) : null;
+    return { occasion: occ || (ev ? cleanText(ev.titre, 60) : ''), evenementId: ev ? ev.id : '' };
+  }
+
+  A.plusUn = {
+    auth: ['e'],
+    run: function (req, ctx) {
+      var j = joueurActif(ctx, req.joueurId), mid = String(req.missionId || ''), def = null;
+      var mot = cleanText(req.mot, 140);
+      if (mid) {
+        def = find(ctx.db.rows('defmissions'), mid);
+        if (!def || def.sorte !== 'etoile' || def.joueurId !== j.id || def.statut !== 'active') fail('invalide', 'Cette mission n\'est plus en cours.');
+        if (plus1De(ctx, mid) >= MAX_PLUS1) fail('limite', 'Déjà ' + MAX_PLUS1 + ' +1 sur cette mission : c\'est le moment de valider l\'étoile.');
+      } else if (!mot) fail('invalide', 'Écrivez un mot, ou choisissez sa mission.');
+      var o = occasionDe(ctx, req), now = isoNow(ctx.now);
+      var row = { id: genId(ctx.env), joueurId: j.id, missionId: mid, domaine: def ? def.domaine : '', etoile: def ? def.etoile : '', mot: mot, parQui: ctx.auth.row.id, parNom: educNom(ctx),
+        date: isoDate(ctx.now), occasion: o.occasion, evenementId: o.evenementId, retire: false, cree: now };
+      ctx.db.insert('encouragements', row);
+      return { encouragement: pubEnc(row), nb: mid ? plus1De(ctx, mid) : 0, max: MAX_PLUS1 };
+    }
+  };
+  // retirer un +1 donné par erreur : son auteur, ou l'admin
+  A.retirerEncouragement = {
+    auth: ['e'],
+    run: function (req, ctx) {
+      var x = find(ctx.db.rows('encouragements'), String(req.id || ''));
+      if (!x || x.retire) fail('introuvable', 'Introuvable.');
+      if (x.parQui !== ctx.auth.row.id && !ctx.auth.row.admin) fail('interdit', 'Seul l\'éduc qui l\'a donné peut le retirer.');
+      ctx.db.update('encouragements', x.id, { retire: true });
+      return { id: x.id };
+    }
+  };
+  // valider des étoiles : une ou plusieurs (évaluer pendant la séance, journée d'évaluation)
+  A.validerEtoiles = {
+    auth: ['e'],
+    run: function (req, ctx) {
+      var list = Array.isArray(req.etoiles) ? req.etoiles.slice(0, 300) : [];
+      if (!list.length) fail('invalide', 'Aucune étoile à valider.');
+      var o = occasionDe(ctx, req), now = isoNow(ctx.now), out = [], deja = 0, faites = [];
+      // tout est vérifié avant d'écrire quoi que ce soit
+      var js = list.map(function (x) {
+        if (!x || !skillOk(String(x.domaine), String(x.etoile))) fail('invalide', 'Étoile inconnue.');
+        return joueurActif(ctx, x.joueurId);
+      });
+      list.forEach(function (x, i) {
+        var j = js[i];
+        if (etoileActive(ctx, j.id, x.domaine, x.etoile)) { deja++; return; }
+        var essais = Array.isArray(x.essais) ? x.essais.slice(0, 3).map(function (v) { return v ? 1 : 0; }) : null;
+        var row = { id: genId(ctx.env), joueurId: j.id, domaine: String(x.domaine), etoile: String(x.etoile), parQui: ctx.auth.row.id, parNom: educNom(ctx),
+          date: isoDate(ctx.now), occasion: o.occasion, evenementId: o.evenementId, essais: essais, retiree: false, cree: now, maj: now };
+        ctx.db.insert('etoiles', row);
+        out.push(pubEtoile(row, true));
+        // la mission perso qui visait cette étoile est faite
+        ctx.db.rows('defmissions').forEach(function (m) {
+          if (m.sorte === 'etoile' && m.statut === 'active' && m.joueurId === j.id && m.domaine === row.domaine && m.etoile === row.etoile) {
+            ctx.db.update('defmissions', m.id, { statut: 'faite', faiteLe: isoDate(ctx.now), maj: now });
+            faites.push(m.id);
+          }
+        });
+      });
+      return { etoiles: out, deja: deja, missionsFaites: faites };
+    }
+  };
+  // une étoile validée par erreur : elle disparaît pour l'enfant (gardée dans la feuille) ; sa mission perso redevient en cours
+  A.retirerEtoile = {
+    auth: ['e'],
+    run: function (req, ctx) {
+      var e = find(ctx.db.rows('etoiles'), String(req.id || ''));
+      if (!e || e.retiree) fail('introuvable', 'Introuvable.');
+      var now = isoNow(ctx.now);
+      ctx.db.update('etoiles', e.id, { retiree: true, maj: now });
+      var rouvertes = [];
+      ctx.db.rows('defmissions').forEach(function (m) {
+        if (m.sorte === 'etoile' && m.statut === 'faite' && m.joueurId === e.joueurId && m.domaine === e.domaine && m.etoile === e.etoile) {
+          ctx.db.update('defmissions', m.id, { statut: 'active', faiteLe: '', maj: now });
+          rouvertes.push(m.id);
+        }
+      });
+      return { id: e.id, missionsRouvertes: rouvertes };
+    }
+  };
+  // les questions d'une mission : 1 à 10, chacune 2 à 4 réponses et l'indice de la bonne
+  function cleanQuestions(qs, min) {
+    if (!Array.isArray(qs)) qs = [];
+    var out = qs.slice(0, 10).map(function (q) {
+      if (!q || typeof q !== 'object') fail('invalide', 'Question invalide.');
+      var t = cleanText(q.q, 160), opts = (Array.isArray(q.opts) ? q.opts : []).slice(0, 4).map(function (o) { return cleanText(o, 90); }).filter(Boolean), ok = Number(q.ok);
+      if (!t) fail('invalide', 'Une question est vide.');
+      if (opts.length < 2) fail('invalide', 'Chaque question a besoin d\'au moins 2 réponses.');
+      if (!(ok >= 0 && ok < opts.length && Math.floor(ok) === ok)) fail('invalide', 'Choisissez la bonne réponse de chaque question.');
+      return { q: t, opts: opts, ok: ok };
+    });
+    if (out.length < (min || 0)) fail('invalide', 'Il faut au moins ' + min + ' question' + (min > 1 ? 's' : '') + '.');
+    return out;
+  }
+  // l'identifiant d'une vidéo YouTube (adresse complète ou identifiant seul)
+  function youtubeId(s) {
+    s = String(s || '').trim();
+    var m = s.match(/(?:youtu\.be\/|[?&]v=|\/embed\/|\/shorts\/|\/live\/)([A-Za-z0-9_-]{11})/) || s.match(/^([A-Za-z0-9_-]{11})$/);
+    return m ? m[1] : '';
+  }
+  A.defMission = {
+    auth: ['e'],
+    run: function (req, ctx) {
+      var now = isoNow(ctx.now), me = ctx.auth.row, m, patch;
+      if (req.id) {
+        m = find(ctx.db.rows('defmissions'), String(req.id));
+        if (!m || m.statut === 'retiree') fail('introuvable', 'Mission introuvable.');
+        if (m.parQui !== me.id && !me.admin) fail('interdit', 'Seul l\'éduc qui l\'a créée (ou l\'admin) peut la modifier.');
+        if (req.retirer) { ctx.db.update('defmissions', m.id, { statut: 'retiree', maj: now }); return { mission: pubDef(find(ctx.db.rows('defmissions'), m.id)) }; }
+        patch = { maj: now };
+        if (req.titre !== undefined) { patch.titre = cleanText(req.titre, 80); if (!patch.titre) fail('invalide', 'Il faut un titre.'); }
+        if (req.texte !== undefined) patch.texte = cleanText(req.texte, 240);
+        if (req.fin !== undefined) patch.fin = validDate(req.fin) ? req.fin : '';
+        if (m.sorte !== 'etoile' && req.questions !== undefined) patch.questions = cleanQuestions(req.questions, m.sorte === 'qcm' ? 1 : 0);
+        if (m.sorte === 'video' && req.video !== undefined) { patch.video = youtubeId(req.video); if (!patch.video) fail('invalide', 'Adresse de vidéo YouTube non reconnue.'); }
+        ctx.db.update('defmissions', m.id, patch);
+        return { mission: pubDef(find(ctx.db.rows('defmissions'), m.id)) };
+      }
+      var sorte = String(req.sorte || '');
+      if (['video', 'qcm', 'etoile'].indexOf(sorte) < 0) fail('invalide', 'Type de mission inconnu.');
+      var xp = Math.round(Number(req.xp));
+      m = { id: genId(ctx.env), sorte: sorte, titre: cleanText(req.titre, 80), texte: cleanText(req.texte, 240), video: '', questions: [], joueurId: '', domaine: '', etoile: '',
+        xp: xp >= 0 && xp <= 300 ? xp : (sorte === 'etoile' ? 0 : 50), debut: isoDate(ctx.now), fin: validDate(req.fin) ? req.fin : '', statut: 'active',
+        parQui: me.id, parNom: educNom(ctx), faiteLe: '', cree: now, maj: now };
+      if (sorte === 'etoile') {
+        var j = joueurActif(ctx, req.joueurId);
+        if (!skillOk(String(req.domaine), String(req.etoile))) fail('invalide', 'Étoile inconnue.');
+        if (etoileActive(ctx, j.id, req.domaine, req.etoile)) fail('invalide', j.prenom + ' a déjà cette étoile.');
+        m.joueurId = j.id; m.domaine = String(req.domaine); m.etoile = String(req.etoile); m.xp = 0;
+        if (!m.titre) m.titre = m.domaine + ' · ' + m.etoile;
+        // une seule mission perso à la fois : la nouvelle remplace celle en cours (ses +1 restent dans l'historique)
+        var encours = ctx.db.rows('defmissions').filter(function (x) { return x.sorte === 'etoile' && x.statut === 'active' && x.joueurId === j.id; });
+        if (encours.length && !req.remplacer) fail('deja', j.prenom + ' a déjà une mission perso en cours.', { missionId: encours[0].id });
+        encours.forEach(function (x) { ctx.db.update('defmissions', x.id, { statut: 'retiree', maj: now }); });
+      } else {
+        if (!m.titre) fail('invalide', 'Il faut un titre.');
+        if (sorte === 'video') { m.video = youtubeId(req.video); if (!m.video) fail('invalide', 'Adresse de vidéo YouTube non reconnue.'); }
+        m.questions = cleanQuestions(req.questions, sorte === 'qcm' ? 1 : 0);
+      }
+      ctx.db.insert('defmissions', m);
+      return { mission: pubDef(m) };
+    }
+  };
+  // l'enfant fait une mission du groupe : vidéo vue, puis ses réponses (la 1re fois compte pour le score)
+  A.repondreMission = {
+    auth: ['p'],
+    run: function (req, ctx) {
+      var me = ctx.auth.row, def = find(ctx.db.rows('defmissions'), String(req.missionId || ''));
+      if (!def || def.statut === 'retiree' || (def.sorte !== 'video' && def.sorte !== 'qcm')) fail('introuvable', 'Mission introuvable.');
+      var row = missionRow(ctx, me.id, def.id), r = row && row.reponses ? clone(row.reponses) : {}, qs = Array.isArray(def.questions) ? def.questions : [];
+      if (req.vu) r.vu = true;
+      if (req.reponses !== undefined && !Array.isArray(r.ans)) {
+        if (!Array.isArray(req.reponses) || req.reponses.length !== qs.length) fail('invalide', 'Réponds à toutes les questions.');
+        var ans = req.reponses.map(function (a, i) { a = Number(a); if (!(a >= 0 && a < qs[i].opts.length && Math.floor(a) === a)) fail('invalide', 'Réponse invalide.'); return a; });
+        r.ans = ans; r.total = qs.length; r.score = ans.filter(function (a, i) { return a === qs[i].ok; }).length;
+      }
+      var faite = def.sorte === 'video' ? !!r.vu && (!qs.length || Array.isArray(r.ans)) : Array.isArray(r.ans);
+      if (faite && r.xp === undefined) r.xp = Number(def.xp) || 0;   // les XP gagnés restent, même si la mission est retirée ensuite
+      var now = isoNow(ctx.now);
+      if (row) {
+        var patch = { reponses: r, faite: faite || !!row.faite, maj: now };
+        if (patch.faite && !row.date) patch.date = isoDate(ctx.now);
+        ctx.db.update('missions', row.id, patch);
+      } else ctx.db.insert('missions', { id: genId(ctx.env), joueurId: me.id, mission: def.id, reponses: r, faite: faite, date: faite ? isoDate(ctx.now) : '', source: 'appli', cree: now, maj: now });
+      return dossier(ctx, find(ctx.db.rows('joueurs'), me.id), true);
     }
   };
 
@@ -1536,6 +1785,7 @@ var Core = (function () {
   return {
     VERSION: '1.0',
     SCHEMA: SCHEMA,
+    SKILLS: SKILLS, MAX_PLUS1: MAX_PLUS1,
     handle: handle,
     install: install,
     rowFromCells: rowFromCells,
@@ -1558,7 +1808,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Core;
    Voir README.md, partie « Google Sheets ».
    ========================================================= */
 
-var TABLES = ['joueurs', 'familles', 'educs', 'seances', 'records', 'journal', 'missions', 'terrain', 'evenements', 'compos', 'avis'];
+var TABLES = ['joueurs', 'familles', 'educs', 'seances', 'records', 'journal', 'missions', 'terrain', 'evenements', 'compos', 'avis', 'etoiles', 'encouragements', 'defmissions'];
 
 /*
  * Cache des onglets (CacheService). Lire un onglet de la feuille coûte 0,2 à 0,5 s ;

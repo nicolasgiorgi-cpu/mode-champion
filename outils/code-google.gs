@@ -5,7 +5,7 @@
    Voir README.md, partie « Google Sheets ».
    ========================================================= */
 
-var TABLES = ['joueurs', 'familles', 'educs', 'seances', 'records', 'journal', 'missions', 'terrain', 'evenements', 'compos', 'avis'];
+var TABLES = ['joueurs', 'familles', 'educs', 'seances', 'records', 'journal', 'missions', 'terrain', 'evenements', 'compos', 'avis', 'etoiles', 'encouragements', 'defmissions'];
 
 /*
  * Cache des onglets (CacheService). Lire un onglet de la feuille coûte 0,2 à 0,5 s ;

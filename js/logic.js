@@ -346,8 +346,15 @@ MC.logic = (function () {
     });
     // premiers pas réussis (une seule fois)
     if ((data.journal || []).some(function (j) { return j.type === 'premiers_pas'; })) xp += X.premiersPas || 0;
-    // missions spéciales accomplies
-    (data.missions || []).forEach(function (m) { if (m.faite) xp += X.mission || 0; });
+    // missions accomplies : la mission spéciale (XP.mission), les missions du groupe (leurs propres XP, gardés sur la ligne)
+    (data.missions || []).forEach(function (m) {
+      if (!m.faite) return;
+      if (m.reponses && m.reponses.xp !== undefined) xp += Number(m.reponses.xp) || 0;
+      else xp += X.mission || 0;
+    });
+    // étoiles Skills validées par un éduc
+    var nbEtoiles = (data.etoiles || []).length;
+    xp += nbEtoiles * (X.etoile || 0);
     // records battus (confirmés)
     var recOk = (data.records || []).filter(function (r) { return r.statut === 'ok'; }).sort(function (a, b) { return (a.date + a.cree) < (b.date + b.cree) ? -1 : 1; });
     var best = {}, recordsBattus = 0;
@@ -370,7 +377,7 @@ MC.logic = (function () {
       perfectWeeks: perfectWeeks, badges: badges, nbBadges: nbBadges, recordsBattus: recordsBattus,
       cycle: cy, board: bd, week: thisWeek, niveaux: (data.joueur && data.joueur.niveaux) || {},
       bests: bests(data.records, {}), bestsOk: bests(data.records, { confirmed: true }),
-      proposals: proposals(data), seancesCount: seances.length
+      proposals: proposals(data), seancesCount: seances.length, etoilesSkills: nbEtoiles
     };
   }
   function niveau(data, cle) { return ((data.joueur && data.joueur.niveaux) || {})[cle] || 1; }

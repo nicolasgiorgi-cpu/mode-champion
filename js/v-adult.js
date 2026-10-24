@@ -223,6 +223,10 @@
     return ui.topbar({ left: who, kicker: 'Espace parent', title: title, help: ui.helpLink('parent') });
   }
   MC.parentBar = parentBar;
+  // les sous-onglets de Prépa côté parent : Sa semaine · Bilans · Classement
+  function parentPrepaTabs(on) { return ui.subtabs('p:prepa', [['semaine', '#/parent', 'Sa semaine'], ['bilans', '#/parent/bilans', 'Bilans'], ['classement', '#/parent/classement', 'Classement']], on, '#38E8FF', 'Prépa'); }
+  MC.parentPrepaTabs = parentPrepaTabs;
+  MC.parentNoKid = function (fam) { return noKid(fam); };
   function noKid(fam) {
     return '<main class="screen">' + ui.topbar({ kicker: 'Espace parent', title: fam.famille.nom, help: ui.helpLink('parent') }) +
       '<div class="empty">Aucun enfant rattaché à ce code. Demandez à l\'éducateur.</div><button type="button" class="btn2 grey" data-act="adultLogout">Se déconnecter</button></main>';
@@ -258,31 +262,43 @@
         var n = x.records.filter(function (r) { return r.statut === 'attente'; }).length;
         return '<button type="button" class="note pink" data-act="parentSee" data-id="' + esc(x.joueur.id) + '" style="cursor:pointer;text-align:left">' + icon('check', 20) + '<span>' + esc(x.joueur.prenom) + ' a aussi ' + n + ' résultat' + (n > 1 ? 's' : '') + ' à confirmer. <b>Voir</b></span></button>';
       }).join('');
-      return '<main class="screen">' + parentBar(fam, d, 'Suivi') +
+      // un +1 ou un mot d'éduc pas encore vu : une ligne verte, discrète, qui mène à Missions
+      var nv = MC.missions ? MC.missions.nouveaux('f', d) : { enc: [] }, last = nv.enc[0], sk = MC.SK;
+      var p1line = last ? '<a class="li p1line" href="#/parent/missions' + (last.missionId ? '/perso' : '/mots') + '"><b class="p1tag">' + (last.missionId ? '+1' : icon('heart', 14)) + '</b><span class="grow"><span class="t1" style="font-family:var(--f-body);letter-spacing:0;font-size:14px;font-weight:600">Dans Missions : ' +
+        (last.missionId ? 'un +1 de ' + esc(last.parNom) + (sk && sk.star(last.domaine, last.etoile) ? ' sur « ' + esc(sk.star(last.domaine, last.etoile).mission) + ' »' : '') : 'un mot de ' + esc(last.parNom)) + (nv.enc.length > 1 ? ' (et ' + (nv.enc.length - 1) + ' autre' + (nv.enc.length > 2 ? 's' : '') + ')' : '') + '</span></span>' + icon('right', 16) + '</a>' : '';
+      var rdv = (fam.prochains || [])[0], rdvH = '';
+      if (rdv) {
+        var dj = String(rdv.debut).slice(0, 10), hh = '';
+        if (rdv.source === 'spond') { var dt = new Date(rdv.debut); if (!isNaN(dt)) hh = (dt.getHours() < 10 ? '0' : '') + dt.getHours() + 'h' + (dt.getMinutes() ? (dt.getMinutes() < 10 ? '0' : '') + dt.getMinutes() : ''); }
+        rdvH = '<div class="li rdv"><span class="cdate"><b>' + new Date(dj + 'T12:00:00').getDate() + '</b><small>' + esc(ui.fmtDate(dj).split(' ').slice(-1)[0]) + '</small></span><span class="grow"><span class="t1">Prochain rendez-vous · ' + esc(rdv.titre) + '</span><span class="t2">' + esc(ui.fmtDate(dj)) + (hh ? ' · ' + hh : '') + (rdv.lieu ? ' · ' + esc(rdv.lieu) : '') + (rdv.source === 'spond' ? ' · la présence se répond dans Spond' : '') + '</span></span></div>';
+      }
+      return '<main class="screen">' + parentBar(fam, d, 'Prépa') + parentPrepaTabs('semaine') +
+        S.pending + otherNote + p1line +
         (MC.accueil ? MC.accueil.parentChecklist(fam) : '') +
-        '<div class="head"><span class="kicker" style="color:var(--green)">Suivi · ' + esc(ui.fmtDate(L.today())) + '</span><h1 class="big md">' + esc(k.prenom) + '<br>cette semaine</h1></div>' +
-        S.pending + otherNote + (MC.missionParent ? MC.missionParent(d) : '') + S.tiles +
-        '<div class="cols2"><section class="sec"><div class="between"><h2 class="h2">Sa semaine</h2><span class="hud" style="color:var(--gold)">' + S.st.week.stars + ' / 6 étoiles</span></div>' + S.week + '</section>' +
-        '<section class="sec"><h2 class="h2">Ses séances</h2><p class="small" style="margin:0">Touchez une séance pour le détail : exercices, séries, ressenti.</p>' + MC.suivi.seances(d.seances, { max: 4 }) + '</section></div>' +
+        '<div class="head"><span class="kicker" style="color:var(--cyan)">' + esc(ui.fmtDate(L.today())) + '</span><h1 class="big md">' + esc(k.prenom) + '<br>cette semaine</h1></div>' +
+        '<div class="cols2"><section class="sec"><div class="between"><h2 class="h2">Sa semaine</h2><span class="hud" style="color:var(--gold)">' + S.st.week.stars + ' / 6 étoiles</span></div>' + S.week + S.tiles + '</section>' +
+        '<section class="sec"><h2 class="h2">Ses séances</h2><p class="small" style="margin:0">Touchez une séance pour le détail : exercices, séries, ressenti.</p>' + MC.suivi.seances(d.seances, { max: 4 }) + rdvH + '</section></div>' +
         '</main>';
     });
-  }, { adult: 'f', nav: 'p:suivi', bg: '#12333A' });
+  }, { adult: 'f', nav: 'p:prepa', bg: '#12333A' });
   MC.act.parentSee = function (b) { parentSel = b.getAttribute('data-id'); app.rerender(); window.scrollTo(0, 0); };
 
-  // ----- Progrès -----
-  app.route('/parent/progres', function () {
+  // ----- Prépa › Bilans (bilans, records, niveaux) -----
+  function parentBilans() {
     return loadFamily().then(function (fam) {
       app.refreshNav();
       if (!fam.enfants.length) return noKid(fam);
       var d = famKid(fam), k = d.joueur, S = kidSummary(d, { editLevels: true });
-      return '<main class="screen">' + parentBar(fam, d, 'Progrès') +
-        '<div class="head"><span class="kicker" style="color:var(--green)">Bilans, records et niveaux</span><h1 class="big md">Les progrès<br>de ' + esc(k.prenom) + '</h1></div>' +
+      return '<main class="screen">' + parentBar(fam, d, 'Prépa') + parentPrepaTabs('bilans') +
+        '<div class="head"><span class="kicker" style="color:var(--cyan)">Bilans, records et niveaux</span><h1 class="big md">Les progrès<br>de ' + esc(k.prenom) + '</h1></div>' +
         '<div class="cols2"><div class="sec" style="gap:20px"><section class="sec"><h2 class="h2">D\'un bilan à l\'autre</h2>' + S.prog + '</section>' +
         '<section class="sec"><h2 class="h2">Ses records confirmés</h2>' + S.recs + '</section></div>' +
         '<section class="sec"><h2 class="h2">Ses niveaux</h2><p class="small" style="margin:0">Ils viennent du bilan. ' + esc(k.prenom) + ' peut monter d\'un niveau après une séance « facile » (ou redescendre après une séance « dure »). Vous pouvez aussi les ajuster ici.</p>' + S.levels + '</section></div>' +
         '</main>';
     });
-  }, { adult: 'f', nav: 'p:progres', bg: '#12333A' });
+  }
+  app.route('/parent/bilans', parentBilans, { adult: 'f', nav: 'p:prepa', bg: '#12333A' });
+  app.route('/parent/progres', parentBilans, { adult: 'f', nav: 'p:prepa', bg: '#12333A' });
 
   // ----- Plus -----
   app.route('/parent/plus', function () {
@@ -337,14 +353,22 @@
   // après une modification : on oublie le groupe gardé (sinon on reverrait l'ancien état un instant)
   function dropGroup() { app.S.cache.group = null; app.lsSet('mc-group', null); }
   function educBar(g, title, back, backLabel) {
-    var mine = (g.moi.enfants || []).map(function (id) { return g.joueurs.filter(function (p) { return p.joueur.id === id; })[0]; }).filter(Boolean).slice(0, 2);
-    var right = back ? '' : mine.map(function (p) {
-      return '<a class="cbtn grey" href="#/educ/joueur/' + esc(p.joueur.id) + '" aria-label="Mon enfant : ' + esc(p.joueur.prenom) + '" title="Mon enfant">' + ui.avatar(p.joueur.prenom, p.joueur.couleur, 26) + '</a>';
-    }).join('');
     if (back) return ui.topbar({ back: back, backLabel: backLabel, title: title, help: ui.helpLink('educ') });
+    var right = '<a class="cbtn grey" href="#/educ/reglages" aria-label="Réglages et gestion">' + icon('settings', 20) + '</a>';
     return ui.topbar({ kicker: 'Éduc · ' + g.moi.nom + (g.moi.admin ? ' · admin' : ''), title: title, right: right, help: ui.helpLink('educ') });
   }
   MC.educBar = educBar;
+  // Progrès : Prépa physique · Skills · Missions
+  function progresTabs(on) { return ui.subtabs('e:progres', [['prepa', '#/educ/progres', 'Prépa physique'], ['skills', '#/educ/skills', 'Skills'], ['missions', '#/educ/missions', 'Missions']], on, '#3DFFB0', 'Progrès'); }
+  MC.progresTabs = progresTabs;
+  // Enfants : Tous · À relancer · Niveaux et postes
+  function enfantsTabs(on, g) {
+    var G = g ? groupStats(g) : null;
+    return ui.subtabs('e:enfants', [['all', '#/educ/joueurs', 'Tous' + (G ? ' · ' + G.players.length : '')], ['late', '#/educ/joueurs?filtre=late', 'À relancer' + (G ? ' · ' + G.late.length : '')], ['terrain', '#/educ/terrain', 'Niveaux et postes']], on, '#C9AEFF', 'Enfants');
+  }
+  MC.enfantsTabs = enfantsTabs;
+  function mesEnfants(g) { return (g.moi.enfants || []).map(function (id) { return g.joueurs.filter(function (p) { return p.joueur.id === id; })[0]; }).filter(Boolean); }
+  MC.mesEnfants = mesEnfants;
   function groupStats(g) {
     var t = L.today(), mon = L.monday(t), weekAgo = L.addDays(t, -7);
     var players = g.joueurs.filter(function (p) { return p.joueur.actif; });
@@ -360,16 +384,14 @@
     return { players: players, sessionsWeek: sessionsWeek, active: active, late: late, pending: pending, weekAgo: weekAgo, mon: mon, today: t };
   }
 
-  // ----- Vestiaire -----
-  app.route('/educ', function (p, q, cur) {
+  // ----- Progrès › Prépa physique : les résultats de mon enfant à confirmer, ça bouge, le classement, les progrès aux bilans -----
+  app.route('/educ/progres', function (p, q, cur) {
     return loadGroup().then(function (g) {
       app.refreshNav();
-      if (MC.accueil && MC.accueil.needTour('e', g.moi.id)) { setTimeout(function () { app.go('#/educ/bienvenue', true); }, 0); return null; }
-      cur.after = function () { if (MC.news) setTimeout(function () { if (location.hash === '#/educ') MC.news.maybeShow('e', g.moi.id); }, 350); };
-      if (MC.loadCompos) MC.loadCompos().then(function () { app.refreshNav(); }).catch(function () { });   // pastille « contre-proposition » de l'onglet Compos
+      if (MC.loadCompos) MC.loadCompos().then(function () { app.refreshNav(); }).catch(function () { });   // pastilles des onglets Entraîn. et Plateaux
       return paintVestiaire(g);
     });
-  }, { adult: 'e', nav: 'e:vestiaire', bg: '#2A1640' });
+  }, { adult: 'e', nav: 'e:progres', bg: '#12333A' });
 
   // Les résultats à confirmer : seulement ceux de mes enfants (reliés à mon profil) ; les autres, c'est leur famille
   function aConfirmer(g, pending, pend) {
@@ -382,7 +404,7 @@
         (pending.length > 1 ? '<button type="button" class="btn2 pink" data-act="decAll" data-ids="' + esc(pending.map(function (x) { return x.r.id; }).join(',')) + '">' + icon('check', 16) + ' Tout confirmer (' + pending.length + ')</button>' : '') + decBar() : '<div class="empty">Rien à confirmer pour ' + esc(noms) + '.</div>');
   }
   function paintVestiaire(g) {
-    var G = groupStats(g), pending = G.pending;
+    var G = groupStats(g), mineIds = g.moi.enfants || [], pending = G.pending.filter(function (x) { return mineIds.indexOf(x.p.joueur.id) >= 0; });
     var pend = pending.slice(0, 30).map(function (x) { return recLine(x.r, x.p.joueur.prenom, true); }).join('');
     // ce qui s'est passé ces derniers jours : séances et bilans envoyés
     var ev = [];
@@ -396,43 +418,53 @@
     var feed = ev.slice(0, 6).map(function (e) {
       return '<li><a class="li" href="#/educ/joueur/' + esc(e.id) + '"><span class="dia" style="--dc:' + e.c + '"></span><span class="grow"><span class="t1">' + esc(e.p.prenom) + ' · ' + esc(e.t1) + '</span><span class="t2">' + esc(e.t2) + '</span></span>' + icon('right', 16) + '</a></li>';
     }).join('');
-    return '<main class="screen">' + educBar(g, 'Le vestiaire') +
+    return '<main class="screen">' + educBar(g, 'Progrès') + progresTabs('prepa') +
       (MC.accueil ? MC.accueil.educChecklist(g) : '') +
-      '<div class="head"><h1 class="big md">Le vestiaire</h1>' + (MC.api.DEMO ? '<p class="small" style="margin:0;color:var(--yellow)">Mode démo : joueurs fictifs.</p>' : '') + '</div>' +
+      (MC.api.DEMO ? '<p class="small" style="margin:0;color:var(--yellow)">Mode démo : joueurs fictifs.</p>' : '') +
       '<div class="grid3"><div class="tile"><span class="v">' + G.sessionsWeek + '</span><span class="l" style="text-transform:none;font-family:var(--f-body);letter-spacing:0;font-size:12px">séances cette semaine</span></div>' +
       '<div class="tile"><span class="v" style="color:var(--green)">' + G.active + '<small style="font-size:13px;color:var(--dim)"> / ' + G.players.length + '</small></span><span class="l" style="text-transform:none;font-family:var(--f-body);letter-spacing:0;font-size:12px">actifs sur 7 jours</span></div>' +
       '<a class="tile" href="#/educ/joueurs?filtre=late" style="text-decoration:none;border-color:rgba(255,138,61,.5);background:rgba(255,138,61,.08)"><span class="v" style="color:var(--orange)">' + G.late.length + '</span><span class="l" style="text-transform:none;font-family:var(--f-body);letter-spacing:0;font-size:12px;color:var(--soft)">à relancer ›</span></a></div>' +
       '<div class="cols2"><section class="sec">' + aConfirmer(g, pending, pend) + '</section>' +
-      '<section class="sec"><div class="between"><h2 class="h2">Ça bouge</h2><a class="lnk" href="#/educ/joueurs">Les joueurs</a></div>' + (feed ? '<ul class="list">' + feed + '</ul>' : '<div class="empty">Pas encore de séance notée.</div>') + '</section></div>' +
+      '<section class="sec"><div class="between"><h2 class="h2">Ça bouge</h2><a class="lnk" href="#/educ/joueurs">Les enfants</a></div>' + (feed ? '<ul class="list">' + feed + '</ul>' : '<div class="empty">Pas encore de séance notée.</div>') + '</section></div>' +
+      '<div class="grid2"><a class="li" href="#/educ/classement">' + icon('podium', 20, 'style="color:var(--pink);flex:none"') + '<span class="grow"><span class="t1">Le classement</span><span class="t2">L\'arène, par ligue</span></span>' + icon('right', 16) + '</a>' +
+      '<a class="li" href="#/educ/progres/bilans">' + icon('up', 20, 'style="color:var(--green);flex:none"') + '<span class="grow"><span class="t1">Progrès aux bilans</span><span class="t2">Test par test</span></span>' + icon('right', 16) + '</a></div>' +
       '</main>';
   }
 
   // ----- Joueurs -----
   app.route('/educ/joueurs', function (p, q) {
-    if (q.filtre === 'late') edFilter = 'late';
+    edFilter = q.filtre === 'late' ? 'late' : 'all';
     return loadGroup().then(function (g) { app.refreshNav(); return paintJoueurs(g); });
-  }, { adult: 'e', nav: 'e:joueurs', bg: '#2A1640' });
+  }, { adult: 'e', nav: 'e:enfants', bg: '#2A1640' });
   function paintJoueurs(g) {
     var G = groupStats(g), t = G.today;
     var list = edFilter === 'late' ? G.late : G.players;
     var q = edQ.toLowerCase();
     list = list.filter(function (p) { return !q || p.joueur.prenom.toLowerCase().indexOf(q) >= 0; }).sort(function (a, b) { return a.joueur.prenom.localeCompare(b.joueur.prenom, 'fr'); });
+    var mine = g.moi.enfants || [], NIVC = { A: '#FFC23D', B: '#38E8FF', C: '#3DFFB0' };
+    var pnom = { pilier: 'Pilier', talonneur: 'Talonneur', 'troisieme-ligne': '3e ligne', 'demi-de-melee': 'Demi de mêlée', ouvreur: 'Ouvreur', centre: 'Centre', ailier: 'Ailier' };
+    // mes enfants d'abord
+    list.sort(function (a, b) { var am = mine.indexOf(a.joueur.id) >= 0, bm = mine.indexOf(b.joueur.id) >= 0; return am === bm ? 0 : am ? -1 : 1; });
     var rows = list.map(function (p) {
-      var w = L.weekInfo(L.weeks(p.seances), G.mon), dots = '';
-      for (var i = 0; i < 6; i++) dots += '<i class="' + (w.filled[i] ? 'done' : '') + '" style="' + (w.filled[i] ? 'background:var(--gold);border:0' : '') + '"></i>';
       var lastTxt = p._last ? (p._last > G.weekAgo ? 'Dernière séance : ' + ui.fmtDate(p._last) : 'Rien depuis ' + L.daysBetween(p._last, t) + ' jours') : (p.joueur.aUnCode ? 'Pas encore de séance' : 'Pas encore connecté');
       var att = p.records.filter(function (r) { return r.statut === 'attente'; }).length;
-      return '<li><a class="li" href="#/educ/joueur/' + esc(p.joueur.id) + '">' + ui.hexa(p.joueur.prenom, p.joueur.couleur) + '<span class="grow"><span class="t1">' + esc(p.joueur.prenom.toUpperCase()) + (p.terrain && p.terrain.niveau ? ' <span class="cniv" style="--lc:' + ({ A: '#FFC23D', B: '#38E8FF', C: '#3DFFB0' }[p.terrain.niveau]) + ';--s:18px;vertical-align:1px" title="Niveau ' + p.terrain.niveau + '">' + p.terrain.niveau + '</span>' : '') + (att ? ' <span class="nbi">' + att + '</span>' : '') + '</span><span class="t2" style="color:' + (p._last && p._last > G.weekAgo ? 'var(--dim)' : 'var(--orange)') + '">' + esc(lastTxt) + '</span></span><span class="setdots" aria-label="' + w.stars + ' étoiles cette semaine">' + dots + '</span>' + icon('right', 16) + '</a></li>';
+      var tr = p.terrain || {}, po = tr.postesOk && tr.postesOk[0] ? pnom[tr.postesOk[0]] : '';
+      var mp = MC.SK ? MC.SK.missionPerso({ defmissions: (g.defmissions || []).filter(function (m) { return m.joueurId === p.joueur.id; }) }) : null;
+      var n1 = mp ? (p.encouragements || []).filter(function (x) { return x.missionId === mp.id; }).length : 0;
+      var info = [po, tr.passerelle ? 'passerelle vers ' + tr.passerelle : '', mp ? '★ ' + MC.SK.titreMission(mp) + (n1 ? ' · ' + n1 + ' +1' : '') : ''].filter(Boolean).join(' · ');
+      var isMine = mine.indexOf(p.joueur.id) >= 0;
+      return '<li><a class="li" href="#/educ/joueur/' + esc(p.joueur.id) + '">' + (tr.niveau ? '<span class="cniv" style="--lc:' + NIVC[tr.niveau] + '" title="Niveau ' + tr.niveau + '">' + tr.niveau + '</span>' : '<span class="cniv none" title="Niveau à renseigner">?</span>') +
+        '<span class="grow"><span class="t1">' + esc(p.joueur.prenom.toUpperCase()) + (isMine ? ' <span class="pill" style="--pc:var(--cyan)">Mon enfant</span>' : '') + (att && isMine ? ' <span class="nbi">' + att + '</span>' : '') + '</span>' +
+        (info ? '<span class="t2">' + esc(info) + '</span>' : '') +
+        '<span class="t2" style="color:' + (p._last && p._last > G.weekAgo ? 'var(--dim)' : 'var(--orange)') + '">' + esc(lastTxt) + '</span></span>' + icon('right', 16) + '</a></li>';
     }).join('');
-    return '<main class="screen">' + educBar(g, 'Les joueurs') +
-      '<div class="head"><span class="kicker" style="color:var(--violet)">' + G.players.length + ' joueurs</span><h1 class="big md">Les joueurs</h1></div>' +
-      '<label class="sr-only" for="edq">Chercher un joueur</label><input id="edq" class="search" type="search" placeholder="Chercher un prénom…" value="' + esc(edQ) + '">' +
-      '<div class="grid2"><button type="button" class="opt' + (edFilter === 'all' ? ' on' : '') + '" aria-pressed="' + (edFilter === 'all') + '" data-act="edFilter" data-v="all">Tous · ' + G.players.length + '</button><button type="button" class="opt' + (edFilter === 'late' ? ' on' : '') + '" style="--oc:var(--orange)" aria-pressed="' + (edFilter === 'late') + '" data-act="edFilter" data-v="late">À relancer · ' + G.late.length + '</button></div>' +
+    return '<main class="screen">' + educBar(g, 'Enfants · ' + G.players.length) + enfantsTabs(edFilter, g) +
+      '<label class="sr-only" for="edq">Chercher un prénom</label><input id="edq" class="search" type="search" placeholder="Chercher un prénom…" value="' + esc(edQ) + '">' +
       (edFilter === 'late' ? '<p class="small" style="margin:0">Aucune séance notée depuis 7 jours, ou jamais connecté. Un petit mot à l\'entraînement suffit souvent !</p>' : '') +
       '<ul class="list" id="edlist">' + (rows || '<li class="empty">Personne.</li>') + '</ul>' +
-      '<a class="btn2" href="#/educ/ajouter">' + icon('plus', 16) + ' Ajouter un joueur</a></main>';
+      '<a class="btn2" href="#/educ/ajouter">' + icon('plus', 16) + ' Ajouter des enfants (depuis Spond)</a></main>';
   }
-  MC.act.edFilter = function (b) { edFilter = b.getAttribute('data-v'); app.rerender(); };
+  MC.act.edFilter = function (b) { app.go(b.getAttribute('data-v') === 'late' ? '#/educ/joueurs?filtre=late' : '#/educ/joueurs'); };
   var edTimer = null;
   document.addEventListener('input', function (e) {
     if (e.target && e.target.id === 'edq') {
@@ -447,35 +479,37 @@
     }
   });
 
-  // ----- Outils -----
-  app.route('/educ/outils', function () {
-    return loadGroup().then(function (g) {
+  // ----- L'engrenage : réglages et gestion (mon enfant, les éducs, les familles et leurs codes, Spond, cet appareil, l'aide) -----
+  app.route('/educ/outils', function () { app.go('#/educ/reglages', true); return null; }, { adult: 'e', nav: 'e:gear' });
+  app.route('/educ/reglages', function () {
+    return Promise.all([loadGroup(), MC.loadCompos ? MC.loadCompos().catch(function () { return null; }) : null]).then(function (res) {
+      var g = res[0];
       app.refreshNav();
-      function link(href, ic, t1, t2) { return '<a class="switch" href="' + href + '" style="text-decoration:none"><span class="row">' + icon(ic, 20, 'style="color:var(--cyan);flex:none"') + '<span><span class="t1" style="display:block">' + t1 + '</span>' + (t2 ? '<span class="t2" style="display:block">' + t2 + '</span>' : '') + '</span></span>' + icon('right', 16) + '</a>'; }
-      var mine = (g.moi.enfants || []).map(function (id) { return g.joueurs.filter(function (p) { return p.joueur.id === id; })[0]; }).filter(Boolean);
-      return '<main class="screen">' + educBar(g, 'Outils') +
-        '<div class="head"><span class="kicker" style="color:var(--violet)">Le groupe, les codes, l\'aide</span><h1 class="big md">Outils</h1></div>' +
-        '<div class="cols2"><div class="sec" style="gap:20px"><section class="sec"><h2 class="h2">Le groupe</h2>' +
-        link('#/educ/mission', 'ball', 'Mission « Prépare le jeu à 10 »', 'Les postes et les copains choisis par les enfants') +
-        link('#/educ/terrain', 'shield', 'Fiche terrain du groupe', 'Niveaux A/B/C, passerelles, plaquage (pour les compos)') +
-        link('#/educ/progres', 'up', 'Progrès du groupe aux bilans', 'Qui a le plus progressé, test par test') +
-        link('#/educ/ajouter', 'plus', 'Ajouter un joueur', 'Son code provisoire et, si besoin, le code parent') +
-        link('#/educ/spond', 'refresh', 'Spond', (function () { var sp = app.S.cache.compos && app.S.cache.compos.spond; return !sp ? 'Les événements et les réponses des familles' : sp.branche ? 'Branché · les événements et les réponses des familles' : 'Pas encore branché : les événements et les réponses des familles'; })()) +
-        link('#/educ/familles', 'key', 'Familles et codes parents', 'Un nouveau code si une famille a perdu le sien') +
-        (g.moi.admin ? link('#/educ/educs', 'group', 'Les éducs (admin)', 'Les codes des éducs') : '') + '</section>' +
-        '<section class="sec"><h2 class="h2">' + (mine.length > 1 ? 'Mes enfants' : 'Mon enfant') + '</h2>' +
-        (mine.length ? '<ul class="list">' + mine.map(function (p) { return '<li><a class="li" href="#/educ/joueur/' + esc(p.joueur.id) + '">' + ui.hexa(p.joueur.prenom, p.joueur.couleur) + '<span class="grow"><span class="t1">' + esc(p.joueur.prenom.toUpperCase()) + '</span><span class="t2">Suivi, séances, bilans, niveaux, code secret</span></span>' + icon('right', 16) + '</a></li>'; }).join('') + '</ul>' : '<p class="small" style="margin:0">Vous êtes aussi parent d\'un joueur ? Choisissez-le : il apparaît en haut de votre espace, avec tout le suivi parent.</p>') +
-        '<button type="button" class="btn2 grey" data-act="myKids">' + icon('user', 16) + (mine.length ? ' Changer' : ' Choisir mon enfant') + '</button></section></div>' +
-        '<div class="sec" style="gap:20px"><section class="sec"><h2 class="h2">Moi et cet appareil</h2>' +
-        '<button type="button" class="switch" data-act="myCode"><span class="row">' + icon('lock', 20, 'style="color:var(--cyan);flex:none"') + '<span class="t1">Changer mon code éduc</span></span>' + icon('right', 16) + '</button>' +
-        sharedSwitch() + link(app.S.kid ? '#/semaine' : '#/connexion', 'user', 'Côté joueur', 'Voir l\'appli comme les enfants') + '</section>' +
+      function link(href, ic, t1, t2, tag) { return '<a class="switch" href="' + href + '" style="text-decoration:none"><span class="row">' + icon(ic, 20, 'style="color:var(--cyan);flex:none"') + '<span><span class="t1" style="display:block">' + t1 + (tag || '') + '</span>' + (t2 ? '<span class="t2" style="display:block">' + t2 + '</span>' : '') + '</span></span>' + icon('right', 16) + '</a>'; }
+      var mine = mesEnfants(g), sp = app.S.cache.compos && app.S.cache.compos.spond;
+      var sansCode = g.familles.filter(function (f) { return !g.joueurs.some(function (p) { return p.joueur.actif && p.joueur.familleId === f.id && p.joueur.aUnCode; }); }).length;
+      var admin = ' <span class="pill" style="--pc:var(--violet)">admin</span>';
+      return '<main class="screen">' + educBar(g, 'Réglages et gestion', '#/educ/entrainements', 'Entraînements') +
+        '<div class="head"><span class="kicker" style="color:var(--violet)">Éduc · ' + esc(g.moi.nom) + (g.moi.admin ? ' · admin' : '') + '</span><h1 class="big md">Réglages</h1></div>' +
+        '<div class="cols2"><div class="sec" style="gap:20px"><section class="sec"><h2 class="h2">Moi</h2>' +
+        '<button type="button" class="switch" data-act="myKids"><span class="row">' + icon('user', 20, 'style="color:var(--cyan);flex:none"') + '<span><span class="t1" style="display:block">' + (mine.length > 1 ? 'Mes enfants' : 'Mon enfant') + '</span><span class="t2" style="display:block">' + (mine.length ? esc(mine.map(function (p) { return p.joueur.prenom; }).join(', ')) + ' · ses résultats à confirmer, dans Progrès' : 'Vous êtes aussi parent d\'un joueur ? Choisissez-le') + '</span></span></span>' + icon('right', 16) + '</button>' +
+        mine.map(function (p) { return link('#/educ/joueur/' + esc(p.joueur.id), 'shield', 'La fiche de ' + esc(p.joueur.prenom), 'Terrain, Skills, missions, prépa, famille et codes'); }).join('') +
+        '<button type="button" class="switch" data-act="myCode"><span class="row">' + icon('lock', 20, 'style="color:var(--cyan);flex:none"') + '<span class="t1">Mon code éduc</span></span>' + icon('right', 16) + '</button></section>' +
+        '<section class="sec"><h2 class="h2">Le groupe</h2>' +
+        (g.moi.admin ? link('#/educ/educs', 'group', 'Les éducs', 'Les codes des éducs', admin) : '') +
+        link('#/educ/familles', 'key', 'Familles et codes', sansCode ? sansCode + ' famille' + (sansCode > 1 ? 's' : '') + ' sans enfant connecté' : 'Un nouveau code si une famille a perdu le sien') +
+        link('#/educ/spond', 'refresh', 'Spond', !sp ? 'Les événements et les réponses des familles' : sp.branche ? 'Branché · les événements et les réponses des familles' : 'Pas encore branché', g.moi.admin ? admin : '') +
+        link('#/educ/ajouter', 'plus', 'Ajouter des enfants', 'Depuis Spond, avec leurs codes') +
+        '<p class="small" style="margin:0">Spond : le compte et le mot de passe se tapent ici, ils restent sur le serveur du club.</p></section></div>' +
+        '<div class="sec" style="gap:20px"><section class="sec"><h2 class="h2">Cet appareil</h2>' + sharedSwitch() +
+        link(app.S.kid ? '#/semaine' : '#/connexion', 'user', 'Côté joueur', 'Voir l\'appli comme les enfants') + '</section>' +
+        '<button type="button" class="btn2 grey" data-act="adultLogout">' + icon('logout', 18) + ' Se déconnecter</button>' +
         '<section class="sec"><h2 class="h2">Aide</h2>' +
-        link('#/educ/nouveautes', 'news', 'Les nouveautés', 'Ce qui a changé dans l\'appli') +
         link(ui.helpLink('educ'), 'info', 'Comment ça marche ?', 'Le guide pour les éducs') +
-        link('#/educ/bienvenue?revoir=1', 'play', 'Revoir la visite', 'Les 3 écrans du début') + '</section>' +
-        '<button type="button" class="btn2 grey" data-act="adultLogout">' + icon('logout', 18) + ' Se déconnecter</button></div></div></main>';
+        link('#/educ/nouveautes', 'news', 'Nouveautés', 'Ce qui a changé dans l\'appli') +
+        link('#/educ/bienvenue?revoir=1', 'play', 'Revoir la visite', 'Les écrans du début') + '</section></div></div></main>';
     });
-  }, { adult: 'e', nav: 'e:outils', bg: '#2A1640' });
+  }, { adult: 'e', nav: 'e:gear', bg: '#2A1640' });
 
   MC.act.myCode = function () {
     ui.modal({ title: 'Nouveau code éduc ?', body: '<p class="lead">Votre code actuel ne marchera plus. Notez bien le nouveau.</p>', actions: [{ label: 'Créer mon nouveau code', value: true, cls: 'btn' }, { label: 'Annuler', value: false, cls: 'btn2 grey' }] }).then(function (ok) {
@@ -528,14 +562,16 @@
       var lg = L.league(Lg, k.id, arene.test, arene.mode), t = lg.test;
       var lname = lg.lo === lg.hi ? 'Ligue N' + lg.lo : 'Ligue N' + lg.lo + '-N' + lg.hi, lc = C.NIVEAUX[lg.myLv].color;
       var inIt = lg.rows.some(function (r) { return r.p.id === k.id; });
-      return '<main class="screen">' + parentBar(fam, d, 'Classement') + areneHead() +
+      return '<main class="screen">' + parentBar(fam, d, 'Prépa') + parentPrepaTabs('classement') + areneHead() +
         '<section class="row" style="padding:12px 14px;background:' + ui.rgba(lc, 0.1) + ';border:1.5px solid ' + lc + ';align-items:center">' + ui.lvl(lg.myLv, lname.toUpperCase()) +
         '<span style="font-size:13px;line-height:1.35;color:var(--soft)">' + esc(k.prenom) + ' se mesure aux joueurs de son niveau sur cette épreuve' + (lg.sm ? ' (version mini matériel)' : '') + '.' + (k.visible ? '' : ' Il est masqué : les autres ne le voient pas.') + '</span></section>' +
         areneChips() + '<div class="between"><h2 class="h2">' + esc(t.nom) + '</h2><span class="small">' + lg.rows.length + ' joueur' + (lg.rows.length > 1 ? 's' : '') + '</span></div>' +
         (!inIt && lg.rows.length ? '<div class="note">' + icon('info', 20) + '<span>' + esc(k.prenom) + ' n\'apparaît pas encore : il faut un résultat de bilan ou de défi confirmé.</span></div>' : '') +
-        areneRows(lg.rows, t, [k.id], lg.lo !== lg.hi) + '</main>';
+        areneRows(lg.rows, t, [k.id], lg.lo !== lg.hi) +
+        '<button type="button" class="switch" role="switch" aria-checked="' + !!k.visible + '" data-act="kidVisible" data-id="' + esc(k.id) + '"><span><span class="t1" style="display:block">' + esc(k.prenom) + ' apparaît dans le classement des autres</span><span class="t2" style="display:block">' + (k.visible ? 'Son prénom apparaît dans sa ligue' : 'Il voit son rang, les autres ne le voient pas') + '</span></span><span class="k"></span></button>' +
+        '<p class="small" style="margin:0">Seule la prépa physique compte ici (bilans et défis confirmés). Les missions et les Skills ne sont jamais classés.</p></main>';
     });
-  }, { adult: 'f', nav: 'p:classement', bg: '#2A1640' });
+  }, { adult: 'f', nav: 'p:prepa', bg: '#2A1640' });
   app.route('/educ/classement', function () {
     return Promise.all([loadGroup(), loadLeague()]).then(function (res) {
       app.refreshNav();
@@ -546,7 +582,7 @@
         return '<button type="button" class="opt' + (on ? ' on' : '') + '" style="--oc:' + col + ';min-height:40px;padding:0 12px" aria-pressed="' + on + '" data-act="arLv" data-v="' + n + '">' + (n ? 'Ligue N' + n : 'Tout le groupe') + '</button>';
       }).join('') + '</div>';
       var hidden = g.joueurs.filter(function (p) { return p.joueur.actif && !p.joueur.visible; }).length;
-      return '<main class="screen">' + educBar(g, 'Classement') + areneHead() +
+      return '<main class="screen">' + educBar(g, 'Classement', '#/educ/progres', 'Prépa physique') + areneHead() +
         '<p class="small" style="margin:0">Les enfants voient la ligue de leur niveau. Ici, tout le groupe, ou une ligue à la fois.' + (hidden ? ' ' + hidden + ' joueur' + (hidden > 1 ? 's' : '') + ' masqué' + (hidden > 1 ? 's' : '') + ' (choix des parents ou compte de test) n\'apparai' + (hidden > 1 ? 'ssent' : 't') + ' pas.' : '') + '</p>' +
         lvChips + areneChips() + '<div class="between"><h2 class="h2">' + esc(t.nom) + '</h2><span class="small">' + rk.rows.length + ' joueur' + (rk.rows.length > 1 ? 's' : '') + '</span></div>' +
         areneRows(rk.rows, t, (g.moi.enfants || []), true) + (function () {
@@ -556,60 +592,92 @@
         })() +
         (t.sm ? '<p class="small" style="margin:0">Les résultats « mini matériel » (SM) ont leur propre classement chez les enfants concernés.</p>' : '') + '</main>';
     });
-  }, { adult: 'e', nav: 'e:classement', bg: '#2A1640' });
+  }, { adult: 'e', nav: 'e:progres', bg: '#2A1640' });
   MC.act.arTest = function (b) { arene.test = b.getAttribute('data-v'); app.rerender(); };
   MC.act.arMode = function (b) { arene.mode = b.getAttribute('data-v'); app.rerender(); };
   MC.act.arLv = function (b) { arene.lv = Number(b.getAttribute('data-v')); app.rerender(); };
 
   // ---------- ÉDUC : progrès du groupe aux bilans ----------
   var progTest = 'pompes';
-  app.route('/educ/progres', function () {
+  app.route('/educ/progres/bilans', function () {
     return loadGroup().then(function (g) {
       var chips = C.TESTS.map(function (t) {
         return '<button type="button" class="opt' + (t.id === progTest ? ' on' : '') + '" aria-pressed="' + (t.id === progTest) + '" data-act="progTest" data-v="' + t.id + '">' + esc(t.court) + '</button>';
       }).join('');
       var t = C.TESTS.filter(function (x) { return x.id === progTest; })[0];
-      return '<main class="screen">' + educBar(g, 'Progrès du groupe', '#/educ/outils', 'Outils') +
+      return '<main class="screen">' + educBar(g, 'Progrès aux bilans', '#/educ/progres', 'Prépa physique') +
         '<div class="head"><span class="kicker">Bilans de la saison</span><h1 class="big sm">Progrès du groupe</h1><p class="lead" style="margin:0">Choisissez un test : les joueurs qui ont le plus progressé depuis leur bilan d\'avant sont en haut.</p></div>' +
         '<div class="testchips">' + chips + '</div>' +
         '<section class="sec"><div class="between"><h2 class="h2">' + esc(t.nom) + '</h2>' + (t.moinsMieux ? '<span class="small">plus petit = mieux</span>' : '') + '</div>' + MC.suivi.groupe(g.joueurs, progTest) + '</section></main>';
     });
-  }, { adult: 'e', nav: 'e:outils', bg: '#16223F' });
+  }, { adult: 'e', nav: 'e:progres', bg: '#16223F' });
   MC.act.progTest = function (b) { progTest = b.getAttribute('data-v'); app.rerender(); };
 
   // ---------- ÉDUC : un joueur ----------
-  app.route('/educ/joueur/:id', function (p) {
-    return loadGroup().then(function (g) {
-      var c = app.S.cache.kid;
-      if (c && c.joueur.id === p.id) return paintKid(c, g);
+  app.route('/educ/joueur/:id', function (p, q) {
+    var tab = q.t || app.lsGet('mc-ftab') || 'terrain';
+    if (q.t) app.lsSet('mc-ftab', q.t);
+    return Promise.all([loadGroup(), MC.loadCompos ? MC.loadCompos().catch(function () { return null; }) : null]).then(function (res) {
+      var g = res[0], c = app.S.cache.kid;
+      if (c && c.joueur.id === p.id) return paintKid(c, g, tab);
       var quick = g.joueurs.filter(function (x) { return x.joueur.id === p.id; })[0];
       var full = MC.api.call('kid', { token: app.S.adult.token, joueurId: p.id }, { silent: !!quick }).then(function (d) { app.S.cache.kid = d; return d; });
       if (quick) {
-        full.then(function () { if (location.hash === '#/educ/joueur/' + p.id) app.rerender(); }).catch(function () { });
-        return paintKid(quick, g);
+        full.then(function () { if (location.hash.indexOf('#/educ/joueur/' + p.id) === 0) app.rerender(); }).catch(function () { });
+        return paintKid(quick, g, tab);
       }
-      return full.then(function (d) { return paintKid(d, g); });
+      return full.then(function (d) { return paintKid(d, g, tab); });
     });
-  }, { adult: 'e', nav: 'e:joueurs', bg: '#16223F' });
-  function paintKid(d, g) {
-        var k = d.joueur, S = kidSummary(d, { editLevels: true });
-        var fam = g.familles.filter(function (f) { return f.id === k.familleId; })[0];
-        var mine = (g.moi.enfants || []).indexOf(k.id) >= 0;
-        return '<main class="screen">' + educBar(g, (mine ? 'Mon enfant · ' : '') + k.prenom, '#/educ/joueurs', 'Les joueurs') +
-          '<div class="row" style="gap:14px">' + ui.avatar(k.prenom, k.couleur, 64) + '<div class="head"><span class="kicker">' + esc(fam ? fam.nom : '') + (k.actif ? '' : ' · désactivé') + '</span><h1 class="big sm">' + esc(k.prenom) + '</h1></div></div>' +
-          (MC.terrainResume ? MC.terrainResume(d, g) : '') +
-          S.pending + S.tiles +
-          '<div class="cols2"><div class="sec" style="gap:20px"><section class="sec"><div class="between"><h2 class="h2">Cette semaine</h2><span class="hud" style="color:var(--gold)">' + S.st.week.stars + ' / 6</span></div>' + S.week + '</section>' +
-          '<section class="sec"><h2 class="h2">Séances</h2>' + (d.seances && d.seances.length && !d.seances.some(function (x) { return x.details; }) ? '<p class="small" style="margin:0">Chargement du détail…</p>' : '') + S.hist + '</section>' +
-          '<section class="sec"><h2 class="h2">Progression aux bilans</h2>' + S.prog + '</section>' +
-          '<section class="sec"><h2 class="h2">Records confirmés</h2>' + S.recs + '</section></div>' +
-          '<div class="sec" style="gap:20px">' + (MC.terrainKid ? MC.terrainKid(d, g) : '') + (MC.missionKid ? MC.missionKid(d, g) : '') + '<section class="sec"><h2 class="h2">Niveaux</h2>' + S.levels + '</section>' +
-          '<section class="sec"><h2 class="h2">Compte</h2>' +
-          '<button type="button" class="switch" data-act="kidCode" data-id="' + esc(k.id) + '" data-p="' + esc(k.prenom) + '"><span><span class="t1" style="display:block">' + (k.aUnCode ? 'Nouveau code provisoire' : 'Code provisoire (1re connexion)') + '</span><span class="t2" style="display:block">Pour un code oublié ou une 1re connexion</span></span>' + icon('right', 18) + '</button>' +
-          '<button type="button" class="switch" role="switch" aria-checked="' + !!k.visible + '" data-act="kidVisible" data-id="' + esc(k.id) + '"><span><span class="t1" style="display:block">Visible au classement</span><span class="t2" style="display:block">Les parents peuvent aussi le régler</span></span><span class="k"></span></button>' +
-          '<label class="lab" for="kfam">Famille</label><select id="kfam" class="txt" data-act-change="kidFamily" data-id="' + esc(k.id) + '">' + g.familles.map(function (f) { return '<option value="' + esc(f.id) + '"' + (f.id === k.familleId ? ' selected' : '') + '>' + esc(f.nom) + '</option>'; }).join('') + '</select>' +
-          '<button type="button" class="btn2 ' + (k.actif ? 'grey' : '') + '" data-act="kidActive" data-id="' + esc(k.id) + '" data-on="' + (k.actif ? 0 : 1) + '">' + (k.actif ? 'Désactiver (a quitté le groupe)' : 'Réactiver') + '</button>' +
-          '</section></div></div>' + '</main>';
+  }, { adult: 'e', nav: 'e:enfants', bg: '#16223F' });
+  // les Skills, +1 et missions d'un enfant viennent du groupe gardé en mémoire (mis à jour à chaque geste des éducs)
+  function dossierGroupe(g, d) {
+    var gp = g.joueurs.filter(function (x) { return x.joueur.id === d.joueur.id; })[0] || {};
+    var o = {}; for (var k in d) o[k] = d[k];
+    o.etoiles = gp.etoiles || d.etoiles || [];
+    o.encouragements = gp.encouragements || d.encouragements || [];
+    o.missions = gp.missions || d.missions || [];
+    o.defmissions = (g.defmissions || []).filter(function (m) { return m.sorte !== 'etoile' || m.joueurId === d.joueur.id; });
+    return o;
+  }
+  MC.dossierGroupe = dossierGroupe;
+  var FTABS = [['terrain', 'Terrain'], ['skills', 'Skills'], ['missions', 'Missions'], ['prepa', 'Prépa'], ['hist', 'Historique'], ['famille', 'Famille']];
+  function paintKid(d0, g, tab) {
+    var d = dossierGroupe(g, d0), k = d.joueur;
+    if (!FTABS.some(function (t) { return t[0] === tab; })) tab = 'terrain';
+    var fam = g.familles.filter(function (f) { return f.id === k.familleId; })[0];
+    var mine = (g.moi.enfants || []).indexOf(k.id) >= 0;
+    var gp = g.joueurs.filter(function (x) { return x.joueur.id === k.id; })[0] || {}, tr = gp.terrain || {};
+    var NIVN = { A: 'Confirmé', B: 'Débrouillé', C: 'Débutant' }, NIVC = { A: '#FFC23D', B: '#38E8FF', C: '#3DFFB0' };
+    var pnom = { pilier: 'pilier', talonneur: 'talonneur', 'troisieme-ligne': '3e ligne', 'demi-de-melee': 'demi de mêlée', ouvreur: 'ouvreur', centre: 'centre', ailier: 'ailier' };
+    var resume = [tr.niveau ? NIVN[tr.niveau] : 'niveau à renseigner', tr.postesOk && tr.postesOk[0] ? pnom[tr.postesOk[0]] : '', tr.passerelle ? 'passerelle vers ' + tr.passerelle : ''].filter(Boolean).join(' · ');
+    var head = '<div class="fhead">' + (tr.niveau ? '<span class="cniv big" style="--lc:' + NIVC[tr.niveau] + '">' + tr.niveau + '</span>' : '<span class="cniv none big">?</span>') +
+      '<div class="grow"><h1 class="big sm" style="margin:0">' + esc(k.prenom) + (mine ? ' <span class="pill" style="--pc:var(--cyan);vertical-align:8px">Mon enfant</span>' : '') + '</h1><span class="small" style="color:var(--soft)">' + esc(resume) + (k.actif ? '' : ' · <b style="color:var(--orange)">désactivé</b>') + '</span></div></div>';
+    var tabs = '<nav class="ftabs" aria-label="La fiche de ' + esc(k.prenom) + '">' + FTABS.map(function (t) {
+      var on = t[0] === tab;
+      return '<a href="#/educ/joueur/' + esc(k.id) + '?t=' + t[0] + '"' + (on ? ' class="on" aria-current="page"' : '') + '>' + t[1] + '</a>';
+    }).join('') + '</nav>';
+    var body = '';
+    if (tab === 'terrain') body = (MC.terrainKid ? MC.terrainKid(d, g, 'fiche') : '') + (MC.missionKid ? MC.missionKid(d, g) : '');
+    else if (tab === 'skills') body = MC.ficheSkills ? MC.ficheSkills(d, g) : '';
+    else if (tab === 'missions') body = MC.ficheMissions ? MC.ficheMissions(d, g) : '';
+    else if (tab === 'hist') body = MC.terrainKid ? MC.terrainKid(d, g, 'hist') : '';
+    else if (tab === 'prepa') {
+      var S = kidSummary(d, { editLevels: true });
+      body = S.pending + S.tiles +
+        '<div class="cols2"><div class="sec" style="gap:20px"><section class="sec"><div class="between"><h2 class="h2">Cette semaine</h2><span class="hud" style="color:var(--gold)">' + S.st.week.stars + ' / 6</span></div>' + S.week + '</section>' +
+        '<section class="sec"><h2 class="h2">Séances</h2>' + (d.seances && d.seances.length && !d.seances.some(function (x) { return x.details; }) ? '<p class="small" style="margin:0">Chargement du détail…</p>' : '') + S.hist + '</section></div>' +
+        '<div class="sec" style="gap:20px"><section class="sec"><h2 class="h2">Progression aux bilans</h2>' + S.prog + '</section>' +
+        '<section class="sec"><h2 class="h2">Records confirmés</h2>' + S.recs + '</section>' +
+        '<section class="sec"><h2 class="h2">Niveaux</h2>' + S.levels + '</section></div></div>';
+    } else if (tab === 'famille') {
+      body = '<section class="sec"><h2 class="h2">Famille</h2><p class="small" style="margin:0">' + esc(fam ? fam.nom : 'Sans famille') + '. Le code parent se refait dans Réglages › Familles et codes.</p>' +
+        '<label class="lab" for="kfam">Changer de famille</label><select id="kfam" class="txt" data-act-change="kidFamily" data-id="' + esc(k.id) + '">' + g.familles.map(function (f) { return '<option value="' + esc(f.id) + '"' + (f.id === k.familleId ? ' selected' : '') + '>' + esc(f.nom) + '</option>'; }).join('') + '</select></section>' +
+        '<section class="sec"><h2 class="h2">Son compte</h2>' +
+        '<button type="button" class="switch" data-act="kidCode" data-id="' + esc(k.id) + '" data-p="' + esc(k.prenom) + '"><span><span class="t1" style="display:block">' + (k.aUnCode ? 'Nouveau code provisoire' : 'Code provisoire (1re connexion)') + '</span><span class="t2" style="display:block">Pour un code oublié ou une 1re connexion</span></span>' + icon('right', 18) + '</button>' +
+        '<button type="button" class="switch" role="switch" aria-checked="' + !!k.visible + '" data-act="kidVisible" data-id="' + esc(k.id) + '"><span><span class="t1" style="display:block">Visible au classement</span><span class="t2" style="display:block">Les parents peuvent aussi le régler</span></span><span class="k"></span></button>' +
+        '<button type="button" class="btn2 ' + (k.actif ? 'grey' : '') + '" data-act="kidActive" data-id="' + esc(k.id) + '" data-on="' + (k.actif ? 0 : 1) + '">' + (k.actif ? 'Désactiver (a quitté le groupe)' : 'Réactiver') + '</button></section>';
+    }
+    return '<main class="screen">' + educBar(g, (mine ? 'Mon enfant · ' : '') + k.prenom, '#/educ/joueurs', 'Enfants') + head + tabs + body + '</main>';
   }
   MC.act.myKids = function () {
     var g = app.S.cache.group;
@@ -741,7 +809,7 @@
     return Promise.all([loadGroup(), MC.loadCompos ? MC.loadCompos().catch(function () { return null; }) : null]).then(function (res) {
       var g = res[0];
       var fams = g.familles.slice().sort(function (a, b) { return a.nom.localeCompare(b.nom, 'fr'); });
-      return '<main class="screen">' + educBar(g, 'Ajouter un joueur', '#/educ/outils', 'Outils') +
+      return '<main class="screen">' + educBar(g, 'Ajouter des enfants', '#/educ/joueurs', 'Enfants') +
         '<div class="head"><span class="kicker">Nouveau joueur</span><h1 class="big md">Ajouter<br>un joueur</h1><p class="lead">Le site crée un code provisoire pour l\'enfant (valable 45 jours, pour sa 1re connexion) et, si c\'est une nouvelle famille, un code parent.</p></div>' +
         spondListe(g) +
         '<div class="sec"><label class="lab" for="ap">Prénom (ajoutez l\'initiale du nom si deux enfants ont le même prénom)</label><input id="ap" class="txt" maxlength="24" autocomplete="off" data-add="prenom" value="' + esc(add.prenom) + '">' +
@@ -749,7 +817,7 @@
         (add.fam === 'new' ? '<label class="lab" for="an">Nom de la famille (facultatif)</label><input id="an" class="txt" maxlength="40" placeholder="ex. Famille Martin" data-add="famNom" value="' + esc(add.famNom) + '">' : '') + '</div>' +
         '<button type="button" class="btn xl" data-act="addPlayer">' + icon('plus', 20) + ' Créer le joueur</button></main>';
     });
-  }, { adult: 'e', nav: 'e:outils', bg: '#16223F' });
+  }, { adult: 'e', nav: 'e:enfants', bg: '#16223F' });
   document.addEventListener('input', function (e) { var k = e.target && e.target.getAttribute && e.target.getAttribute('data-add'); if (k && k !== 'fam') add[k] = e.target.value; });
   document.addEventListener('change', function (e) { var k = e.target && e.target.getAttribute && e.target.getAttribute('data-add'); if (k === 'fam') { add.fam = e.target.value; app.rerender(); } });
   MC.act.addPlayer = function (b) {
@@ -773,7 +841,7 @@
       var byFam = {};
       g.joueurs.forEach(function (p) { if (p.joueur.actif) (byFam[p.joueur.familleId] = byFam[p.joueur.familleId] || []).push(p.joueur.prenom); });
       var fams = g.familles.slice().sort(function (a, b) { return a.nom.localeCompare(b.nom, 'fr'); });
-      return '<main class="screen">' + educBar(g, 'Familles', '#/educ/outils', 'Outils') +
+      return '<main class="screen">' + educBar(g, 'Familles et codes', '#/educ/reglages', 'Réglages') +
         '<div class="head"><span class="kicker">Codes parents</span><h1 class="big md">Familles</h1><p class="lead">Un code par famille, pour tous ses enfants. Par sécurité, les codes ne sont jamais réaffichés : en cas d\'oubli, créez-en un nouveau (l\'ancien ne marche plus).</p></div>' +
         '<ul class="list">' + fams.map(function (f) {
           return '<li class="li"><span class="grow"><span class="t1">' + esc(f.nom) + '</span><span class="t2">' + esc((byFam[f.id] || []).join(', ') || 'aucun enfant actif') + '</span></span><button type="button" class="btn2 sm" data-act="famCode" data-id="' + esc(f.id) + '" data-n="' + esc(f.nom) + '">' + icon('key', 16) + ' Nouveau code</button></li>';
@@ -795,7 +863,7 @@
   app.route('/educ/educs', function () {
     return Promise.all([app.adultCall('listEducs'), loadGroup()]).then(function (res) {
       var r = res[0];
-      return '<main class="screen">' + educBar(res[1], 'Les éducs', '#/educ/outils', 'Outils') +
+      return '<main class="screen">' + educBar(res[1], 'Les éducs', '#/educ/reglages', 'Réglages') +
         '<div class="head"><span class="kicker">Administration</span><h1 class="big md">Les éducs</h1></div>' +
         '<ul class="list">' + r.educs.map(function (e) {
           return '<li class="li" style="flex-wrap:wrap"><span class="grow"><span class="t1">' + esc(e.nom) + (e.admin ? ' · ADMIN' : '') + '</span><span class="t2">' + (e.actif ? 'actif' : 'désactivé') + '</span></span>' +

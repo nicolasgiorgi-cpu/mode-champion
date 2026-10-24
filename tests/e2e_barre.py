@@ -1,4 +1,4 @@
-# La barre du haut sur tous les écrans : présente, avec le bouton Retour (sauf les 5 onglets du bas),
+# La barre du haut sur tous les écrans : présente, avec le bouton Retour (sauf les onglets du bas et leurs sous-onglets),
 # et toujours visible après avoir fait défiler la page jusqu'en bas.
 # Lancer : sh tests/mkdemo.sh puis python3 tests/e2e_barre.py [largeur hauteur]
 import sys
@@ -11,9 +11,9 @@ def check(name, cond, info=''):
     if not cond: print('BAD', name, info)
 
 # onglets du bas : pas de Retour (on y revient par la barre du bas)
-RACINES = {'#/educ', '#/educ/joueurs', '#/educ/compos', '#/educ/classement', '#/educ/outils',
-           '#/parent', '#/parent/progres', '#/parent/classement', '#/parent/plus',
-           '#/semaine', '#/profil', '#/classement', '#/progression'}
+RACINES = {'#/educ', '#/educ/entrainements', '#/educ/plateaux', '#/educ/progres', '#/educ/skills', '#/educ/missions', '#/educ/joueurs', '#/educ/terrain', '#/educ/compos', '#/educ/outils',
+           '#/parent', '#/parent/bilans', '#/parent/progres', '#/parent/classement', '#/parent/missions', '#/parent/skills', '#/parent/plus',
+           '#/semaine', '#/bilans', '#/niveaux', '#/classement', '#/missions', '#/skills', '#/profil'}
 
 def audit(pg, hashes):
     for h in hashes:
@@ -40,8 +40,9 @@ with sync_playwright() as p:
     pg.evaluate("MC.api.call('adultLogin',{code:MC.demo.CODES.educ}).then(r=>{MC.app.setAdult({token:r.token,role:r.role,nom:r.nom,admin:r.admin});location.hash='#/educ'})"); pg.wait_for_timeout(1500)
     tid = pg.evaluate("MC.loadGroup().then(g=>g.joueurs.find(p=>p.joueur.prenom==='Tom').joueur.id)")
     avis = pg.evaluate("MC.loadCompos().then(c=>c.avis[0] && c.avis[0].id)")
-    audit(pg, ['#/educ', '#/educ/joueurs', '#/educ/compos', '#/educ/classement', '#/educ/outils', '#/educ/joueur/' + tid, '#/educ/ajouter', '#/educ/familles',
-               '#/educ/educs', '#/educ/progres', '#/educ/mission', '#/educ/terrain', '#/educ/evt-nouveau', '#/educ/evt/sp-demo-p3', '#/educ/evt/sp-demo-e1',
+    audit(pg, ['#/educ', '#/educ/entrainements', '#/educ/plateaux', '#/educ/progres', '#/educ/skills', '#/educ/missions', '#/educ/joueurs', '#/educ/compos', '#/educ/classement', '#/educ/reglages', '#/educ/joueur/' + tid, '#/educ/ajouter', '#/educ/familles',
+               '#/educ/educs', '#/educ/progres/bilans', '#/educ/mission', '#/educ/terrain', '#/educ/evt-nouveau', '#/educ/evt/sp-demo-p3', '#/educ/evt/sp-demo-e1', '#/educ/evt/sp-demo-e1/presents',
+               '#/educ/skills/passeport', '#/educ/skills/journee', '#/educ/missions/nouvelle?type=video', '#/educ/missions/nouvelle?type=perso', '#/educ/encourager/' + tid,
                '#/educ/compo/sp-demo-p3', '#/educ/compo/sp-demo-p1', '#/educ/compo/sp-demo-p4', '#/educ/compo/sp-demo-e1?p=ateliers', '#/educ/compo/sp-demo-e0?p=matchs',
                '#/educ/avis/' + avis, '#/educ/nouveautes', '#/educ/spond', '#/guide?pour=educ&de=educ%2Fcompos'])
     # le tableau d'une compo, une fois proposée (long), et la fenêtre « Composer »
@@ -52,16 +53,16 @@ with sync_playwright() as p:
     pg.locator('.ccol >> nth=0 >> .cpj >> nth=0').evaluate('e=>e.click()'); pg.wait_for_timeout(300)
     check('joueur choisi : barre toujours là', pg.evaluate("(() => { const r = document.querySelector('header.topbar').getBoundingClientRect(); const el = document.elementFromPoint(r.left + 30, r.top + r.height / 2); return !!(el && el.closest('header.topbar')); })()"))
     # ----- parent -----
-    pg.goto(BASE + '#/educ/outils'); pg.wait_for_timeout(500)
+    pg.goto(BASE + '#/educ/reglages'); pg.wait_for_timeout(500)
     pg.evaluate("MC.app.setAdult(null)")
     pg.evaluate("MC.api.call('adultLogin',{code:MC.demo.CODES.parent}).then(r=>{MC.app.setAdult({token:r.token,role:r.role,nom:r.nom,admin:r.admin});location.hash='#/parent'})"); pg.wait_for_timeout(1500)
-    audit(pg, ['#/parent', '#/parent/progres', '#/parent/classement', '#/parent/plus', '#/parent/nouveautes'])
+    audit(pg, ['#/parent', '#/parent/bilans', '#/parent/classement', '#/parent/missions', '#/parent/missions/perso', '#/parent/missions/mots', '#/parent/skills', '#/parent/skills/plaquage', '#/parent/plus', '#/parent/nouveautes'])
     pg.evaluate("MC.app.setAdult(null)")
     # ----- enfant -----
     pg.evaluate("MC.api.call('roster',{}).then(r=>{const k=(r.joueurs||r).find(x=>x.prenom==='Tom'); return MC.api.call('login',{joueurId:k.id,pin:MC.demo.CODES.enfant});}).then(res=>{MC.app.setKid({token:res.token,joueur:res.joueur}); if(res.me) MC.app.setMe(res.me); location.hash='#/semaine';})"); pg.wait_for_timeout(1500)
     T = pg.evaluate("(() => { const J = MC.CONTENT.JOURS, k = Object.keys(J); return { maison: k.filter(x => J[x].maison), autre: k.filter(x => !J[x].maison), exo: Object.keys(MC.CONTENT.EXOS)[0], defi: (MC.CONTENT.DEFI_TESTS || [])[0] }; })()")
     defi = T['defi'] if isinstance(T['defi'], str) else (T['defi'] or {}).get('id', 'x')
-    audit(pg, ['#/semaine', '#/profil', '#/classement', '#/progression', '#/niveaux', '#/trophees', '#/bilan', '#/reglages', '#/mission', '#/mission/postes', '#/mission/copains', '#/nouveautes', '#/echauffement',
+    audit(pg, ['#/semaine', '#/bilans', '#/profil', '#/classement', '#/progression', '#/niveaux', '#/trophees', '#/bilan', '#/reglages', '#/aide', '#/missions', '#/missions/perso', '#/missions/mots', '#/skills', '#/skills/passe', '#/mission', '#/mission/postes', '#/mission/copains', '#/nouveautes', '#/echauffement',
                '#/calme', '#/jour/' + T['maison'][0], '#/jour/' + T['autre'][0], '#/exo/' + T['exo'], '#/noter?type=club', '#/mission/poste/pilier', '#/mission/quiz', '#/defi/' + defi, '#/guide', '#/bienvenue'])
     # la séance guidée elle-même (plein écran) : un moyen d'en sortir en haut
     pg.goto(BASE + '#/go/' + T['maison'][0]); pg.wait_for_timeout(1200)

@@ -34,7 +34,7 @@
   function xpTable() {
     var X = C.XP;
     var rows = [['Séance à la maison (lundi → jeudi)', X.seance], ['Club du mercredi ou du samedi', X.club], ['Récup du dimanche', X.recup], ['Semaine parfaite (les 6 étoiles)', X.bonus],
-      ['Badge gagné, ou palier bronze / argent / or', X.badge], ['Record battu (confirmé par un adulte)', X.record], ['Niveau monté (la 1re fois)', X.niveau], ['Premiers pas réussis (une fois)', X.premiersPas], ['Mission spéciale accomplie', X.mission]];
+      ['Badge gagné, ou palier bronze / argent / or', X.badge], ['Record battu (confirmé par un adulte)', X.record], ['Niveau monté (la 1re fois)', X.niveau], ['Premiers pas réussis (une fois)', X.premiersPas], ['Mission spéciale accomplie', X.mission], ['Étoile Skills validée par un éduc', X.etoile]];
     return '<div class="gxp">' + rows.map(function (r) { return '<span>' + esc(r[0]) + '</span><span>+' + r[1] + ' XP</span>'; }).join('') + '</div>';
   }
   function grades() {
@@ -50,7 +50,14 @@
   // ---------- onglet joueur ----------
   function joueur() {
     var J = C.JOURS;
-    return '<p class="lead">Mode champion, c\'est ton carnet de prépa physique… en mode jeu vidéo. Tu t\'entraînes à la maison, tu gagnes des <b>étoiles</b> et des <b>XP</b>, tu montes de <b>niveau</b>, tu débloques des <b>badges</b> et tu te compares aux joueurs de ton niveau.</p>' +
+    return '<p class="lead">Mode champion, c\'est ton carnet de prépa physique… en mode jeu vidéo. Tu t\'entraînes à la maison, tu gagnes des <b>étoiles</b> et des <b>XP</b>, tu montes de <b>niveau</b>, tu débloques des <b>badges</b> et tu te compares aux joueurs de ton niveau. Et tes éducs te donnent des <b>missions</b> et valident tes <b>Skills</b> de rugby.</p>' +
+      card('onglets', 'menu', '#38E8FF', 'L\'appli en 4 onglets', 'Prépa · Missions · Skills · Moi',
+        ul([
+          '<b>Prépa</b> : ta prépa physique. <b>Ma semaine</b> (la séance du jour et GO, tes étoiles), <b>Bilans</b> (tes records et tes niveaux) et <b>Classement</b> (l\'arène).',
+          '<b>Missions</b> : ce que demandent tes éducs. Ta mission perso et ses +1, les missions de toute l\'équipe (choisir ton poste, une vidéo, un QCM), et tous les mots de tes éducs. Une pastille rose = du nouveau.',
+          '<b>Skills</b> : ton carnet de compétences rugby, 4 cartes de 5 étoiles validées par tes éducs.',
+          '<b>Moi</b> : ton grade, tes XP, tes postes et tes copains, tes trophées, l\'aide et les réglages.'
+        ]), true) +
       card('semaine', 'star', '#FFC23D', 'Ta semaine et les étoiles', '1 étoile par jour, 6 par semaine, +1 bonus',
         weekRow() + ul([
           '<b>Lundi</b> : la séance de ' + esc(J.cros.joueur.split(' ')[1]) + ' (force du haut). <b>Mardi</b> : ' + esc(J.capuozzo.joueur.split(' ')[1]) + ' (explosivité). <b>Mercredi</b> : ' + esc(J.dupont.joueur.split(' ')[1]) + ' (cardio) ou le club. <b>Jeudi</b> : ' + esc(J.meafou.joueur.split(' ')[1]) + ' (jambes).',
@@ -58,7 +65,7 @@
           'Chaque jour fait = <b>1 étoile</b>. Les 6 étoiles de la semaine = <b>+1 étoile bonus</b> (semaine parfaite).',
           'Tu as raté un jour ? Fais sa séance un autre jour de la même semaine : son étoile s\'allume quand même.',
           icon('flame', 14) + ' <b>Ta série</b> : les étoiles d\'affilée, sans en rater (le vendredi ne compte pas). Si tu rates un jour, elle repart à 0.'
-        ]), true) +
+        ])) +
       card('seance', 'play', '#3DFFB0', 'Faire une séance', 'Guidée exo par exo, ou notée en 10 secondes',
         ul([
           '<b>Séance guidée</b> : le site te montre chaque exercice (animation ou vidéo), lance le chrono, compte avec toi et bipe 10 s avant la fin puis à 5, 4, 3, 2, 1. Un clic de trop ? Le bouton <b>Retour</b> en haut annule le dernier choix, et <b>Détails et sécurité</b> explique chaque exercice. À la fin de chaque exo, tu dis si c\'était <b>facile</b>, <b>pile bien</b> ou <b>dur</b>.',
@@ -70,14 +77,14 @@
       card('niveaux', 'up', '#B48CFF', 'Tes niveaux N1 → N4', 'Chaque exercice a son niveau',
         levels() + ul([
           'Chaque famille d\'exercices a son niveau. C\'est <b>ton bilan</b> qui les règle au départ (N1 à N3). Pas encore de bilan ? Tu commences au <b>niveau 1</b>.',
-          'Un exercice <b>facile</b> ? À la fin de la séance, touche <b>Passer au niveau d\'après</b>. <b>Dur</b> ? <b>Reviens au niveau d\'avant</b>. Tu peux aussi le faire dans Profil › Mes niveaux (boutons + et −). Monte seulement si ta technique est parfaite.',
+          'Un exercice <b>facile</b> ? À la fin de la séance, touche <b>Passer au niveau d\'après</b>. <b>Dur</b> ? <b>Reviens au niveau d\'avant</b>. Tu peux aussi le faire dans Prépa › Bilans › Mes niveaux (boutons + et −). Monte seulement si ta technique est parfaite.',
           '<b>N4 = niveau champion</b> : il s\'ouvre quand le N3 est « facile » 2 séances de suite, jamais directement par le bilan.'
         ])) +
       card('bilan', 'sheet', '#38E8FF', 'Le bilan', 'Les 12 tests, toutes les 8 semaines',
         ul([
           '12 tests, toujours dans le même ordre, avec un adulte qui regarde et compte. Prochain : <b>' + prochainBilan() + '</b>.',
           '<b>Pas d\'adulte dispo ?</b> Tu peux t\'entraîner sans bilan : tes exercices sont au niveau 1, et le bilan les réglera ensuite.',
-          'Profil › <b>Saisir mon bilan</b> › <b>Lancer le bilan guidé</b> : échauffement, puis chaque test avec la démo, le chrono et le compteur, 2 min de repos entre deux tests. Tu peux aussi tout noter dans le formulaire.',
+          'Prépa › Bilans › <b>Saisir mon bilan</b> › <b>Lancer le bilan guidé</b> : échauffement, puis chaque test avec la démo, le chrono et le compteur, 2 min de repos entre deux tests. Tu peux aussi tout noter dans le formulaire.',
           'Le bilan <b>règle tes niveaux</b> tout seul et donne tes <b>records</b>.',
           'Un parent ou ton éduc <b>confirme</b> tes résultats. Sans confirmation, ils ne comptent pas au classement.'
         ])) +
@@ -89,27 +96,35 @@
           'Paliers de la jauge : <b>14</b> Espoir · <b>28</b> Titulaire · <b>42</b> Capitaine · <b>56</b> Légende (et le badge Légende !).',
           'La jauge repart de zéro à chaque nouveau cycle. Tes XP et ton grade, eux, restent.'
         ])) +
-      card('mission', 'ball', '#FFC23D', 'Les missions spéciales', 'Une chose à faire une fois, une grosse récompense',
+      card('mission', 'target', '#FF4FA3', 'Les missions et les +1', 'Ce que demandent tes éducs',
         ul([
-          'Une <b>mission spéciale</b> s\'affiche en haut de <b>Ma semaine</b> tant qu\'elle n\'est pas faite (pastille sur l\'onglet Semaine).',
-          '« <b>Prépare le jeu à 10</b> » : choisis ton poste (1 à 3, dans l\'ordre) avec les 7 cartes ou le test « Aide-moi à choisir », puis tes <b>copains</b>. Tes copains, c\'est <b>secret</b> : seuls les éducs les voient.',
-          'Mission accomplie : <b>+' + C.XP.mission + ' XP</b> et un badge. Tu peux changer tes choix quand tu veux (Profil › Mes choix pour le jeu à 10).'
+          'Onglet <b>Missions</b> : tout ce que tes éducs te demandent. Une pastille rose, et une fois un bandeau « Nouveau dans Missions » en haut de Prépa, te préviennent.',
+          '<b>Pour toute l\'équipe</b> : regarder une vidéo puis répondre à quelques questions, ou un QCM. Mission faite = des XP (ils sont écrits sur la mission).',
+          '« <b>Prépare le jeu à 10</b> » : choisis ton poste (1 à 3, dans l\'ordre) avec les 7 cartes ou le test « Aide-moi à choisir », puis tes <b>copains</b>. Tes copains, c\'est <b>secret</b> : seuls les éducs les voient. Mission accomplie : <b>+' + C.XP.mission + ' XP</b> et un badge. Tu peux changer tes choix quand tu veux (Moi › Mes postes et mes copains).',
+          '<b>Ta mission perso</b> : une étoile Skills à décrocher, rien que pour toi. Quand un éduc voit que tu es sur la bonne voie, il te donne un <b>+1</b> (avec un petit mot, parfois) : jusqu\'à 5. Un +1 ne donne pas l\'étoile : au 3e, tes éducs peuvent la valider.'
+        ])) +
+      card('skills', 'star', '#FFC23D', 'Tes Skills', 'Ton carnet de compétences rugby',
+        ul([
+          '4 cartes : <b>Plaquage</b>, <b>Passe</b>, <b>Ruck</b> et <b>Jeu au pied</b>. Chacune a 5 étoiles, à gagner dans l\'ordre que tu veux.',
+          'Une étoile s\'allume quand <b>un éduc la valide</b>, à l\'entraînement, au plateau ou à la journée d\'évaluation : <b>+' + C.XP.etoile + ' XP</b>.',
+          'Ta carte prend du grade à chaque étoile : <b>Bronze</b>, <b>Argent</b>, <b>Or</b>, <b>Diamant</b>, puis <b>Légende</b>.',
+          'Touche une carte : ses étoiles, qui les a validées, et comment t\'entraîner pour les autres. Les Skills ne sont jamais classés : chacun avance à son rythme.'
         ])) +
       card('badges', 'shield', '#FF4FA3', 'Les badges', C.BADGES.length + ' badges en ' + C.FAMILLES_BADGES.length + ' familles',
         '<p style="margin:0"><b>Exploit</b> : les défis du tableau du mur, gagnés au bilan ou en défi devant un adulte. Plus <b>Champion</b> : réussir un exercice en N4.</p>' + badgeRow('exploit') +
         '<p style="margin:0"><b>Séances</b> : 10, 25 puis 40 séances du même jour = <b>bronze</b>, <b>argent</b>, <b>or</b>.</p>' + badgeRow('seances') +
         '<p style="margin:0"><b>Régularité</b> : ils viennent tout seuls si tu t\'entraînes souvent.</p>' + badgeRow('regularite') +
         '<p style="margin:0"><b>Missions</b> : une mission spéciale accomplie.</p>' + badgeRow('missions') +
-        '<p style="margin:0">Chaque badge et chaque palier : <b>+' + C.XP.badge + ' XP</b>. Tout est dans Profil › Mes trophées.</p>') +
+        '<p style="margin:0">Chaque badge et chaque palier : <b>+' + C.XP.badge + ' XP</b>. Tout est dans Moi › Trophées.</p>') +
       card('defi', 'gift', '#FF8A3D', 'Les défis', 'Tenter un badge un jour où tu te sens fort',
         ul([
-          'Profil › <b>Mes trophées</b> › touche un badge d\'exploit pas encore gagné.',
+          'Moi › <b>Trophées</b> › touche un badge d\'exploit pas encore gagné.',
           'Fais le défi <b>devant un adulte</b> qui compte, puis note ton résultat.',
           'Le parent ou l\'éduc confirme dans son espace : le badge s\'allume. Et si c\'est ton meilleur résultat, ça devient ton record.'
         ])) +
       card('classement', 'podium', '#4D9BFF', 'Le classement et les ligues', 'Tu te compares aux joueurs de ton niveau',
         ul([
-          'Il y a un classement <b>par test du bilan</b> (planche, navette, pompes…).',
+          'Prépa › <b>Classement</b> : il y a un classement <b>par test du bilan</b> (planche, navette, pompes…). Seule la prépa physique compte : tes missions et tes Skills ne sont jamais classés.',
           'Tu es dans la <b>ligue</b> des joueurs qui ont <b>le même niveau</b> que toi sur ce test. S\'il y a moins de ' + MC.CONFIG.LIGUE_MIN + ' joueurs, la ligue s\'ouvre aux niveaux voisins.',
           '2 façons de classer : <b>meilleur score</b>, ou <b>plus gros progrès</b> depuis ton premier bilan. Même si tu n\'es pas le plus fort, tu peux être celui qui progresse le plus !',
           'Seuls les résultats <b>confirmés par un adulte</b> comptent. On n\'y voit que les prénoms. Tes parents peuvent choisir de ne pas t\'afficher.'
@@ -136,7 +151,7 @@
       card('p-connexion', 'lock', '#38E8FF', 'Se connecter', 'Un code par famille',
         ul([
           'Bouton <b>Adultes</b> (en haut de l\'écran d\'accueil) › <b>Je suis parent</b> › votre <b>code famille</b> à 6 chiffres, donné par l\'éducateur.',
-          'Votre espace a 4 onglets en bas : <b>Suivi</b> (sa semaine, ses séances, les résultats à confirmer), <b>Progrès</b> (bilans, records, niveaux), <b>Classement</b> et <b>Plus</b> (réglages, aide). Plusieurs enfants ? Changez d\'enfant en haut à gauche.',
+          'Votre espace a 4 onglets en bas, comme celui de votre enfant : <b>Prépa</b> (les résultats à confirmer en premier, sa semaine et ses séances, ses <b>Bilans</b> et son <b>Classement</b>), <b>Missions</b> (ce que demandent les éducs, ses +1 et leurs mots), <b>Skills</b> (son carnet de compétences) et <b>Plus</b> (codes, appareil, aide). Plusieurs enfants ? Touchez son prénom en haut à gauche : vous restez sur le même onglet.',
           'Un seul code pour la famille : les deux parents peuvent l\'utiliser, et il donne accès à tous vos enfants inscrits.',
           'Vous restez connecté sur l\'appareil. Code perdu : l\'éducateur vous en crée un nouveau.'
         ]), true) +
@@ -145,7 +160,9 @@
           'Sa semaine : les étoiles gagnées et les séances faites. <b>Touchez une séance</b> pour le détail : exercices, niveau, séries, ressenti.',
           '<b>Sa progression aux bilans</b> : ses résultats à chaque bilan et ce qu\'il a gagné depuis le précédent.',
           'Son grade, ses niveaux exercice par exercice, ses records confirmés.',
-          'Les résultats de bilan ou de défi <b>en attente de confirmation</b>.'
+          'Les résultats de bilan ou de défi <b>en attente de confirmation</b>.',
+          '<b>Missions</b> : sa mission perso (une étoile Skills à décrocher), les <b>+1</b> et les mots des éducs (qui, quand, à quelle occasion), et les missions de l\'équipe (vidéo, QCM, choix de poste), faites ou pas. Vous suivez : les +1 ne se donnent que par les éducs.',
+          '<b>Skills</b> : ses 4 cartes (Plaquage, Passe, Ruck, Jeu au pied), les étoiles validées par les éducs et comment il peut s\'entraîner pour les autres.'
         ])) +
       card('p-confirmer', 'check', '#FFC23D', 'Confirmer les résultats', 'Le geste le plus important',
         ul([
@@ -157,13 +174,13 @@
       card('p-bilan', 'sheet', '#4D9BFF', 'Le bilan', 'Les 12 tests, toutes les 8 semaines environ',
         ul([
           'Prochain : <b>' + prochainBilan() + '</b>.',
-          'Votre enfant le lance depuis son profil (bilan guidé, test par test). Il faut <b>un adulte à côté</b> pour regarder, compter et chronométrer.',
+          'Votre enfant le lance depuis Prépa › Bilans (bilan guidé, test par test). Il faut <b>un adulte à côté</b> pour regarder, compter et chronométrer.',
           'Ses niveaux se règlent tout seuls à partir des résultats.'
         ])) +
       card('p-niveaux', 'up', '#B48CFF', 'Ajuster ses niveaux', 'Trop facile, trop dur ?',
         ul([
           'Votre enfant peut monter d\'un niveau à la fin d\'une séance où un exercice était « facile » (ou redescendre s\'il était « dur »).',
-          'Vous aussi : onglet <b>Progrès</b> › « Ses niveaux » › <b>Modifier les niveaux</b>, choisissez N1 à N4, puis <b>Enregistrer les niveaux</b>. Rien ne change tant que vous n\'avez pas enregistré.',
+          'Vous aussi : Prépa › <b>Bilans</b> › « Ses niveaux » › <b>Modifier les niveaux</b>, choisissez N1 à N4, puis <b>Enregistrer les niveaux</b>. Rien ne change tant que vous n\'avez pas enregistré.',
           'Monter si c\'est facile avec une technique parfaite ; redescendre si les mouvements se dégradent. Le changement est noté (qui et quand).'
         ])) +
       card('p-partage', 'phone', '#38E8FF', 'Il utilise votre téléphone', 'Pas de téléphone ou d\'iPad à lui ? Aucun problème',
@@ -181,8 +198,8 @@
       card('p-classement', 'podium', '#B48CFF', 'Classement et données', 'Prénoms seulement',
         ul([
           'Le classement compare les enfants <b>de même niveau</b> sur chaque test, en meilleur score ou en progrès.',
-          'Onglet <b>Classement</b> : la ligue de votre enfant, comme il la voit.',
-          'Tous les enfants y apparaissent par défaut. Vous pouvez <b>masquer votre enfant</b> (onglet Plus) : il continue de voir sa propre place.',
+          'Prépa › <b>Classement</b> : la ligue de votre enfant, comme il la voit. Seule la prépa physique y compte (jamais les missions ni les Skills).',
+          'Tous les enfants y apparaissent par défaut. Vous pouvez <b>masquer votre enfant</b> (en bas du classement, ou dans Plus) : il continue de voir sa propre place.',
           'Le site ne garde que des prénoms et des résultats sportifs, dans un fichier du club. Pas d\'adresse e-mail, pas de nom de famille. Les codes sont enregistrés chiffrés.'
         ])) +
       card('p-rythme', 'heart', '#FF4F6D', 'Rythme et sécurité', 'Court, régulier, sans forcer',
@@ -199,21 +216,24 @@
       card('e-connexion', 'lock', '#38E8FF', 'Se connecter', 'Un code personnel par éduc',
         ul([
           '<b>Adultes</b> › <b>Je suis éduc</b> › votre code à 6 chiffres.',
-          'Outils › <b>Changer mon code éduc</b> pour en choisir un autre.',
-          'L\'éduc <b>admin</b> crée les codes des autres éducs (Outils › Les éducs) et peut en régénérer un.'
+          'L\'<b>engrenage</b> (en haut à droite de chaque onglet) › <b>Mon code éduc</b> pour en choisir un autre.',
+          'L\'éduc <b>admin</b> crée les codes des autres éducs (engrenage › Les éducs) et peut en régénérer un.'
         ]), true) +
-      card('e-vestiaire', 'group', '#3DFFB0', 'Le vestiaire', 'Tout le groupe d\'un coup d\'œil',
+      card('e-vestiaire', 'group', '#3DFFB0', 'Les 4 onglets et l\'engrenage', 'Un onglet par usage',
         ul([
-          '5 onglets en bas : <b>Vestiaire</b> (les résultats de votre enfant à confirmer, ce qui bouge), <b>Joueurs</b>, <b>Compos</b>, <b>Classement</b>, <b>Outils</b>. Une pastille rose sur Vestiaire = des résultats de votre enfant attendent ; sur Compos = une contre-proposition ou un vote attend.',
-          'Onglet <b>Joueurs</b> : les étoiles de la semaine de chacun et sa dernière séance. Le filtre <b>À relancer</b> montre ceux qui n\'ont rien noté depuis 7 jours.',
-          '<b>Mon enfant</b> : vous êtes aussi parent d\'un joueur ? Choisissez-le dans Outils : son bouclier apparaît en haut de votre espace, avec tout le suivi parent, sans changer de code.',
-          'Onglet <b>Classement</b> : tout le groupe ou une ligue à la fois, avec la liste des joueurs pas encore classés.',
-          'Outils › <b>Progrès du groupe aux bilans</b> : test par test, les joueurs classés selon leur progrès depuis le bilan d\'avant.',
-          '<b>À confirmer</b> (Vestiaire) : les bilans et défis de <b>votre enfant</b> (relié à votre profil dans Outils › Mon enfant). Confirmer / Refuser (ou Tout confirmer) s\'allument, puis <b>Valider mes choix</b> envoie le tout. Les résultats des autres enfants sont confirmés par leur famille : vous ne voyez que ceux qui sont confirmés. Un résultat refusé par erreur se rétablit depuis la fiche.'
+          '<b>Entraîn.</b> (on arrive ici) : à venir et passés. Un entraînement : les présents de Spond (à corriger d\'un toucher), <b>1. les ateliers</b> puis <b>2. les matchs</b>, et pendant la séance : évaluer des Skills avec les présents, et les missions des présents (un toucher = +1).',
+          '<b>Plateaux</b> : à venir et joués. Un plateau : les présents, puis la compo (jeu à 5 ou à 10, 2 versions, vote, contre-propositions), et le +1 pendant et après. Pastille rose = un vote ou une contre-proposition attend.',
+          '<b>Progrès</b> : <b>Prépa physique</b> (les résultats de votre enfant à confirmer, ça bouge, le classement, les progrès aux bilans), <b>Skills</b> (évaluer, le passeport du groupe, la journée d\'évaluation) et <b>Missions</b> (pour le groupe, individuelles).',
+          '<b>Enfants</b> : <b>Tous</b>, <b>À relancer</b> (rien noté depuis 7 jours) et <b>Niveaux et postes</b> (la fiche terrain du groupe). Toucher un prénom ouvre sa fiche, partout dans l\'appli.',
+          'L\'<b>engrenage</b>, en haut à droite : mon enfant, mon code, les éducs (admin), les familles et leurs codes, Spond (admin), cet appareil, l\'aide et les nouveautés.',
+          '<b>Mon enfant</b> : vous êtes aussi parent d\'un joueur ? Choisissez-le dans l\'engrenage : ses résultats à confirmer arrivent dans Progrès › Prépa physique, et il est en tête de la liste des enfants.',
+          'Progrès › Prépa physique › <b>Le classement</b> : tout le groupe ou une ligue à la fois, avec la liste des joueurs pas encore classés. <b>Progrès aux bilans</b> : test par test, les joueurs classés selon leur progrès depuis le bilan d\'avant.',
+          '<b>À confirmer</b> (Progrès › Prépa physique) : les bilans et défis de <b>votre enfant</b> (relié à votre profil dans l\'engrenage › Mon enfant). Confirmer / Refuser (ou Tout confirmer) s\'allument, puis <b>Valider mes choix</b> envoie le tout. Les résultats des autres enfants sont confirmés par leur famille : vous ne voyez que ceux qui sont confirmés. Un résultat refusé par erreur se rétablit depuis la fiche.'
         ])) +
-      card('e-fiche', 'user', '#FFC23D', 'La fiche d\'un joueur', 'Touchez un prénom',
+      card('e-fiche', 'user', '#FFC23D', 'La fiche d\'un enfant', 'Touchez un prénom',
         ul([
-          'Ses séances (touchez-en une pour le détail), sa <b>progression d\'un bilan à l\'autre</b>, ses records confirmés, ses niveaux.',
+          'En haut : son niveau, son poste, sa passerelle. Puis 6 onglets : <b>Terrain</b> (fiche terrain, postes souhaités, copains), <b>Skills</b> (valider ou retirer une étoile), <b>Missions</b> (sa mission perso et ses +1, les missions du groupe, ses mots), <b>Prépa</b>, <b>Historique</b> (plateaux et entraînements) et <b>Famille</b> (codes, classement, désactiver). Le dernier onglet choisi est gardé.',
+          'Prépa : ses séances (touchez-en une pour le détail), sa <b>progression d\'un bilan à l\'autre</b>, ses records confirmés, ses niveaux.',
           '<b>Modifier les niveaux</b> (N1 à N4) si le bilan ne reflète pas ce que vous voyez sur le terrain : bouton Modifier, puis Enregistrer. Les parents peuvent aussi les ajuster.',
           '<b>Nouveau code provisoire</b> si l\'enfant a oublié le sien.',
           '<b>Masquer du classement</b>, ou <b>désactiver</b> un joueur qui a quitté le groupe (ses données sont gardées).'
@@ -221,14 +241,22 @@
       card('e-mission', 'ball', '#FFC23D', 'Postes et copains (jeu à 10)', 'La mission « Prépare le jeu à 10 »',
         ul([
           'Chaque enfant choisit dans l\'appli 1 à 3 <b>postes</b> (dans l\'ordre) et ses <b>copains</b>, sans limite. Les copains sont secrets : ni les autres enfants ni les parents ne les voient.',
-          'Outils › <b>Mission « Prépare le jeu à 10 »</b> : qui l\'a faite, les postes demandés (choix 1 et choix 2-3), les copains de chacun.',
+          'Progrès › Missions › <b>Prépare le jeu à 10</b> : qui l\'a faite, les postes demandés (choix 1 et choix 2-3), les copains de chacun.',
           'La fiche d\'un joueur montre ses postes, son test « Aide-moi à choisir », ses copains et ceux qui l\'ont choisi (⇄ = ils se sont choisis l\'un l\'autre).',
           'Les réponses envoyées avec l\'ancien site « Choisis ton poste » se reprennent d\'un bouton, si le Google Form range ses réponses dans la feuille de l\'appli.'
         ])) +
-      card('e-compos', 'board', '#38E8FF', 'Les compos : plateaux et entraînements', 'Onglet Compos',
+      card('skills-e', 'star', '#FFC23D', 'Skills, missions et +1', 'Progrès › Skills et Missions',
+        ul([
+          '<b>Évaluer</b> (Progrès › Skills, ou « Évaluer des Skills » sur la page d\'une séance) : la carte, l\'étoile, puis les présents : <b>Valider ★</b> pour ceux qui la réussissent. Un éduc suffit ; validée par erreur ? « Retirer » sur sa fiche.',
+          '<b>Journée d\'évaluation</b> : comme la grille papier. Votre atelier, le groupe, puis 3 essais par critère (✓ / ✗) : l\'étoile est gagnée à 2 réussis sur 3. « Suivant » pour le groupe d\'après. <b>Passeport du groupe</b> : toutes les cartes de tous les enfants.',
+          '<b>Mission perso</b> (Progrès › Missions › + Individuelle, ou depuis sa fiche) : une étoile précise à décrocher, une à la fois. L\'enfant la voit dans son onglet Missions.',
+          '<b>Le +1</b> : d\'un seul toucher, sur la page de l\'entraînement ou du plateau, dans Progrès, ou sur sa fiche ; « +1 avec un mot » pour ajouter une phrase et l\'occasion. Il dit « tu es sur la bonne voie » : l\'enfant et sa famille le voient (qui, quand, à quelle occasion). Jusqu\'à 5 par mission. <b>Au 3e, l\'appli propose de valider l\'étoile</b> : rien d\'automatique, c\'est vous qui décidez. Un parent ne donne jamais de +1.',
+          '<b>Pour le groupe</b> : une vidéo YouTube et quelques questions, ou un QCM, avec une date limite et des XP. Vous voyez qui l\'a faite et la moyenne ; l\'auteur (ou l\'admin) peut changer la date ou la retirer.'
+        ])) +
+      card('e-compos', 'board', '#38E8FF', 'Les compos : plateaux et entraînements', 'Onglets Entraîn. et Plateaux',
         ul([
           '<b>Fiche terrain</b> (réglée par les éducs) : niveau <b>A</b> Confirmés, <b>B</b> Débrouillés, <b>C</b> Débutants ; <b>passerelle</b> = peut jouer aussi dans le niveau voisin, à tour de rôle ; <b>plaquage</b> sur 5 étoiles ; <b>poste principal</b> et les autres postes qu\'il peut tenir (avant, arrière ou les deux). Sans poste réglé, l\'appli prend ses vœux de la mission.',
-          'Les événements arrivent de <b>Spond</b> avec les réponses des familles (ou s\'ajoutent à la main). Un éduc admin branche Spond dans Outils › Spond avec son propre compte : l\'appli suit les catégories dont il est coach, et les enfants Spond pas encore dans l\'appli s\'ajoutent d\'un geste (Ajouter un joueur › Depuis Spond). Sur la page d\'un événement, touchez un prénom pour corriger les présents : la correction reste après chaque synchro.',
+          'Les événements arrivent de <b>Spond</b> avec les réponses des familles (ou s\'ajoutent à la main). Un éduc admin branche Spond dans l\'engrenage › Spond avec son propre compte : l\'appli suit les catégories dont il est coach, et les enfants Spond pas encore dans l\'appli s\'ajoutent d\'un geste (Enfants › Ajouter des enfants). Sur la page d\'un événement, touchez « Les présents » pour les corriger : la correction reste après chaque synchro.',
           '<b>Préparer la compo</b> : le format (jeu à 5 ou à 10), le nombre d\'équipes A, B et C, puis <b>Proposer une compo</b>. L\'appli équilibre le plaquage, fait tourner les passerelles (d\'abord celles qui attendent leur tour) et met chacun avec au moins un copain quand c\'est possible. Au jeu à 10, chacun reçoit un poste pour le plateau (son poste principal d\'abord). Chaque équipe est rangée en deux parties : les <b>avants</b> en haut (piliers, talonneur, 3es lignes), les <b>arrières</b> dessous (9, 10, centres, ailiers). Au jeu à 10, derrière la mêlée : demi de mêlée, ouvreur, 1 centre et 2 ailiers.',
           '<b>Composer à la main</b> : « Partir de zéro », puis touchez le nom d\'une équipe ou une place vide (+). Au jeu à 10, on choisit les piliers, puis le talonneur, les 3es lignes… : la liste montre d\'abord ceux dont c\'est le poste principal, puis ceux qui peuvent le jouer, ceux du niveau de l\'équipe en premier. Au jeu à 5 : « Ajouter des joueurs ».',
           '<b>Deux versions côte à côte</b> : « Proposer 2 versions » (ou « Ajouter une 2e version ») met V1 et V2 l\'une à côté de l\'autre, niveau par niveau. Chaque version se modifie à part ; les joueurs placés autrement sont entourés. À la fin, publiez celle que vous préférez, ou soumettez-les <b>au vote des éducs</b> : la majorité l\'emporte, l\'auteur départage en cas d\'égalité.',
@@ -242,10 +270,10 @@
           '<b>Ajouter un joueur</b> : prénom (ajoutez l\'initiale du nom si deux enfants ont le même prénom) et famille.',
           'Le site donne un <b>code provisoire</b> pour l\'enfant (45 jours) et, pour une nouvelle famille, le <b>code parent</b>. Bouton Copier / partager pour l\'envoyer par message.',
           'Frères et sœurs : choisissez la famille existante, ils partagent le même code parent.',
-          'Outils › <b>Familles et codes parents</b> : régénérer le code d\'une famille.'
+          'Engrenage › <b>Familles et codes</b> : régénérer le code d\'une famille.'
         ])) +
       card('e-regles', 'star', '#FF4FA3', 'Les règles du jeu', 'Ce que voient les enfants',
-        '<p style="margin:0">Étoiles, séries, XP et grades, niveaux N1-N4, jauge du cycle, badges, défis, ligues : tout est expliqué dans l\'onglet <b>Joueur</b>, pour pouvoir en parler avec eux à l\'entraînement.</p>' +
+        '<p style="margin:0">Étoiles, séries, XP et grades, niveaux N1-N4, jauge du cycle, badges, défis, ligues, missions et Skills : tout est expliqué dans l\'onglet <b>Joueur</b>, pour pouvoir en parler avec eux à l\'entraînement.</p>' +
         '<button type="button" class="btn2 sm" data-act="guideTab" data-v="joueur">' + icon('right', 16) + ' Voir l\'onglet Joueur</button>');
   }
 
@@ -255,7 +283,7 @@
     var S = app.S;
     var pour = q.pour || (S.adult ? (S.adult.role === 'e' ? 'educ' : 'parent') : 'joueur');
     if (['joueur', 'parent', 'educ'].indexOf(pour) < 0) pour = 'joueur';
-    var back = S.adult && !S.kid ? (S.adult.role === 'e' ? '#/educ' : '#/parent') : S.kid ? '#/semaine' : '#/connexion';
+    var back = S.adult && !S.kid ? (S.adult.role === 'e' ? '#/educ/entrainements' : '#/parent') : S.kid ? '#/semaine' : '#/connexion';
     if (q.de) back = '#/' + String(q.de).replace(/^#?\/?/, '');
     var tabs = [['joueur', 'Joueur'], ['parent', 'Parents'], ['educ', 'Éducs']].map(function (t) {
       return '<button type="button" role="tab" aria-selected="' + (pour === t[0]) + '" class="opt' + (pour === t[0] ? ' on' : '') + '" data-act="guideTab" data-v="' + t[0] + '">' + t[1] + '</button>';

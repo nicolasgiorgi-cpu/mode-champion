@@ -54,7 +54,7 @@ MC.accueil = (function () {
   MC.act.obPrev = function (b) { var r = b.getAttribute('data-r'); step[r] = Math.max(0, step[r] - 1); app.rerender(); window.scrollTo(0, 0); };
   MC.act.obSkip = function (b) { finish(b.getAttribute('data-r')); };
   function finish(role) {
-    var S = app.S, home = role === 'k' ? '#/semaine' : role === 'f' ? '#/parent' : '#/educ';
+    var S = app.S, home = role === 'k' ? '#/semaine' : role === 'f' ? '#/parent' : '#/educ/entrainements';
     var id = role === 'k' ? S.kid && S.kid.joueur.id : role === 'f' ? S.cache.family && S.cache.family.famille.id : S.cache.group && S.cache.group.moi.id;
     if (id) markTour(role, id);
     step[role] = 0;
@@ -85,8 +85,8 @@ MC.accueil = (function () {
     var last = '<button type="button" class="btn green" data-act="obDoneKid">' + icon('play', 18) + ' Je commence' + (noBilan ? ' au niveau 1' : '') + ' !</button>' +
       (noBilan ? '<a class="btn2 gold" href="#/bilan" data-act="obBilan">' + icon('trophy', 16) + ' D\'abord mon bilan, avec un adulte</a>' : '');
     return frame('k', n, i, '<div class="obgrades">' + C.GRADES.slice(0, 4).reverse().map(function (g, j) { return '<span class="' + (j === 3 ? 'me' : '') + '"><b>' + esc(g.nom) + '</b><small>' + ui.fmtNum(g.xp) + ' XP</small></span>'; }).join('') + '</div>', 'monte en grade',
-      'Deviens une légende', '<p class="lead">Chaque séance rapporte des <b>XP</b> : tu montes de grade, tu débloques des <b>badges</b> et tu entres dans <b>l\'arène</b> face aux joueurs de ton niveau. Un exercice trop facile ? À la fin de la séance, tu passes au <b>niveau d\'après</b>.</p>' +
-      '<div class="note cyan">' + icon('star', 20) + '<span>Pour bien démarrer : <b>tes premiers pas</b>, 4 petites missions sur Ma semaine, <b>+' + C.XP.premiersPas + ' XP</b> à la fin.</span></div>', last, { kc: 'var(--violet)' });
+      'Deviens une légende', '<p class="lead">Chaque séance rapporte des <b>XP</b> : tu montes de grade, tu débloques des <b>badges</b> et tu entres dans <b>l\'arène</b> face aux joueurs de ton niveau. Et dans <b>Missions</b> et <b>Skills</b>, tes éducs te lancent des défis rugby et valident tes étoiles.</p>' +
+      '<div class="note cyan">' + icon('star', 20) + '<span>Pour bien démarrer : <b>tes premiers pas</b>, 4 petites missions sur Prépa › Ma semaine, <b>+' + C.XP.premiersPas + ' XP</b> à la fin.</span></div>', last, { kc: 'var(--violet)' });
   }
   MC.act.obDoneKid = function () { finish('k'); };
   MC.act.obBilan = function () { var id = app.S.kid && app.S.kid.joueur.id; if (id) markTour('k', id); step.k = 0; app.go('#/bilan', true); };
@@ -106,7 +106,7 @@ MC.accueil = (function () {
       '<ul class="obul plain">' + li('Préparé par les éducateurs M12, adapté aux 9-11 ans : poids du corps, aucune charge.') + li('15 à 20 minutes, 4 jours par semaine, guidé exercice par exercice.') + li('Ni publicité, ni compte à créer. Les codes sont gardés chiffrés.') + '</ul>', nextBtn, { kc: 'var(--green)' });
     if (i === 1) return frame('f', n, i, '', 'votre rôle · 2 minutes par semaine', 'Vous gardez la main',
       '<div class="sec">' +
-      '<div class="note">' + icon('pulse', 24, 'style="color:var(--cyan)"') + '<span><b>Suivre</b> : chaque séance, exercice par exercice, et la progression d\'un bilan à l\'autre (onglets Suivi et Progrès).</span></div>' +
+      '<div class="note">' + icon('pulse', 24, 'style="color:var(--cyan)"') + '<span><b>Suivre</b> : chaque séance, la progression d\'un bilan à l\'autre (onglet Prépa), les missions et les +1 de ses éducs, et ses Skills.</span></div>' +
       '<div class="note pink">' + icon('check', 24) + '<span><b>Confirmer ses résultats</b> : bilans et défis. Votre OK les fait entrer dans son classement. Une pastille rose vous prévient.</span></div>' +
       '<div class="note gold">' + icon('up', 24) + '<span><b>Ajuster ses niveaux</b> : trop facile, trop dur ? Vous pouvez changer le niveau de chaque exercice.</span></div></div>', nextBtn, { kc: 'var(--green)' });
     var shared = app.sharedDevice();
@@ -132,13 +132,13 @@ MC.accueil = (function () {
     if (i === 0) {
       var pend = 0; players.forEach(function (p) { p.records.forEach(function (r) { if (r.statut === 'attente') pend++; }); });
       return frame('e', n, i, '<div class="grid3" style="width:100%"><div class="tile"><span class="v">' + players.length + '</span><span class="l">joueurs</span></div><div class="tile"><span class="v" style="color:var(--green)">' + players.filter(function (p) { return p.joueur.aUnCode; }).length + '</span><span class="l">connectés</span></div><div class="tile"><span class="v" style="color:var(--pink)">' + pend + '</span><span class="l">à valider</span></div></div>', 'espace éduc',
-        'Bienvenue au vestiaire, ' + esc(g.moi.nom), '<p class="lead">Le tableau de bord du groupe M12 : qui s\'entraîne, qui décroche et les progrès de chacun.</p>', nextBtn, { kc: 'var(--violet)' });
+        'Bienvenue, ' + esc(g.moi.nom), '<p class="lead">4 onglets, un par usage : <b>Entraîn.</b> (présents, ateliers, matchs), <b>Plateaux</b> (compos), <b>Progrès</b> (prépa physique, Skills, missions) et <b>Enfants</b>. La gestion est derrière l\'engrenage, en haut.</p>', nextBtn, { kc: 'var(--violet)' });
     }
     if (i === 1) return frame('e', n, i, '', 'votre semaine type · 5 minutes', 'Trois réflexes',
       '<div class="sec">' +
-      '<div class="note pink"><span class="pill" style="--pc:var(--pink)">1</span><span><b>Confirmer les résultats de votre enfant</b> (s\'il est dans le groupe) : une pastille rose sur Vestiaire vous prévient. Ceux des autres enfants, c\'est leur famille.</span></div>' +
-      '<div class="note gold"><span class="pill" style="--pc:var(--gold)">2</span><span><b>Relancer ceux qui décrochent</b> : Joueurs › « À relancer » (rien depuis 7 jours, ou jamais connecté).</span></div>' +
-      '<div class="note"><span class="pill" style="--pc:var(--cyan)">3</span><span><b>Préparer les bilans</b> : Classement, et Outils › Progrès du groupe.</span></div></div>', nextBtn, { kc: 'var(--violet)' });
+      '<div class="note pink"><span class="pill" style="--pc:var(--pink)">1</span><span><b>Confirmer les résultats de votre enfant</b> (s\'il est dans le groupe) : une pastille rose sur Progrès vous prévient. Ceux des autres enfants, c\'est leur famille.</span></div>' +
+      '<div class="note gold"><span class="pill" style="--pc:var(--gold)">2</span><span><b>Encourager</b> : à l\'entraînement, un <b>+1</b> d\'un seul toucher sur la mission d\'un enfant présent ; au 3e, l\'appli propose de valider son étoile Skills.</span></div>' +
+      '<div class="note"><span class="pill" style="--pc:var(--cyan)">3</span><span><b>Relancer ceux qui décrochent</b> : Enfants › « À relancer » (rien depuis 7 jours, ou jamais connecté).</span></div></div>', nextBtn, { kc: 'var(--violet)' });
     if (!pick) pick = (g.moi.enfants || []).slice();
     var list = players.slice().sort(function (a, b) { return a.joueur.prenom.localeCompare(b.joueur.prenom, 'fr'); });
     return frame('e', n, i, '', 'éduc et parent', 'Votre enfant est dans le groupe ?',
@@ -251,8 +251,8 @@ MC.accueil = (function () {
   MC.act.obBilanHow = function () {
     ui.modal({
       title: 'Le bilan 0',
-      body: '<p class="lead">12 petits tests (sauts, gainage, navette…) pour régler les niveaux de votre enfant. Il le lance depuis son <b>Profil</b> : le bilan guidé enchaîne les tests avec la démo et le chrono. Comptez 45 minutes, avec vous à côté pour regarder et compter.</p>' +
-        '<p class="small">Ensuite, ses résultats arrivent dans l\'onglet <b>Suivi</b> : touchez Confirmer (ou Refuser) pour chacun, puis « Valider mes choix ». Pas de bilan encore ? Il peut s\'entraîner au niveau 1 en attendant.</p>',
+      body: '<p class="lead">12 petits tests (sauts, gainage, navette…) pour régler les niveaux de votre enfant. Il le lance depuis <b>Prépa › Bilans</b> : le bilan guidé enchaîne les tests avec la démo et le chrono. Comptez 45 minutes, avec vous à côté pour regarder et compter.</p>' +
+        '<p class="small">Ensuite, ses résultats arrivent en haut de l\'onglet <b>Prépa</b> : touchez Confirmer (ou Refuser) pour chacun, puis « Valider mes choix ». Pas de bilan encore ? Il peut s\'entraîner au niveau 1 en attendant.</p>',
       actions: [{ label: 'Compris', value: null, cls: 'btn' }]
     });
   };
@@ -269,7 +269,7 @@ MC.accueil = (function () {
       { done: true, html: chk(true, 'Entrer mon code éduc') },
       { done: codes, html: chk(codes, 'Donner les codes aux familles', 'Code parent + code provisoire de chaque enfant', 'obCodes') },
       { done: tried, html: chk(tried, 'Essayer côté joueur', 'Pour voir ce que voient les enfants', 'obTry') },
-      { done: valid, html: chk(valid, 'Valider les premiers résultats', 'Une pastille rose sur Vestiaire vous prévient', 'obValid') }
+      { done: valid, html: chk(valid, 'Valider les premiers résultats', 'Une pastille rose sur Progrès vous prévient', 'obValid') }
     ];
     if (list.every(function (x) { return x.done; })) return '';
     return box('Premiers pas', list, 'e:' + id);
@@ -289,7 +289,7 @@ MC.accueil = (function () {
     var id = app.S.cache.group && app.S.cache.group.moi.id;
     ui.modal({
       title: 'Côté joueur',
-      body: '<p class="lead">Outils › <b>Côté joueur</b> : touchez un prénom (un joueur de test ou votre enfant), tapez son code, et lancez une séance pour voir ce que voient les enfants.</p><p class="small">Votre espace éduc reste ouvert : vous y revenez par le bouton Adultes.</p>',
+      body: '<p class="lead">L\'engrenage › <b>Côté joueur</b> : touchez un prénom (un joueur de test ou votre enfant), tapez son code, et lancez une séance pour voir ce que voient les enfants.</p><p class="small">Votre espace éduc reste ouvert : vous y revenez par le bouton Adultes.</p>',
       actions: [{ label: 'Y aller', value: 'go', cls: 'btn' }, { label: 'C\'est fait', value: 'ok', cls: 'btn2' }, { label: 'Plus tard', value: null, cls: 'btn2 grey' }]
     }).then(function (v) {
       if (v === 'ok' && id) { set('done:e-joueur:' + id, Date.now()); app.rerender(); }

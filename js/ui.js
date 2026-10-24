@@ -69,6 +69,11 @@ MC.ui = (function () {
     boot: '<path d="M2.5 17.5V13c0-.6.4-1 1-1H7l2.2-3.2c.3-.5 1-.6 1.5-.3l1.3.9 1.2 2.1 4.6 1.7c2 .7 3.7 2.2 3.7 4.3z"/><path d="M2.5 17.5h19v1.5a1 1 0 0 1-1 1h-17a1 1 0 0 1-1-1z"/><path d="M11 12.5l1.2-1M13 13.5l1.2-1"/>',
     crown: '<path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 10H5z"/><path d="M5 21h14"/>',
     pulse: '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
+    flag: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
+    trend: '<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
+    target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/>',
+    kids: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.3-5.5 6.5-5.5s5.7 1.9 6.5 5.5M16 4.7a3.5 3.5 0 0 1 0 6.6M18 14.8c1.8.7 3 2.4 3.5 5.2"/>',
+    plus1: '<path d="M4 12h6M7 9v6"/><path d="M15 8l3-2v12"/>',
     wrench: '<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/>',
     menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
     chevd: '<path d="M6 9l6 6 6-6"/>',
@@ -465,6 +470,24 @@ MC.ui = (function () {
     var help = o.help === false ? '' : '<a class="cbtn grey" href="' + esc(o.help || '#/guide') + '" aria-label="Aide : comment ça marche ?"><b class="q">?</b></a>';
     return '<header class="topbar">' + left + mid + (o.right || '') + help + (o.xp !== undefined ? '<i class="tb-xp" style="width:' + Math.max(2, Math.min(100, o.xp)) + '%" aria-hidden="true"></i>' : '') + '</header>';
   }
+  // ---------- Sous-onglets en haut d'un onglet (2 à 4) ----------
+  // nav : l'onglet du bas (pour retenir le dernier sous-onglet choisi) ; items : [[clé, lien, libellé, pastille]] ; on : la clé allumée ; c : couleur
+  function subtabs(nav, items, on, c, label) {
+    var cur = items.filter(function (it) { return it[0] === on; })[0];
+    if (cur && MC.app && MC.app.rememberTab) MC.app.rememberTab(nav, cur[1]);
+    return '<nav class="stabs" style="--n:' + items.length + (c ? ';--sc:' + c : '') + '" aria-label="' + esc(label || 'Sous-onglets') + '">' + items.map(function (it) {
+      var act = it[0] === on;
+      return '<a href="' + esc(it[1]) + '"' + (act ? ' class="on" aria-current="page"' : '') + '>' + esc(it[2]) + (it[3] ? '<span class="nbi">' + it[3] + '</span>' : '') + '</a>';
+    }).join('') + '</nav>';
+  }
+  // un petit sélecteur à 2 ou 3 choix dans un écran (ex. Mes records | Mes niveaux)
+  function seg(items, on, act) {
+    return '<div class="seg3" style="--n:' + items.length + '" role="group">' + items.map(function (it) {
+      var a = it[0] === on;
+      return it[2] ? '<a class="opt' + (a ? ' on' : '') + '" href="' + esc(it[2]) + '"' + (a ? ' aria-current="true"' : '') + '>' + esc(it[1]) + '</a>' :
+        '<button type="button" class="opt' + (a ? ' on' : '') + '" aria-pressed="' + a + '" data-act="' + esc(act) + '" data-v="' + esc(it[0]) + '">' + esc(it[1]) + '</button>';
+    }).join('') + '</div>';
+  }
   // lien d'aide qui ramène ensuite à l'écran où l'on était
   function helpLink(pour) {
     var here = (location.hash || '').replace(/^#\/?/, '');
@@ -472,7 +495,7 @@ MC.ui = (function () {
   }
 
   return {
-    topbar: topbar, helpLink: helpLink,
+    topbar: topbar, helpLink: helpLink, subtabs: subtabs, seg: seg,
     esc: esc, icon: icon, starSvg: starSvg, lvl: lvl, levelIcon: levelIcon, avatar: avatar, hexa: hexa, rgba: hexToRgba,
     doseLabel: doseLabel, doseInfo: doseInfo, fmtDate: fmtDate, fmtNum: fmtNum, fmtVal: fmtVal, valHtml: valHtml,
     numInput: numInput, numpadClose: npClose, TOUCH: TOUCH,

@@ -112,9 +112,53 @@ MC.missions = (function () {
     return out;
   }
 
+  // ---------- les missions créées par les éducs (vidéo + questions, QCM) ----------
+  // groupe(data) : les missions du groupe, avec où en est l'enfant (faite, vidéo vue, score)
+  function groupe(data) {
+    var t = MC.logic.today();
+    return ((data && data.defmissions) || []).filter(function (m) { return (m.sorte === 'video' || m.sorte === 'qcm') && m.statut !== 'retiree'; }).map(function (m) {
+      var r = of(data, m.id), rep = (r && r.reponses) || {};
+      return { def: m, faite: !!(r && r.faite), vu: !!rep.vu, ans: rep.ans || null, score: rep.score || 0, total: rep.total || (m.questions || []).length,
+        date: (r && r.date) || '', finie: !!(m.fin && m.fin < t), xp: rep.xp !== undefined ? rep.xp : m.xp };
+    }).sort(function (a, b) { return (a.def.cree || '') < (b.def.cree || '') ? 1 : -1; });
+  }
+  // tout ce qui attend l'enfant : la mission spéciale du moment et les missions du groupe pas encore faites (date limite pas passée)
+  function aFaire(data) {
+    var l = pending(data).map(function (M) { return { id: M.id, titre: M.titre, statique: true }; });
+    groupe(data).forEach(function (x) { if (!x.faite && !x.finie) l.push({ id: x.def.id, titre: x.def.titre, statique: false }); });
+    return l;
+  }
+  // missions faites (mission spéciale, missions du groupe, missions perso dont l'étoile est validée)
+  function nbFaites(data) {
+    var n = 0;
+    MC.MISSIONS.forEach(function (M) { var m = of(data, M.id); if (m && m.faite) n++; });
+    groupe(data).forEach(function (x) { if (x.faite) n++; });
+    ((data && data.defmissions) || []).forEach(function (m) { if (m.sorte === 'etoile' && m.statut === 'faite') n++; });
+    return n;
+  }
+  // ---------- ce qui est nouveau pour celui qui regarde (lu ou pas : gardé sur l'appareil) ----------
+  // qui : 'k' (l'enfant) ou 'f' (sa famille) ; on retient l'heure de la dernière visite de l'onglet Missions
+  function luKey(qui, joueurId) { return 'mc-lu:' + qui + ':' + joueurId; }
+  function luAt(qui, joueurId) { try { return localStorage.getItem(luKey(qui, joueurId)) || ''; } catch (e) { return ''; } }
+  function marquerLu(qui, joueurId, data) {
+    var max = luAt(qui, joueurId);
+    ((data && data.encouragements) || []).forEach(function (x) { if ((x.cree || '') > max) max = x.cree; });
+    ((data && data.defmissions) || []).forEach(function (m) { if ((m.cree || '') > max) max = m.cree; });
+    try { if (max) localStorage.setItem(luKey(qui, joueurId), max); } catch (e) { }
+  }
+  // les +1, mots et missions arrivés depuis la dernière visite
+  function nouveaux(qui, data) {
+    if (!data || !data.joueur) return { enc: [], missions: [], n: 0 };
+    var lu = luAt(qui, data.joueur.id);
+    var enc = ((data.encouragements) || []).filter(function (x) { return (x.cree || '') > lu; }).sort(function (a, b) { return a.cree < b.cree ? 1 : -1; });
+    var ms = ((data.defmissions) || []).filter(function (m) { return (m.cree || '') > lu && m.statut === 'active'; });
+    return { enc: enc, missions: ms, n: enc.length + ms.length };
+  }
+
   return {
     POSTES: POSTES, LABELS: LABELS, QUIZ: QUIZ, QMAX: QMAX,
     poste: poste, def: def, of: of, pending: pending, etat: etat,
-    quizResults: quizResults, quizLines: quizLines
+    quizResults: quizResults, quizLines: quizLines,
+    groupe: groupe, aFaire: aFaire, nbFaites: nbFaites, nouveaux: nouveaux, marquerLu: marquerLu, luAt: luAt
   };
 })();

@@ -56,6 +56,29 @@
   MC.kidBar = kidBar;
   function subBar(back, backLabel, title) { return ui.topbar({ back: back, backLabel: backLabel, title: title, help: ui.helpLink('joueur') }); }
   MC.kidSubBar = subBar;
+  // les sous-onglets de Prépa : Ma semaine · Bilans · Classement
+  function prepaTabs(on) {
+    return ui.subtabs('prepa', [['semaine', '#/semaine', 'Ma semaine'], ['bilans', '#/bilans', 'Bilans'], ['classement', '#/classement', 'Classement']], on, '#38E8FF', 'Prépa');
+  }
+  MC.prepaTabs = prepaTabs;
+  // une seule fois : « Nouveau dans Missions » en haut de Prépa (un +1, un mot, une mission), qu'on ferme d'un toucher
+  function bandeauMissions(me) {
+    if (!MC.missions) return '';
+    var nv = MC.missions.nouveaux('k', me);
+    if (!nv.n) return '';
+    var ferme = app.lsGet('mc-bandeau:' + me.joueur.id) || '';
+    var dernier = nv.enc.concat(nv.missions).map(function (x) { return x.cree || ''; }).sort().pop() || '';
+    if (ferme && ferme >= dernier) return '';
+    var quoi = [];
+    var p1 = nv.enc.filter(function (x) { return x.missionId; }), mots = nv.enc.filter(function (x) { return !x.missionId; });
+    if (p1.length) quoi.push(p1.length > 1 ? p1.length + ' +1' : 'un +1 de ' + p1[0].parNom);
+    if (mots.length) quoi.push(mots.length > 1 ? mots.length + ' mots de tes éducs' : 'un mot de ' + mots[0].parNom);
+    if (nv.missions.length) quoi.push(nv.missions.length > 1 ? nv.missions.length + ' missions' : 'une mission');
+    var t = quoi.join(', ').replace(/, ([^,]*)$/, ' et $1');
+    return '<div class="nbanner"><a href="#/missions"><span class="nb-ic">' + (p1.length ? '+1' : icon('target', 18)) + '</span><span class="grow"><span class="nb-k">Nouveau dans Missions</span><span class="nb-t">' + esc(t.charAt(0).toUpperCase() + t.slice(1)) + '</span></span></a>' +
+      '<button type="button" class="cbtn grey" data-act="fermeBandeau" data-v="' + esc(dernier) + '" aria-label="Fermer">' + icon('x', 16) + '</button></div>';
+  }
+  MC.act.fermeBandeau = function (b) { var me = app.S.me; if (!me) return; app.lsSet('mc-bandeau:' + me.joueur.id, b.getAttribute('data-v')); var el = b.closest('.nbanner'); if (el) el.remove(); };
 
   // ---------- MA SEMAINE ----------
   app.route('/semaine', function (p, q, cur) {
@@ -64,7 +87,7 @@
       cur.after = function () { if (MC.news) setTimeout(function () { if (location.hash.indexOf('#/semaine') === 0) MC.news.maybeShow('k', me.joueur.id); }, 350); };
       return paintSemaine(me, app.S.stats);
     });
-  }, { kid: true, nav: 'semaine', live: true });
+  }, { kid: true, nav: 'prepa', live: true });
 
   function paintSemaine(me, st) {
     var t = L.today(), type = L.dayType(t), j = C.JOURS[type], niv = me.joueur.niveaux || {};
@@ -118,11 +141,12 @@
     var pend = (me.records || []).filter(function (r) { return r.statut === 'attente'; }).length;
     var pendNote = pend ? '<div class="note">' + icon('clock', 20) + '<span>' + pend + ' record' + (pend > 1 ? 's' : '') + ' en attente : un parent ou ton éduc doit confirmer.</span></div>' : '';
 
-    return '<main class="screen">' + kidBar(me, st) +
-      '<button type="button" class="pastoi" data-act="switchKid">' + icon('user', 14) + ' Pas ' + esc(me.joueur.prenom) + ' ? Changer de joueur</button>' +
+    var nb = L.nextBilan(), dans = nb ? L.daysBetween(t, nb.date) : null;
+    var prochainBilan = nb ? '<a class="li" href="#/bilans">' + icon('trophy', 20, 'style="color:var(--gold);flex:none"') + '<span class="grow"><span class="t1">Prochain bilan : ' + (dans > 13 ? 'dans ' + Math.round(dans / 7) + ' semaines' : dans > 1 ? 'dans ' + dans + ' jours' : dans === 1 ? 'demain' : 'maintenant') + '</span><span class="t2">' + esc(nb.nom) + ' · avec un adulte · tes records sont dans Bilans</span></span>' + icon('right', 16) + '</a>' : '';
+    return '<main class="screen">' + kidBar(me, st) + prepaTabs('semaine') +
+      bandeauMissions(me) +
       '<div class="head"><span class="kicker">' + esc(C.JOURS[type].jour.toUpperCase()) + ' · ' + (cy.semaine > 8 ? 'SEMAINE DU BILAN' : 'SEMAINE ' + cy.semaine + ' / 8') + '</span>' +
       '<h1 class="big">Mission<br>du jour</h1></div>' +
-      (MC.missionCard ? MC.missionCard(me) : '') +
       (MC.accueil ? MC.accueil.kidChecklist(me, st) : '') +
       bilanNote + props + pendNote +
       '<div class="home"><div>' + mission + '</div><div class="side">' +
@@ -130,7 +154,8 @@
       '<div class="week">' + days.map(function (d) { return d.strip; }).join('') + '</div>' +
       '<div class="weeklist">' + days.map(function (d) { return d.list; }).join('') + '</div></section>' +
       '<section class="defi">' + icon('gift', 40, 'style="color:var(--gold);flex:none"') + '<div style="flex:1;display:flex;flex-direction:column;gap:6px"><span class="hud" style="color:var(--gold)">Défi de la semaine</span><span style="font-size:14px;line-height:1.3">' + (wk.bonus ? 'Coffre ouvert : +1 étoile bonus et +' + C.XP.bonus + ' XP !' : 'Gagne les 6 étoiles de la semaine et ouvre le coffre : +1 étoile bonus et +' + C.XP.bonus + ' XP.') + '</span><div class="segs" style="--n:6">' + seg + '</div></div></section>' +
-      '</div></div></main>';
+      prochainBilan + '</div></div>' +
+      '<button type="button" class="pastoi" data-act="switchKid">' + icon('user', 14) + ' Pas ' + esc(me.joueur.prenom) + ' ? Changer de joueur</button></main>';
   }
 
   // ---------- UNE SÉANCE (programme + lancement) ----------
@@ -138,7 +163,7 @@
     var j = C.JOURS[p.type];
     if (!j) return app.go('#/semaine', true);
     return app.loadMe().then(function (me) { return paintJour(p.type, me); });
-  }, { kid: true, nav: 'semaine' });
+  }, { kid: true, nav: 'prepa' });
 
   function paintJour(type, me) {
     var j = C.JOURS[type], niv = me.joueur.niveaux || {}, pr = prefs();
@@ -213,15 +238,15 @@
         return '<li>' + (it.anim ? '<span class="wuanim" data-anim="' + esc(it.anim) + '" data-color="#3DFFB0"></span>' : '') + '<span class="ds">' + esc(dose) + '</span><span><b>' + esc(it.nom) + '</b><small>' + esc(it.detail) + esc(mini) + '</small>' + ui.infoBtn(it.id, it.nom) + '</span></li>';
       }).join('') + '</ul></main>';
   }
-  app.route('/echauffement', function (p, q) { return app.loadMe().then(function () { return routineView(C.REVEIL, q.jour); }); }, { kid: true, nav: 'semaine' });
-  app.route('/calme', function (p, q) { return app.loadMe().then(function () { return routineView(C.CALME, q.jour); }); }, { kid: true, nav: 'semaine' });
+  app.route('/echauffement', function (p, q) { return app.loadMe().then(function () { return routineView(C.REVEIL, q.jour); }); }, { kid: true, nav: 'prepa' });
+  app.route('/calme', function (p, q) { return app.loadMe().then(function () { return routineView(C.CALME, q.jour); }); }, { kid: true, nav: 'prepa' });
 
   // ---------- FICHE EXO ----------
   app.route('/exo/:id', function (p, q) {
     var ex = C.EXOS[p.id];
     if (!ex) return app.go('#/semaine', true);
     return app.loadMe().then(function (me) { return paintExo(p.id, q.jour, me); });
-  }, { kid: true, nav: 'semaine', bg: '#12352E' });
+  }, { kid: true, nav: 'prepa', bg: '#12352E' });
 
   function paintExo(id, type, me) {
     var ex = C.EXOS[id], niv = me.joueur.niveaux || {}, n = niv[ex.cle] || 1;
@@ -285,7 +310,7 @@
       }
       return paintNoter(me);
     });
-  }, { kid: true, nav: 'semaine' });
+  }, { kid: true, nav: 'prepa' });
 
   function paintNoter(me) {
     var f = form, t = L.today();

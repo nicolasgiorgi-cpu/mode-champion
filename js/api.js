@@ -7,7 +7,7 @@ window.MC = window.MC || {};
 
 MC.api = (function () {
   var DEMO = !MC.CONFIG.API_URL;
-  var KEY = 'mc-demo-v7';   // v7 : équipes de match « Équipe 1 contre Équipe 2 », jeu à 10 avec 1 centre et 2 ailiers
+  var KEY = 'mc-demo-v8';   // v8 : Skills, +1 et missions des éducs (v7 : équipes de match « Équipe 1 contre Équipe 2 »)
 
   function ApiError(res) {
     this.code = res.error || 'serveur';
@@ -21,8 +21,8 @@ MC.api = (function () {
     if (mem) return mem;
     try { mem = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { mem = null; }
     if (!mem || !mem.tables) {
-      mem = { tables: { joueurs: [], familles: [], educs: [], seances: [], records: [], journal: [], missions: [], terrain: [], evenements: [], compos: [], avis: [] }, props: {} };
-      try { ['mc-demo-v1', 'mc-demo-v2', 'mc-demo-v3', 'mc-demo-v4', 'mc-demo-v5', 'mc-demo-v6'].forEach(function (k) { localStorage.removeItem(k); }); } catch (e) { }
+      mem = { tables: { joueurs: [], familles: [], educs: [], seances: [], records: [], journal: [], missions: [], terrain: [], evenements: [], compos: [], avis: [], etoiles: [], encouragements: [], defmissions: [] }, props: {} };
+      try { ['mc-demo-v1', 'mc-demo-v2', 'mc-demo-v3', 'mc-demo-v4', 'mc-demo-v5', 'mc-demo-v6', 'mc-demo-v7'].forEach(function (k) { localStorage.removeItem(k); }); } catch (e) { }
       MC.demo.seed(localDb(), env());
       save();
     }

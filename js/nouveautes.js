@@ -2,22 +2,37 @@
    Mode champion · M12 — NOUVEAUTÉS
    À chaque nouvelle fonction : ajouter UNE entrée en haut de MC.NEWS (date, pour qui, titre, une phrase, lien).
    L'appli fait le reste : fenêtre « Quoi de neuf ? » à l'ouverture (3 au plus, une seule fois, selon le profil)
-   et historique (joueur : Profil › Réglages ; parent : Plus ; éduc : Outils).
+   et historique (joueur : Moi › Aide et nouveautés ; parent : Plus ; éduc : l'engrenage).
    pour : 'k' joueur, 'f' parent, 'e' éduc. titre / texte / lien : un texte, ou { k:…, f:…, e:… } selon le profil.
    ========================================================= */
 window.MC = window.MC || {};
 
 MC.NEWS = [
-  { id: '2026-10-compos', date: '2026-10-13', pour: ['e'],
+  { id: '2026-10-nav4', date: '2026-10-24', pour: ['k', 'f', 'e'],
+    titre: { k: 'Ton appli en 4 onglets', f: 'Votre espace en 4 onglets', e: 'Votre espace en 4 onglets' },
+    texte: {
+      k: 'Prépa (ta séance, tes bilans, l\'arène), Missions (ce que demandent tes éducs), Skills (ton carnet rugby) et Moi.',
+      f: 'Prépa (les résultats à confirmer en premier, sa semaine, ses bilans, son classement), Missions, Skills et Plus. Changer d\'enfant : son prénom, en haut à gauche.',
+      e: 'Entraîn., Plateaux, Progrès et Enfants : un onglet par usage. La gestion (mon enfant, codes, Spond) est derrière l\'engrenage, en haut à droite.'
+    } },
+  { id: '2026-10-skills-plus1', date: '2026-10-24', pour: ['k', 'f', 'e'],
+    titre: { k: 'Tes Skills et tes +1', f: 'Ses Skills, ses missions et les +1 des éducs', e: 'Skills, missions et +1' },
+    texte: {
+      k: 'Ton carnet : 4 cartes de 5 étoiles validées par tes éducs (+100 XP chacune). Ta mission perso : une étoile à décrocher, et des +1 quand tu es sur la bonne voie.',
+      f: 'Les éducs valident ses étoiles Skills et lui donnent des missions : une étoile à décrocher, une vidéo, un QCM. Vous voyez ses +1 et leurs mots dans Missions.',
+      e: 'Évaluer les Skills avec les présents, la journée d\'évaluation (2 essais sur 3), des missions pour le groupe ou pour un enfant, et le +1 d\'un seul toucher. Au 3e +1, l\'appli propose de valider l\'étoile.'
+    },
+    lien: { k: '#/skills', f: '#/parent/missions', e: '#/educ/skills' } },
+  { id: '2026-10-compos', date: '2026-10-24', pour: ['e'],
     titre: 'Les compos des plateaux et des entraînements, dans l\'appli',
-    texte: 'Nouvel onglet Compos : la fiche terrain (niveaux, passerelles, plaquage, postes), les présents, une compo proposée en un geste ou composée à la main (avants puis arrières), 2 versions côte à côte à soumettre au vote des éducs, les postes du plateau, l\'historique de chaque joueur, et pour les entraînements les groupes d\'ateliers puis les matchs.',
-    lien: '#/educ/compos' },
+    texte: 'Onglets Entraîn. et Plateaux : les présents, les groupes d\'ateliers puis les matchs, la compo d\'un plateau proposée en un geste ou composée à la main (avants puis arrières), 2 versions côte à côte à soumettre au vote des éducs, les postes du plateau ; la fiche terrain et l\'historique de chaque enfant.',
+    lien: '#/educ/plateaux' },
   { id: '2026-10-13-mission-jeu10', date: '2026-10-13', pour: ['k', 'f', 'e'],
     titre: { k: 'Mission spéciale : prépare le jeu à 10', f: 'Mission spéciale : le jeu à 10', e: 'Les postes et les copains, dans l\'appli' },
     texte: {
       k: 'Choisis ton poste avec les cartes et le test, puis dis-nous avec qui tu aimes jouer (c\'est secret). +200 XP et un badge !',
-      f: 'Votre enfant choisit son poste et ses copains pour le jeu à 10 (les copains restent entre lui et les éducs). C\'est en haut de sa page « Ma semaine ».',
-      e: '« Choisis ton poste » est maintenant une mission dans l\'appli, avec les copains en plus. Tout est dans Outils, et dans la fiche de chaque joueur.'
+      f: 'Votre enfant choisit son poste et ses copains pour le jeu à 10 (les copains restent entre lui et les éducs). C\'est dans son onglet Missions.',
+      e: '« Choisis ton poste » est maintenant une mission dans l\'appli, avec les copains en plus. Tout est dans Progrès › Missions, et dans la fiche de chaque enfant.'
     },
     lien: { k: '#/mission', e: '#/educ/mission' } },
   { id: '2026-10-12-nav', date: '2026-10-12', pour: ['k', 'f', 'e'],
@@ -31,17 +46,17 @@ MC.NEWS = [
     titre: { k: 'Change de niveau après ta séance', f: 'Les niveaux bougent plus facilement' },
     texte: {
       k: 'Un exercice était trop facile ? À la fin de la séance, passe au niveau d\'après en un geste. Trop dur ? Reviens au niveau d\'avant.',
-      f: 'Après une séance, votre enfant peut passer au niveau d\'après si un exercice était trop facile. Vous gardez la main dans Progrès.'
+      f: 'Après une séance, votre enfant peut passer au niveau d\'après si un exercice était trop facile. Vous gardez la main dans Prépa › Bilans.'
     },
-    lien: { f: '#/parent/progres' } },
+    lien: { f: '#/parent/bilans' } },
   { id: '2026-10-12-premiers-pas', date: '2026-10-12', pour: ['k'],
     titre: 'Tes premiers pas : +100 XP', texte: '4 petites missions pour bien démarrer, sur Ma semaine. Le bilan peut attendre : tu t\'entraînes déjà au niveau 1.' },
   { id: '2026-10-12-activite', date: '2026-10-12', pour: ['e'],
-    titre: 'Ça bouge', texte: 'Le vestiaire montre les dernières séances et les bilans envoyés. Les joueurs ont leur onglet, avec « À relancer ».', lien: '#/educ' },
+    titre: 'Ça bouge', texte: 'Le vestiaire montre les dernières séances et les bilans envoyés. Les joueurs ont leur onglet, avec « À relancer ».', lien: '#/educ/progres' },
   { id: '2026-10-12-reseau', date: '2026-10-12', pour: ['f', 'e'],
     titre: 'L\'appli s\'ouvre même quand le réseau traîne', texte: 'Et si quelque chose coince au démarrage : un bouton « Réparer l\'appli ».' },
   { id: '2026-10-12-partage', date: '2026-10-12', pour: ['f', 'e'],
-    titre: 'Il s\'entraîne sur votre téléphone ?', texte: 'Votre espace se verrouille quand un enfant s\'en sert : votre code est redemandé.', lien: { f: '#/parent/plus', e: '#/educ/outils' } },
+    titre: 'Il s\'entraîne sur votre téléphone ?', texte: 'Votre espace se verrouille quand un enfant s\'en sert : votre code est redemandé.', lien: { f: '#/parent/plus', e: '#/educ/reglages' } },
   { id: '2026-10-12-classement', date: '2026-10-12', pour: ['f', 'e'],
     titre: { f: 'Le classement de votre enfant', e: 'Le classement de tout le groupe' },
     texte: { f: 'La ligue de votre enfant, comme il la voit.', e: 'Tout le groupe ou une ligue, avec ceux qui ne sont pas encore classés.' },
@@ -49,13 +64,13 @@ MC.NEWS = [
   { id: '2026-10-11-progression', date: '2026-10-11', pour: ['k', 'f', 'e'],
     titre: { k: 'Ta progression entre les bilans', f: 'Sa progression d\'un bilan à l\'autre', e: 'Les progrès du groupe aux bilans' },
     texte: { k: 'Regarde tout ce que tu as gagné depuis ton bilan d\'avant.', f: 'Chaque test, bilan après bilan, et le détail de chaque séance.', e: 'Test par test, ceux qui ont le plus progressé en haut.' },
-    lien: { k: '#/progression', f: '#/parent/progres', e: '#/educ/progres' } },
+    lien: { k: '#/progression', f: '#/parent/bilans', e: '#/educ/progres/bilans' } },
   { id: '2026-10-11-retour', date: '2026-10-11', pour: ['k'],
     titre: 'Un bouton Retour pendant la séance', texte: 'Touché « Suivant » trop vite ? Reviens à l\'exercice d\'avant.' },
   { id: '2026-10-11-details', date: '2026-10-11', pour: ['k'],
     titre: 'Détails et sécurité', texte: 'Sur chaque exercice : comment bien faire, les erreurs à éviter et comment ne pas se blesser.' },
   { id: '2026-10-11-mon-enfant', date: '2026-10-11', pour: ['e'],
-    titre: 'Mon enfant', texte: 'Vous êtes aussi parent d\'un joueur ? Choisissez-le dans Outils : tout son suivi parent, sans changer de code.', lien: '#/educ/outils' }
+    titre: 'Mon enfant', texte: 'Vous êtes aussi parent d\'un joueur ? Choisissez-le dans l\'engrenage : tout son suivi parent, sans changer de code.', lien: '#/educ/reglages' }
 ];
 
 MC.news = (function () {
@@ -110,14 +125,14 @@ MC.news = (function () {
     return '<main class="screen">' + bar + '<div class="head"><span class="kicker">Ce qui a changé</span><h1 class="big md">Les nouveautés</h1></div>' + html + '</main>';
   }
   app.route('/nouveautes', function () {
-    return app.loadMe().then(function (me) { return pageHtml('k', me.joueur.id, MC.kidSubBar('#/reglages', 'Réglages', 'Les nouveautés')); });
-  }, { kid: true, nav: 'profil' });
+    return app.loadMe().then(function (me) { return pageHtml('k', me.joueur.id, MC.kidSubBar('#/aide', 'Aide', 'Les nouveautés')); });
+  }, { kid: true, nav: 'moi' });
   app.route('/parent/nouveautes', function () {
     return MC.loadFamily().then(function (fam) { return pageHtml('f', fam.famille.id, ui.topbar({ back: '#/parent/plus', backLabel: 'Plus', title: 'Les nouveautés', help: ui.helpLink('parent') })); });
   }, { adult: 'f', nav: 'p:plus', bg: '#12333A' });
   app.route('/educ/nouveautes', function () {
-    return MC.loadGroup().then(function (g) { return pageHtml('e', g.moi.id, ui.topbar({ back: '#/educ/outils', backLabel: 'Outils', title: 'Les nouveautés', help: ui.helpLink('educ') })); });
-  }, { adult: 'e', nav: 'e:outils', bg: '#2A1640' });
+    return MC.loadGroup().then(function (g) { return pageHtml('e', g.moi.id, ui.topbar({ back: '#/educ/reglages', backLabel: 'Réglages', title: 'Les nouveautés', help: ui.helpLink('educ') })); });
+  }, { adult: 'e', nav: 'e:gear', bg: '#2A1640' });
 
   return { unseen: unseen, markAll: markAll, maybeShow: maybeShow, forRole: forRole };
 })();

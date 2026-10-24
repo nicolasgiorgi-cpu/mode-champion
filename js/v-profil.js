@@ -24,7 +24,7 @@
   // ---------- PROFIL ----------
   app.route('/profil', function () {
     return app.loadMe().then(function (me) { return paintProfil(me, app.S.stats); });
-  }, { kid: true, nav: 'profil', live: true });
+  }, { kid: true, nav: 'moi', live: true });
 
   function boardHtml(st) {
     var b = st.board, cells = '';
@@ -52,44 +52,80 @@
     var skills = C.FAMILLES.map(function (f) { var n = famLevel(niv, f); return '<div class="skill"><span class="l">' + esc(f.nom) + '</span><span class="row" style="gap:6px">' + pips(n, f.color) + '<span style="width:24px;text-align:right;font:700 12px/1 var(--f-hud);color:' + f.color + '">N' + n + '</span></span></div>'; }).join('');
     var card = '<section class="pcard" style="--pc1:' + esc(k.couleur) + '"><div class="in"><div class="art"><span class="club">M12</span><span class="pill" style="--pc:var(--cyan)">' + esc(g.nom) + '</span>' + ui.avatar(k.prenom, k.couleur, 116) + '</div>' +
       '<div class="bd"><div><div class="nm">' + esc(k.prenom) + '</div><div class="hud" style="color:var(--muted);margin-top:5px;font-size:11px">' + st.maison + ' séances · ' + ui.fmtNum(st.xp) + ' XP</div></div>' + skills + '</div></div></section>';
-    var xp = '<div class="sec" style="gap:6px"><div class="between"><span class="hud" style="color:var(--cyan)">' + esc(g.nom) + (g.next ? ' → ' + esc(g.next.nom) : '') + '</span><span class="hud" style="color:var(--dim)">' + ui.fmtNum(st.xp) + (g.next ? ' / ' + ui.fmtNum(g.next.xp) : '') + ' XP</span></div><div class="xpbar" style="height:10px"><i style="width:' + g.pct + '%"></i></div></div>';
-    var tiles = '<div class="grid2">' + [
-      [st.maison, 'Séances à la maison', 'var(--ink)'], [st.bestStreak + ' j', 'Meilleure série', 'var(--orange)'],
-      [st.stars, 'Étoiles en tout', 'var(--gold)'], [st.nbBadges + ' / ' + C.BADGES.length, 'Badges', 'var(--cyan)']
-    ].map(function (t) { return '<div class="tile"><span class="v" style="color:' + t[2] + '">' + t[0] + '</span><span class="l">' + t[1] + '</span></div>'; }).join('') + '</div>';
-    var bl = L.currentBilan();
-    var recs = C.TESTS.map(function (t) {
-      var sm = t.sm && k.materiel === 'mini';
-      var b = st.bests[t.id + (sm ? ':sm' : '')];
-      var wait = b && b.statut === 'attente';
-      return '<div class="rec' + (wait ? ' wait' : '') + '"><span class="v">' + (b ? ui.valHtml(b.valeur, t.unite, t.decimales) : '—') + '</span><span class="l">' + esc(sm ? t.sm.nom : t.court) + (wait ? ' · à confirmer' : '') + '</span></div>';
+    var e10 = MC.missions ? MC.missions.etat(me, 'jeu10') : null, p0 = e10 && e10.postes.length ? MC.missions.poste(e10.postes[0]) : null;
+    var xp = '<div class="sec" style="gap:6px">' + (p0 ? '<span class="small" style="color:var(--soft)">Mon poste préféré : <b style="color:' + p0.color + '">' + esc(p0.nom.toLowerCase()) + '</b></span>' : '') +
+      '<div class="between"><span class="hud" style="color:var(--cyan)">' + esc(g.nom) + (g.next ? ' → ' + esc(g.next.nom) : '') + '</span><span class="hud" style="color:var(--dim)">' + ui.fmtNum(st.xp) + (g.next ? ' / ' + ui.fmtNum(g.next.xp) : '') + ' XP</span></div><div class="xpbar" style="height:10px"><i style="width:' + g.pct + '%"></i></div>' +
+      (g.next ? '<span class="small">Plus que ' + ui.fmtNum(g.next.xp - st.xp) + ' XP pour le prochain grade.</span>' : '') + '</div>';
+    var nMis = MC.missions ? MC.missions.nbFaites(me) : 0, nSk = MC.SK ? MC.SK.total(me) : 0;
+    var tiles = '<div class="grid3">' + [
+      [st.maison, 'séances', 'var(--cyan)', '#/semaine'], [nMis, 'missions faites', 'var(--pink)', '#/missions?vue=faites'], [nSk, 'étoiles Skills', 'var(--gold)', '#/skills']
+    ].map(function (t) { return '<a class="tile" href="' + t[3] + '" style="text-decoration:none;color:inherit"><span class="v" style="color:' + t[2] + '">' + t[0] + '</span><span class="l" style="text-transform:none;font-family:var(--f-body);letter-spacing:0;font-size:12px;color:var(--soft)">' + t[1] + '</span></a>'; }).join('') + '</div>';
+    function row(href, ic, col, t1, t2) { return '<a class="li" href="' + href + '">' + icon(ic, 22, 'style="color:' + col + ';flex:none"') + '<span class="grow"><span class="t1">' + t1 + '</span><span class="t2">' + t2 + '</span></span>' + icon('right', 16) + '</a>'; }
+    var links = '<div class="sec" style="gap:6px">' +
+      (e10 && (e10.postes.length || e10.copainsFait) ? row('#/mission', 'ball', 'var(--cyan)', 'Mes postes et mes copains', 'Tes choix, vus par tes éducs seulement') : '') +
+      row('#/trophees', 'trophy', 'var(--gold)', 'Trophées', st.nbBadges + ' / ' + C.BADGES.length + ' badges · grades et coffres') +
+      row('#/aide', 'info', 'var(--cyan)', 'Aide et nouveautés', 'Comment ça marche, revoir la visite') +
+      row('#/reglages', 'settings', 'var(--soft)', 'Réglages', 'Le son, mon code, changer de joueur') + '</div>';
+    var more = '<div class="grid2">' + [[st.bestStreak + ' j', 'Meilleure série', 'var(--orange)'], [st.stars, 'Étoiles de la prépa', 'var(--gold)']].map(function (t) { return '<div class="tile"><span class="v" style="color:' + t[2] + '">' + t[0] + '</span><span class="l">' + t[1] + '</span></div>'; }).join('') + '</div>';
+    return '<main class="screen">' + ui.topbar({ kicker: 'Mode champion', title: 'Moi', right: '<a class="cbtn grey" href="#/reglages" aria-label="Réglages">' + icon('settings', 20) + '</a>', help: ui.helpLink('joueur') }) +
+      '<div class="profile-grid"><div class="sec" style="gap:14px">' + card + xp + tiles + '</div>' +
+      '<div class="sec" style="gap:20px">' + links + more + '</div>' +
+      '<div class="sec" style="gap:20px">' + boardHtml(st) + '</div></div></main>';
+  }
+
+  // ---------- AIDE ET NOUVEAUTÉS ----------
+  app.route('/aide', function () {
+    return app.loadMe().then(function (me) {
+      function lk(href, t1, t2) { return '<a class="switch" href="' + href + '" style="text-decoration:none"><span><span class="t1" style="display:block">' + t1 + '</span><span class="t2" style="display:block">' + t2 + '</span></span>' + icon('right', 18) + '</a>'; }
+      return '<main class="screen">' + MC.kidSubBar('#/profil', 'Moi', 'Aide et nouveautés') +
+        '<div class="head"><span class="kicker">' + esc(me.joueur.prenom) + '</span><h1 class="big md">Aide</h1></div><div class="sec">' +
+        lk('#/guide?pour=joueur&de=aide', 'Comment ça marche ?', 'Étoiles, niveaux, badges, bilan, missions, Skills') +
+        lk('#/nouveautes', 'Les nouveautés', 'Ce qui a changé dans l\'appli') +
+        lk('#/bienvenue?revoir=1', 'Revoir la visite', 'Les écrans du début') + '</div></main>';
+    });
+  }, { kid: true, nav: 'moi' });
+
+  // ---------- PRÉPA › BILANS : mes records, mes niveaux ----------
+  app.route('/bilans', function () {
+    return app.loadMe().then(function (me) { return paintBilans(me, app.S.stats); });
+  }, { kid: true, nav: 'prepa', live: true });
+  function paintBilans(me, st) {
+    var k = me.joueur, niv = k.niveaux || {}, bl = L.currentBilan(), nb = L.nextBilan();
+    var recs = (me.records || []).filter(function (r) { return r.statut !== 'refuse'; });
+    var rows = C.TESTS.map(function (t) {
+      var sm = t.sm && k.materiel === 'mini', key = t.id + (sm ? ':sm' : '');
+      var b = st.bests[key];
+      var mine = recs.filter(function (r) { return r.test === t.id && (!!(r.extra && r.extra.sm) === !!sm); }).sort(function (a, c) { return (a.date + a.cree) < (c.date + c.cree) ? -1 : 1; });
+      var first = mine[0], gain = '';
+      if (b && first && first.id !== b.id && L.better(t, b.valeur, first.valeur)) {
+        var d = Math.abs(b.valeur - first.valeur);
+        gain = t.moinsMieux ? ui.fmtVal(d, t.unite, t.decimales) + ' plus rapide' : '+' + ui.fmtVal(d, t.unite, t.decimales);
+        gain += ' depuis ' + (first.bilan === 'defi' ? 'ton 1er défi' : 'le bilan ' + first.bilan);
+      }
+      var lv = C.CLES[t.cle] ? (niv[t.cle] || 1) : null, wait = b && b.statut === 'attente';
+      return '<li class="li"><span class="grow"><span class="t1">' + esc(sm ? t.sm.nom : t.court) + '</span><span class="t2">' + (gain ? '<b style="color:var(--green)">' + esc(gain) + '</b>' : b ? 'ton record' : 'pas encore de résultat') + (wait ? ' · à confirmer' : '') + '</span></span>' +
+        (lv ? ui.lvl(lv) : '') + '<span style="font:700 17px/1 var(--f-hud);min-width:64px;text-align:right;color:' + (b ? 'var(--gold)' : 'var(--dim)') + '">' + (b ? ui.valHtml(b.valeur, t.unite, t.decimales) : '—') + '</span></li>';
     }).join('');
-    var propN = st.proposals.length;
-    return '<main class="screen">' + MC.kidBar(me, st, '<a class="cbtn grey" href="#/reglages" aria-label="Réglages">' + icon('settings', 20) + '</a>') +
-      '<span class="kicker">Mon profil · saison 2026-27</span>' +
-      '<div class="profile-grid"><div class="sec" style="gap:14px">' + card + xp +
-      '<a class="btn2" href="#/bilan">' + icon('plus', 16) + ' Saisir mon ' + esc(bl.nom.toLowerCase()) + ' · ' + esc(bl.quand) + '</a></div>' +
-      '<div class="sec" style="gap:20px">' + tiles + boardHtml(st) + '</div>' +
-      '<div class="sec" style="gap:20px">' +
-      '<section class="sec"><div class="between"><h2 class="h2">Mes niveaux</h2><a class="small" href="#/niveaux" style="color:var(--cyan)">Tout voir</a></div>' +
-      (propN ? '<a class="note pink" href="#/niveaux" style="text-decoration:none;color:var(--soft)">' + icon('up', 20) + '<span>' + propN + ' changement' + (propN > 1 ? 's' : '') + ' de niveau à décider</span></a>' : '') +
-      '<a class="btn2 grey" href="#/niveaux">' + icon('up', 16) + ' Mes niveaux exercice par exercice</a></section>' +
-      '<section class="sec"><div class="between"><h2 class="h2">Mes records</h2><span class="small">bilans et défis</span></div><div class="recgrid">' + recs + '</div></section>' +
+    var dans = nb ? L.daysBetween(L.today(), nb.date) : null;
+    return '<main class="screen">' + MC.kidBar(me, st) + MC.prepaTabs('bilans') +
+      ui.seg([['records', 'Mes records', '#/bilans'], ['niveaux', 'Mes niveaux', '#/niveaux']], 'records') +
+      '<p class="small" style="margin:0">Tes meilleurs résultats aux bilans et aux défis, et ce que tu as gagné depuis ton premier.</p>' +
+      '<ol class="list">' + rows + '</ol>' +
+      '<a class="btn" href="#/bilan">' + icon('plus', 18) + ' Saisir mon ' + esc(bl.nom.toLowerCase()) + ' · ' + esc(bl.quand) + '</a>' +
       '<a class="btn2" href="#/progression">' + icon('up', 16) + ' Ma progression d\'un bilan à l\'autre</a>' +
-      '<a class="btn2 gold" href="#/trophees">' + icon('trophy', 18) + ' Mes trophées · ' + st.nbBadges + ' / ' + C.BADGES.length + ' badges</a>' +
-      (MC.missions && MC.missions.of(me, 'jeu10') ? '<a class="btn2" href="#/mission">' + icon('ball', 18) + ' Mes choix pour le jeu à 10</a>' : '') +
-      '</div></div></main>';
+      (nb ? '<div class="note gold">' + icon('trophy', 20) + '<span><b>Prochain bilan : ' + (dans > 13 ? 'dans ' + Math.round(dans / 7) + ' semaines' : dans > 0 ? 'dans ' + dans + ' jour' + (dans > 1 ? 's' : '') : 'maintenant') + '.</b> Tu le passes avec un adulte. Il confirme tes résultats, puis ils arrivent ici.</span></div>' : '') +
+      '</main>';
   }
 
   // ---------- MA PROGRESSION ----------
   app.route('/progression', function () {
     return app.loadMe().then(function (me) {
-      return '<main class="screen">' + MC.kidSubBar('#/profil', 'Mon profil', 'Ma progression') +
+      return '<main class="screen">' + MC.kidSubBar('#/bilans', 'Bilans', 'Ma progression') +
         '<div class="head"><span class="kicker">Bilans de la saison</span><h1 class="big md">Ma progression</h1><p class="lead" style="margin:0">Tes résultats à chaque bilan, et ce que tu as gagné depuis le bilan d\'avant.</p></div>' +
         '<section class="sec">' + MC.suivi.progression(me.records, { vide: 'Fais ton premier bilan pour voir ta progression ici.' }) + '</section>' +
         '<section class="sec"><h2 class="h2">Mes séances</h2><p class="small" style="margin:0">Touche une séance pour revoir le détail.</p>' + MC.suivi.seances(me.seances) + '</section></main>';
     });
-  }, { kid: true, nav: 'profil', live: true });
+  }, { kid: true, nav: 'prepa', live: true });
 
   // ---------- NIVEAUX ----------
   app.route('/niveaux', function () {
@@ -107,13 +143,14 @@
             '<button type="button" class="cbtn" data-act="lvStep" data-cle="' + cle + '" data-n="' + n + '" data-d="1" aria-label="' + esc(C.CLES[cle].nom) + ' : niveau d\'après"' + (upOk ? '' : ' disabled') + '>' + icon('plus', 18) + '</button></span></li>';
         }).join('') + '</ul></section>';
       }).join('');
-      return '<main class="screen">' + MC.kidSubBar('#/profil', 'Mon profil', 'Mes niveaux') +
-        '<div class="head"><span class="kicker">N1 début · N2 moyen · N3 fort · N4 champion</span><h1 class="big md">Mes niveaux</h1>' +
+      return '<main class="screen">' + MC.kidBar(me, st) + MC.prepaTabs('bilans') +
+        ui.seg([['records', 'Mes records', '#/bilans'], ['niveaux', 'Mes niveaux', '#/niveaux']], 'niveaux') +
+        '<div class="head"><span class="kicker">N1 début · N2 moyen · N3 fort · N4 champion</span>' +
         '<p class="lead">Ils viennent de ton bilan (niveau 1 si tu ne l\'as pas encore fait). Trop facile ? Touche <b>+</b> pour passer au niveau d\'après, si ta technique est parfaite. Trop dur ? Touche <b>−</b>. Le <b>N4 champion</b> s\'ouvre quand le N3 est « facile » 2 séances de suite.</p></div>' +
         props + '<div class="cols2"><div class="sec" style="gap:20px">' + fams.split('</section>').slice(0, 2).join('</section>') + '</section></div><div class="sec" style="gap:20px">' + fams.split('</section>').slice(2, 4).join('</section>') + '</section></div></div>' +
         '<div class="note">' + icon('info', 20) + '<span>Tes parents et ton éduc voient tes niveaux et peuvent aussi les ajuster.</span></div></main>';
     });
-  }, { kid: true, nav: 'profil', live: true });
+  }, { kid: true, nav: 'prepa', live: true });
 
   MC.act.lvStep = function (b) {
     var cle = b.getAttribute('data-cle'), n = Number(b.getAttribute('data-n')), a = n + Number(b.getAttribute('data-d'));
@@ -151,13 +188,13 @@
         return '<section class="sec"><div class="between"><h2 class="h2">' + esc(f.nom) + '</h2><span class="hud" style="color:var(--gold)">' + n + ' / ' + list.length + '</span></div>' +
           (f.intro ? '<p class="small" style="margin:0">' + esc(f.intro) + '</p>' : '') + '<div class="badges">' + list.map(badgeCard).join('') + '</div></section>';
       }).join('');
-      return '<main class="screen">' + MC.kidSubBar('#/profil', 'Mon profil', 'Mes trophées') +
+      return '<main class="screen">' + MC.kidSubBar('#/profil', 'Moi', 'Mes trophées') +
         '<div class="head"><span class="kicker" style="color:var(--gold)">Salle des trophées</span><h1 class="big md">Grades<br>et badges</h1></div>' +
         '<div class="cols2"><section class="sec"><div class="between"><h2 class="h2">Ma carrière</h2><span class="small">1 séance = ' + C.XP.seance + ' XP</span></div><ol class="grades">' + grades + '</ol>' +
         '<div class="box small" style="line-height:1.5">Séance à la maison +' + C.XP.seance + ' · club +' + C.XP.club + ' · récup +' + C.XP.recup + ' · semaine parfaite +' + C.XP.bonus + ' · badge ou palier +' + C.XP.badge + ' · record battu +' + C.XP.record + ' · niveau monté +' + C.XP.niveau + ' · mission spéciale +' + C.XP.mission + '</div></section>' +
         '<div class="sec" style="gap:20px">' + familles + '</div></div></main>';
     });
-  }, { kid: true, nav: 'profil', bg: '#2E2612', live: true });
+  }, { kid: true, nav: 'moi', bg: '#2E2612', live: true });
 
   // ---------- DÉFI (badge) ----------
   var defi = {};
@@ -191,7 +228,7 @@
         prev + '<div class="note yellow">' + icon('group', 20) + '<span>Un adulte doit être là pour compter. Ensuite, un parent ou ton éduc confirme dans son espace et le badge s\'allume.</span></div>' +
         '<div class="sec">' + input + '</div><button type="button" class="btn xl" data-act="sendDefi" data-b="' + b.id + '" data-sm="' + (sm ? 1 : 0) + '">' + icon('send', 20) + ' Envoyer mon résultat</button></main>';
     });
-  }, { kid: true, nav: 'profil' });
+  }, { kid: true, nav: 'moi' });
   document.addEventListener('input', function (e) {
     var k = e.target && e.target.getAttribute && e.target.getAttribute('data-defi');
     if (!k) return;
@@ -234,7 +271,7 @@
       if (MC.accueil) MC.accueil.markArene(res[0].joueur.id);
       return paintRank(res[0], res[1]);
     });
-  }, { kid: true, nav: 'classement', bg: '#2A1640' });
+  }, { kid: true, nav: 'prepa', bg: '#2A1640' });
 
   function paintRank(me, Lg) {
     var lg = L.league(Lg, me.joueur.id, rank.test, rank.mode), t = lg.test;
@@ -255,7 +292,7 @@
     var inIt = lg.rows.some(function (r) { return r.p.id === me.joueur.id; });
     var empty = !lg.rows.length ? '<div class="empty">' + (rank.mode === 'prog' ? 'Pas encore de progrès à comparer : il faut au moins 2 résultats confirmés (bilan + défi ou bilan suivant).' : 'Personne n\'a encore de résultat confirmé sur cette épreuve dans ta ligue.') + '</div>' : '';
     var meNote = !inIt && lg.rows.length ? '<div class="note">' + icon('info', 20) + '<span>Tu n\'apparais pas encore : saisis ton bilan (ou un défi) et fais-le confirmer par un adulte.</span></div>' : '';
-    return '<main class="screen">' + MC.kidBar(me, app.S.stats) + '<div class="head"><span class="kicker" style="color:var(--pink)">Classement · M12</span><h1 class="big">L\'arène</h1></div>' +
+    return '<main class="screen">' + MC.kidBar(me, app.S.stats) + MC.prepaTabs('classement') + '<div class="head"><span class="kicker" style="color:var(--pink)">Classement · M12</span><h1 class="big">L\'arène</h1></div>' +
       '<section class="row" style="padding:12px 14px;background:' + ui.rgba(lc, 0.1) + ';border:1.5px solid ' + lc + ';align-items:center">' + ui.lvl(lg.myLv, lname.toUpperCase()) +
       '<span style="font-size:13px;line-height:1.35;color:var(--soft)">Tu te mesures aux joueurs de ton niveau sur cette épreuve' + (lg.sm ? ' (version mini matériel)' : '') + '.</span></section>' +
       '<div class="sec" style="gap:8px"><span class="lab">Épreuve</span><div class="row" style="overflow-x:auto;gap:8px;padding-bottom:4px;-webkit-overflow-scrolling:touch">' + chips + '</div></div>' +
@@ -320,7 +357,7 @@
       ensureBil(me);
       return paintBilan(me, L.currentBilan());
     });
-  }, { kid: true, nav: 'profil' });
+  }, { kid: true, nav: 'prepa' });
 
   function prevBilanValue(me, test, B) {
     var best = null;
@@ -384,7 +421,7 @@
     }).join('');
     var pct = Math.round(done / C.TESTS.length * 100);
     var nb = L.nextBilan();
-    return '<main class="screen">' + MC.kidSubBar('#/profil', 'Mon profil', 'Mon bilan') +
+    return '<main class="screen">' + MC.kidSubBar('#/bilans', 'Bilans', 'Mon bilan') +
       '<div class="head"><span class="kicker">' + esc(B.nom) + ' · ' + esc(B.quand) + '</span><h1 class="big md">Mon bilan<br>de champion</h1></div>' +
       bilanExplain(me) +
       guidedCta() + dateField('bil_date') +
@@ -473,8 +510,8 @@
       var changes = Object.keys(newLv).filter(function (k) { return (old[k] || 1) !== newLv[k]; });
       var body = '<p class="lead">' + vals.length + ' test' + (vals.length > 1 ? 's' : '') + ' envoyé' + (vals.length > 1 ? 's' : '') + '. Un parent ou ton éduc doit les confirmer.</p>' +
         (changes.length ? '<ul class="list">' + changes.map(function (k) { return '<li class="li"><span class="grow t1">' + esc(C.CLES[k].nom) + '</span>' + ui.lvl(old[k] || 1) + icon('right', 16) + ui.lvl(newLv[k]) + '</li>'; }).join('') + '</ul>' : '<p class="small">Tes niveaux ne changent pas.</p>');
-      return ui.modal({ title: 'Bilan envoyé !', body: body, actions: [{ label: 'Voir mon profil', value: 1, cls: 'btn' }] });
-    }).then(function () { bil = null; saveBil(); app.go('#/profil'); return true; })
+      return ui.modal({ title: 'Bilan envoyé !', body: body, actions: [{ label: 'Voir mes bilans', value: 1, cls: 'btn' }] });
+    }).then(function () { bil = null; saveBil(); app.go('#/bilans'); return true; })
       .catch(function (e) { if (btn) btn.disabled = false; ui.toast(e.message, true); return false; });
   }
   // utilisé par le bilan guidé (v-bilan.js)
@@ -488,7 +525,7 @@
     return app.loadMe().then(function (me) {
       var k = me.joueur, mini = k.materiel === 'mini';
       function sw(on, t1, t2, act) { return '<button type="button" class="switch" role="switch" aria-checked="' + on + '" data-act="' + act + '"><span><span class="t1" style="display:block">' + t1 + '</span><span class="t2" style="display:block">' + t2 + '</span></span><span class="k"></span></button>'; }
-      return '<main class="screen">' + MC.kidSubBar('#/profil', 'Mon profil', 'Réglages') +
+      return '<main class="screen">' + MC.kidSubBar('#/profil', 'Moi', 'Réglages') +
         '<div class="head"><span class="kicker">' + esc(k.prenom) + '</span><h1 class="big md">Réglages</h1></div>' +
         '<div class="sec">' + sw(mini, 'Mode mini matériel', 'Tapis + élastiques : les exercices et les tests s\'adaptent', 'toggleMini') +
         sw(!ui.isMuted(), 'Bips du chrono', 'Un bip 10 s avant la fin, puis 5-4-3-2-1 et le son de fin', 'togglePrefSon') +
@@ -501,7 +538,7 @@
         '<a class="btn2 grey" href="#/adultes">' + icon('lock', 18) + ' Espace adultes (parents, éducs)</a>' +
         '<p class="small" style="margin:0;text-align:center">Sur l\'iPad ou le téléphone : menu Partager › « Sur l\'écran d\'accueil » pour avoir le site comme une appli.</p></main>';
     });
-  }, { kid: true, nav: 'profil' });
+  }, { kid: true, nav: 'moi' });
   MC.act.togglePrefSon = function () { ui.setMuted(!ui.isMuted()); if (!ui.isMuted()) { ui.unlockAudio(); ui.beep(880, 0.08); } app.rerender(); };
   MC.act.logoutKid = function () { app.setKid(null); app.go('#/connexion'); };
 })();

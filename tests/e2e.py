@@ -76,6 +76,7 @@ with sync_playwright() as p:
     pg.evaluate("localStorage.removeItem('mc-adult')"); pg.goto(BASE+'#/adultes'); pg.wait_for_timeout(500); pg.reload(); pg.wait_for_timeout(800)
     pg.click('[data-act="adultWho"][data-w="e"]'); pg.wait_for_timeout(300)
     pin(pg,'654321'); pg.wait_for_timeout(1500); shot(pg,'42-educ')
+    pg.goto(BASE+'#/educ/joueurs'); pg.wait_for_timeout(900)
     pg.click('#edlist a >> nth=0'); pg.wait_for_timeout(1200); shot(pg,'43-educ-joueur')
     pg.goto(BASE+'#/educ/ajouter'); pg.wait_for_timeout(900); pg.fill('#ap','Paul'); pg.fill('#an','Famille Durand'); pg.click('[data-act="addPlayer"]'); pg.wait_for_timeout(1200); shot(pg,'44-educ-ajout',False)
     pg.click('.modal button:has-text("Fermer")'); pg.wait_for_timeout(800)

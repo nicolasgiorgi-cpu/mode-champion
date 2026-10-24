@@ -112,7 +112,7 @@ MC.app = (function () {
     var po = { keep: same };
     document.body.classList.toggle('has-nav', !!o.nav);
     navEl.hidden = !o.nav;
-    if (o.nav) paintNav(o.nav);
+    if (o.nav) paintNav(typeof o.nav === 'function' ? o.nav(params, ph.q) : o.nav);
     bgEl.style.setProperty('--bgtop', o.bg || '#1B2552');
     var out;
     try { out = r.fn(params, ph.q, current); } catch (e) { out = errorView(e); }
@@ -147,23 +147,37 @@ MC.app = (function () {
   }
 
   // ---------- Onglets du bas (les mêmes règles pour les enfants, les parents et les éducs) ----------
-  // o.nav : 'semaine' | 'profil' | 'classement' (joueur), 'p:suivi'… (parent), 'e:vestiaire'… (éduc)
+  // Enfant : Prépa · Missions · Skills · Moi. Parent : Prépa · Missions · Skills · Plus.
+  // Éduc : Entraîn. · Plateaux · Progrès · Enfants ; la gestion est derrière l'engrenage (aucun onglet allumé).
+  // Chaque onglet a 2 ou 3 sous-onglets ; le dernier choisi est gardé (l'onglet du bas y ramène).
   var NAVS = {
-    k: [['semaine', '#/semaine', 'calendar', 'Semaine'], ['profil', '#/profil', 'user', 'Profil'], ['classement', '#/classement', 'podium', 'Classement']],
-    p: [['p:suivi', '#/parent', 'pulse', 'Suivi'], ['p:progres', '#/parent/progres', 'up', 'Progrès'], ['p:classement', '#/parent/classement', 'podium', 'Classement'], ['p:plus', '#/parent/plus', 'menu', 'Plus']],
-    e: [['e:vestiaire', '#/educ', 'vest', 'Vestiaire'], ['e:joueurs', '#/educ/joueurs', 'group', 'Joueurs'], ['e:compos', '#/educ/compos', 'board', 'Compos'], ['e:classement', '#/educ/classement', 'podium', 'Classement'], ['e:outils', '#/educ/outils', 'wrench', 'Outils']]
+    k: [['prepa', '#/semaine', 'bolt', 'Prépa', '#38E8FF'], ['missions', '#/missions', 'target', 'Missions', '#FF7FBC'], ['skills', '#/skills', 'star', 'Skills', '#FFC23D'], ['moi', '#/profil', 'user', 'Moi', '#3DFFB0']],
+    p: [['p:prepa', '#/parent', 'bolt', 'Prépa', '#38E8FF'], ['p:missions', '#/parent/missions', 'target', 'Missions', '#FF7FBC'], ['p:skills', '#/parent/skills', 'star', 'Skills', '#FFC23D'], ['p:plus', '#/parent/plus', 'menu', 'Plus', '#C9AEFF']],
+    e: [['e:entrain', '#/educ/entrainements', 'calendar', 'Entraîn.', '#38E8FF'], ['e:plateaux', '#/educ/plateaux', 'flag', 'Plateaux', '#FFC23D'], ['e:progres', '#/educ/progres', 'trend', 'Progrès', '#3DFFB0'], ['e:enfants', '#/educ/joueurs', 'kids', 'Enfants', '#C9AEFF']]
   };
+  // anciens noms d'onglets (écrans pas encore rangés ailleurs)
+  var NAV_ALIAS = { semaine: 'prepa', classement: 'prepa', profil: 'moi', 'p:suivi': 'p:prepa', 'p:progres': 'p:prepa', 'p:classement': 'p:prepa',
+    'e:vestiaire': 'e:progres', 'e:classement': 'e:progres', 'e:joueurs': 'e:enfants', 'e:outils': 'e:gear', 'e:compos': 'e:plateaux' };
   var navActive = null;
   function pendingCount(list) { var n = 0; (list || []).forEach(function (d) { (d.records || []).forEach(function (r) { if (r.statut === 'attente') n++; }); }); return n; }
+  function mesEnfantsDuGroupe(g) { var mine = (g.moi && g.moi.enfants) || []; return g.joueurs.filter(function (p) { return p.joueur.actif && mine.indexOf(p.joueur.id) >= 0; }); }
   function navBadge(key) {
     var c = S.cache || {};
-    if (key === 'semaine' && S.me && MC.missions) return MC.missions.pending(S.me).length;
-    if (key === 'p:suivi' && c.family) return pendingCount(c.family.enfants);
-    if (key === 'e:vestiaire' && c.group) return pendingCount(c.group.joueurs.filter(function (p) { return p.joueur.actif; }));
-    if (key === 'e:compos' && MC.composPending) return MC.composPending();   // contre-propositions en attente
+    if (key === 'missions' && S.me && MC.missions) return MC.missions.aFaire(S.me).length + MC.missions.nouveaux('k', S.me).enc.length;
+    if (key === 'p:prepa' && c.family) return pendingCount(c.family.enfants);
+    if (key === 'p:missions' && c.family && MC.missions) { var n = 0; c.family.enfants.forEach(function (d) { n += MC.missions.nouveaux('f', d).enc.length; }); return n; }
+    if (key === 'e:progres' && c.group) return pendingCount(mesEnfantsDuGroupe(c.group));
+    if (key === 'e:plateaux' && MC.composPending) return MC.composPending('plateau');   // votes et contre-propositions en attente
+    if (key === 'e:entrain' && MC.composPending) return MC.composPending('entrainement');
     return 0;
   }
+  var NB_LABEL = { missions: ' à voir', 'p:prepa': ' à confirmer', 'p:missions': ' nouveau', 'e:progres': ' à confirmer', 'e:plateaux': ' à voir', 'e:entrain': ' à voir' };
+  // le dernier sous-onglet choisi dans chaque onglet
+  function tabHref(it) { var h = lsGet('mc-stab:' + it[0]); return typeof h === 'string' && h.charAt(0) === '#' ? h : it[1]; }
+  function rememberTab(key, href) { lsSet('mc-stab:' + (NAV_ALIAS[key] || key), href); }
   function paintNav(active) {
+    if (typeof active === 'function') active = active();
+    active = NAV_ALIAS[active] || active;
     navActive = active;
     var set = /^p:/.test(active) ? 'p' : /^e:/.test(active) ? 'e' : 'k';
     var items = NAVS[set];
@@ -171,12 +185,14 @@ MC.app = (function () {
     navEl.setAttribute('aria-label', set === 'k' ? 'Navigation principale' : set === 'p' ? 'Navigation de l\'espace parent' : 'Navigation de l\'espace éduc');
     navEl.innerHTML = '<span class="brand" aria-hidden="true">' + ui.avatar('M', '#38E8FF', 48).replace('>M<', '>M12<') + '</span>' + items.map(function (it) {
       var on = active === it[0], n = navBadge(it[0]);
-      return '<a href="' + it[1] + '" class="' + (on ? 'on' : '') + '"' + (on ? ' aria-current="page"' : '') + '>' + ui.icon(it[2], 22) + '<span>' + it[3] + '</span>' +
-        (n ? '<span class="nb" aria-label="' + n + (it[0] === 'semaine' ? ' mission à faire' : it[0] === 'e:compos' ? ' contre-proposition en attente' : ' à valider') + '">' + n + '</span>' : '') + '</a>';
+      return '<a href="' + (on ? it[1] : tabHref(it)) + '" class="' + (on ? 'on' : '') + '" style="--tc:' + it[4] + '"' + (on ? ' aria-current="page"' : '') + '>' + ui.icon(it[2], 22) + '<span>' + it[3] + '</span>' +
+        (n ? '<span class="nb" aria-label="' + n + (NB_LABEL[it[0]] || '') + '">' + n + '</span>' : '') + '</a>';
     }).join('');
   }
   // après le chargement des données (pastilles « à valider »)
   function refreshNav() { if (navActive && !navEl.hidden) paintNav(navActive); }
+  // un écran qui ne sait qu'après avoir lu ses données dans quel onglet il est (ex. un événement : entraînement ou plateau)
+  function setNav(key) { if (!navEl.hidden) paintNav(key); }
 
   // ---------- Données du joueur connecté ----------
   // Gardées aussi sur l'appareil : à l'ouverture, l'écran s'affiche tout de suite avec la dernière
@@ -318,7 +334,7 @@ MC.app = (function () {
     S: S, route: route, go: go, render: render, rerender: rerender, start: start,
     setKid: setKid, setAdult: setAdult, loadMe: loadMe, setMe: setMe, swr: swr, kidCall: kidCall, adultCall: adultCall,
     lsGet: lsGet, lsSet: lsSet, current: function () { return current; },
-    refreshNav: refreshNav,
+    refreshNav: refreshNav, setNav: setNav, rememberTab: rememberTab,
     sharedDevice: sharedDevice, setShared: setShared, adultUnlocked: adultUnlocked, touchAdult: touchAdult, lockAdult: lockAdult,
     touchKid: touchKid, takeTarget: takeTarget, recents: recents
   };

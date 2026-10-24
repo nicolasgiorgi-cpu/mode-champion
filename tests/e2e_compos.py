@@ -1,4 +1,4 @@
-# Compos d'équipes (éducs) : onglet Compos, fiche terrain, présents, proposition, tableau, publication,
+# Compos d'équipes (éducs) : onglets Plateaux et Entraîn., fiche terrain, présents, proposition, tableau, publication,
 # contre-proposition, réponse de l'auteur, fiche joueur. Site de démo (sh tests/mkdemo.sh), puis :
 # python3 tests/e2e_compos.py 390 844   (téléphone)   ·   python3 tests/e2e_compos.py 1180 820   (iPad paysage)
 import sys, os
@@ -13,6 +13,7 @@ def check(n, c, i=''): res.append((n, c)); print(('OK  ' if c else 'BAD ') + n, 
 def shot(pg, name, full=False): pg.screenshot(path=OUT + tag + '-' + name + '.png', full_page=full)
 def noscroll(pg): return pg.evaluate('document.scrollingElement.scrollWidth <= innerWidth + 1')
 def ev(pg, js): return pg.evaluate(js)
+def nbp(pg): return pg.evaluate("(function(){var a=document.querySelectorAll('#nav a')[1];var n=a&&a.querySelector('.nb');return n?n.textContent:''})()")
 with sync_playwright() as p:
     b = p.chromium.launch(); ctx = b.new_context(viewport={'width': W, 'height': H}, is_mobile=W < 700, has_touch=True); pg = ctx.new_page()
     pg.on('pageerror', lambda e: errs.append(str(e)))
@@ -29,16 +30,17 @@ with sync_playwright() as p:
         check('nouveauté des compos annoncée', 'compos' in pg.inner_text('.modal.sheet-news').lower())
         pg.click('.modal.sheet-news button[data-i="0"]'); pg.wait_for_timeout(300)
     pg.wait_for_timeout(600)
-    check('5 onglets éduc', len(pg.query_selector_all('#nav a')) == 5)
-    check('pastille sur Compos : 1 contre-proposition + 1 vote', pg.inner_text('#nav a[href="#/educ/compos"] .nb') == '2' if pg.query_selector('#nav a[href="#/educ/compos"] .nb') else False)
-    # ----- onglet Compos -----
-    pg.click('#nav a[href="#/educ/compos"]'); pg.wait_for_timeout(900)
+    check('4 onglets éduc', len(pg.query_selector_all('#nav a')) == 4)
+    check('pastille sur Plateaux : 1 contre-proposition + 1 vote', nbp(pg) == '2', nbp(pg))
+    # ----- onglet Plateaux -----
+    pg.click('#nav a >> nth=1'); pg.wait_for_timeout(900)
     t = pg.inner_text('main')
-    check('Compos : à venir et déjà joués', 'À VENIR' in t.upper() and 'DÉJÀ JOUÉS' in t.upper() and 'Plateau 3 - Muret' in t)
-    check('Compos : la contre-proposition et le vote en tête', pg.query_selector('a.calert-top[href^="#/educ/avis/"]') is not None and pg.query_selector('a.calert-top.vote') is not None)
-    check('pas de défilement horizontal (compos)', noscroll(pg))
+    check('Plateaux : à venir et joués', 'À VENIR' in t.upper() and 'JOUÉS' in t.upper() and 'Plateau 3 - Muret' in t)
+    check('Plateaux : la contre-proposition et le vote en tête', pg.query_selector('a.calert-top[href^="#/educ/avis/"]') is not None and pg.query_selector('a.calert-top.vote') is not None)
+    check('pas de défilement horizontal (plateaux)', noscroll(pg))
     shot(pg, 'k01-compos', True)
     # ----- fiche terrain du groupe -----
+    pg.click('#nav a >> nth=3'); pg.wait_for_timeout(700)
     pg.click('a[href="#/educ/terrain"]'); pg.wait_for_timeout(700)
     check('fiche terrain : 28 joueurs', 'TOUS · 28' in pg.inner_text('.tfil').upper(), pg.inner_text('.tfil'))
     pg.click('[data-act="tFiltre"][data-v="none"]'); pg.wait_for_timeout(300)
@@ -54,7 +56,7 @@ with sync_playwright() as p:
     t = ev(pg, "JSON.stringify(MC.app.S.cache.group.joueurs.find(p=>p.joueur.prenom==='Côme').terrain)")
     check('fiche terrain enregistrée (B, passerelle C, 3 étoiles)', '"niveau":"B"' in t and '"passerelle":"C"' in t and '"plaquage":3' in t, t)
     # ----- un événement : les présents -----
-    pg.goto(BASE + '#/educ/evt/sp-demo-p3'); pg.wait_for_timeout(800)
+    pg.goto(BASE + '#/educ/evt/sp-demo-p3/presents'); pg.wait_for_timeout(800)
     n0 = len(pg.query_selector_all('.cpres.on'))
     mid = ev(pg, "MC.app.S.cache.group.joueurs.find(p=>p.joueur.prenom==='Maël').joueur.id")
     pg.click('main details > summary'); pg.wait_for_timeout(200)   # les absents sont repliés
@@ -64,7 +66,11 @@ with sync_playwright() as p:
     pg.click('[data-act="prSave"]'); pg.wait_for_timeout(700)
     check('présents enregistrés (ajouts)', ev(pg, "MC.app.S.cache.compos.evenements.find(e=>e.id==='sp-demo-p3').ajouts.length") == 1)
     check('pas de défilement horizontal (événement)', noscroll(pg))
-    # ----- préparer la compo -----
+    # ----- la page du plateau : présents, conseil, préparer la compo -----
+    pg.click('a.btn2[href="#/educ/evt/sp-demo-p3"]'); pg.wait_for_timeout(700)
+    check('page du plateau : carte des présents et conseil d\'équipes', pg.query_selector('.cpres-card') is not None and 'Conseillé' in pg.inner_text('main'))
+    check('page du plateau : onglet Plateaux actif', 'PLATEAUX' in pg.inner_text('#nav a.on').upper())
+    shot(pg, 'k03b-plateau', True)
     pg.click('a[href="#/educ/compo/sp-demo-p3"]'); pg.wait_for_timeout(700)
     check('réglages : format et équipes', pg.query_selector('[data-act="cFmt"]') is not None and len(pg.query_selector_all('.cstep')) == 3)
     shot(pg, 'k04-reglages', True)
@@ -122,7 +128,7 @@ with sync_playwright() as p:
     shot(pg, 'k07-publiee', True)
     # un enfant venu sans répondre : coché présent après la compo, il apparaît dans « Pas placés » et se place d'un geste
     nid = ev(pg, "MC.app.S.cache.group.joueurs.find(p=>p.joueur.prenom==='Nathan').joueur.id")
-    pg.goto(BASE + '#/educ/evt/sp-demo-p3'); pg.wait_for_timeout(700)
+    pg.goto(BASE + '#/educ/evt/sp-demo-p3/presents'); pg.wait_for_timeout(700)
     pg.click('[data-act="prToggle"][data-id="%s"]' % nid); pg.wait_for_timeout(300)
     pg.click('[data-act="prSave"]'); pg.wait_for_timeout(700)
     pg.goto(BASE + '#/educ/compo/sp-demo-p3'); pg.wait_for_timeout(800)
@@ -134,7 +140,7 @@ with sync_playwright() as p:
     pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(1000)
     check('version 3 enregistrée', ev(pg, "MC.app.S.cache.compos.compos.find(c=>c.evenementId==='sp-demo-p3').version") == 3)
     # ----- la contre-proposition de Cyril (rassemblement) : l'auteur accepte -----
-    pg.goto(BASE + '#/educ/compos'); pg.wait_for_timeout(700)
+    pg.goto(BASE + '#/educ/plateaux'); pg.wait_for_timeout(700)
     pg.click('a.calert-top[href^="#/educ/avis/"]'); pg.wait_for_timeout(800)
     check('contre-proposition : changements listés', '2 CHANGEMENTS' in pg.inner_text('main').upper())
     check('contre-proposition : joueurs déplacés entourés', len(pg.query_selector_all('.cpj.moved')) == 2)
@@ -142,7 +148,7 @@ with sync_playwright() as p:
     pg.click('[data-act="aAccept"]'); pg.wait_for_timeout(300)
     pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(1000)
     check('acceptée : compo en version 2', ev(pg, "MC.app.S.cache.compos.compos.find(c=>c.evenementId==='demo-r1').version") == 2)
-    check('pastille Compos : reste le vote', pg.inner_text('#nav a[href="#/educ/compos"] .nb') == '1')
+    check('pastille Plateaux : reste le vote', nbp(pg) == '1', nbp(pg))
     # ----- le vote du plateau 4 (Cyril a voté pour la version 2) : 2 voix sur 3 → adoptée -----
     pg.goto(BASE + '#/educ/compo/sp-demo-p4'); pg.wait_for_timeout(900)
     check('vote : 2 versions côte à côte', pg.query_selector('.cvcols.nv2') is not None and 'VOTE DES ÉDUCS' in pg.inner_text('.cstate').upper())
@@ -152,7 +158,7 @@ with sync_playwright() as p:
     pg.click('[data-act="cVoteFor"][data-v="1"]'); pg.wait_for_timeout(1000)
     cv = ev(pg, "JSON.stringify(MC.app.S.cache.compos.compos.find(c=>c.evenementId==='sp-demo-p4'))")
     check('vote : majorité atteinte, version 2 publiée', '"statut":"publiee"' in cv and '"choix":1' in cv, cv[:160])
-    check('plus de pastille Compos', pg.query_selector('#nav a[href="#/educ/compos"] .nb') is None)
+    check('plus de pastille Plateaux', nbp(pg) == '', nbp(pg))
     # ----- contre-proposition sur la compo d'un autre éduc (plateau 1, de Cyril) -----
     pg.goto(BASE + '#/educ/compo/sp-demo-p1'); pg.wait_for_timeout(800)
     check('compo d\'un autre éduc : en lecture', pg.query_selector('[data-act="cCounter"]') is not None)
@@ -166,7 +172,7 @@ with sync_playwright() as p:
     check('justification obligatoire', pg.query_selector('.modal') is not None)
     pg.fill('#cjust', 'Plus équilibré au plaquage.'); pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(1000)
     check('contre-proposition envoyée', ev(pg, "MC.app.S.cache.compos.avis.filter(a=>a.statut==='attente').length") == 1)
-    check('pastille Compos revenue', pg.query_selector('#nav a[href="#/educ/compos"] .nb') is not None)
+    check('pastille Plateaux revenue', nbp(pg) != '')
     # ----- nouvel événement à la main -----
     pg.goto(BASE + '#/educ/evt-nouveau'); pg.wait_for_timeout(600)
     pg.fill('#ne-t', 'Plateau 5 - Cazères')
@@ -177,6 +183,7 @@ with sync_playwright() as p:
     pg.click('[data-act="prSave"]'); pg.wait_for_timeout(700)
     check('6 présents enregistrés', ev(pg, "MC.app.S.cache.compos.evenements.find(e=>e.titre==='Plateau 5 - Cazères').presents.length") == 6)
     # ----- 2 versions côte à côte, puis au vote -----
+    pg.click('a.btn2[href^="#/educ/evt/"]'); pg.wait_for_timeout(700)
     pg.click('a[href^="#/educ/compo/"]'); pg.wait_for_timeout(700)
     pg.click('[data-act="cNb"][data-n="A"][data-d="1"]') if ev(pg, "+document.querySelectorAll('.cstep output')[0].textContent") == 0 else None
     pg.wait_for_timeout(200)
@@ -200,17 +207,19 @@ with sync_playwright() as p:
     check('soumis au vote avec ma voix', cv is not None and '"versions"' in cv and ':0' in cv, (cv or '')[:120])
     # ----- fiche d'un joueur : sur le terrain -----
     tid = ev(pg, "MC.app.S.cache.group.joueurs.find(p=>p.joueur.prenom==='Tom').joueur.id")
-    pg.goto(BASE + '#/educ/joueur/' + tid); pg.wait_for_timeout(1200)
+    pg.goto(BASE + '#/educ/joueur/' + tid + '?t=hist'); pg.wait_for_timeout(1200)
     t = pg.inner_text('main').upper()
-    check('fiche : Sur le terrain + son historique (plateaux)', 'SUR LE TERRAIN' in t and 'SON HISTORIQUE' in t and 'PLATEAU PAR PLATEAU (2)' in t, t[t.find('SON HISTORIQUE'):t.find('SON HISTORIQUE')+300])
+    check('fiche › Historique : plateaux', 'SON HISTORIQUE' in t and 'PLATEAU PAR PLATEAU (2)' in t, t[t.find('SON HISTORIQUE'):t.find('SON HISTORIQUE')+300])
     pg.click('[data-act="hvSet"][data-v="entrainement"]'); pg.wait_for_timeout(500)
-    te = pg.inner_text('#sur-le-terrain').upper()
+    te = pg.inner_text('main').upper()
     check('fiche : historique des entraînements à part', 'SÉANCE PAR SÉANCE (2)' in te and 'FOIS EN ATELIERS' in te and 'HORS DE SON NIVEAU' in te, te[te.find('SON HISTORIQUE'):te.find('SON HISTORIQUE')+300])
     pg.click('[data-act="hvSet"][data-v="plateau"]'); pg.wait_for_timeout(500)
     t = pg.inner_text('main').upper()
-    check('fiche : copains avec le nombre de fois', pg.query_selector('.hcops') is not None or 'PAS ENCORE DE COPAINS' in t)
-    check('fiche : niveaux joués', 'NIVEAUX JOUÉS' in t)
-    check('fiche : résumé terrain en haut', pg.query_selector('.tresume') is not None)
+    check('fiche › Historique : copains avec le nombre de fois', pg.query_selector('.hcops') is not None or 'PAS ENCORE DE COPAINS' in t)
+    check('fiche › Historique : niveaux joués', 'NIVEAUX JOUÉS' in t)
+    pg.goto(BASE + '#/educ/joueur/' + tid + '?t=terrain'); pg.wait_for_timeout(900)
+    check('fiche › Terrain : Sur le terrain', 'SUR LE TERRAIN' in pg.inner_text('main').upper())
+    check('fiche : niveau en tête de fiche', pg.query_selector('.fhead .cniv') is not None)
     pg.click('[data-act="tkEdit"]'); pg.wait_for_timeout(400)
     pg.click('[data-act="tkPrinc"][data-v="ailier"]'); pg.wait_for_timeout(200)
     pg.click('[data-act="tkPoste"][data-v="pilier"]'); pg.wait_for_timeout(200)
@@ -275,7 +284,7 @@ with sync_playwright() as p:
     check('matchs publiés (version équilibrée)', cm is not None and '"mode":"equilibre"' in cm and '"nom":"Équipe 1"' in cm and '"cote"' not in cm)
     pg.goto(BASE + '#/educ/evt/sp-demo-e1'); pg.wait_for_timeout(700)
     check('entraînement : ateliers et matchs faits', len(pg.query_selector_all('.cpart.ok')) == 2)
-    pg.goto(BASE + '#/educ/compos'); pg.wait_for_timeout(700)
+    pg.goto(BASE + '#/educ/entrainements'); pg.wait_for_timeout(700)
     check('liste : ateliers ✓ matchs ✓', 'ATELIERS ✓' in pg.inner_text('a[href="#/educ/evt/sp-demo-e1"]').upper() and 'MATCHS ✓' in pg.inner_text('a[href="#/educ/evt/sp-demo-e1"]').upper())
     # ----- jeu à 10 : postes -----
     pg.goto(BASE + '#/educ/compo/sp-demo-e1'); pg.wait_for_timeout(600)
@@ -338,7 +347,7 @@ with sync_playwright() as p:
     pg.click('.modal button:has-text("Terminé")'); pg.wait_for_timeout(400)
     check('jeu à 5 : 3 joueurs ajoutés', ev(pg, "document.querySelectorAll('.ccol')[1].querySelectorAll('.cpj').length") == n1 + 3)
     # en se déconnectant, les compos et les brouillons (ils citent des copains) quittent l'appareil
-    pg.goto(BASE + '#/educ/outils'); pg.wait_for_timeout(700)
+    pg.goto(BASE + '#/educ/reglages'); pg.wait_for_timeout(700)
     pg.click('[data-act="adultLogout"]'); pg.wait_for_timeout(500)
     if pg.query_selector('.modal'): pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(500)
     left = ev(pg, "Object.keys(localStorage).filter(k=>(k==='mc-compos'||k.indexOf('mc-cdraft:')===0) && localStorage.getItem(k)!=='null')")

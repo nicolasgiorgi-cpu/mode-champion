@@ -55,7 +55,20 @@ window.MC = window.MC || {};
   function pendingAvis(cd) { return ((cd && cd.avis) || []).filter(function (a) { return a.statut === 'attente'; }); }
   // à faire pour moi : les contre-propositions en attente, et les votes où je n'ai pas encore voté
   function votesAFaire(cd) { var me = cd && cd.moi && cd.moi.id; return ((cd && cd.compos) || []).filter(function (c) { return c.statut === 'vote' && !(c.votes && c.votes[me] !== undefined); }); }
-  MC.composPending = function () { var cd = app.S.cache.compos; return pendingAvis(cd).length + votesAFaire(cd).length; };
+  // sorte : 'plateau' (plateaux et autres événements) ou 'entrainement' ; sans sorte : tout
+  function sorteDe(cd, evtId) { var e = ((cd && cd.evenements) || []).filter(function (x) { return x.id === evtId; })[0]; return e && e.sorte === 'entrainement' ? 'entrainement' : 'plateau'; }
+  MC.composPending = function (sorte) {
+    var cd = app.S.cache.compos; if (!cd) return 0;
+    var byC = {}; (cd.compos || []).forEach(function (c) { byC[c.id] = c; });
+    var av = pendingAvis(cd).filter(function (a) { return !sorte || (byC[a.compoId] && sorteDe(cd, byC[a.compoId].evenementId) === sorte); });
+    var vo = votesAFaire(cd).filter(function (c) { return !sorte || sorteDe(cd, c.evenementId) === sorte; });
+    return av.length + vo.length;
+  };
+  // l'onglet d'un événement : Entraîn. ou Plateaux
+  function listeDe(e) { return e && e.sorte === 'entrainement' ? '#/educ/entrainements' : '#/educ/plateaux'; }
+  function listeNom(e) { return e && e.sorte === 'entrainement' ? 'Entraînements' : 'Plateaux'; }
+  function navEvt(id) { var cd = app.S.cache.compos; return sorteDe(cd, id) === 'entrainement' ? 'e:entrain' : 'e:plateaux'; }
+  MC.evtListe = listeDe;
   function presentsOf(C, e) { return K.presents(e).filter(function (id) { return C.actifs[id]; }); }
   function jour(e) { return String(e.debut || '').slice(0, 10); }
   function heure(e) {
@@ -107,11 +120,23 @@ window.MC = window.MC || {};
   // ======================================================================
   // Onglet « Compos » : les événements
   // ======================================================================
-  app.route('/educ/compos', function (p, q, cur) {
-    return both().then(function (r) { app.refreshNav(); return paintCompos(ctxOf(r[0], r[1])); });
-  }, { adult: 'e', nav: 'e:compos', bg: BG });
+  app.route('/educ/compos', function () { app.go('#/educ/plateaux', true); return null; }, { adult: 'e', nav: 'e:plateaux', bg: BG });
+  function listeRoute(sorte) {
+    return function (p, q, cur) {
+      return both().then(function (r) {
+        app.refreshNav();
+        var g = r[0];
+        if (sorte === 'entrainement' && MC.accueil && MC.accueil.needTour('e', g.moi.id)) { setTimeout(function () { app.go('#/educ/bienvenue', true); }, 0); return null; }
+        if (sorte === 'entrainement') cur.after = function () { if (MC.news) setTimeout(function () { if (/^#\/educ(\/entrainements)?$/.test(location.hash)) MC.news.maybeShow('e', g.moi.id); }, 350); };
+        return paintListe(ctxOf(r[0], r[1]), sorte, q.vue === 'passes' ? 'passes' : 'avenir');
+      });
+    };
+  }
+  app.route('/educ', listeRoute('entrainement'), { adult: 'e', nav: 'e:entrain', bg: BG });
+  app.route('/educ/entrainements', listeRoute('entrainement'), { adult: 'e', nav: 'e:entrain', bg: BG });
+  app.route('/educ/plateaux', listeRoute('plateau'), { adult: 'e', nav: 'e:plateaux', bg: BG });
 
-  function evtCard(C, e) {
+  function evtCard(C, e, prochain) {
     var c = compoOf(C.cd, e.id), pres = presentsOf(C, e), av = [];
     C.cd.compos.forEach(function (x) { if (x.evenementId === e.id && (x.statut === 'publiee' || x.statut === 'vote')) av = av.concat(avisOf(C.cd, x.id).filter(function (a) { return a.statut === 'attente'; })); });
     var past = jour(e) < L.today(), dans = L.daysBetween(L.today(), jour(e));
@@ -130,12 +155,34 @@ window.MC = window.MC || {};
     var nCat = ((C.cd.spond && C.cd.spond.categories) || []).filter(function (x) { return x.suivie; }).length;
     if (nCat > 1 && e.categorie) chip = '<span class="pill" style="--pc:var(--line3);color:var(--ink)">' + esc(e.categorie) + '</span>' + chip;
     var sr = (e.sansReponse || []).filter(function (id) { return C.actifs[id] && pres.indexOf(id) < 0; }).length;
-    return '<li><a class="li cev' + (past ? ' past' : '') + '" href="#/educ/evt/' + esc(e.id) + '">' +
+    return '<li><a class="li cev' + (past ? ' past' : '') + (prochain ? ' cnext' : '') + '" href="#/educ/evt/' + esc(e.id) + '">' +
       '<span class="cdate"><b>' + esc(String(new Date(jour(e) + 'T12:00:00').getDate())) + '</b><small>' + esc(ui.fmtDate(jour(e)).split(' ').slice(-1)[0]) + '</small></span>' +
-      '<span class="grow"><span class="t1">' + esc(e.titre) + '</span><span class="t2">' + esc(quand(e)) + (e.lieu ? ' · ' + esc(e.lieu) : '') + '</span>' +
+      '<span class="grow">' + (prochain ? '<span class="hud" style="color:var(--cyan);display:block;margin-bottom:4px">Le prochain</span>' : '') + '<span class="t1">' + esc(e.titre) + '</span><span class="t2">' + esc(quand(e)) + (e.lieu ? ' · ' + esc(e.lieu) : '') + '</span>' +
       '<span class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap">' + chip +
       '<span class="cmeta">' + icon('group', 14) + ' ' + pres.length + ' présent' + (pres.length > 1 ? 's' : '') + (sr && !past ? ' · ' + sr + ' sans réponse' : '') + '</span>' +
       (av.length ? '<span class="pill" style="--pc:var(--pink)">' + av.length + ' contre-proposition' + (av.length > 1 ? 's' : '') + '</span>' : '') + '</span></span>' + icon('right', 16) + '</a></li>';
+  }
+  // Entraîn. ou Plateaux : à venir · passés (le prochain en premier)
+  function paintListe(C, sorte, vue) {
+    var t = L.today(), cd = C.cd, train = sorte === 'entrainement';
+    var mine = cd.evenements.filter(function (e) { return train ? e.sorte === 'entrainement' : e.sorte !== 'entrainement'; });
+    var avenir = mine.filter(function (e) { return jour(e) >= t; }), passes = mine.filter(function (e) { return jour(e) < t; }).reverse().slice(0, 20);
+    var tabs = ui.subtabs(train ? 'e:entrain' : 'e:plateaux', [['avenir', train ? '#/educ/entrainements' : '#/educ/plateaux', 'À venir · ' + avenir.length], ['passes', (train ? '#/educ/entrainements' : '#/educ/plateaux') + '?vue=passes', (train ? 'Passés' : 'Joués') + ' · ' + passes.length]], vue, train ? '#38E8FF' : '#FFC23D', train ? 'Entraînements' : 'Plateaux');
+    var sp = cd.spond || {}, d = sp.derniere;
+    var spond = MC.api.DEMO ? '<p class="small" style="margin:0;color:var(--yellow)">Mode démo : événements fictifs (Spond n\'est pas branché).</p>' :
+      sp.branche ? '<div class="between cspond"><span class="small">' + icon('refresh', 14) + ' Spond : ' + (d ? 'mis à jour ' + esc(relTime(d.quand)) : 'pas encore lu') + '</span><button type="button" class="btn2 sm" data-act="cSync">' + icon('refresh', 14) + ' Actualiser</button></div>' :
+        '<p class="small" style="margin:0">Spond n\'est pas encore branché : ajoutez les ' + (train ? 'entraînements' : 'plateaux') + ' à la main en attendant. Un éduc admin le branche dans les réglages (engrenage).</p>';
+    var byC = {}; cd.compos.forEach(function (c) { byC[c.id] = c; });
+    var pend = pendingAvis(cd).filter(function (a) { return byC[a.compoId] && sorteDe(cd, byC[a.compoId].evenementId) === sorte; });
+    var avoter = votesAFaire(cd).filter(function (c) { return sorteDe(cd, c.evenementId) === sorte; });
+    var alerts = (pend.length ? '<a class="li calert-top" href="#/educ/avis/' + esc(pend[0].id) + '">' + icon('swap', 20, 'style="color:var(--pink);flex:none"') + '<span class="grow"><span class="t1">' + pend.length + ' contre-proposition' + (pend.length > 1 ? 's' : '') + ' en attente</span><span class="t2">De ' + esc(pend.map(function (a) { return a.auteurNom; }).join(', ')) + '</span></span>' + icon('right', 16) + '</a>' : '') +
+      avoter.map(function (c) { var e = C.evts[c.evenementId]; return '<a class="li calert-top vote" href="' + lienCompo(esc(c.evenementId), c.partie) + '">' + icon('podium', 20, 'style="color:var(--violet);flex:none"') + '<span class="grow"><span class="t1">À voter : ' + esc(e ? e.titre : 'un plateau') + (c.partie ? ' · ' + (c.partie === 'ateliers' ? 'ateliers' : 'matchs') : '') + '</span><span class="t2">' + esc(c.auteurNom) + ' propose 2 versions</span></span>' + icon('right', 16) + '</a>'; }).join('');
+    var list = vue === 'passes' ? passes : avenir;
+    var empty = vue === 'passes' ? 'Rien pour l\'instant.' : (train ? 'Aucun entraînement à venir.' : 'Aucun plateau à venir.') + (sp.branche ? '' : ' Ajoutez le prochain avec le bouton ci-dessous.');
+    return '<main class="screen">' + MC.educBar(C.g, train ? 'Entraînements' : 'Plateaux') + tabs + alerts + spond +
+      (list.length ? '<ul class="list">' + list.map(function (e, i) { return evtCard(C, e, vue === 'avenir' && i === 0); }).join('') + '</ul>' : '<div class="empty">' + empty + '</div>') +
+      (vue === 'avenir' ? '<a class="btn2" href="#/educ/evt-nouveau?sorte=' + (train ? 'entrainement' : 'plateau') + '">' + icon('plus', 16) + (train ? ' Ajouter un entraînement' : ' Ajouter un plateau') + '</a>' : '') +
+      '</main>';
   }
   function paintCompos(C) {
     var t = L.today(), cd = C.cd;
@@ -198,9 +245,9 @@ window.MC = window.MC || {};
         return '<button type="button" class="cop' + (on ? ' on' : '') + '" aria-pressed="' + on + '"' + (adm ? ' data-act="spCat" data-id="' + esc(c.id) + '"' : ' disabled') + '><span class="nm">' + esc(c.nom) + '<small class="csp">' + esc(c.groupe) + (c.coach ? ' · coach' : '') + '</small></span><span class="ck">' + icon('check', 14) + '</span></button>';
       }).join('') + '</div>' + (adm ? '<button type="button" class="btn2" data-act="spCats">' + icon('check', 16) + ' Enregistrer les catégories</button>' : '') + '</section>' : '';
       var nonLies = (sp.membres || []).filter(function (m) { return !m.lie; });
-      return '<main class="screen">' + MC.educBar(g, 'Spond', '#/educ/outils', 'Outils') +
+      return '<main class="screen">' + MC.educBar(g, 'Spond', '#/educ/reglages', 'Réglages') +
         '<div class="head"><span class="kicker" style="color:var(--cyan)">Événements et présents</span><h1 class="big md">Spond</h1></div>' + etat +
-        (sp.branche ? '<div class="grid2"><button type="button" class="btn2" data-act="cSync"' + (off ? ' disabled' : '') + '>' + icon('refresh', 16) + ' Actualiser</button><a class="btn2" href="#/educ/compos">Les événements</a></div>' : '') +
+        (sp.branche ? '<div class="grid2"><button type="button" class="btn2" data-act="cSync"' + (off ? ' disabled' : '') + '>' + icon('refresh', 16) + ' Actualiser</button><a class="btn2" href="#/educ/plateaux">Les plateaux</a></div>' : '') +
         (nonLies.length ? '<a class="li calert-top" href="#/educ/ajouter">' + icon('plus', 20, 'style="color:var(--cyan);flex:none"') + '<span class="grow"><span class="t1">' + nonLies.length + ' enfant' + (nonLies.length > 1 ? 's' : '') + ' de Spond pas encore dans l\'appli</span><span class="t2">Les ajouter (codes créés tout de suite)</span></span>' + icon('right', 16) + '</a>' : '') +
         form + catsH +
         (adm && sp.branche ? '<button type="button" class="lnk" data-act="spDeco" style="align-self:flex-start">Débrancher Spond (oublier l\'e-mail et le mot de passe)</button>' : '') +
@@ -251,10 +298,15 @@ window.MC = window.MC || {};
 
   // ---------- ajouter un événement à la main ----------
   var NE = { titre: 'Plateau ', date: '', lieu: '', sorte: 'plateau' };
-  app.route('/educ/evt-nouveau', function () {
+  app.route('/educ/evt-nouveau', function (p, q) {
     return MC.loadGroup().then(function (g) {
-      if (!NE.date) NE.date = L.addDays(L.today(), (5 - L.dow(L.today()) + 7) % 7 || 7);   // samedi qui vient
-      return '<main class="screen">' + MC.educBar(g, 'Nouvel événement', '#/educ/compos', 'Les compos') +
+      if (q.sorte && q.sorte !== NE.de) {
+        NE.de = q.sorte; NE.sorte = q.sorte === 'entrainement' ? 'entrainement' : 'plateau';
+        NE.titre = NE.sorte === 'entrainement' ? 'Entraînement - ' : 'Plateau '; NE.date = '';
+      }
+      if (!NE.date) NE.date = NE.sorte === 'entrainement' ? L.addDays(L.today(), (2 - L.dow(L.today()) + 7) % 7 || 7) : L.addDays(L.today(), (5 - L.dow(L.today()) + 7) % 7 || 7);   // mercredi ou samedi qui vient
+      var back = NE.sorte === 'entrainement' ? '#/educ/entrainements' : '#/educ/plateaux';
+      return '<main class="screen">' + MC.educBar(g, 'Nouvel événement', back, NE.sorte === 'entrainement' ? 'Entraînements' : 'Plateaux') +
         '<div class="head"><span class="kicker">À la main, en attendant Spond</span><h1 class="big sm">Nouvel événement</h1></div>' +
         '<section class="sec"><label class="lab" for="ne-t">Titre</label><input id="ne-t" class="txt" maxlength="80" value="' + esc(NE.titre) + '" placeholder="Plateau 3 - Muret">' +
         '<label class="lab" for="ne-d">Date</label><input id="ne-d" class="txt" type="date" value="' + esc(NE.date) + '">' +
@@ -265,7 +317,7 @@ window.MC = window.MC || {};
         '<p class="small" style="margin:0">Les présents se cochent ensuite sur la page de l\'événement.</p>' +
         '<button type="button" class="btn" data-act="neCreate">' + icon('check', 18) + ' Créer l\'événement</button></section></main>';
     });
-  }, { adult: 'e', nav: 'e:compos', bg: BG });
+  }, { adult: 'e', nav: function (p, q) { return q && q.sorte === 'entrainement' ? 'e:entrain' : 'e:plateaux'; }, bg: BG });
   function neRead() {
     var t = document.getElementById('ne-t'), d = document.getElementById('ne-d'), l = document.getElementById('ne-l');
     if (t) NE.titre = t.value; if (d) NE.date = d.value; if (l) NE.lieu = l.value;
@@ -278,7 +330,7 @@ window.MC = window.MC || {};
     b.disabled = true;
     app.adultCall('setEvenement', { titre: NE.titre.trim(), debut: NE.date, lieu: NE.lieu.trim(), sorte: NE.sorte }).then(function (r) {
       NE = { titre: 'Plateau ', date: '', lieu: '', sorte: 'plateau' };
-      return loadCompos(true).then(function () { ui.toast('Événement créé : cochez les présents'); app.go('#/educ/evt/' + r.evenement.id, true); });
+      return loadCompos(true).then(function () { ui.toast('Événement créé : cochez les présents'); app.go('#/educ/evt/' + r.evenement.id + '/presents', true); });
     }).catch(function (e) { b.disabled = false; ui.toast(e.message, true); });
   };
 
@@ -289,11 +341,68 @@ window.MC = window.MC || {};
   app.route('/educ/evt/:id', function (p, q, cur) {
     return both().then(function (r) {
       var C = ctxOf(r[0], r[1]), e = C.evts[p.id];
-      if (!e) return '<main class="screen">' + MC.educBar(C.g, 'Événement', '#/educ/compos', 'Les compos') + '<div class="empty">Événement introuvable (supprimé ou trop ancien).</div></main>';
+      app.setNav(navEvt(p.id));
+      if (!e) return '<main class="screen">' + MC.educBar(C.g, 'Événement', '#/educ/plateaux', 'Plateaux') + '<div class="empty">Événement introuvable (supprimé ou trop ancien).</div></main>';
+      if (PR.evtId !== e.id) PR = { evtId: e.id, chg: {} };
+      return paintEvtResume(C, e);
+    });
+  }, { adult: 'e', nav: function (p) { return navEvt(p.id); }, bg: BG });
+  app.route('/educ/evt/:id/presents', function (p, q, cur) {
+    return both().then(function (r) {
+      var C = ctxOf(r[0], r[1]), e = C.evts[p.id];
+      app.setNav(navEvt(p.id));
+      if (!e) return '<main class="screen">' + MC.educBar(C.g, 'Les présents', '#/educ/plateaux', 'Plateaux') + '<div class="empty">Événement introuvable (supprimé ou trop ancien).</div></main>';
       if (PR.evtId !== e.id) PR = { evtId: e.id, chg: {} };
       return paintEvt(C, e);
     });
-  }, { adult: 'e', nav: 'e:compos', bg: BG });
+  }, { adult: 'e', nav: function (p) { return navEvt(p.id); }, bg: BG });
+  MC.evtOccasion = function (e) {
+    if (!e) return '';
+    return (e.sorte === 'entrainement' ? 'Entraînement du ' : e.sorte === 'plateau' ? 'Plateau du ' : '') + (e.sorte === 'entrainement' || e.sorte === 'plateau' ? ui.fmtDate(jour(e)) : e.titre + ' (' + ui.fmtDate(jour(e)) + ')');
+  };
+  // la page d'un entraînement ou d'un plateau : les présents (résumé), les groupes ou la compo, et pendant la séance (Skills, +1)
+  function paintEvtResume(C, e) {
+    var c = compoOf(C.cd, e.id), past = jour(e) < L.today(), train = e.sorte === 'entrainement';
+    var pres = presentsOf(C, e), sr = (e.sansReponse || []).filter(function (id) { return C.actifs[id] && pres.indexOf(id) < 0; }).length;
+    var ab = (e.absents || []).filter(function (id) { return C.actifs[id]; }).length;
+    var presCard = '<a class="li cpres-card" href="#/educ/evt/' + esc(e.id) + '/presents"><span class="cbig">' + pres.length + '</span><span class="grow"><span class="t1">Les présents</span><span class="t2">' +
+      (e.source === 'spond' ? 'D\'après Spond' + (ab ? ' · ' + ab + ' absent' + (ab > 1 ? 's' : '') : '') + (sr ? ' · ' + sr + ' sans réponse' : '') + ' · toucher pour corriger' : 'Cochés à la main · toucher pour corriger') + '</span></span>' + icon('right', 16) + '</a>';
+    var compoBlock;
+    if (train) compoBlock = partCard(C, e, 'ateliers', 1, past) + partCard(C, e, 'matchs', 2, past) + '<p class="small" style="margin:0">D\'abord les groupes d\'ateliers, ensuite les matchs. Un éduc publie ; le jour de l\'entraînement, tous les éducs peuvent corriger.</p>';
+    else if (e.sorte !== 'plateau') compoBlock = '<p class="small" style="margin:0">C\'est un plateau ou un entraînement ?</p><div class="grid2"><button type="button" class="btn2 grey" data-act="eSorte" data-v="plateau">C\'est un plateau</button><button type="button" class="btn2 grey" data-act="eSorte" data-v="entrainement">Un entraînement</button></div>';
+    else if (c && c.statut === 'vote') {
+      var mv = c.votes && c.votes[C.moi.id];
+      compoBlock = '<a class="li calert-top vote" href="#/educ/compo/' + esc(e.id) + '">' + icon('podium', 20, 'style="color:var(--violet);flex:none"') + '<span class="grow"><span class="t1">Vote des éducs : 2 versions de ' + esc(c.auteurNom) + '</span><span class="t2">' + (mv === undefined ? 'Vous n\'avez pas encore voté' : 'Vous avez voté pour la version ' + (mv + 1)) + '</span></span>' + icon('right', 16) + '</a>';
+    } else if (c) {
+      var av = avisOf(C.cd, c.id).filter(function (a) { return a.statut === 'attente'; });
+      compoBlock = '<a class="li" href="#/educ/compo/' + esc(e.id) + '">' + icon('swap', 20, 'style="color:var(--green);flex:none"') + '<span class="grow"><span class="t1">Compo de ' + esc(c.auteurNom) + ' · version ' + c.version + '</span><span class="t2">' +
+        c.equipes.map(function (t) { return t.id + ' (' + t.joueurs.length + ')'; }).join(' · ') + (c.reglages.format === 10 ? ' · jeu à 10' : ' · jeu à 5') + '</span></span>' + icon('right', 16) + '</a>' +
+        (av.length ? '<a class="li calert-top" href="#/educ/avis/' + esc(av[0].id) + '">' + icon('swap', 18, 'style="color:var(--pink);flex:none"') + '<span class="grow"><span class="t1">Contre-proposition de ' + esc(av[0].auteurNom) + '</span><span class="t2">' + av[0].changements.length + ' changement' + (av[0].changements.length > 1 ? 's' : '') + ' · à voir</span></span>' + icon('right', 16) + '</a>' : '');
+    } else if (past) compoBlock = '<div class="empty">Pas de compo enregistrée pour ce plateau.</div>';
+    else {
+      var dr = app.lsGet(draftKey(e.id)), nb = pres.length, conseil = '';
+      if (nb >= 2) {
+        var fmt = jour(e) >= '2026-12-01' ? 10 : 5;
+        var lastP = C.cd.compos.filter(function (x) { return x.statut === 'publiee' && !x.partie; }).sort(function (a, b) { return a.maj < b.maj ? 1 : -1; })[0];
+        if (lastP && lastP.reglages && lastP.reglages.format) fmt = lastP.reglages.format;
+        var sug = K.suggestNb(pres, C.F, fmt);
+        var parts = ['A', 'B', 'C'].filter(function (n) { return sug[n]; }).map(function (n, i) { return sug[n] + (i ? ' ' : (sug[n] > 1 ? ' équipes ' : ' équipe ')) + n; });
+        if (parts.length) conseil = '<p class="small" style="margin:0">' + nb + ' présents, jeu à ' + fmt + '. Conseillé : ' + parts.join(', ') + '. Une proposition en un geste, ou 2 versions côte à côte à soumettre au vote des éducs.</p>';
+      }
+      compoBlock = conseil + '<a class="btn" href="#/educ/compo/' + esc(e.id) + '">' + icon('swap', 18) + (dr ? ' Reprendre ma compo en cours' : ' Préparer la compo') + '</a>' +
+        '<p class="small" style="margin:0">Un éduc publie ; les autres font une contre-proposition s\'ils ne sont pas d\'accord.</p>';
+    }
+    var pendant = MC.pendantSeance ? MC.pendantSeance(C.g, e, pres, train) : '';
+    return '<main class="screen">' + MC.educBar(C.g, e.titre, listeDe(e), listeNom(e)) +
+      '<div class="head"><span class="kicker" style="color:' + (train ? 'var(--cyan)' : 'var(--gold)') + '">' + esc(quand(e)) + (e.lieu ? ' · ' + esc(e.lieu) : '') + '</span><h1 class="big sm">' + esc(e.titre) + '</h1>' +
+      '<p class="small" style="margin:0">' + (e.source === 'spond' ? 'Depuis Spond' + (e.annule ? ' · <b style="color:var(--red)">annulé dans Spond</b>' : '') : 'Ajouté à la main par ' + esc(e.parQui || 'un éduc')) + '</p></div>' +
+      presCard +
+      '<section class="sec"><h2 class="h2">' + (train ? 'Les groupes' : 'La compo') + '</h2>' + compoBlock + '</section>' +
+      pendant +
+      (train ? '<button type="button" class="lnk" data-act="eSorte" data-v="plateau" style="align-self:flex-start">C\'est en fait un plateau</button>' : '') +
+      (e.source === 'manuel' && !c && !compoOf(C.cd, e.id, 'ateliers') && !compoOf(C.cd, e.id, 'matchs') ? '<button type="button" class="lnk" data-act="eDel" style="align-self:flex-start">Supprimer cet événement</button>' : '') +
+      '</main>';
+  }
 
   function isPresent(e, id) {
     if (PR.chg[id] !== undefined) return PR.chg[id];
@@ -344,18 +453,17 @@ window.MC = window.MC || {};
         '<p class="small" style="margin:0">Un éduc suffit : la compo publiée est celle du plateau, sauf si un autre éduc fait une contre-proposition.</p>';
     }
     var inc = (e.inconnus || []);
-    return '<main class="screen">' + MC.educBar(C.g, e.titre, '#/educ/compos', 'Les compos') +
+    return '<main class="screen">' + MC.educBar(C.g, 'Les présents', '#/educ/evt/' + e.id, e.titre) +
       '<div class="head"><span class="kicker" style="color:var(--gold)">' + esc(quand(e)) + (e.lieu ? ' · ' + esc(e.lieu) : '') + '</span><h1 class="big sm">' + esc(e.titre) + '</h1>' +
       '<p class="small" style="margin:0">' + (e.source === 'spond' ? 'Depuis Spond' + (e.annule ? ' · <b style="color:var(--red)">annulé dans Spond</b>' : '') : 'Ajouté à la main par ' + esc(e.parQui || 'un éduc')) + '</p></div>' +
-      '<div class="cols2"><section class="sec"><h2 class="h2">' + (e.sorte === 'entrainement' ? 'Les groupes' : 'La compo') + '</h2>' + compoBlock + '</section>' +
       '<section class="sec"><div class="between"><h2 class="h2">Présents</h2><span class="hud" style="color:var(--green)">' + groups.oui.length + '</span></div>' +
       '<p class="small" style="margin:0">' + (e.source === 'spond' ? 'D\'après les réponses Spond. Touchez un prénom pour corriger (venu sans répondre, forfait de dernière minute) : la correction reste après chaque synchro.' : 'Touchez les prénoms des enfants présents.') + '</p>' +
       '<div class="cop-list">' + groups.oui.map(chip).join('') + '</div>' +
       (groups.nsp.length ? '<h3 class="mlab" style="margin-top:6px">Pas de réponse (' + groups.nsp.length + ')</h3><div class="cop-list">' + groups.nsp.map(chip).join('') + '</div>' : '') +
       '<details' + (e.source !== 'spond' ? ' open' : '') + '><summary class="mlab" style="cursor:pointer;margin-top:6px">' + (e.source === 'spond' ? 'Absents ou pas inscrits' : 'Les autres') + ' (' + groups.non.length + ')</summary><div class="cop-list" style="margin-top:8px">' + groups.non.map(chip).join('') + '</div></details>' +
       (inc.length ? '<p class="small" style="margin:0">Aussi inscrits sur Spond, sans joueur dans l\'appli : ' + inc.map(esc).join(', ') + ' (adultes, ou enfants à relier dans leur fiche terrain).</p>' : '') +
-      (e.source === 'manuel' && !c ? '<button type="button" class="lnk" data-act="eDel" style="align-self:flex-start">Supprimer cet événement</button>' : '') +
-      '</section></div>' +
+      '</section>' +
+      '<a class="btn2" href="#/educ/evt/' + esc(e.id) + '">' + icon('left', 16) + ' ' + (e.sorte === 'entrainement' ? 'Les groupes et la séance' : 'La compo') + '</a>' +
       (nchg ? '<div class="cp-bar cdock"><span class="grow small" style="color:var(--soft)">' + nchg + ' changement' + (nchg > 1 ? 's' : '') + '</span><button type="button" class="btn2 sm grey" data-act="prCancel">Annuler</button><button type="button" class="btn sm" data-act="prSave">' + icon('check', 16) + ' Enregistrer</button></div>' : '') +
       '</main>';
   }
@@ -399,7 +507,8 @@ window.MC = window.MC || {};
   MC.act.eDel = function () {
     ui.modal({ title: 'Supprimer l\'événement ?', body: '<p class="lead">Il disparaît de la liste, avec ses présents.</p>', actions: [{ label: 'Supprimer', value: true, cls: 'btn pink' }, { label: 'Annuler', value: false, cls: 'btn2 grey' }] }).then(function (ok) {
       if (!ok) return;
-      app.adultCall('setEvenement', { id: PR.evtId, supprimer: true }).then(function () { return loadCompos(true); }).then(function () { ui.toast('Événement supprimé'); app.go('#/educ/compos', true); }).catch(function (e) { ui.toast(e.message, true); });
+      var back = listeDe((app.S.cache.compos.evenements || []).filter(function (x) { return x.id === PR.evtId; })[0]);
+      app.adultCall('setEvenement', { id: PR.evtId, supprimer: true }).then(function () { return loadCompos(true); }).then(function () { ui.toast('Événement supprimé'); app.go(back, true); }).catch(function (e) { ui.toast(e.message, true); });
     });
   };
 
@@ -445,14 +554,15 @@ window.MC = window.MC || {};
   app.route('/educ/compo/:id', function (p, q, cur) {
     return both().then(function (r) {
       var C = ctxOf(r[0], r[1]), e = C.evts[p.id];
-      if (!e) return '<main class="screen">' + MC.educBar(C.g, 'Compo', '#/educ/compos', 'Les compos') + '<div class="empty">Événement introuvable.</div></main>';
+      app.setNav(navEvt(p.id));
+      if (!e) return '<main class="screen">' + MC.educBar(C.g, 'Compo', '#/educ/plateaux', 'Plateaux') + '<div class="empty">Événement introuvable.</div></main>';
       // un entraînement : d'abord les ateliers, ensuite les matchs
       var partie = e.sorte === 'entrainement' ? (q && q.p === 'matchs' ? 'matchs' : 'ateliers') : '';
       initBoard(C, e, partie);
       afterPaint(cur);
       return B.mode === 'reglages' ? (partie ? paintReglagesEnt(C, e) : paintReglages(C, e)) : paintBoard(C, e);
     });
-  }, { adult: 'e', nav: 'e:compos', bg: BG });
+  }, { adult: 'e', nav: 'e:plateaux', bg: BG });
 
   // ---------- réglages : format, nombre d'équipes par niveau, style de proposition ----------
   // le dernier entraînement (avant celui-ci) qui a des groupes publiés pour cette partie
@@ -1343,13 +1453,13 @@ window.MC = window.MC || {};
   app.route('/educ/avis/:id', function (p, q, cur) {
     return both().then(function (r) {
       var C = ctxOf(r[0], r[1]), a = C.cd.avis.filter(function (x) { return x.id === p.id; })[0];
-      if (!a) return '<main class="screen">' + MC.educBar(C.g, 'Contre-proposition', '#/educ/compos', 'Les compos') + '<div class="empty">Introuvable.</div></main>';
+      if (!a) return '<main class="screen">' + MC.educBar(C.g, 'Contre-proposition', '#/educ/plateaux', 'Plateaux') + '<div class="empty">Introuvable.</div></main>';
       var c = C.cd.compos.filter(function (x) { return x.id === a.compoId; })[0];
       var e = c && C.evts[c.evenementId];
       afterPaint(cur);
       return paintAvis(C, a, c, e);
     });
-  }, { adult: 'e', nav: 'e:compos', bg: BG });
+  }, { adult: 'e', nav: 'e:plateaux', bg: BG });
   function paintAvis(C, a, c, e) {
     var moves = a.changements.map(function (m) {
       var de = m.de === 'banc' ? 'pas placé' : m.de || '—', vers = m.vers === 'banc' ? 'pas placé' : m.vers || '—';
@@ -1364,7 +1474,8 @@ window.MC = window.MC || {};
     B = saveB;
     var stale = att && c && Number(a.version) !== Number(c.version);
     var etat = att ? '<span class="pill" style="--pc:var(--pink)">En attente</span>' : '<span class="pill" style="--pc:' + (a.statut === 'acceptee' ? 'var(--green)' : 'var(--line3);color:var(--ink)') + '">' + ({ acceptee: 'Acceptée', refusee: 'Refusée', retiree: 'Retirée' }[a.statut] || a.statut) + '</span>';
-    return '<main class="screen cscreen">' + MC.educBar(C.g, 'Contre-proposition', e ? lienCompo(e.id, c && c.partie) : '#/educ/compos', e ? 'La compo' : 'Les compos') +
+    if (e) app.setNav(navEvt(e.id));
+    return '<main class="screen cscreen">' + MC.educBar(C.g, 'Contre-proposition', e ? lienCompo(e.id, c && c.partie) : '#/educ/plateaux', e ? 'La compo' : 'Plateaux') +
       '<div class="head"><span class="kicker" style="color:var(--pink)">' + (e ? esc(e.titre) + ' · ' : '') + 'compo de ' + esc(c ? c.auteurNom : '?') + '</span><h1 class="big sm">De ' + esc(a.auteurNom) + '</h1>' +
       '<div class="row" style="gap:8px">' + etat + '<span class="small">' + esc(ui.fmtDate(localDay(a.cree))) + '</span></div></div>' +
       '<div class="box"><span class="mlab">Pourquoi</span><p style="margin:0">« ' + esc(a.justification) + ' »</p>' + (a.reponse ? '<span class="mlab" style="margin-top:10px">Réponse de ' + esc(a.parQui || '') + '</span><p style="margin:0">« ' + esc(a.reponse) + ' »</p>' : '') + '</div>' +
@@ -1396,7 +1507,7 @@ window.MC = window.MC || {};
   var T = { chg: {}, filtre: 'all', q: '' };
   app.route('/educ/terrain', function () {
     return MC.loadGroup().then(function (g) { return paintTerrain(g); });
-  }, { adult: 'e', nav: 'e:compos', bg: BG });
+  }, { adult: 'e', nav: 'e:enfants', bg: BG });
   function tVal(F, id, k) { var c = T.chg[id]; return c && c[k] !== undefined ? c[k] : (F[id] || {})[k]; }
   function tSet(id, k, v, F) {
     var c = T.chg[id] || (T.chg[id] = {});
@@ -1431,7 +1542,7 @@ window.MC = window.MC || {};
     });
     var nchg = Object.keys(T.chg).length;
     function fb(v, label, n, col) { return '<button type="button" class="opt' + (T.filtre === v ? ' on' : '') + '"' + (col ? ' style="--oc:' + col + '"' : '') + ' aria-pressed="' + (T.filtre === v) + '" data-act="tFiltre" data-v="' + v + '">' + label + ' · ' + n + '</button>'; }
-    return '<main class="screen">' + MC.educBar(g, 'Fiche terrain', '#/educ/compos', 'Les compos') +
+    return '<main class="screen">' + MC.educBar(g, 'Enfants') + (MC.enfantsTabs ? MC.enfantsTabs('terrain', g) : '') +
       '<div class="head"><span class="kicker" style="color:var(--cyan)">Réglée par les éducs · pour les compos</span><h1 class="big sm">Fiche terrain</h1>' +
       '<p class="small" style="margin:0"><b>A</b> Confirmés · <b>B</b> Débrouillés · <b>C</b> Débutants. <b>⇅</b> passerelle : peut jouer aussi dans le niveau voisin, à tour de rôle. ' + icon('star', 11) + ' plaquage sur 5 (repères provisoires : ' + K.SEUIL.B + ' pour jouer en B, ' + K.SEUIL.A + ' en A ; l\'appli prévient, elle n\'interdit rien). Les postes compatibles se règlent sur la fiche du joueur.</p></div>' +
       '<label class="sr-only" for="tq">Chercher un joueur</label><input id="tq" class="search" type="search" placeholder="Chercher un prénom…" value="' + esc(T.q) + '">' +
@@ -1487,11 +1598,12 @@ window.MC = window.MC || {};
       '<span class="grow">' + (ps.length ? esc(ps.slice(0, 2).map(function (p) { return COURT[p]; }).join(' · ')) : 'pas de poste') + '</span><span class="small">Sur le terrain ' + icon('down', 12) + '</span></button>';
   };
   MC.act.goTerrain = function () { var el = document.getElementById('sur-le-terrain'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
-  MC.terrainKid = function (d, g) {
+  // part : 'fiche' (niveau, passerelle, plaquage, postes, Spond) ou 'hist' (son historique) ; rien : les deux
+  MC.terrainKid = function (d, g, part) {
     var id = d.joueur.id, F = K.fiches(g), f = F[id];
     if (!f) return '';
     var cd = app.S.cache.compos;
-    if (!cd) loadCompos().then(function () { if (location.hash === '#/educ/joueur/' + id) app.rerender(); }).catch(function () { });
+    if (!cd) loadCompos().then(function () { if (location.hash.indexOf('#/educ/joueur/' + id) === 0) app.rerender(); }).catch(function () { });
     var H = cd ? (function () { var ev = {}; cd.evenements.forEach(function (e) { ev[e.id] = e; }); return K.historique(cd.compos, ev, F, L.today()); })() : {};
     var h = K.hOf(H, id);
     var ed = TK && TK.id === id ? TK : null;
@@ -1524,9 +1636,10 @@ window.MC = window.MC || {};
     var hist = histHtml(h, f, F, cd);
     var sp = (g.joueurs.filter(function (p) { return p.joueur.id === id; })[0] || {}).terrain;
     var mb = cd && cd.spond && cd.spond.membres ? cd.spond.membres.filter(function (m) { return sp && m.id === sp.spondId; })[0] : null;
-    return '<section class="sec" id="sur-le-terrain" style="scroll-margin-top:76px"><div class="between"><h2 class="h2">Sur le terrain</h2>' + (f.niveau ? '' : '<span class="pill" style="--pc:var(--orange)">À renseigner</span>') + '</div><div class="box" style="display:flex;flex-direction:column;gap:12px">' + body + '</div>' +
-      '<div class="box" style="display:flex;flex-direction:column;gap:8px"><span class="mlab" style="margin:0">Son historique</span>' + hist +
-      '<span class="small" style="color:var(--faint)">Spond : ' + (sp && sp.spondId ? 'relié' + (mb ? ' à « ' + esc(mb.nom) + ' »' : '') : 'pas encore relié') + '</span></div></section>';
+    var spTxt = '<span class="small" style="color:var(--faint)">Spond : ' + (sp && sp.spondId ? 'relié' + (mb ? ' à « ' + esc(mb.nom) + ' »' : '') : 'pas encore relié') + '</span>';
+    if (part === 'hist') return '<section class="sec"><h2 class="h2">Son historique</h2><div class="box" style="display:flex;flex-direction:column;gap:8px">' + hist + '</div></section>';
+    return '<section class="sec" id="sur-le-terrain" style="scroll-margin-top:76px"><div class="between"><h2 class="h2">Sur le terrain</h2>' + (f.niveau ? '' : '<span class="pill" style="--pc:var(--orange)">À renseigner</span>') + '</div><div class="box" style="display:flex;flex-direction:column;gap:12px">' + body + (part === 'fiche' ? spTxt : '') + '</div>' +
+      (part === 'fiche' ? '' : '<div class="box" style="display:flex;flex-direction:column;gap:8px"><span class="mlab" style="margin:0">Son historique</span>' + hist + spTxt + '</div>') + '</section>';
   };
   // ---------- l'historique d'un joueur : plateaux, entraînements (ateliers et matchs), ou tout ----------
   var HV = '';   // le filtre choisi : 'plateau', 'entrainement' ou 'tout' (vide : plateaux s'il y en a)

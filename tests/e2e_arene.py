@@ -1,6 +1,7 @@
 from playwright.sync_api import sync_playwright
 BASE='http://localhost:8899/index.html'
-OUT='/tmp/claude-0/-home-claude-mode-champion/a9e1937c-c3f2-5869-830c-450b35966146/scratchpad/shots/'
+import os
+OUT=os.environ.get('OUT','/tmp/arene-shots/'); os.makedirs(OUT, exist_ok=True)
 errs=[]
 def pin(pg, code):
     for c in code: pg.click('.modal [data-k="%s"], #firstzone [data-k="%s"], #adultzone [data-k="%s"]'%(c,c,c)); pg.wait_for_timeout(40)
@@ -9,12 +10,12 @@ with sync_playwright() as p:
     pg.on('pageerror', lambda e: errs.append(str(e)))
     pg.goto(BASE+'#/adultes'); pg.wait_for_timeout(600); pg.evaluate("localStorage.clear()"); pg.reload(); pg.wait_for_timeout(800)
     pg.click('[data-act="adultWho"][data-w="f"]'); pg.wait_for_timeout(200); pin(pg,'123456'); pg.wait_for_timeout(1200)
-    pg.click('a[href="#/parent/classement"]'); pg.wait_for_timeout(1200); pg.screenshot(path=OUT+'ar-parent.png', full_page=True)
+    pg.goto(BASE+'#/parent/classement'); pg.wait_for_timeout(1200); pg.screenshot(path=OUT+'ar-parent.png', full_page=True)
     print('parent', pg.inner_text('main section.row')[:90].replace('\n',' '), '| lignes', pg.eval_on_selector_all('ol.list li','e=>e.length'))
     pg.click('[data-act="arTest"][data-v="pompes"]'); pg.wait_for_timeout(300); print('pompes lignes', pg.eval_on_selector_all('ol.list li','e=>e.length'))
     pg.evaluate("localStorage.clear()"); pg.goto(BASE+'#/adultes'); pg.reload(); pg.wait_for_timeout(800)
     pg.click('[data-act="adultWho"][data-w="e"]'); pg.wait_for_timeout(200); pin(pg,'654321'); pg.wait_for_timeout(1500)
-    pg.click('a[href="#/educ/classement"]'); pg.wait_for_timeout(1200); pg.screenshot(path=OUT+'ar-educ.png', full_page=True)
+    pg.goto(BASE+'#/educ/classement'); pg.wait_for_timeout(1200); pg.screenshot(path=OUT+'ar-educ.png', full_page=True)
     print('éduc lignes', pg.eval_on_selector_all('ol.list li','e=>e.length'))
     pg.click('[data-act="arLv"][data-v="3"]'); pg.wait_for_timeout(300); print('N3 lignes', pg.eval_on_selector_all('ol.list li','e=>e.length'))
     pg.click('[data-act="arMode"][data-v="prog"]'); pg.wait_for_timeout(300); print('prog lignes', pg.eval_on_selector_all('ol.list li','e=>e.length'), pg.inner_text('main p.small >> nth=-1')[:100])

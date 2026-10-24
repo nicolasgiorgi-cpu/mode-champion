@@ -234,6 +234,77 @@ MC.demo = (function () {
     });
     var mer = L.addDays(today, ((2 - L.dow(today)) + 7) % 7 || 7);
     evt({ id: 'sp-demo-e1', titre: 'Entraînement - Lézat', debut: mer + 'T16:30:00.000Z', lieu: 'Lézat', presents: sauf(['Rose', 'Côme', 'Elio', 'Mila', 'Lucas', 'Gabin', 'Hugo', 'Maël']), sansReponse: [ids['Côme'], ids['Lucas']] });
+    seedSkills(db, ids, id, today, nowIso, { nico: nico, julien: julien, cyril: cyril, p1: p1, p2: p2, e0: e0, merAv: merAv });
+  }
+
+  // ---------- Skills, +1 et missions des éducs ----------
+  // Tom (l'enfant de démo, fils de Coach Nico) : la mission perso « Engager l'épaule au plaquage » et 3 +1, 6 étoiles ;
+  // une mission vidéo et un QCM pour le groupe, déjà faits par quelques enfants.
+  function seedSkills(db, ids, id, today, nowIso, x) {
+    var L = MC.logic, ui = MC.ui;
+    function occ(e) { return (e.sorte === 'entrainement' ? 'Entraînement du ' : 'Plateau du ') + ui.fmtDate(String(e.debut).slice(0, 10)); }
+    function iso(d, h) { return d + 'T' + (h || '18:00') + ':00.000Z'; }
+    var E = {
+      plaquage: [['Arthur', 5], ['Inès', 4], ['Léo', 3], ['Sacha', 3], ['Nina', 2], ['Enzo', 2], ['Chloé', 1], ['Gabin', 2], ['Louise', 2]],
+      passe: [['Nina', 4], ['Inès', 3], ['Louise', 3], ['Chloé', 2], ['Jules', 2], ['Léo', 1], ['Arthur', 2]],
+      ruck: [['Léo', 3], ['Enzo', 2], ['Adam', 2], ['Gabin', 3], ['Noah', 1]],
+      pied: [['Louise', 2], ['Chloé', 1], ['Nina', 1]]
+    };
+    var edus = [x.nico, x.julien, x.cyril];
+    Object.keys(E).forEach(function (d) {
+      var stars = MC.SK.dom(d).etoiles;
+      E[d].forEach(function (t, k) {
+        for (var i = 0; i < t[1]; i++) {
+          var e = edus[(k + i) % 3], ev = i % 2 ? x.p1 : x.p2, dt = String(ev.debut).slice(0, 10);
+          db.insert('etoiles', { id: id(), joueurId: ids[t[0]], domaine: d, etoile: stars[(i + k) % 5].id, parQui: e.id, parNom: e.nom, date: dt, occasion: occ(ev), evenementId: ev.id, essais: null, retiree: false, cree: iso(dt, '11:00'), maj: iso(dt, '11:00') });
+        }
+      });
+    });
+    // Tom : Plaquage 2 (joue contre le dos, cercle de fer), Passe 3, Ruck 1
+    var tom = ids['Tom'], d1 = String(x.p1.debut).slice(0, 10), d2 = String(x.p2.debut).slice(0, 10);
+    [['plaquage', 'joue', x.nico, x.merAv, occ(x.e0)], ['plaquage', 'cercle', x.julien, d1, occ(x.p1)], ['passe', 'mains', x.nico, d1, occ(x.p1)], ['passe', 'en-courant', x.julien, d2, occ(x.p2)],
+      ['passe', 'droite', x.cyril, d2, occ(x.p2)], ['ruck', 'dos-plat', x.nico, d1, occ(x.p1)]].forEach(function (t) {
+      db.insert('etoiles', { id: id(), joueurId: tom, domaine: t[0], etoile: t[1], parQui: t[2].id, parNom: t[2].nom, date: t[3], occasion: t[4], evenementId: '', essais: null, retiree: false, cree: iso(t[3], '12:00'), maj: iso(t[3], '12:00') });
+    });
+    function perso(nom, d, e, par, depuis, titre) {
+      var m = { id: id(), sorte: 'etoile', titre: titre, texte: '', video: '', questions: [], joueurId: ids[nom], domaine: d, etoile: e, xp: 0, debut: depuis, fin: '', statut: 'active', parQui: par.id, parNom: par.nom, faiteLe: '', cree: iso(depuis, '20:00'), maj: iso(depuis, '20:00') };
+      db.insert('defmissions', m); return m;
+    }
+    function plus1(nom, m, par, ev, dt, mot) {
+      db.insert('encouragements', { id: id(), joueurId: ids[nom], missionId: m ? m.id : '', domaine: m ? m.domaine : '', etoile: m ? m.etoile : '', mot: mot || '', parQui: par.id, parNom: par.nom, date: dt, occasion: ev ? occ(ev) : '', evenementId: ev ? ev.id : '', retire: false, cree: iso(dt, '19:' + (10 + Math.floor(Math.random() * 40))) });
+    }
+    var mTom = perso('Tom', 'plaquage', 'epaule', x.nico, L.addDays(today, -18), 'Engager l\'épaule au plaquage');
+    plus1('Tom', mTom, x.julien, x.p1, d1, 'Bien mieux à droite');
+    plus1('Tom', mTom, x.nico, null, L.addDays(today, -10), '');
+    plus1('Tom', mTom, x.nico, x.e0, x.merAv, 'Je l\'ai vu ! L\'épaule était bien engagée sur le plaquage de Jules.');
+    plus1('Tom', null, x.cyril, x.p1, d1, 'Quelle envie au plateau, continue comme ça !');
+    var mInes = perso('Inès', 'passe', 'gauche', x.nico, L.addDays(today, -6), 'Passer à gauche en courant');
+    plus1('Inès', mInes, x.nico, x.e0, x.merAv, '');
+    perso('Jules', 'ruck', 'tete', x.julien, L.addDays(today, -9), 'Placer sa tête au ruck');
+    perso('Maël', 'plaquage', 'cercle', x.cyril, L.addDays(today, -4), 'Serrer fort sans lâcher');
+    perso('Lou', 'passe', 'mains', x.nico, L.addDays(today, -5), 'Réceptionner mains en cible');
+    // missions du groupe
+    var debV = L.addDays(today, -2), debQ = L.addDays(today, -8);
+    var vid = { id: id(), sorte: 'video', titre: 'Le ruck en vidéo', texte: 'Regarde comment Grégory Alldritt gratte le ballon : où est sa tête ?', video: 'Dbp38-ANm5A', joueurId: '', domaine: '', etoile: '',
+      questions: [{ q: 'Au ruck, où doit être ta tête ?', opts: ['Plus bas que tes hanches', 'Au-dessus des hanches, dos plat, tête levée', 'Tournée vers le sol'], ok: 1 },
+        { q: 'Tu rentres dans le ruck…', opts: ['Par le côté', 'En sautant', 'Par derrière, dans l\'axe'], ok: 2 },
+        { q: 'Pour gagner le ballon, tu pousses avec…', opts: ['Les jambes, à petits pas', 'Les bras', 'La tête'], ok: 0 }],
+      xp: 50, debut: debV, fin: L.addDays(today, 12), statut: 'active', parQui: x.nico.id, parNom: x.nico.nom, faiteLe: '', cree: iso(debV, '20:30'), maj: iso(debV, '20:30') };
+    var qcm = { id: id(), sorte: 'qcm', titre: 'Le hors-jeu', texte: 'Petites questions pour bien défendre sans être hors-jeu.', video: '', joueurId: '', domaine: '', etoile: '',
+      questions: [{ q: 'Quand tu es devant le porteur du ballon de ton équipe, tu es…', opts: ['En jeu', 'Hors-jeu', 'Remplaçant'], ok: 1 },
+        { q: 'Pour défendre autour d\'un ruck, tu restes…', opts: ['Derrière le dernier pied du ruck, de ton côté', 'Devant le ballon', 'Où tu veux'], ok: 0 },
+        { q: 'Tu étais hors-jeu : avant de jouer, tu dois…', opts: ['Plaquer quand même', 'Revenir derrière la ligne du ballon', 'Attendre la fin du match'], ok: 1 },
+        { q: 'Au ruck, tu rentres…', opts: ['Par derrière, dans l\'axe', 'Par le côté', 'En plongeant'], ok: 0 }],
+      xp: 50, debut: debQ, fin: L.addDays(today, 9), statut: 'active', parQui: x.julien.id, parNom: x.julien.nom, faiteLe: '', cree: iso(debQ, '21:00'), maj: iso(debQ, '21:00') };
+    db.insert('defmissions', vid); db.insert('defmissions', qcm);
+    [['Inès', vid, [1, 2, 0]], ['Nina', vid, [1, 2, 1]], ['Léo', vid, null], ['Sacha', vid, [0, 2, 0]], ['Arthur', vid, [1, 2, 0]],
+      ['Inès', qcm, [1, 0, 1, 0]], ['Nina', qcm, [1, 0, 1, 1]], ['Chloé', qcm, [1, 1, 1, 0]], ['Enzo', qcm, [0, 0, 1, 0]], ['Louise', qcm, [1, 0, 1, 0]], ['Jules', qcm, [1, 0, 0, 0]]
+    ].forEach(function (t) {
+      var m = t[1], ans = t[2], dt = L.addDays(today, -1), r = { vu: m.sorte === 'video' ? true : undefined };
+      if (ans) { r.ans = ans; r.total = m.questions.length; r.score = ans.filter(function (a, i) { return a === m.questions[i].ok; }).length; r.xp = m.xp; }
+      var faite = !!ans;
+      db.insert('missions', { id: id(), joueurId: ids[t[0]], mission: m.id, reponses: r, faite: faite, date: faite ? dt : '', source: 'appli', cree: iso(dt), maj: iso(dt) });
+    });
   }
 
   return { seed: seed, CODES: CODES };

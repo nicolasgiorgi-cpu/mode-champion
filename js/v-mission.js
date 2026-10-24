@@ -86,6 +86,8 @@
     });
   }
 
+  MC.bindTilt = bindTilt;
+
   // ---------- les choix en cours (gardés sur l'appareil tant qu'ils ne sont pas envoyés) ----------
   var DKEY = 'mc-mission-' + MID;
   function brouillon(me) {
@@ -124,7 +126,7 @@
   // ----- la mission : où j'en suis -----
   app.route('/mission', function () {
     return app.loadMe().then(function (me) { return paintMission(me); });
-  }, { kid: true, nav: 'semaine', live: true, bg: '#2E2612' });
+  }, { kid: true, nav: 'missions', live: true, bg: '#2E2612' });
 
   function paintMission(me) {
     var D = M.def(MID), e = M.etat(me, MID), t = L.today();
@@ -139,7 +141,7 @@
       !s2 ? '<a class="btn gold glow" href="#/mission/copains">Choisir mes copains</a>' :
         '<div class="note green">' + icon('check', 22) + '<span><b>Mission accomplie !</b> Tu as gagné +' + C.XP.mission + ' XP et le badge « ' + esc(bd.nom) + ' ». Tu peux changer tes choix quand tu veux.</span></div>';
     var from = e.source === 'formulaire' && !s2 ? '<div class="note cyan">' + icon('info', 20) + '<span>Tes postes viennent du site « Choisis ton poste » : vérifie-les, puis choisis tes copains.</span></div>' : '';
-    return '<main class="screen">' + MC.kidSubBar('#/semaine', 'Ma semaine', 'Mission spéciale') +
+    return '<main class="screen">' + MC.kidSubBar('#/missions', 'Missions', 'Mission spéciale') +
       '<div class="head"><span class="kicker" style="color:var(--gold)">Mission spéciale' + (t <= D.fin && !e.faite ? ' · jusqu\'au ' + esc(fmtJour(D.fin)) : '') + '</span>' +
       '<h1 class="big md" style="text-shadow:3px 3px 0 var(--pink),-2px -2px 0 var(--gold)">' + esc(D.titre) + '</h1>' +
       '<p class="lead">Après les vacances, on passe au jeu à 10 : chacun aura un poste. Aide les éducs à préparer les équipes !</p></div>' +
@@ -153,7 +155,7 @@
   function cardHtml(p, rank) {
     var rows = p.stats.map(function (v, j) { return '<span class="cp-srow"><span>' + M.LABELS[j] + '</span>' + stars(v, p.color) + '</span>'; }).join('');
     return '<div class="cp-tilt" style="' + vars(p) + '"><a class="cp-card" href="#/mission/poste/' + esc(p.id) + '" aria-label="' + esc(p.nom + ' : ' + p.surnom + (rank >= 0 ? ', ton choix n°' + (rank + 1) : '')) + '"><span class="cp-in">' +
-      '<span class="cp-art"><span class="cp-num">' + esc(p.n) + '</span>' + (rank >= 0 ? '<span class="cp-pick">CHOIX ' + (rank + 1) + '</span>' : '') + '<span class="cp-emblem">' + emblem(p) + '</span></span>' +
+      '<span class="cp-art"><span class="cp-num">' + esc(p.n) + '</span>' + (rank >= 0 ? '<span class="cp-pick">CHOIX ' + (rank + 1) + '</span>' : '') + '<span class="cp-emblem" style="--dl:-' + ((M.POSTES.indexOf(p) * 0.9) % 6).toFixed(1) + 's">' + emblem(p) + '<span class="em-sheen"></span></span></span>' +
       '<span class="cp-body"><span><span class="cp-name">' + esc(p.nom) + '</span><span class="cp-role">' + esc(p.surnom) + ' · ' + esc(p.cls) + '</span></span>' +
       '<span class="cp-srows">' + rows + '</span></span><span class="cp-holo"></span><span class="cp-shine"></span></span></a></div>';
   }
@@ -171,7 +173,7 @@
       cur.after = function (root) { bindTilt(root); };
       return paintPostes(me);
     });
-  }, { kid: true, nav: 'semaine', bg: '#1B2552' });
+  }, { kid: true, nav: 'missions', bg: '#1B2552' });
   function paintPostes(me) {
     var d = brouillon(me), qr = quizFini(d) ? M.quizResults(d.quiz.ans) : null;
     var quiz = '<div class="cp-tilt cp-wide" style="--c:#38E8FF;--d:#FF4FA3;--glow2:rgba(56,232,255,.22)"><a class="cp-card cp-q" href="#/mission/quiz"><span class="cp-in">' +
@@ -202,9 +204,32 @@
   };
 
   // ----- la fiche d'un poste -----
-  app.route('/mission/poste/:id', function (p) {
+  app.route('/mission/poste/:id', function (p, q, cur) {
+    cur.after = function (root) { bindEmblem(root); };
     return app.loadMe().then(function (me) { return paintPoste(me, p.id); });
-  }, { kid: true, nav: 'semaine', bg: '#1B2552' });
+  }, { kid: true, nav: 'missions', bg: '#1B2552' });
+  // l'emblème de la fiche : il tourne en 3D sous le doigt (ou la souris) et brille
+  function bindEmblem(root) {
+    var zone = root.querySelector('.cp-dart'), em = root.querySelector('#cp-dem');
+    if (!zone || !em) return;
+    var offT;
+    function at(cx, cy) {
+      var r = em.getBoundingClientRect();
+      var x = Math.min(1, Math.max(0, (cx - r.left) / r.width)), y = Math.min(1, Math.max(0, (cy - r.top) / r.height));
+      em.classList.add('is-shiny');
+      em.style.setProperty('--mx', (x * 100).toFixed(1) + '%'); em.style.setProperty('--my', (y * 100).toFixed(1) + '%');
+      em.style.setProperty('--px', (20 + x * 60).toFixed(1) + '%'); em.style.setProperty('--py', (20 + y * 60).toFixed(1) + '%');
+      if (!reduceMotion) { em.style.setProperty('--ery', ((x - 0.5) * 36).toFixed(1) + 'deg'); em.style.setProperty('--erx', ((0.5 - y) * 30).toFixed(1) + 'deg'); }
+    }
+    function off() { em.classList.remove('is-shiny'); em.style.setProperty('--erx', '0deg'); em.style.setProperty('--ery', '0deg'); }
+    zone.addEventListener('pointermove', function (e) { if (e.pointerType !== 'touch') at(e.clientX, e.clientY); });
+    zone.addEventListener('pointerleave', function (e) { if (e.pointerType !== 'touch') off(); });
+    function onT(e) { var t = e.touches && e.touches[0]; if (!t) return; clearTimeout(offT); at(t.clientX, t.clientY); }
+    zone.addEventListener('touchstart', onT, { passive: true });
+    zone.addEventListener('touchmove', onT, { passive: true });
+    zone.addEventListener('touchend', function () { offT = setTimeout(off, 700); }, { passive: true });
+    zone.addEventListener('touchcancel', function () { offT = setTimeout(off, 700); }, { passive: true });
+  }
   function paintPoste(me, id) {
     var p = M.poste(id);
     if (!p) { setTimeout(function () { app.go('#/mission/postes', true); }, 0); return null; }
@@ -229,7 +254,7 @@
     }
     if (r >= 0) ranks += '<button type="button" class="cp-rk x" data-act="msnRemove" data-id="' + esc(id) + '" aria-label="Retirer de mon top"><b>×</b><small>RETIRER</small></button>';
     return '<main class="screen" style="' + vars(p) + '">' + MC.kidSubBar('#/mission/postes', 'Les postes', p.nom) +
-      '<div class="cp-dart"><span class="cp-dnum">' + esc(p.n) + '</span><span class="cp-dem">' + emblem(p) + '</span></div>' +
+      '<div class="cp-dart"><span class="cp-dnum">' + esc(p.n) + '</span><span class="cp-dem" id="cp-dem">' + emblem(p) + '<span class="em-holo"></span><span class="em-sheen"></span><span class="em-shine"></span></span></div>' +
       '<div><h1 class="cp-dtitle">' + esc(p.nom) + '</h1><div class="cp-dsub">' + esc(p.numeros) + ' · « ' + esc(p.surnom) + ' »</div><p class="cp-dintro">' + esc(p.intro) + '</p></div>' +
       '<section class="cp-dstats" aria-label="Caractéristiques">' + p.stats.map(function (v, j) { return '<div><span class="l">' + M.LABELS[j] + '</span>' + stars(v, p.color) + '</div>'; }).join('') + '</section>' +
       '<section class="sec"><h2 class="h2">Ses pouvoirs</h2><div class="cp-powers">' + p.pouvoirs.map(function (w) { return '<div class="cp-power">' + qicon(w.icon) + '<b>' + esc(w.titre) + '</b><p>' + esc(w.texte) + '</p></div>'; }).join('') + '</div></section>' +
@@ -268,7 +293,7 @@
   // ----- le test « Aide-moi à choisir » -----
   app.route('/mission/quiz', function () {
     return app.loadMe().then(function (me) { return paintQuiz(me); });
-  }, { kid: true, nav: 'semaine', bg: '#1B2552' });
+  }, { kid: true, nav: 'missions', bg: '#1B2552' });
   function paintQuiz(me) {
     var d = brouillon(me), k = Math.min(d.quiz.step || 0, M.QUIZ.length), bar = MC.kidSubBar('#/mission/postes', 'Les postes', 'Aide-moi à choisir');
     if (k >= M.QUIZ.length && quizFini(d)) {
@@ -329,7 +354,7 @@
   }
   app.route('/mission/copains', function () {
     return app.loadMe().then(function (me) { return roster().then(function (list) { return paintCopains(me, list); }); });
-  }, { kid: true, nav: 'semaine', bg: '#12333A' });
+  }, { kid: true, nav: 'missions', bg: '#12333A' });
   function copainsDispo(me, list) {
     return (list || []).filter(function (k) { return k.id !== me.joueur.id && !/^test$/i.test(k.prenom); });
   }
@@ -396,8 +421,8 @@
         '<section class="newbadge" style="--bc:' + bd.color + ';width:100%"><div>' + MC.badgeIcon({ icon: bd.icon, color: bd.color }, true, 64) +
         '<div style="display:flex;flex-direction:column;gap:4px;text-align:left"><span class="hud" style="color:' + bd.color + '">Nouveau badge</span><span style="font:italic 900 26px/.95 var(--f-title);text-transform:uppercase">' + esc(bd.nom) + '</span><span class="small" style="color:var(--muted)">+' + C.XP.mission + ' XP et +' + C.XP.badge + ' XP pour le badge</span></div></div></section>' +
         '<div class="sec" style="width:100%;text-align:left"><span class="hud" style="color:var(--dim)">Ton top</span>' + ptags(e.postes, true) +
-        '<span class="small">' + e.copains.length + ' copain' + (e.copains.length > 1 ? 's' : '') + ' choisi' + (e.copains.length > 1 ? 's' : '') + ', en secret. Tu peux tout changer quand tu veux (Profil › Mes choix pour le jeu à 10).</span></div>' +
-        '<a class="btn gold glow" href="#/semaine" style="width:100%">Retour à ma semaine</a></main>';
+        '<span class="small">' + e.copains.length + ' copain' + (e.copains.length > 1 ? 's' : '') + ' choisi' + (e.copains.length > 1 ? 's' : '') + ', en secret. Tu peux tout changer quand tu veux (Moi › Mes postes et mes copains).</span></div>' +
+        '<a class="btn gold glow" href="#/missions" style="width:100%">Retour à mes missions</a></main>';
     });
   }, { kid: true, bg: '#2E2612' });
 
@@ -409,7 +434,7 @@
     if (!D || L.today() < D.debut) return '';
     var e = M.etat(d, MID), k = d.joueur;
     if (e.faite) return '<div class="note green">' + icon('check', 20) + '<span><b>Mission « ' + esc(D.titre) + ' » accomplie.</b> Ses postes : ' + e.postes.map(function (id, i) { return (i + 1) + '. ' + esc(M.poste(id).nom); }).join(' · ') + '.</span></div>';
-    return '<div class="note gold">' + icon('star', 20) + '<span><b>Mission spéciale à faire : « ' + esc(D.titre) + ' ».</b> ' + esc(k.prenom) + ' choisit son poste et ses copains pour le jeu à 10. Elle est en haut de sa page « Ma semaine »' + (L.today() <= D.fin ? ', jusqu\'au ' + esc(fmtJour(D.fin)) : '') + '.' +
+    return '<div class="note gold">' + icon('star', 20) + '<span><b>Mission spéciale à faire : « ' + esc(D.titre) + ' ».</b> ' + esc(k.prenom) + ' choisit son poste et ses copains pour le jeu à 10. Elle est dans son onglet « Missions »' + (L.today() <= D.fin ? ', jusqu\'au ' + esc(fmtJour(D.fin)) : '') + '.' +
       (e.postes.length ? ' Postes déjà choisis : ' + e.postes.map(function (id) { return esc(M.poste(id).nom); }).join(', ') + '.' : '') + '</span></div>';
   };
 
@@ -452,7 +477,7 @@
   var edMsn = { filtre: 'all' };
   app.route('/educ/mission', function () {
     return MC.loadGroup().then(function (g) { app.refreshNav(); return paintEducMission(g); });
-  }, { adult: 'e', nav: 'e:outils', bg: '#2A1640' });
+  }, { adult: 'e', nav: 'e:progres', bg: '#2A1640' });
   function paintEducMission(g) {
     var D = M.def(MID), names = prenoms(g);
     var players = g.joueurs.filter(function (p) { return p.joueur.actif && !/^test$/i.test(p.joueur.prenom); }).sort(function (a, b) { return a.joueur.prenom.localeCompare(b.joueur.prenom, 'fr'); });
@@ -483,7 +508,7 @@
     var imp = g.importPostes;
     var impTxt = imp ? 'Dernière reprise le ' + esc(ui.fmtDate(String(imp.quand).slice(0, 10))) + ' : ' + imp.reponses + ' réponse' + (imp.reponses > 1 ? 's' : '') + ', ' + imp.importes + ' reprise' + (imp.importes > 1 ? 's' : '') + '.' +
       (imp.inconnus && imp.inconnus.length ? ' Pas reconnus : ' + imp.inconnus.map(esc).join(', ') + '.' : '') + (imp.ambigus && imp.ambigus.length ? ' Homonymes à vérifier : ' + imp.ambigus.map(esc).join(', ') + '.' : '') : 'Pas encore de reprise.';
-    return '<main class="screen">' + MC.educBar(g, D.titre, '#/educ/outils', 'Outils') +
+    return '<main class="screen">' + MC.educBar(g, D.titre, '#/educ/missions', 'Missions') +
       '<div class="head"><span class="kicker" style="color:var(--gold)">Mission spéciale · ' + players.length + ' joueurs</span><h1 class="big md">' + esc(D.titre) + '</h1>' +
       '<p class="lead">Les postes (1 à 3, dans l\'ordre) et les copains choisis par les enfants. Les copains sont secrets : seuls les éducs les voient.</p></div>' +
       '<div class="grid3"><div class="tile"><span class="v" style="color:var(--green)">' + faites + '</span><span class="l" style="text-transform:none;font-family:var(--f-body);letter-spacing:0;font-size:12px">mission faite</span></div>' +

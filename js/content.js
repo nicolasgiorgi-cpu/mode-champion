@@ -404,7 +404,8 @@ window.MC = window.MC || {};
     record: 50,       // record battu (confirmé par un adulte)
     niveau: 100,      // montée de niveau (une fois par niveau atteint)
     premiersPas: 100, // les 4 « premiers pas » du nouveau joueur (une fois)
-    mission: 200      // une mission spéciale accomplie (en plus de son badge)
+    mission: 200,     // une mission spéciale accomplie (en plus de son badge)
+    etoile: 100       // une étoile Skills validée par un éduc
   };
 
   MC.CONTENT = {

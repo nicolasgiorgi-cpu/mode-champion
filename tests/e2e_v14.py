@@ -20,7 +20,7 @@ with sync_playwright() as p:
     check('Tom : « Quoi de neuf ? »', pg.query_selector('.modal.sheet-news') is not None)
     shot(pg,'k01-news')
     if pg.query_selector('.modal.sheet-news'): pg.click('.modal.sheet-news button[data-i="0"]'); pg.wait_for_timeout(300)
-    check('barre du haut + onglets', pg.query_selector('.topbar') is not None and pg.is_visible('#nav') and len(pg.query_selector_all('#nav a'))==3)
+    check('barre du haut + onglets', pg.query_selector('.topbar') is not None and pg.is_visible('#nav') and len(pg.query_selector_all('#nav a'))==4)
     nb=pg.evaluate("(()=>{const n=document.getElementById('nav').getBoundingClientRect();return [n.bottom, innerHeight, n.left, n.right, innerWidth]})()")
     if W<1000: check('onglets collés en bas, pleine largeur', abs(nb[0]-nb[1])<1 and nb[2]==0 and abs(nb[3]-nb[4])<1, nb)
     shot(pg,'k02-semaine')
@@ -87,7 +87,7 @@ with sync_playwright() as p:
         shot(pg,'n0%d-visite'%(i+1))
         if i<4: pg.click('[data-act="obNext"]'); pg.wait_for_timeout(300)
     pg.click('[data-act="obDoneKid"]'); pg.wait_for_timeout(900)
-    check('Rose : semaine + premiers pas + astuce', '#/semaine' in pg.url and pg.query_selector('.obchk') is not None and pg.query_selector('.obtip') is not None)
+    check('Rose : semaine + premiers pas', '#/semaine' in pg.url and pg.query_selector('.obchk') is not None)
     check('Rose : pas de « Quoi de neuf » (nouvelle)', pg.query_selector('.modal.sheet-news') is None)
     shot(pg,'n06-premiers-pas')
     pg.evaluate("MC.app.setKid(null)")
@@ -105,7 +105,7 @@ with sync_playwright() as p:
         before=pg.inner_text('.tb-switch'); pg.click('[data-act="parentPick"]'); pg.wait_for_timeout(500)
         check('parent : changer d\'enfant', pg.inner_text('.tb-switch')!=before)
         pg.click('[data-act="parentPick"]'); pg.wait_for_timeout(400)
-    for h,nm in [('#/parent/progres','p05-progres'),('#/parent/classement','p06-classement'),('#/parent/plus','p07-plus'),('#/parent/nouveautes','p08-nouveautes')]:
+    for h,nm in [('#/parent/bilans','p05-bilans'),('#/parent/missions','p05b-missions'),('#/parent/skills','p05c-skills'),('#/parent/classement','p06-classement'),('#/parent/plus','p07-plus'),('#/parent/nouveautes','p08-nouveautes')]:
         pg.goto(BASE+h); pg.wait_for_timeout(700); shot(pg,nm)
         check('parent '+h, pg.query_selector('.topbar') is not None and pg.query_selector('.empty, .screen') is not None)
     pg.evaluate("MC.app.setAdult(null)")
@@ -117,10 +117,10 @@ with sync_playwright() as p:
         if i<2: pg.click('[data-act="obNext"]'); pg.wait_for_timeout(300)
     pg.click('[data-act="obPick"] >> nth=0'); pg.wait_for_timeout(200)
     pg.click('[data-act="obEducDone"]'); pg.wait_for_timeout(1000)
-    check('éduc : vestiaire + onglets', pg.url.endswith('#/educ') and len(pg.query_selector_all('#nav a'))==5, pg.url)
-    check('éduc : Mon enfant en haut', pg.query_selector('.topbar a[href^="#/educ/joueur/"]') is not None)
-    shot(pg,'e04-vestiaire')
-    for h,nm in [('#/educ/joueurs','e05-joueurs'),('#/educ/classement','e06-classement'),('#/educ/outils','e07-outils'),('#/educ/progres','e08-progres'),('#/educ/familles','e09-familles')]:
+    check('éduc : entraînements + 4 onglets', (pg.url.endswith('#/educ/entrainements') or pg.url.endswith('#/educ')) and len(pg.query_selector_all('#nav a'))==4, pg.url)
+    check('éduc : l\'engrenage en haut', pg.query_selector('.topbar a[href="#/educ/reglages"]') is not None)
+    shot(pg,'e04-entrainements')
+    for h,nm in [('#/educ/joueurs','e05-joueurs'),('#/educ/classement','e06-classement'),('#/educ/reglages','e07-reglages'),('#/educ/progres','e08-progres'),('#/educ/progres/bilans','e08b-bilans'),('#/educ/familles','e09-familles')]:
         pg.goto(BASE+h); pg.wait_for_timeout(700); shot(pg,nm)
         check('éduc '+h, pg.query_selector('.topbar') is not None)
     pg.goto(BASE+'#/educ/joueurs'); pg.wait_for_timeout(500); pg.click('#edlist a >> nth=0'); pg.wait_for_timeout(900); shot(pg,'e10-fiche')
