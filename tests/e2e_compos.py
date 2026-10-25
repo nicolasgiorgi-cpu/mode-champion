@@ -286,7 +286,9 @@ with sync_playwright() as p:
     pg.goto(BASE + '#/educ/evt/sp-demo-e1'); pg.wait_for_timeout(700)
     check('entraînement : ateliers et matchs faits', len(pg.query_selector_all('.cpart.ok')) == 2)
     pg.goto(BASE + '#/educ/entrainements'); pg.wait_for_timeout(700)
-    check('liste : ateliers ✓ matchs ✓', 'ATELIERS ✓' in pg.inner_text('a[href="#/educ/evt/sp-demo-e1"]').upper() and 'MATCHS ✓' in pg.inner_text('a[href="#/educ/evt/sp-demo-e1"]').upper())
+    # (visuels v2, UI-11) un entraînement à venir : deux actions « Ateliers · Prêt ✓ » et « Matchs · Prêt ✓ » sous la carte
+    acts = pg.query_selector_all('li:has(a[href="#/educ/evt/sp-demo-e1"]) .cev-a')
+    check('liste : ateliers ✓ matchs ✓', len(acts) == 2 and 'ATELIERS' in acts[0].inner_text().upper() and 'PRÊT ✓' in acts[0].inner_text().upper() and 'MATCHS' in acts[1].inner_text().upper() and 'PRÊT ✓' in acts[1].inner_text().upper(), [a.inner_text() for a in acts])
     # ----- jeu à 10 : postes -----
     pg.goto(BASE + '#/educ/compo/sp-demo-e1'); pg.wait_for_timeout(600)
     if pg.query_selector('[data-act="eSorte"]') or 'PRÉPARER' not in pg.inner_text('main').upper():
