@@ -464,10 +464,12 @@
       '<div class="box" style="display:flex;flex-direction:column;gap:10px">' +
       '<div><span class="between"><span class="mlab">Mission « Choisis ton poste »' + (e.source === 'formulaire' ? ' (site « Choisis ton poste »)' : '') + '</span>' + pastille(e.posteFait) + '</span>' + (e.postes.length ? ptags(e.postes, true) : '<span class="small">Pas encore choisis.</span>') + '</div>' +
       (test.length ? '<details><summary class="small" style="cursor:pointer;color:var(--cyan)">Son test « Aide-moi à choisir »</summary><ul class="small" style="margin:6px 0 0;padding-left:18px;line-height:1.5">' + test.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul></details>' : '') +
-      '<div><span class="between"><span class="mlab">Mission « Avec qui tu aimes jouer » · ses copains (secret)</span>' + pastille(e.copainsFait) + '</span><span class="small" style="color:var(--soft)">' + (cop.length ? cop.join(', ') : (e.copainsFait ? 'Aucun' : 'Pas encore choisis')) + '</span></div>' +
+      // (retouche UI-13) les préférences de copains restent secrètes : repliées, marquées « éducs uniquement »
+      '<details class="edonly"><summary><span class="mlab">Mission « Avec qui tu aimes jouer »</span><span class="edonly-k">' + icon('lock', 12) + ' Éducs uniquement</span>' + pastille(e.copainsFait) + '</summary>' +
+      '<div class="edonly-b"><div><span class="mlab">Ses copains (secret)</span><span class="small" style="color:var(--soft)">' + (cop.length ? cop.join(', ') : (e.copainsFait ? 'Aucun' : 'Pas encore choisis')) + '</span></div>' +
       '<div><span class="mlab">L\'ont choisi comme copain</span><span class="small" style="color:var(--soft)">' + (par.length ? par.join(', ') : 'Personne pour l\'instant') + '</span></div>' +
       (cop.length && Object.keys(mutual).length ? '<span class="small">⇄ en vert : ils se sont choisis l\'un l\'autre.</span>' : '') +
-      '</div></section>';
+      '</div></details></div></section>';
   };
 
   var edMsn = { filtre: 'all' };

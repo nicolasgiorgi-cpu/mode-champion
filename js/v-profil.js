@@ -40,9 +40,9 @@
     var max = Math.max(56, b.max);
     for (var i = 1; i <= 56; i++) g += '<i class="' + (i <= b.total ? 'on' : '') + (i % 14 === 0 ? ' mk' : '') + '"></i>';
     var gradeTxt = b.total >= 56 ? 'Légende' : b.total >= 42 ? 'Capitaine' : b.total >= 28 ? 'Titulaire' : b.total >= 14 ? 'Espoir' : '—';
-    return '<section class="sec"><div class="between"><h2 class="h2">Mon tableau · cycle ' + st.cycle.n + '</h2><span class="hud" style="color:var(--gold)">' + b.total + ' / 56</span></div>' +
+    return '<section class="sec"><div class="between"><h2 class="h2">Mon cycle de prépa</h2><span class="hud" style="color:var(--gold);white-space:nowrap"><span style="color:var(--dim)">n°' + st.cycle.n + ' · </span>' + b.total + ' / 56</span></div>' +
       '<div class="board">' + heads + cells + '</div>' +
-      '<div class="legend"><span><span style="width:10px;height:10px;background:var(--green)"></span>faite</span><span><span style="width:10px;height:10px;border:1px solid var(--red)"></span>ratée</span><span><span style="width:10px;height:10px;background:#161E36"></span>repos</span><span><span style="width:10px;height:10px;border:1.5px solid var(--cyan)"></span>aujourd\'hui</span></div>' +
+      '<div class="legend"><span><span style="width:10px;height:10px;background:var(--green)"></span>faite</span><span><span style="width:10px;height:10px;border:1px solid var(--red)"></span>non faite</span><span><span style="width:10px;height:10px;background:#161E36"></span>repos</span><span><span style="width:10px;height:10px;border:1.5px solid var(--cyan)"></span>aujourd\'hui</span></div>' +
       '<div class="gauge" style="--g:56" aria-label="Jauge : ' + b.total + ' étoiles sur 56">' + g + '</div>' +
       '<span class="small">Jauge du cycle : 14 Espoir · 28 Titulaire · 42 Capitaine · 56 Légende (badge !). Ton palier : <b style="color:var(--ink)">' + gradeTxt + '</b>.</span></section>';
   }
@@ -54,11 +54,12 @@
       '<div class="bd"><div><div class="nm">' + esc(k.prenom) + '</div><div class="hud" style="color:var(--muted);margin-top:5px;font-size:11px">' + st.maison + ' séances · ' + ui.fmtNum(st.xp) + ' XP</div></div>' + skills + '</div></div></section>';
     var e10 = MC.missions ? MC.missions.etat(me, 'jeu10') : null, p0 = e10 && e10.postes.length ? MC.missions.poste(e10.postes[0]) : null;
     var xp = '<div class="sec" style="gap:6px">' + (p0 ? '<span class="small" style="color:var(--soft)">Mon poste préféré : <b style="color:' + p0.color + '">' + esc(p0.nom.toLowerCase()) + '</b></span>' : '') +
+      '<span class="mlab" style="margin:6px 0 0">Mon niveau XP</span>' +
       '<div class="between"><span class="hud" style="color:var(--cyan)">' + esc(g.nom) + (g.next ? ' → ' + esc(g.next.nom) : '') + '</span><span class="hud" style="color:var(--dim)">' + ui.fmtNum(st.xp) + (g.next ? ' / ' + ui.fmtNum(g.next.xp) : '') + ' XP</span></div><div class="xpbar" style="height:10px"><i style="width:' + g.pct + '%"></i></div>' +
       (g.next ? '<span class="small">Plus que ' + ui.fmtNum(g.next.xp - st.xp) + ' XP pour le prochain grade.</span>' : '') + '</div>';
     var nMis = MC.missions ? MC.missions.nbFaites(me) : 0, nSk = MC.SK ? MC.SK.total(me) : 0;
     var tiles = '<div class="grid3">' + [
-      [st.maison, 'séances', 'var(--cyan)', '#/semaine'], [nMis, 'missions faites', 'var(--pink)', '#/missions?vue=faites'], [nSk, 'étoiles Skills', 'var(--gold)', '#/skills']
+      [st.maison, 'séances', 'var(--cyan)', '#/semaine'], [nMis, 'missions faites', 'var(--pink)', '#/missions?vue=faites'], [nSk, 'étoiles rugby', 'var(--gold)', '#/skills']
     ].map(function (t) { return '<a class="tile" href="' + t[3] + '" style="text-decoration:none;color:inherit"><span class="v" style="color:' + t[2] + '">' + t[0] + '</span><span class="l" style="text-transform:none;font-family:var(--f-body);letter-spacing:0;font-size:12px;color:var(--soft)">' + t[1] + '</span></a>'; }).join('') + '</div>';
     function row(href, ic, col, t1, t2) { return '<a class="li" href="' + href + '">' + icon(ic, 22, 'style="color:' + col + ';flex:none"') + '<span class="grow"><span class="t1">' + t1 + '</span><span class="t2">' + t2 + '</span></span>' + icon('right', 16) + '</a>'; }
     var links = '<div class="sec" style="gap:6px">' +
@@ -95,16 +96,19 @@
     var recs = (me.records || []).filter(function (r) { return r.statut !== 'refuse'; });
     var rows = C.TESTS.map(function (t) {
       var sm = t.sm && k.materiel === 'mini', key = t.id + (sm ? ':sm' : '');
-      var b = st.bests[key];
-      var mine = recs.filter(function (r) { return r.test === t.id && (!!(r.extra && r.extra.sm) === !!sm); }).sort(function (a, c) { return (a.date + a.cree) < (c.date + c.cree) ? -1 : 1; });
+      // (retouche UI-08) le record = un résultat confirmé ; un résultat pas encore confirmé s'affiche à part
+      var b = (st.bestsOk || st.bests)[key];
+      var mineAll = recs.filter(function (r) { return r.test === t.id && (!!(r.extra && r.extra.sm) === !!sm); }).sort(function (a, c) { return (a.date + a.cree) < (c.date + c.cree) ? -1 : 1; });
+      var mine = mineAll.filter(function (r) { return r.statut !== 'attente'; }), att = mineAll.filter(function (r) { return r.statut === 'attente'; }).pop();
       var first = mine[0], gain = '';
       if (b && first && first.id !== b.id && L.better(t, b.valeur, first.valeur)) {
         var d = Math.abs(b.valeur - first.valeur);
         gain = t.moinsMieux ? ui.fmtVal(d, t.unite, t.decimales) + ' plus rapide' : '+' + ui.fmtVal(d, t.unite, t.decimales);
         gain += ' depuis ' + (first.bilan === 'defi' ? 'ton 1er défi' : 'le bilan ' + first.bilan);
       }
-      var lv = C.CLES[t.cle] ? (niv[t.cle] || 1) : null, wait = b && b.statut === 'attente';
-      return '<li class="li"><span class="grow"><span class="t1">' + esc(sm ? t.sm.nom : t.court) + '</span><span class="t2">' + (gain ? '<b style="color:var(--green)">' + esc(gain) + '</b>' : b ? 'ton record' : 'pas encore de résultat') + (wait ? ' · à confirmer' : '') + '</span></span>' +
+      var lv = C.CLES[t.cle] ? (niv[t.cle] || 1) : null;
+      var attTxt = att ? '<span class="t2 recatt">' + icon('clock', 12) + ' Résultat proposé : <b>' + ui.fmtVal(att.valeur, t.unite, t.decimales) + '</b> · en attente d\'un adulte</span>' : '';
+      return '<li class="li"><span class="grow"><span class="t1">' + esc(sm ? t.sm.nom : t.court) + '</span><span class="t2">' + (gain ? '<b style="color:var(--green)">' + esc(gain) + '</b>' : b ? 'ton record' : att ? 'pas encore de record confirmé' : 'pas encore de résultat') + '</span>' + attTxt + '</span>' +
         (lv ? ui.lvl(lv) : '') + '<span style="font:700 17px/1 var(--f-hud);min-width:64px;text-align:right;color:' + (b ? 'var(--gold)' : 'var(--dim)') + '">' + (b ? ui.valHtml(b.valeur, t.unite, t.decimales) : '—') + '</span></li>';
     }).join('');
     var dans = nb ? L.daysBetween(L.today(), nb.date) : null;
@@ -112,10 +116,20 @@
       ui.seg([['records', 'Mes records', '#/bilans'], ['niveaux', 'Mes niveaux', '#/niveaux']], 'records') +
       '<p class="small" style="margin:0">Tes meilleurs résultats aux bilans et aux défis, et ce que tu as gagné depuis ton premier.</p>' +
       '<ol class="list">' + rows + '</ol>' +
-      '<a class="btn" href="#/bilan">' + icon('plus', 18) + ' Saisir mon ' + esc(bl.nom.toLowerCase()) + ' · ' + esc(bl.quand) + '</a>' +
+      bilanBtn(me, bl) +
       '<a class="btn2" href="#/progression">' + icon('up', 16) + ' Ma progression d\'un bilan à l\'autre</a>' +
       (nb ? '<div class="note gold">' + icon('trophy', 20) + '<span><b>Prochain bilan : ' + (dans > 13 ? 'dans ' + Math.round(dans / 7) + ' semaines' : dans > 0 ? 'dans ' + dans + ' jour' + (dans > 1 ? 's' : '') : 'maintenant') + '.</b> Tu le passes avec un adulte. Il confirme tes résultats, puis ils arrivent ici.</span></div>' : '') +
       '</main>';
+  }
+
+  // (retouche UI-08) le bouton du bilan dit où on en est vraiment : à saisir, à compléter, en attente d'un adulte, fait
+  function bilanBtn(me, bl) {
+    var faits = L.bilanRecords(me.records, bl.n), n = Object.keys(faits).length, tot = C.TESTS.length;
+    var att = Object.keys(faits).filter(function (k) { return faits[k].statut === 'attente'; }).length, nom = esc(bl.nom.toLowerCase());
+    if (!n) return '<a class="btn" href="#/bilan">' + icon('plus', 18) + ' Saisir mon ' + nom + ' · ' + esc(bl.quand) + '</a>';
+    if (n < tot) return '<a class="btn" href="#/bilan">' + icon('plus', 18) + ' Compléter mon ' + nom + ' · ' + n + ' / ' + tot + ' tests</a>';
+    if (att) return '<a class="btn2" href="#/bilan">' + icon('clock', 16) + ' ' + esc(bl.nom) + ' envoyé · ' + att + ' en attente d\'un adulte</a>';
+    return '<a class="btn2" href="#/bilan">' + icon('check', 16) + ' ' + esc(bl.nom) + ' fait ✓ · revoir</a>';
   }
 
   // ---------- MA PROGRESSION ----------
@@ -266,6 +280,8 @@
 
   // ---------- CLASSEMENT ----------
   var rank = { test: C.TESTS[0].id, mode: 'best' };   // la 1re épreuve affichée
+  // (retouche UI-10) le dernier choix (épreuve, mode) est gardé sur le téléphone
+  (function () { var r = app.lsGet('mc-rank'); if (r && C.TESTS.some(function (t) { return t.id === r.test; })) rank.test = r.test; if (r && (r.mode === 'best' || r.mode === 'prog')) rank.mode = r.mode; })();
   app.route('/classement', function () {
     return Promise.all([app.loadMe(), app.kidCall('league')]).then(function (res) {
       app.S.league = res[1];
@@ -287,24 +303,25 @@
       var mine = r.p.id === me.joueur.id;
       var v = rank.mode === 'prog' ? (r.prog > 0 ? '+' : '') + ui.fmtVal(r.prog, t.unite, t.decimales) : ui.fmtVal(r.best, t.unite, t.decimales);
       return '<li class="li' + (mine ? ' me' : '') + '"><span class="rank" style="--rc:' + (r.rank <= 3 ? medal[r.rank - 1] : 'var(--dim)') + '">' + r.rank + '</span>' + ui.hexa(r.p.prenom, r.p.couleur) +
-        '<span class="grow"><span class="t1">' + (mine ? 'TOI · ' : '') + esc(r.p.prenom.toUpperCase()) + '</span>' + (lg.lo !== lg.hi ? '<span class="t2">N' + r.lv + '</span>' : '') + '</span>' +
+        '<span class="grow"><span class="t1">' + (mine ? '<b class="rk-toi">Toi</b>' : '') + esc(r.p.prenom.toUpperCase()) + '</span>' + (lg.lo !== lg.hi ? '<span class="t2">N' + r.lv + '</span>' : '') + '</span>' +
         '<span style="font:700 18px/1 var(--f-hud);color:' + (rank.mode === 'prog' ? 'var(--green)' : mine ? 'var(--cyan)' : 'var(--ink)') + '">' + v + '</span></li>';
     }).join('');
     var inIt = lg.rows.some(function (r) { return r.p.id === me.joueur.id; });
     var empty = !lg.rows.length ? '<div class="empty">' + (rank.mode === 'prog' ? 'Pas encore de progrès à comparer : il faut au moins 2 résultats confirmés (bilan + défi ou bilan suivant).' : 'Personne n\'a encore de résultat confirmé sur cette épreuve dans ta ligue.') + '</div>' : '';
     var meNote = !inIt && lg.rows.length ? '<div class="note">' + icon('info', 20) + '<span>Tu n\'apparais pas encore : saisis ton bilan (ou un défi) et fais-le confirmer par un adulte.</span></div>' : '';
     return '<main class="screen">' + MC.kidBar(me, app.S.stats) + MC.prepaTabs('classement') + '<div class="head"><span class="kicker" style="color:var(--pink)">Classement · M12</span><h1 class="big">L\'arène</h1></div>' +
-      '<section class="row" style="padding:12px 14px;background:' + ui.rgba(lc, 0.1) + ';border:1.5px solid ' + lc + ';align-items:center">' + ui.lvl(lg.myLv, lname.toUpperCase()) +
-      '<span style="font-size:13px;line-height:1.35;color:var(--soft)">Tu te mesures aux joueurs de ton niveau sur cette épreuve' + (lg.sm ? ' (version mini matériel)' : '') + '.</span></section>' +
+      // (retouche UI-10) tous les réglages ensemble, au-dessus de la liste
+      '<section class="rkset"><div class="row" style="gap:10px;align-items:center">' + ui.lvl(lg.myLv, lname.toUpperCase()) +
+      '<span style="font-size:13px;line-height:1.35;color:var(--soft)">Tu te mesures aux joueurs de ton niveau' + (lg.sm ? ' (version mini matériel)' : '') + '.</span></div>' +
       '<div class="sec" style="gap:8px"><span class="lab">Épreuve</span><div class="row chipsx" style="overflow-x:auto;gap:8px;padding-bottom:4px;-webkit-overflow-scrolling:touch">' + chips + '</div></div>' +
-      '<div class="grid2"><button type="button" class="opt' + (rank.mode === 'best' ? ' on' : '') + '" aria-pressed="' + (rank.mode === 'best') + '" data-act="rkMode" data-v="best">Meilleur score</button>' +
-      '<button type="button" class="opt' + (rank.mode === 'prog' ? ' on' : '') + '" style="--oc:var(--green)" aria-pressed="' + (rank.mode === 'prog') + '" data-act="rkMode" data-v="prog">Plus gros progrès</button></div>' +
+      '<div class="sec" style="gap:8px"><span class="lab">Classer par</span><div class="grid2"><button type="button" class="opt' + (rank.mode === 'best' ? ' on' : '') + '" aria-pressed="' + (rank.mode === 'best') + '" data-act="rkMode" data-v="best">Meilleur score</button>' +
+      '<button type="button" class="opt' + (rank.mode === 'prog' ? ' on' : '') + '" style="--oc:var(--green)" aria-pressed="' + (rank.mode === 'prog') + '" data-act="rkMode" data-v="prog">Plus gros progrès</button></div></div></section>' +
       '<div class="between"><h2 class="h2">' + esc(t.nom) + '</h2><span class="small">' + lg.rows.length + ' joueur' + (lg.rows.length > 1 ? 's' : '') + '</span></div>' +
       meNote + empty + '<ol class="list">' + rows + '</ol>' +
       '<p class="small" style="text-align:center;margin:0">' + (rank.mode === 'prog' ? 'Progrès depuis ton 1er résultat : tout le monde peut être 1er.' : 'Records des bilans et des défis, confirmés par un adulte.') + '</p></main>';
   }
-  MC.act.rkTest = function (b) { rank.test = b.getAttribute('data-v'); paintAgain(); };
-  MC.act.rkMode = function (b) { rank.mode = b.getAttribute('data-v'); paintAgain(); };
+  MC.act.rkTest = function (b) { rank.test = b.getAttribute('data-v'); app.lsSet('mc-rank', rank); paintAgain(); };
+  MC.act.rkMode = function (b) { rank.mode = b.getAttribute('data-v'); app.lsSet('mc-rank', rank); paintAgain(); };
   function paintAgain() {
     var host = document.getElementById('app'), y = window.scrollY;
     var sc = host.querySelector('[style*="overflow-x:auto"]'), x = sc ? sc.scrollLeft : 0;

@@ -161,6 +161,16 @@ window.MC = window.MC || {};
       return past ? '' : '<span class="pill" style="--pc:' + (dans <= 2 ? 'var(--orange)' : 'var(--line3);color:var(--ink)') + '">' + nm + ' à faire</span>';
     }).join('') || '<span class="pill" style="--pc:var(--line3);color:var(--ink)">Entraînement</span>';
     else chip = '<span class="pill" style="--pc:var(--line3);color:var(--ink)">Événement</span>';
+    // (retouche UI-11) un entraînement à venir : deux actions sur la carte, « Ateliers » et « Matchs », qui disent où on en est
+    var acts = '';
+    if (e.sorte === 'entrainement' && !e.annule && !past) {
+      acts = '<div class="cev-acts">' + K.PARTIES.map(function (x) {
+        var cx = compoOf(C.cd, e.id, x), nm = x === 'ateliers' ? 'Ateliers' : 'Matchs';
+        var st = cx && cx.statut === 'vote' ? ['vote', 'Vote en cours'] : cx ? ['ok', 'Prêt ✓'] : [dans <= 2 ? 'urg' : 'todo', 'À préparer'];
+        return '<a class="cev-a ' + st[0] + '" href="' + lienCompo(esc(e.id), x) + '"><span class="cev-t"><b>' + nm + '</b><span>' + st[1] + '</span></span>' + icon('right', 14) + '</a>';
+      }).join('') + '</div>';
+      chip = '';
+    }
     var nCat = ((C.cd.spond && C.cd.spond.categories) || []).filter(function (x) { return x.suivie; }).length;
     if (nCat > 1 && e.categorie) chip = '<span class="pill" style="--pc:var(--line3);color:var(--ink)">' + esc(e.categorie) + '</span>' + chip;
     var sr = (e.sansReponse || []).filter(function (id) { return C.actifs[id] && pres.indexOf(id) < 0; }).length;
@@ -169,12 +179,12 @@ window.MC = window.MC || {};
     var partis = [];
     [compoOf(C.cd, e.id)].concat(K.PARTIES.map(function (x) { return compoOf(C.cd, e.id, x); })).forEach(function (cx) { partisDe(C, e, cx).forEach(function (id) { if (partis.indexOf(id) < 0) partis.push(id); }); });
     if (partis.length && !past) chip += '<span class="pill" style="--pc:var(--pink)">' + partis.length + ' absent' + (partis.length > 1 ? 's' : '') + ' dans ' + (trainC ? 'les groupes' : 'la compo') + '</span>';
-    return '<li><a class="li cev' + (past ? ' past' : '') + (prochain ? ' cnext' : '') + '" href="#/educ/evt/' + esc(e.id) + '">' +
+    return '<li' + (acts ? ' class="cevw' + (prochain ? ' cnext' : '') + '"' : '') + '><a class="li cev' + (past ? ' past' : '') + (prochain ? ' cnext' : '') + '" href="#/educ/evt/' + esc(e.id) + '">' +
       '<span class="cdate' + (trainC && h ? ' h' : '') + '"><b>' + esc(String(new Date(jour(e) + 'T12:00:00').getDate())) + '</b><small>' + esc(ui.fmtDate(jour(e)).split(' ').slice(-1)[0]) + '</small>' + (trainC && h ? '<small class="ch">' + esc(h) + '</small>' : '') + '</span>' +
       '<span class="grow">' + (prochain ? '<span class="hud" style="color:var(--cyan);display:block;margin-bottom:4px">Le prochain</span>' : '') + '<span class="t1">' + esc(e.titre) + '</span>' + (trainC ? '' : '<span class="t2">' + esc(quand(e)) + (e.lieu ? ' · ' + esc(e.lieu) : '') + '</span>') +
       '<span class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap">' + chip +
       '<span class="cmeta">' + icon('group', 14) + ' ' + pres.length + ' présent' + (pres.length > 1 ? 's' : '') + (sr && !past ? ' · ' + sr + ' sans réponse' : '') + '</span>' +
-      (av.length ? '<span class="pill" style="--pc:var(--pink)">' + av.length + ' contre-proposition' + (av.length > 1 ? 's' : '') + '</span>' : '') + '</span></span>' + icon('right', 16) + '</a></li>';
+      (av.length ? '<span class="pill" style="--pc:var(--pink)">' + av.length + ' contre-proposition' + (av.length > 1 ? 's' : '') + '</span>' : '') + '</span></span>' + icon('right', 16) + '</a>' + acts + '</li>';
   }
   // Entraîn. ou Plateaux : à venir · passés (le prochain en premier)
   function paintListe(C, sorte, vue) {

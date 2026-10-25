@@ -167,9 +167,9 @@
         ])) +
       card('p-confirmer', 'check', '#FFC23D', 'Confirmer les résultats', 'Le geste le plus important',
         ul([
-          'Après un bilan ou un défi, les résultats arrivent dans votre espace. Pour chacun, touchez <b>Confirmer</b> ou <b>Refuser</b> : le bouton s\'allume, vous pouvez changer d\'avis. Rien n\'est envoyé tant que vous n\'avez pas touché <b>Valider mes choix</b>, juste sous la liste.',
+          'Après un bilan ou un défi, les résultats arrivent dans votre espace. Pour chacun, touchez <b>Confirmer</b> ou <b>Refuser</b> : le bouton s\'allume, vous pouvez changer d\'avis. Rien n\'est envoyé tant que vous n\'avez pas touché <b>Enregistrer mes choix</b>, juste sous la liste.',
           'Confirmez si vous avez vu le test (ou si le chiffre vous paraît juste). Un éduc peut aussi confirmer.',
-          'Refusé par erreur ? Ouvrez « résultats refusés » et touchez <b>Rétablir</b>, puis Valider mes choix.',
+          'Refusé par erreur ? Ouvrez « résultats refusés » et touchez <b>Rétablir</b>, puis Enregistrer mes choix.',
           'Seuls les résultats confirmés comptent pour le classement, les badges et les records.'
         ])) +
       card('p-bilan', 'sheet', '#4D9BFF', 'Le bilan', 'Les 12 tests, toutes les 8 semaines environ',
@@ -231,7 +231,7 @@
           'L\'<b>engrenage</b>, en haut à droite : mon enfant, mon code, les éducs (admin), les familles et leurs codes, Spond (admin), cet appareil, l\'aide et les nouveautés.',
           '<b>Mon enfant</b> : vous êtes aussi parent d\'un joueur ? Choisissez-le dans l\'engrenage : ses résultats à confirmer arrivent dans Progrès › Prépa physique, et il est en tête de la liste des enfants.',
           'Progrès › Prépa physique › <b>Le classement</b> : tout le groupe ou une ligue à la fois, avec la liste des joueurs pas encore classés. <b>Progrès aux bilans</b> : test par test, les joueurs classés selon leur progrès depuis le bilan d\'avant.',
-          '<b>À confirmer</b> (Progrès › Prépa physique) : les bilans et défis de <b>votre enfant</b> (relié à votre profil dans l\'engrenage › Mon enfant). Confirmer / Refuser (ou Tout confirmer) s\'allument, puis <b>Valider mes choix</b> envoie le tout. Les résultats des autres enfants sont confirmés par leur famille : vous ne voyez que ceux qui sont confirmés. Un résultat refusé par erreur se rétablit depuis la fiche.'
+          '<b>À confirmer</b> (Progrès › Prépa physique) : les bilans et défis de <b>votre enfant</b> (relié à votre profil dans l\'engrenage › Mon enfant). Confirmer / Refuser (ou Tout confirmer) s\'allument, puis <b>Enregistrer mes choix</b> envoie le tout. Les résultats des autres enfants sont confirmés par leur famille : vous ne voyez que ceux qui sont confirmés. Un résultat refusé par erreur se rétablit depuis la fiche.'
         ])) +
       card('e-fiche', 'user', '#FFC23D', 'La fiche d\'un enfant', 'Touchez un prénom',
         ul([

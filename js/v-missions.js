@@ -390,7 +390,7 @@ window.MC = window.MC || {};
       if (APRES && APRES.jid === jid) { o.nouv = {}; APRES.keys.forEach(function (k) { o.nouv[k] = true; }); APRES = null; }
       cur.after = function (root) {
         bindCards(root);
-        var mx = new Date(0).toISOString(); (me.etoiles || []).forEach(function (e) { var t = e.maj || e.cree || ''; if (t > mx) mx = t; });
+        var mx = new Date(0).toISOString(); (me.etoiles || []).forEach(function (e) { [e.maj, e.cree].forEach(function (t) { if (t && t > mx) mx = t; }); });
         app.lsSet('mc-sklu:' + jid, mx); app.refreshNav();
         if (nouv.length && MC.booster) MC.booster(me, nouv, lu).then(function (keys) { APRES = { jid: jid, keys: keys }; if (location.hash.indexOf('#/skills') === 0 && location.hash.indexOf('#/skills/') !== 0) app.rerender(); });
       };

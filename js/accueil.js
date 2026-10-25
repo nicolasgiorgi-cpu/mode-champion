@@ -252,7 +252,7 @@ MC.accueil = (function () {
     ui.modal({
       title: 'Le bilan 0',
       body: '<p class="lead">12 petits tests (sauts, gainage, navette…) pour régler les niveaux de votre enfant. Il le lance depuis <b>Prépa › Bilans</b> : le bilan guidé enchaîne les tests avec la démo et le chrono. Comptez 45 minutes, avec vous à côté pour regarder et compter.</p>' +
-        '<p class="small">Ensuite, ses résultats arrivent en haut de l\'onglet <b>Prépa</b> : touchez Confirmer (ou Refuser) pour chacun, puis « Valider mes choix ». Pas de bilan encore ? Il peut s\'entraîner au niveau 1 en attendant.</p>',
+        '<p class="small">Ensuite, ses résultats arrivent en haut de l\'onglet <b>Prépa</b> : touchez Confirmer (ou Refuser) pour chacun, puis « Enregistrer mes choix ». Pas de bilan encore ? Il peut s\'entraîner au niveau 1 en attendant.</p>',
       actions: [{ label: 'Compris', value: null, cls: 'btn' }]
     });
   };

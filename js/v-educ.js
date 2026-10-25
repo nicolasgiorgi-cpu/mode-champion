@@ -83,7 +83,7 @@ window.MC = window.MC || {};
       list.forEach(function (it) { var x = jp(gr, it.joueurId); (x && x.demandes || []).forEach(function (d) { if (d.statut === 'attente' && d.domaine === it.domaine && d.etoile === it.etoile && (d.sorte !== 'briller' || brille)) d.statut = 'oui'; }); });
       (r.missionsFaites || []).forEach(function (id) { (gr.defmissions || []).forEach(function (m) { if (m.id === id) { m.statut = 'faite'; m.faiteLe = L.today(); } }); });
       persist();
-      if (r.etoiles.length === 1) { var e0 = r.etoiles[0], s = SK.star(e0.domaine, e0.etoile); ui.toast('★ ' + (s ? s.nom : 'Étoile') + (r.brillees ? ' brille' : ' validée') + ' pour ' + nomDe(gr, e0.joueurId) + (r.missionsFaites && r.missionsFaites.length ? ' · mission réussie !' : '')); }
+      if (r.etoiles.length === 1) { var e0 = r.etoiles[0], s = SK.star(e0.domaine, e0.etoile); ui.toast((r.brillees ? '★ Elle brille' : '★ Étoile validée') + ' · ' + nomDe(gr, e0.joueurId) + ' · ' + (s ? s.nom : '') + (r.missionsFaites && r.missionsFaites.length ? ' · mission réussie !' : '')); }
       else ui.toast(r.etoiles.length + ' étoile' + (r.etoiles.length > 1 ? 's' : '') + ' envoyée' + (r.etoiles.length > 1 ? 's' : '') + (r.brillees ? ' (' + r.brillees + ' qui brille' + (r.brillees > 1 ? 'nt' : '') + ')' : '') + (r.deja ? ' · ' + r.deja + ' déjà acquise' + (r.deja > 1 ? 's' : '') : ''));
       return r;
     }).catch(function (e) { if (btn) btn.disabled = false; ui.toast(e.message, true); throw e; });
@@ -95,15 +95,28 @@ window.MC = window.MC || {};
     var gr = G(), m = (gr.defmissions || []).filter(function (x) { return x.id === b.getAttribute('data-m'); })[0];
     if (!m) return;
     var et = etatDe(gr, m), nom = nomDe(gr, m.joueurId);
-    if (et.restantes.length === 1) { valider([{ joueurId: m.joueurId, domaine: m.domaine, etoile: et.restantes[0].id }], b.getAttribute('data-ev'), b).then(function () { app.rerender(); }).catch(function () { }); return; }
+    if (et.restantes.length === 1) { confirmerEtoile(m.joueurId, m.domaine, et.restantes[0].id).then(function (ok) { if (ok) valider([{ joueurId: m.joueurId, domaine: m.domaine, etoile: et.restantes[0].id }], b.getAttribute('data-ev'), b).then(function () { app.rerender(); }).catch(function () { }); }); return; }
     var acts = et.restantes.map(function (x) { return { label: icon('star', 18) + ' ' + esc(x.def.nom), value: x.id, cls: 'btn gold' }; });
     acts.push({ label: 'Annuler', value: null, cls: 'btn2 grey' });
     ui.modal({ title: 'Valider pour ' + esc(nom), body: '<p class="lead">Quelle étoile de sa mission « ' + esc(SK.titreMission(m)) + ' » ?</p>', actions: acts }).then(function (v) {
       if (v) valider([{ joueurId: m.joueurId, domaine: m.domaine, etoile: v }], b.getAttribute('data-ev')).then(function () { app.rerender(); }).catch(function () { });
     });
   };
+  // (retouche UI-05) valider une étoile : un court panneau dit pour qui, quelle carte, quelle étoile (un +1, lui, part d'un toucher)
+  function confirmerEtoile(jid, d, e) {
+    var s = SK.star(d, e), D = SK.dom(d), nom = nomDe(G(), jid);
+    if (!s || !D) return Promise.resolve(false);
+    return ui.modal({
+      title: 'Valider l\'étoile',
+      body: '<p class="lead"><b>' + esc(nom) + ' · ' + esc(D.nom) + '</b><br>' + esc(s.nom) + ' : « ' + esc(s.phrase) + ' »</p><p class="small">Elle s\'allume pour ' + esc(nom) + ' (+' + C.XP.etoile + ' XP). Validée par erreur ? « Retirer » sur sa fiche.</p>',
+      actions: [{ label: icon('star', 18) + ' Valider pour ' + esc(nom), value: true, cls: 'btn gold' }, { label: 'Annuler', value: false, cls: 'btn2 grey' }]
+    });
+  }
   MC.act.valEtoile = function (b) {
-    valider([{ joueurId: b.getAttribute('data-j'), domaine: b.getAttribute('data-d'), etoile: b.getAttribute('data-e') }], b.getAttribute('data-ev'), b).then(function () { app.rerender(); }).catch(function () { });
+    var jid = b.getAttribute('data-j'), d = b.getAttribute('data-d'), e = b.getAttribute('data-e');
+    confirmerEtoile(jid, d, e).then(function (ok) {
+      if (ok) valider([{ joueurId: jid, domaine: d, etoile: e }], b.getAttribute('data-ev'), b).then(function () { app.rerender(); }).catch(function () { });
+    });
   };
   MC.act.retEtoile = function (b) {
     var gr = G(), id = b.getAttribute('data-id'), jid = b.getAttribute('data-j'), x = jp(gr, jid), e = x && (x.etoiles || []).filter(function (y) { return y.id === id; })[0];
@@ -144,7 +157,7 @@ window.MC = window.MC || {};
   function btnPlus1(gr, jid, m, evId, small) {
     var l = p1De(gr, jid, m.id), n = l.length, today = l.some(function (x) { return x.date === L.today(); }), max = SK.maxPlus1(m);
     if (n >= max) return '<span class="pill" style="--pc:var(--gold)">' + max + ' +1 · à valider</span>';
-    return '<button type="button" class="p1btn' + (small ? ' sm' : '') + (today ? ' done' : '') + '" data-act="plus1" data-j="' + esc(jid) + '" data-m="' + esc(m.id) + '"' + (evId ? ' data-ev="' + esc(evId) + '"' : '') + ' aria-label="+1 pour ' + esc(nomDe(gr, jid)) + ' : ' + esc(SK.titreMission(m)) + '">+1</button>';
+    return '<button type="button" class="p1btn' + (small ? ' sm' : '') + (today ? ' done' : '') + '" data-act="plus1" data-j="' + esc(jid) + '" data-m="' + esc(m.id) + '"' + (evId ? ' data-ev="' + esc(evId) + '"' : '') + ' aria-label="Encourager ' + esc(nomDe(gr, jid)) + ' (+1) : ' + esc(SK.titreMission(m)) + '">+1</button>';
   }
   MC.btnPlus1 = btnPlus1;
 
@@ -532,7 +545,7 @@ window.MC = window.MC || {};
       return '<li class="mpres"><a class="grow" href="#/educ/joueur/' + esc(m.joueurId) + '?t=missions"><span class="t1">' + esc(nomDe(gr, m.joueurId)) + ' · ' + esc(D ? D.nom : '') + ' · ' + esc(SK.titreMission(m)) + '</span>' +
         '<span class="t2">' + et.n + ' / ' + et.max + ' étoile' + (et.max > 1 ? 's' : '') + ' · ' + (et.expiree ? '<b style="color:var(--orange)">terminée le ' + jourTxt(m.fin) + '</b>' : m.fin ? 'jusqu\'au ' + jourTxt(m.fin) : 'sans date') + (last ? ' · dernier +1 : ' + esc(qui(gr, last)) + ', ' + jourTxt(last.date) : '') + '</span>' +
         '<span class="row" style="gap:8px;margin-top:4px">' + MC.encDots(n) + '<span class="small" style="color:var(--violet)">' + MC.encTxt(n) + '</span>' + (n >= SK.PROPOSE_AU && et.restantes.length ? '<span class="pill" style="--pc:var(--gold)">À valider</span>' : '') + '</span></a>' +
-        (et.restantes.length ? '<button type="button" class="btn2 sm gold" data-act="valMission" data-m="' + esc(m.id) + '">Valider ★</button>' : '') + (et.expiree ? '' : btnPlus1(gr, m.joueurId, m)) + '</li>';
+        (et.restantes.length ? '<button type="button" class="btn2 sm gold" data-act="valMission" data-m="' + esc(m.id) + '">Valider l\'étoile</button>' : '') + (et.expiree ? '' : btnPlus1(gr, m.joueurId, m)) + '</li>';
     }).join('');
     var reussies = (gr.defmissions || []).filter(function (m) { return m.sorte === 'etoile' && m.statut === 'faite'; }).sort(function (a, b) { return (a.faiteLe || '') < (b.faiteLe || '') ? 1 : -1; });
     var sans = kids.filter(function (p) { var m = persoDe(gr, p.joueur.id); return !m || etatDe(gr, m).expiree; }).length;

@@ -45,19 +45,21 @@
   function decBtns(r) {
     var d = dec[r.id] || '', refused = r.statut === 'refuse';
     return '<span class="decis" data-rid="' + esc(r.id) + '">' +
-      '<button type="button" class="dbtn dok' + (d === 'ok' ? ' on' : '') + '" aria-pressed="' + (d === 'ok') + '" data-act="decide" data-v="ok" data-id="' + esc(r.id) + '">' + icon('check', 16) + (refused ? ' Rétablir (confirmer)' : ' Confirmer') + '</button>' +
-      (refused ? '' : '<button type="button" class="dbtn dno' + (d === 'refuse' ? ' on' : '') + '" aria-pressed="' + (d === 'refuse') + '" data-act="decide" data-v="refuse" data-id="' + esc(r.id) + '">' + icon('x', 16) + ' Refuser</button>') + '</span>';
+      '<button type="button" class="dbtn dok' + (d === 'ok' ? ' on' : '') + '" aria-pressed="' + (d === 'ok') + '" aria-label="Confirmer ce résultat" data-act="decide" data-v="ok" data-id="' + esc(r.id) + '">' + icon('check', 16) + (refused ? ' Rétablir (confirmer)' : ' Confirmer') + '</button>' +
+      (refused ? '' : '<button type="button" class="dbtn dno' + (d === 'refuse' ? ' on' : '') + '" aria-pressed="' + (d === 'refuse') + '" aria-label="Refuser ce résultat" data-act="decide" data-v="refuse" data-id="' + esc(r.id) + '">' + icon('x', 16) + ' Refuser</button>') + '</span>';
   }
   // juste sous la liste des résultats à confirmer (et sous « Tout confirmer »)
   function decBar() {
     var n = Object.keys(dec).length;
     return '<div class="decbar" data-decbar' + (n ? '' : ' hidden') + '><span class="decn">' + decCount() + '</span>' +
-      '<button type="button" class="btn2 sm grey" data-act="decCancel">Annuler</button><button type="button" class="btn sm" data-act="decSend">' + icon('check', 18) + ' Valider mes choix</button></div>';
+      '<button type="button" class="btn2 sm grey" data-act="decCancel">Annuler</button><button type="button" class="btn sm" data-act="decSend">' + icon('check', 18) + ' <span class="decl">' + (n > 1 ? 'Enregistrer mes choix' : 'Enregistrer mon choix') + '</span></button></div>';
   }
   function decCount() {
     var ok = 0, no = 0;
     Object.keys(dec).forEach(function (k) { if (dec[k] === 'ok') ok++; else no++; });
-    return [ok ? ok + ' à confirmer' : '', no ? no + ' à refuser' : ''].filter(Boolean).join(' · ');
+    // (retouche UI-04) la différence entre choisir et enregistrer : « Choix non enregistré » tant qu'on n'a pas touché Enregistrer
+    var t = [ok ? ok + ' à confirmer' : '', no ? no + ' à refuser' : ''].filter(Boolean).join(' · ');
+    return t ? 'Choix non enregistré · ' + t : '';
   }
   function updDec() {
     Array.prototype.forEach.call(document.querySelectorAll('.decis[data-rid]'), function (sp) {
@@ -70,6 +72,7 @@
     var n = Object.keys(dec).length;
     Array.prototype.forEach.call(document.querySelectorAll('[data-decbar]'), function (bar) {
       bar.hidden = !n; bar.querySelector('.decn').textContent = decCount();
+      var l = bar.querySelector('.decl'); if (l) l.textContent = n > 1 ? 'Enregistrer mes choix' : 'Enregistrer mon choix';
     });
   }
   MC.act.decide = function (b) {
@@ -105,7 +108,7 @@
       patchRecords(r.records || []);
       dec = {};
       document.body.classList.remove('dec-open');
-      ui.toast([r.confirmes ? r.confirmes + ' confirmé' + (r.confirmes > 1 ? 's' : '') : '', r.refuses ? r.refuses + ' refusé' + (r.refuses > 1 ? 's' : '') : ''].filter(Boolean).join(' · ') || 'Enregistré');
+      ui.toast((list.length > 1 ? list.length + ' choix enregistrés' : '1 choix enregistré') + ' : ' + ([r.confirmes ? r.confirmes + ' confirmé' + (r.confirmes > 1 ? 's' : '') : '', r.refuses ? r.refuses + ' refusé' + (r.refuses > 1 ? 's' : '') : ''].filter(Boolean).join(' · ') || 'c\'est noté'));
       app.rerender();
     }).catch(function (e) { b.disabled = false; ui.toast(e.message, true); });
   };
@@ -136,7 +139,7 @@
     var pending = (d.records || []).filter(function (r) { return r.statut === 'attente'; });
     var refused = (d.records || []).filter(function (r) { return r.statut === 'refuse'; }).sort(function (a, b) { return a.date < b.date ? 1 : -1; }).slice(0, 12);
     var attFam = d.enAttente ? '<div class="note">' + icon('info', 18, 'style="color:var(--cyan);flex:none"') + '<span class="small">' + d.enAttente + ' résultat' + (d.enAttente > 1 ? 's attendent' : ' attend') + ' la confirmation de sa famille.</span></div>' : '';
-    var pendHtml = attFam + (pending.length ? '<section class="note pink" style="flex-direction:column;gap:10px"><div><div class="hud" style="color:var(--pink)">' + pending.length + ' résultat' + (pending.length > 1 ? 's' : '') + ' à confirmer</div><div class="small" style="color:var(--soft);margin-top:4px">' + esc(k.prenom) + ' les a notés. Vous étiez là ? Choisissez <b>Confirmer</b> ou <b>Refuser</b> pour chacun (vous pouvez changer d\'avis), puis touchez <b>Valider mes choix</b> juste en dessous.</div></div>' +
+    var pendHtml = attFam + (pending.length ? '<section class="note pink" style="flex-direction:column;gap:10px"><div><div class="hud" style="color:var(--pink)">' + pending.length + ' résultat' + (pending.length > 1 ? 's' : '') + ' à confirmer</div><div class="small" style="color:var(--soft);margin-top:4px">' + esc(k.prenom) + ' les a notés. Vous étiez là ? Choisissez <b>Confirmer</b> ou <b>Refuser</b> pour chacun (vous pouvez changer d\'avis), puis touchez <b>Enregistrer</b> juste en dessous : tant que ce n\'est pas fait, c\'est « Choix non enregistré ».</div></div>' +
       '<ul class="list" style="width:100%">' + pending.map(function (r) { return recLine(r, '', true); }).join('') + '</ul>' +
       (pending.length > 1 ? '<button type="button" class="btn2 pink" data-act="decAll" data-ids="' + esc(pending.map(function (r) { return r.id; }).join(',')) + '">' + icon('check', 16) + ' Tout confirmer</button>' : '') + decBar() + '</section>' : '');
     if (refused.length) pendHtml += '<details class="note" style="flex-direction:column;gap:8px;display:block"><summary style="cursor:pointer;min-height:32px"><span class="hud" style="color:var(--muted)">' + refused.length + ' résultat' + (refused.length > 1 ? 's' : '') + ' refusé' + (refused.length > 1 ? 's' : '') + '</span> <span class="small">· refusé par erreur ? Rétablissez-le.</span></summary>' +
@@ -298,7 +301,7 @@
       // un +1 ou un mot d'éduc pas encore vu : une ligne verte, discrète, qui mène à Missions
       var nv = MC.missions ? MC.missions.nouveaux('f', d) : { enc: [] }, last = nv.enc[0], sk = MC.SK;
       var p1line = last ? '<a class="li p1line" href="#/parent/missions' + (last.missionId ? '/perso' : '/mots') + '"><b class="p1tag">' + (last.missionId ? '+1' : icon('heart', 14)) + '</b><span class="grow"><span class="t1" style="font-family:var(--f-body);letter-spacing:0;font-size:14px;font-weight:600">Dans Missions : ' +
-        (last.missionId ? 'un +1 de ' + esc(last.parNom) + (sk && sk.star(last.domaine, last.etoile) ? ' sur « ' + esc(sk.star(last.domaine, last.etoile).mission) + ' »' : '') : 'un mot de ' + esc(last.parNom)) + (nv.enc.length > 1 ? ' (et ' + (nv.enc.length - 1) + ' autre' + (nv.enc.length > 2 ? 's' : '') + ')' : '') + '</span></span>' + icon('right', 16) + '</a>' : '';
+        (last.missionId ? 'un encouragement de ' + esc(last.parNom) + (sk && sk.star(last.domaine, last.etoile) ? ' sur « ' + esc(sk.star(last.domaine, last.etoile).mission) + ' »' : '') : 'un mot de ' + esc(last.parNom)) + (nv.enc.length > 1 ? ' (et ' + (nv.enc.length - 1) + ' autre' + (nv.enc.length > 2 ? 's' : '') + ')' : '') + '</span></span>' + icon('right', 16) + '</a>' : '';
       var rdv = (fam.prochains || [])[0], rdvH = '';
       if (rdv) {
         var dj = String(rdv.debut).slice(0, 10), hh = '';
@@ -435,7 +438,7 @@
     if (!mine.length) return '<h2 class="h2">Résultats à confirmer</h2><div class="note">' + icon('info', 20, 'style="color:var(--cyan);flex:none"') + '<span class="small">Ce sont les familles qui confirment les résultats de leur enfant (bilans et défis). Votre enfant est dans le groupe ? Reliez-le à votre profil : vous confirmerez les siens ici.</span></div>' +
       '<button type="button" class="btn2 grey" data-act="myKids">' + icon('user', 16) + ' Choisir mon enfant</button>';
     return '<div class="between"><h2 class="h2">À confirmer · ' + esc(noms) + '</h2><span class="hud" style="color:var(--pink)">' + pending.length + '</span></div>' +
-      (pending.length ? '<p class="small" style="margin:0">Les résultats de ' + esc(noms) + ' : Confirmer ou Refuser (vous pouvez changer d\'avis), puis <b>Valider mes choix</b> juste en dessous. Ceux des autres enfants, c\'est leur famille qui les confirme.</p><ul class="list">' + pend + '</ul>' +
+      (pending.length ? '<p class="small" style="margin:0">Les résultats de ' + esc(noms) + ' : Confirmer ou Refuser (vous pouvez changer d\'avis), puis <b>Enregistrer</b> juste en dessous. Ceux des autres enfants, c\'est leur famille qui les confirme.</p><ul class="list">' + pend + '</ul>' +
         (pending.length > 1 ? '<button type="button" class="btn2 pink" data-act="decAll" data-ids="' + esc(pending.map(function (x) { return x.r.id; }).join(',')) + '">' + icon('check', 16) + ' Tout confirmer (' + pending.length + ')</button>' : '') + decBar() : '<div class="empty">Rien à confirmer pour ' + esc(noms) + '.</div>');
   }
   function paintVestiaire(g) {
@@ -643,9 +646,16 @@
   MC.act.progTest = function (b) { progTest = b.getAttribute('data-v'); app.rerender(); };
 
   // ---------- ÉDUC : un joueur ----------
-  app.route('/educ/joueur/:id', function (p, q) {
+  app.route('/educ/joueur/:id', function (p, q, cur) {
     var tab = q.t || app.lsGet('mc-ftab') || 'terrain';
     if (q.t) app.lsSet('mc-ftab', q.t);
+    // (retouche UI-13) l'onglet ouvert reste entièrement visible dans la bande qui défile
+    if (cur) cur.after = function (root) {
+      var nav = root.querySelector('.ftabs'), on = nav && nav.querySelector('a.on');
+      if (!on || nav.scrollWidth <= nav.clientWidth) return;
+      var a = nav.getBoundingClientRect(), b = on.getBoundingClientRect();
+      if (b.right > a.right - 8) nav.scrollLeft += b.right - a.right + 16; else if (b.left < a.left + 8) nav.scrollLeft -= a.left - b.left + 16;
+    };
     return Promise.all([loadGroup(), MC.loadCompos ? MC.loadCompos().catch(function () { return null; }) : null]).then(function (res) {
       var g = res[0], c = app.S.cache.kid;
       if (c && c.joueur.id === p.id) return paintKid(c, g, tab);

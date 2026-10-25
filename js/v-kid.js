@@ -95,7 +95,12 @@
   app.route('/semaine', function (p, q, cur) {
     return app.loadMe().then(function (me) {
       if (MC.accueil && MC.accueil.needTour('k', me.joueur.id)) { setTimeout(function () { app.go('#/bienvenue', true); }, 0); return null; }
-      cur.after = function () { if (MC.news) setTimeout(function () { if (location.hash.indexOf('#/semaine') === 0) MC.news.maybeShow('k', me.joueur.id); }, 350); };
+      cur.after = function (root) {
+        if (MC.news) setTimeout(function () { if (location.hash.indexOf('#/semaine') === 0) MC.news.maybeShow('k', me.joueur.id); }, 350);
+        // « À regarder » : consulté = replié la prochaine fois
+        var ar = root && root.querySelector('.areg');
+        if (ar) { var mark = function () { if (ar.open) app.lsSet('mc-areg:' + me.joueur.id, ar.getAttribute('data-sig')); }; mark(); ar.addEventListener('toggle', mark); }
+      };
       return paintSemaine(me, app.S.stats);
     });
   }, { kid: true, nav: 'prepa', live: true });
@@ -154,16 +159,23 @@
 
     var nb = L.nextBilan(), dans = nb ? L.daysBetween(t, nb.date) : null;
     var prochainBilan = nb ? '<a class="li" href="#/bilans">' + icon('trophy', 20, 'style="color:var(--gold);flex:none"') + '<span class="grow"><span class="t1">Prochain bilan : ' + (dans > 13 ? 'dans ' + Math.round(dans / 7) + ' semaines' : dans > 1 ? 'dans ' + dans + ' jours' : dans === 1 ? 'demain' : 'maintenant') + '</span><span class="t2">' + esc(nb.nom) + ' · avec un adulte · tes records sont dans Bilans</span></span>' + icon('right', 16) + '</a>' : '';
+    // (retouche UI-02, 25/10) l'action du jour d'abord ; les informations secondaires dans « À regarder »,
+    // ouvert tant qu'il y a du nouveau, replié une fois consulté
+    var aRegarder = bandeauMissions(me) + bilanNote + props + pendNote, aReg = '';
+    if (aRegarder) {
+      var sig = [bandeauMissions(me) ? 'm' : '', bilanNote ? 'b' : '', props ? 'n' + st.proposals.length : '', pendNote ? 'r' + pend : ''].join('|') + '|' + L.today();
+      var vu = app.lsGet('mc-areg:' + me.joueur.id) === sig;
+      var nbR = [bandeauMissions(me), bilanNote, props, pendNote].filter(Boolean).length;
+      aReg = '<details class="areg"' + (vu ? '' : ' open') + ' data-sig="' + esc(sig) + '"><summary><span class="hud">À regarder · ' + nbR + '</span>' + icon('down', 16) + '</summary><div class="areg-in">' + aRegarder + '</div></details>';
+    }
     return '<main class="screen">' + kidBar(me, st) + prepaTabs('semaine') +
-      bandeauMissions(me) +
       '<div class="head"><span class="kicker">' + esc(C.JOURS[type].jour.toUpperCase()) + ' · ' + (cy.semaine > 8 ? 'SEMAINE DU BILAN' : 'SEMAINE ' + cy.semaine + ' / 8') + '</span>' +
       '<h1 class="big">Mission<br>du jour</h1></div>' +
-      (MC.accueil ? MC.accueil.kidChecklist(me, st) : '') +
-      bilanNote + props + pendNote +
       '<div class="home"><div>' + mission + '</div><div class="side">' +
+      (MC.accueil ? MC.accueil.kidChecklist(me, st) : '') +
       '<section class="sec"><div class="between"><h2 class="h2">Ma semaine</h2><span class="hud" style="color:var(--gold)">' + wk.stars + ' / 6 étoiles</span></div>' +
       '<div class="week">' + days.map(function (d) { return d.strip; }).join('') + '</div>' +
-      '<div class="weeklist">' + days.map(function (d) { return d.list; }).join('') + '</div></section>' +
+      '<div class="weeklist">' + days.map(function (d) { return d.list; }).join('') + '</div></section>' + aReg +
       '<section class="defi">' + icon('gift', 40, 'style="color:var(--gold);flex:none"') + '<div style="flex:1;display:flex;flex-direction:column;gap:6px"><span class="hud" style="color:var(--gold)">Défi de la semaine</span><span style="font-size:14px;line-height:1.3">' + (wk.bonus ? 'Coffre ouvert : +1 étoile bonus et +' + C.XP.bonus + ' XP !' : 'Gagne les 6 étoiles de la semaine et ouvre le coffre : +1 étoile bonus et +' + C.XP.bonus + ' XP.') + '</span><div class="segs" style="--n:6">' + seg + '</div></div></section>' +
       prochainBilan + '</div></div>' +
       '<div class="row" style="gap:8px;flex-wrap:wrap"><button type="button" class="pastoi" data-act="switchKid">' + icon('user', 14) + ' Pas ' + esc(me.joueur.prenom) + ' ? Changer de joueur</button>' +
@@ -202,22 +214,23 @@
     function sw(key, on, t1, t2, act) {
       return '<button type="button" class="switch" role="switch" aria-checked="' + on + '" data-act="' + act + '" data-k="' + key + '"><span><span class="t1" style="display:block">' + t1 + '</span>' + (t2 ? '<span class="t2" style="display:block">' + t2 + '</span>' : '') + '</span><span class="k"></span></button>';
     }
-    var switches = sw('son', !ui.isMuted(), icon('sound', 18) + ' Bip du chrono', 'Un bip 10 s avant la fin, puis 5-4-3-2-1 et le son de fin', 'togglePref') +
-      sw('mini', mini, 'Mode mini matériel', 'Tapis + élastiques : pas de barre, pas de corde, pas de marche', 'toggleMini') +
+    var son = sw('son', !ui.isMuted(), icon('sound', 18) + ' Bip du chrono', 'Un bip 10 s avant la fin, puis 5-4-3-2-1 et le son de fin', 'togglePref');
+    var switches = sw('mini', mini, 'Mode mini matériel', 'Tapis + élastiques : pas de barre, pas de corde, pas de marche', 'toggleMini') +
       (type === 'meafou' ? sw('leger', !!pr.leger, 'Match samedi : version légère', j.leger.texte, 'togglePref') + sw('lourdes', !!pr.lourdes, 'Jambes lourdes', j.lourdes, 'togglePref') : '');
 
     return '<main class="screen">' + back +
       '<div class="head"><span class="kicker" style="color:' + j.color + '">' + esc(j.jour.toUpperCase()) + ' · ' + esc(j.theme.toUpperCase()) + ' · N' + lv + '</span>' +
       '<h1 class="big md" style="text-shadow:3px 3px 0 ' + ui.rgba(j.color, 0.35) + ',-2px -2px 0 ' + j.color + '">Prêt pour<br>' + esc(j.joueur.split(' ').pop()) + ' ?</h1></div>' +
       '<div class="grid3"><div class="tile"><span class="v">' + duree + '\'</span><span class="l">Durée</span></div><div class="tile"><span class="v">' + items.length + '</span><span class="l">Exos</span></div><div class="tile" style="background:rgba(255,194,61,.08);border-color:rgba(255,194,61,.45)"><span class="v" style="color:var(--gold)">+' + C.XP.seance + '</span><span class="l">XP à gagner</span></div></div>' +
-      '<div class="cols2"><section class="sec"><h2 class="h2">Le parcours</h2><ol style="list-style:none;margin:0;padding:0">' + parcours + '</ol></section>' +
-      '<div class="sec"><div class="box"><div class="hud" style="color:' + j.color + '">Mon modèle : ' + esc(j.joueur) + ' · ' + esc(j.poste) + '</div><p class="lead" style="margin-top:6px;color:var(--soft)">' + esc(j.modele) + '</p><p class="lead" style="margin-top:8px">' + esc(j.intro) + '</p></div>' +
-      '<div class="box"><div class="hud" style="color:var(--muted)">Matériel</div><p class="lead" style="margin-top:6px">' + esc(mini ? j.materielMini : j.materiel) + '</p></div>' +
-      switches + '</div></div>' +
+      // (retouche UI-07) dans l'ordre où on s'en sert : le matériel et l'adaptation, le son, le départ ; puis le parcours et le pourquoi
+      '<section class="sec jprep"><div class="box"><div class="hud" style="color:var(--muted)">Matériel</div><p class="lead" style="margin-top:6px">' + esc(mini ? j.materielMini : j.materiel) + '</p></div>' +
+      switches + son +
       (MC.accueil && !(me.seances || []).some(function (s) { return s.mode === 'guidee'; }) ? MC.accueil.tip('k-partir', me.joueur.id, 'Touche « C\'est parti » : l\'échauffement, chaque exercice, le chrono et les bips, tout est guidé. Le bouton Retour en haut annule un clic de trop.') : '') +
-      '<a class="btn xl glow" href="#/go/' + type + '" data-act="startRun">' + icon('play', 20) + ' C\'est parti !</a>' +
-      '<a class="btn2" href="#/noter?type=' + type + '">' + icon('check', 16) + ' Je l\'ai déjà faite</a>' +
-      '<div class="note gold">' + icon('trophy', 22) + '<span><b>À quoi ça sert sur le terrain ?</b> ' + esc(j.terrain) + '</span></div>' +
+      '<a class="btn xl glow" href="#/go/' + type + '" data-act="startRun">' + icon('play', 20) + ' C\'est parti !</a></section>' +
+      '<div class="cols2"><section class="sec"><h2 class="h2">Le parcours</h2><ol style="list-style:none;margin:0;padding:0">' + parcours + '</ol></section>' +
+      '<div class="sec"><h2 class="h2">Pourquoi cette séance</h2><div class="box"><div class="hud" style="color:' + j.color + '">Mon modèle : ' + esc(j.joueur) + ' · ' + esc(j.poste) + '</div><p class="lead" style="margin-top:6px;color:var(--soft)">' + esc(j.modele) + '</p><p class="lead" style="margin-top:8px">' + esc(j.intro) + '</p></div>' +
+      '<div class="note gold">' + icon('trophy', 22) + '<span><b>À quoi ça sert sur le terrain ?</b> ' + esc(j.terrain) + '</span></div></div></div>' +
+      '<div class="jdeja"><span class="small">Tu l\'as faite sans l\'appli ?</span><a class="btn2 sm" href="#/noter?type=' + type + '">' + icon('check', 16) + ' Noter une séance déjà faite</a></div>' +
       '</main>';
   }
   MC.act.startRun = function (a) { ui.unlockAudio(); app.go(a.getAttribute('href')); };

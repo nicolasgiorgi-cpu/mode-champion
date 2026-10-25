@@ -134,6 +134,7 @@ window.MC = window.MC || {};
         if (fini) return; fini = true;
         timers.forEach(clearTimeout);
         document.removeEventListener('keydown', onKey, true);
+        window.removeEventListener('hashchange', fermer);
         if (bk.parentNode) bk.parentNode.removeChild(bk);
         if (avant && avant.focus) try { avant.focus({ preventScroll: true }); } catch (e) { }
         resolve(keys);
@@ -170,6 +171,7 @@ window.MC = window.MC || {};
       }
       function onKey(e) { if (e.key === 'Escape') { e.preventDefault(); fermer(); } else if ((e.key === 'Enter' || e.key === ' ') && bk.getAttribute('data-ph') === 'arrive') { e.preventDefault(); ouvrir(); } }
       document.addEventListener('keydown', onKey, true);
+      window.addEventListener('hashchange', fermer);   // le bouton Retour (ou un autre écran) referme le booster
       bk.addEventListener('click', function (ev) {
         var t = ev.target.closest('[data-bk]'), a = t && t.getAttribute('data-bk');
         if (a === 'skip') { ev.preventDefault(); fermer(); return; }

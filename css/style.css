@@ -1516,3 +1516,54 @@ textarea.txt{min-height:84px;padding:10px 12px;resize:vertical;font:500 16px/1.4
   .bk[data-ph] .bk-star,.bk[data-ph] .bk-txt,.bk[data-ph] .bk-xp,.bk[data-ph] .bk-gr,.bk[data-ph] .bk-btn,.bk[data-ph] .bk-multi,.bk[data-ph] .bk-mini{opacity:1;pointer-events:auto}
   .bk-rays,.bk-pt,.bk-shock,.bk-flash,.bk-sp,.bk-pack,.bk-hint{display:none}
 }
+/* (retouche UI-02) « À regarder » : les informations secondaires de Ma semaine, repliées une fois consultées */
+.areg{border:1px solid var(--line2);background:var(--panel2)}
+.areg > summary{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:48px;padding:0 12px;cursor:pointer;list-style:none;color:var(--soft)}
+.areg > summary::-webkit-details-marker{display:none}
+.areg[open] > summary svg{transform:rotate(180deg)}
+.areg-in{display:flex;flex-direction:column;gap:10px;padding:0 10px 10px}
+/* (retouche UI-01) textes plus lisibles : secondaire 13-14 px, étiquettes 12 px au moins, plus de gris trop sombre pour du texte */
+.small{font-size:14px}
+.li .t2,.trow .t2,.switch .t2{font-size:13px}
+.kicker{font-size:12px}
+.sk-lad li{color:var(--dim)}
+.nav a{font-size:11px;letter-spacing:.1em}
+.home .side{display:flex;flex-direction:column;gap:18px}
+
+/* ---------- retouche UI-13 : fiche enfant ---------- */
+.ftabs{scroll-padding:0 16px}
+.edonly{border-top:1px solid var(--line);padding-top:10px}
+.edonly summary{display:flex;flex-wrap:wrap;align-items:center;gap:8px;cursor:pointer;min-height:40px;list-style:none}
+.edonly summary::-webkit-details-marker{display:none}
+.edonly summary .mlab{flex:1 1 100%}
+.edonly-k{display:inline-flex;align-items:center;gap:5px;font:700 11px/1 var(--f-hud);letter-spacing:.06em;text-transform:uppercase;color:var(--violet);border:1px solid rgba(180,140,255,.45);padding:5px 8px}
+.edonly summary::after{content:'Voir';margin-left:auto;font:700 12px/1 var(--f-hud);letter-spacing:.06em;text-transform:uppercase;color:var(--cyan)}
+.edonly[open] summary::after{content:'Masquer'}
+.edonly-b{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+/* ---------- retouche UI-07 : la page d'une séance ---------- */
+.jprep{gap:10px}
+.jprep .btn.xl{margin-top:6px}
+.jdeja{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;padding:14px 0 4px;border-top:1px solid var(--line)}
+/* ---------- retouche UI-08 : un résultat pas encore confirmé ---------- */
+.recatt{display:block!important;margin-top:4px;color:var(--cyan)!important;line-height:1.35}
+.recatt svg{vertical-align:-2px;margin-right:3px}
+.recatt b{color:var(--ink);white-space:nowrap}
+/* ---------- retouche UI-10 : l'arène ---------- */
+.li.me{background:rgba(56,232,255,.08);border:1px solid rgba(56,232,255,.45);border-left:5px solid var(--cyan);box-shadow:none}
+.rk-toi{display:inline-block;margin-right:8px;padding:3px 6px 2px;background:var(--cyan);color:#070A12;font:800 10px/1 var(--f-hud);letter-spacing:.08em;text-transform:uppercase;vertical-align:2px}
+.rkset{display:flex;flex-direction:column;gap:14px;padding:14px;background:var(--panel);border:1px solid var(--line)}
+/* ---------- retouche UI-11 : la carte d'un entraînement ---------- */
+.cevw{display:flex;flex-direction:column}
+.cevw>.li.cev{border-bottom-width:0}
+.cev-acts{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);border-top:0}
+.cevw.cnext .cev-acts{border-color:var(--cyan);background:rgba(56,232,255,.35)}
+.cev-a{display:flex;align-items:center;gap:8px;min-height:48px;padding:8px 12px;background:var(--panel);color:var(--ink);text-decoration:none}
+.cev-a b{font:700 12px/1 var(--f-hud);letter-spacing:.06em;text-transform:uppercase}
+.cev-t{flex:1;display:flex;flex-direction:column;gap:4px;min-width:0}
+.cev-t span{font-size:13px;color:var(--soft)}
+.cev-a svg{flex:none;color:var(--dim)}
+.cev-a.ok .cev-t span{color:var(--green);font-weight:600}
+.cev-a.vote .cev-t span{color:var(--violet);font-weight:600}
+.cev-a.urg .cev-t span{color:var(--orange);font-weight:600}
+.cev-a:active{background:var(--panel2)}
+@media (min-width:900px){.jprep{display:grid;grid-template-columns:1fr 1fr;align-items:stretch}.jprep>:not(.switch):not(.box){grid-column:1/-1}}

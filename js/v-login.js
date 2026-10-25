@@ -150,7 +150,7 @@
         app.setKid({ token: res.token, joueur: res.joueur });
         if (res.me) app.setMe(res.me);
         if (res.joueur.mustChange) app.go('#/premiere');
-        else { app.go('#/semaine'); ui.toast('Salut ' + res.joueur.prenom + ' ! Prêt pour ta mission ?'); }
+        else app.go('#/semaine');   // (retouche UI-06) plus de message flottant par-dessus l'écran d'accueil
       }).catch(function (e) {
         if (!pad) return;
         pad.busy = false;

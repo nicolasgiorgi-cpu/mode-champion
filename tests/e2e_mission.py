@@ -150,6 +150,9 @@ with sync_playwright() as p:
     check('reprise du formulaire : message clair en démo', 'serveur Google' in pg.inner_text('#toast'), pg.inner_text('#toast'))
     tid = pg.evaluate("MC.app.S.cache.group.joueurs.find(p=>p.joueur.prenom==='Tom').joueur.id")
     pg.goto(BASE + '#/educ/joueur/' + tid + '?t=terrain'); pg.wait_for_timeout(900)
+    # (visuels v2) les copains sont repliés, « éducs uniquement » : on ouvre
+    check('fiche : copains repliés « éducs uniquement »', pg.get_attribute('.edonly', 'open') is None and 'UNIQUEMENT' in pg.inner_text('.edonly summary').upper())
+    pg.click('.edonly summary'); pg.wait_for_timeout(200)
     t = pg.inner_text('main').upper()
     check('fiche : partie Jeu à 10', 'JEU À 10' in t and 'SES COPAINS' in t, t[:200])
     check('fiche : copain réciproque (Sacha ⇄)', 'SACHA ⇄' in t)
