@@ -1527,8 +1527,8 @@ textarea.txt{min-height:84px;padding:10px 12px;resize:vertical;font:500 16px/1.4
 .li .t2,.trow .t2,.switch .t2{font-size:13px}
 .kicker{font-size:12px}
 .sk-lad li{color:var(--dim)}
-.nav a{font-size:11px;letter-spacing:.1em}
-.home .side{display:flex;flex-direction:column;gap:18px}
+/* téléphone seulement : l'iPad garde sa navigation (barre en bas en portrait, rail à gauche en paysage) telle quelle */
+@media (max-width:699px){.nav a{font-size:11px;letter-spacing:.1em}.home .side{display:flex;flex-direction:column;gap:18px}}
 
 /* ---------- retouche UI-13 : fiche enfant ---------- */
 .ftabs{scroll-padding:0 16px}
