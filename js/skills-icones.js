@@ -74,5 +74,7 @@ MC.ICO_SK = {
     io = new IntersectionObserver(function (entries) { entries.forEach(function (en) { en.target.__vis = en.isIntersecting; }); majTrophees(); }, { threshold: 0.3 });
     els.forEach(function (el) { io.observe(el); });
   };
+  // en quittant l'écran : on ne garde plus les icônes de l'écran d'avant
+  MC.unbindTrophees = function () { if (io) { io.disconnect(); io = null; } els = []; };
   document.addEventListener('visibilitychange', majTrophees);
 })();

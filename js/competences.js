@@ -280,6 +280,13 @@ MC.SK = (function () {
     if (l.length > 1) { var noms = l.map(function (e) { return star(m.domaine, e).nom; }); return noms.slice(0, -1).join(', ') + ' et ' + noms[noms.length - 1]; }
     var s = star(m.domaine, l[0] || m.etoile); return s ? s.mission : (m.titre || 'Mission principale');
   }
+  // un encouragement : sur quoi il porte (le titre de la mission quand elle vise plusieurs étoiles, sinon la phrase de l'étoile)
+  function surQuoi(data, enc) {
+    if (!enc || !enc.missionId) return '';
+    var def = ((data && data.defmissions) || []).filter(function (m) { return m.id === enc.missionId; })[0];
+    if (def && etoilesMission(def).length > 1) return titreMission(def);
+    var s = star(enc.domaine, enc.etoile); return s ? s.mission : (def ? titreMission(def) : '');
+  }
   // les vacances scolaires (zone C, académie de Toulouse) : le 1er jour, un samedi. Pour la date de fin d'une mission.
   var VACANCES = [['2026-10-17', 'Toussaint'], ['2026-12-19', 'Noël'], ['2027-02-06', 'hiver'], ['2027-04-03', 'printemps'], ['2027-07-03', 'été'],
     ['2027-10-23', 'Toussaint'], ['2027-12-18', 'Noël']];
@@ -294,7 +301,7 @@ MC.SK = (function () {
   // sinon une étoile pas encore gagnée de sa carte la plus avancée
   function prochainDefi(data) {
     var m = missionPerso(data);
-    if (m) { var et = etatMission(data, m); var r = et.restantes[0] || et.etoiles[0]; if (r) return { d: m.domaine, e: r.id, mission: m }; }
+    if (m) { var et = etatMission(data, m); var r = et.expiree ? null : (et.restantes[0] || et.etoiles[0]); if (r) return { d: m.domaine, e: r.id, mission: m }; }
     var best = null;
     DOMAINES.forEach(function (D) {
       var c = carte(data, D.id);
@@ -325,7 +332,7 @@ MC.SK = (function () {
     dom: dom, star: star, key: key, parseKey: parseKey, grade: grade, paliers: paliers, avantGradeSuivant: avantGradeSuivant, brille: brille,
     acquis: acquis, total: total, totalBrille: totalBrille, carte: carte, atelier: atelier,
     missionPerso: missionPerso, missionPrincipale: missionPerso, plus1: plus1, titreMission: titreMission, prochainDefi: prochainDefi,
-    etoilesMission: etoilesMission, dansMission: dansMission, maxPlus1: maxPlus1, etatMission: etatMission, aujourdhui: aujourdhui,
+    etoilesMission: etoilesMission, dansMission: dansMission, maxPlus1: maxPlus1, etatMission: etatMission, surQuoi: surQuoi, aujourdhui: aujourdhui,
     VACANCES: VACANCES, prochainesVacances: prochainesVacances, addJours: addJours,
     demandeEnCours: demandeEnCours, peutDemander: peutDemander
   };

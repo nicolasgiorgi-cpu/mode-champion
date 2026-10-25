@@ -45,8 +45,8 @@
   function decBtns(r) {
     var d = dec[r.id] || '', refused = r.statut === 'refuse';
     return '<span class="decis" data-rid="' + esc(r.id) + '">' +
-      '<button type="button" class="dbtn dok' + (d === 'ok' ? ' on' : '') + '" aria-pressed="' + (d === 'ok') + '" aria-label="Confirmer ce résultat" data-act="decide" data-v="ok" data-id="' + esc(r.id) + '">' + icon('check', 16) + (refused ? ' Rétablir (confirmer)' : ' Confirmer') + '</button>' +
-      (refused ? '' : '<button type="button" class="dbtn dno' + (d === 'refuse' ? ' on' : '') + '" aria-pressed="' + (d === 'refuse') + '" aria-label="Refuser ce résultat" data-act="decide" data-v="refuse" data-id="' + esc(r.id) + '">' + icon('x', 16) + ' Refuser</button>') + '</span>';
+      '<button type="button" class="dbtn dok' + (d === 'ok' ? ' on' : '') + '" aria-pressed="' + (d === 'ok') + '" aria-label="' + (refused ? 'Rétablir (confirmer)' : 'Confirmer') + ' : ' + esc(testName(r)) + '" data-act="decide" data-v="ok" data-id="' + esc(r.id) + '">' + icon('check', 16) + (refused ? ' Rétablir (confirmer)' : ' Confirmer') + '</button>' +
+      (refused ? '' : '<button type="button" class="dbtn dno' + (d === 'refuse' ? ' on' : '') + '" aria-pressed="' + (d === 'refuse') + '" aria-label="Refuser : ' + esc(testName(r)) + '" data-act="decide" data-v="refuse" data-id="' + esc(r.id) + '">' + icon('x', 16) + ' Refuser</button>') + '</span>';
   }
   // juste sous la liste des résultats à confirmer (et sous « Tout confirmer »)
   function decBar() {
@@ -301,7 +301,7 @@
       // un +1 ou un mot d'éduc pas encore vu : une ligne verte, discrète, qui mène à Missions
       var nv = MC.missions ? MC.missions.nouveaux('f', d) : { enc: [] }, last = nv.enc[0], sk = MC.SK;
       var p1line = last ? '<a class="li p1line" href="#/parent/missions' + (last.missionId ? '/perso' : '/mots') + '"><b class="p1tag">' + (last.missionId ? '+1' : icon('heart', 14)) + '</b><span class="grow"><span class="t1" style="font-family:var(--f-body);letter-spacing:0;font-size:14px;font-weight:600">Dans Missions : ' +
-        (last.missionId ? 'un encouragement de ' + esc(last.parNom) + (sk && sk.star(last.domaine, last.etoile) ? ' sur « ' + esc(sk.star(last.domaine, last.etoile).mission) + ' »' : '') : 'un mot de ' + esc(last.parNom)) + (nv.enc.length > 1 ? ' (et ' + (nv.enc.length - 1) + ' autre' + (nv.enc.length > 2 ? 's' : '') + ')' : '') + '</span></span>' + icon('right', 16) + '</a>' : '';
+        (last.missionId ? 'un encouragement de ' + esc(last.parNom) + (sk && sk.surQuoi(d, last) ? ' sur « ' + esc(sk.surQuoi(d, last)) + ' »' : '') : 'un mot de ' + esc(last.parNom)) + (nv.enc.length > 1 ? ' (et ' + (nv.enc.length - 1) + ' autre' + (nv.enc.length > 2 ? 's' : '') + ')' : '') + '</span></span>' + icon('right', 16) + '</a>' : '';
       var rdv = (fam.prochains || [])[0], rdvH = '';
       if (rdv) {
         var dj = String(rdv.debut).slice(0, 10), hh = '';
@@ -488,6 +488,7 @@
       var att = p.records.filter(function (r) { return r.statut === 'attente'; }).length;
       var tr = p.terrain || {}, po = tr.postesOk && tr.postesOk[0] ? pnom[tr.postesOk[0]] : '';
       var mp = MC.SK ? MC.SK.missionPerso({ defmissions: (g.defmissions || []).filter(function (m) { return m.joueurId === p.joueur.id; }) }) : null;
+      if (mp && mp.fin && mp.fin < t) mp = null;   // mission terminée par la date : plus « en cours »
       var n1 = mp ? (p.encouragements || []).filter(function (x) { return x.missionId === mp.id; }).length : 0;
       var info = [po, tr.passerelle ? 'passerelle vers ' + tr.passerelle : '', mp ? '★ ' + MC.SK.titreMission(mp) + (n1 ? ' · ' + n1 + ' encouragement' + (n1 > 1 ? 's' : '') : '') : ''].filter(Boolean).join(' · ');
       var isMine = mine.indexOf(p.joueur.id) >= 0;

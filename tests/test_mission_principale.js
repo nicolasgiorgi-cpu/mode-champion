@@ -92,4 +92,24 @@ r = g.call({ action: 'retirerEtoile', token: nico, id: eV.id });
 assert.deepStrictEqual(r.missionsRouvertes, [mTom.id]);
 r = g.call({ action: 'me', token: tom }); assert.strictEqual(r.defmissions.filter(function (m) { return m.id === mTom.id; })[0].statut, 'active');
 
+// ----- 3. relecture du 25/10 : une mission dont la date est passée -----
+// une date de fin déjà passée est refusée
+r = g.call({ action: 'defMission', token: julien, sorte: 'etoile', joueurIds: [P['Léa']], domaine: 'ruck', etoiles: ['tete'], fin: '2020-01-01', remplacer: true });
+assert.strictEqual(r.error, 'invalide', 'fin passée');
+// Julien donne une mission à Léa, puis sa date passe (on recule la date dans la feuille)
+r = g.call({ action: 'defMission', token: julien, sorte: 'etoile', joueurIds: [P['Léa']], domaine: 'ruck', etoiles: ['tete'], remplacer: true });
+assert.ok(r.ok && r.missions.length === 1, JSON.stringify(r));
+const mLea = r.missions[0];
+{ const db = new g.SheetDB_(); db.update('defmissions', mLea.id, { fin: '2020-01-01' }); if (g.viderCache) g.viderCache(); }
+// plus d'encouragement sur une mission terminée
+r = g.call({ action: 'plusUn', token: julien, joueurId: P['Léa'], missionId: mLea.id });
+assert.strictEqual(r.error, 'finie', 'pas de +1 sur une mission terminée : ' + JSON.stringify(r));
+// elle ne bloque plus un autre éduc (pas admin) : la nouvelle mission la remplace
+r = g.call({ action: 'defMission', token: cyril, sorte: 'etoile', joueurIds: [P['Léa']], domaine: 'pied', etoiles: ['chandelle'] });
+assert.ok(r.ok && r.missions.length === 1, 'mission terminée : pas de blocage ' + JSON.stringify(r));
+assert.deepStrictEqual(r.remplacees, [mLea.id], 'la mission terminée est rangée');
+// modifier la date d'une mission principale : jamais sans date
+const mCy = r.missions[0].id;
+r = g.call({ action: 'defMission', token: cyril, id: mCy, fin: '' }); assert.strictEqual(r.error, 'invalide', 'sans date');
+
 console.log('MISSION PRINCIPALE OK');

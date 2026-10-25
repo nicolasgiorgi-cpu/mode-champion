@@ -1410,7 +1410,7 @@ textarea.txt{min-height:84px;padding:10px 12px;resize:vertical;font:500 16px/1.4
 .nav a.gold .nb{background:var(--gold);color:#1A1200}
 /* ----- le booster de la nouvelle étoile (ouverture façon jeu vidéo) ----- */
 .bk{position:fixed;inset:0;z-index:200;overflow:hidden;--bc:#FF4FA3;color:#E8ECF7;font-family:var(--f-body);-webkit-tap-highlight-color:transparent;touch-action:manipulation}
-.bk-ov{position:absolute;inset:0;background:radial-gradient(circle at 50% 38%,color-mix(in srgb,var(--bc) 22%,transparent) 0%,transparent 55%),rgba(4,6,12,.93);opacity:0;transition:opacity .35s ease}
+.bk-ov{position:absolute;inset:0;background:radial-gradient(circle at 50% 38%,color-mix(in srgb,var(--bc) 22%,transparent) 0%,transparent 55%),rgba(4,6,12,.93);background-color:rgba(4,6,12,.93);opacity:0;transition:opacity .35s ease}
 .bk[data-ph] .bk-ov{opacity:1}
 .bk[data-ph="store"] .bk-ov{opacity:0;transition-duration:.7s}
 .bk-skip{position:absolute;top:calc(14px + var(--safe-t,0px));right:12px;z-index:5;min-height:44px;padding:0 12px;border:0;background:transparent;color:var(--dim);font:700 12px/1 var(--f-hud);letter-spacing:.14em;cursor:pointer}
@@ -1418,7 +1418,7 @@ textarea.txt{min-height:84px;padding:10px 12px;resize:vertical;font:500 16px/1.4
 .bk-stage{position:absolute;left:50%;top:40%;width:0;height:0}
 @property --ra{syntax:'<angle>';inherits:false;initial-value:0deg}
 .bk-rays{position:absolute;inset:0;opacity:0;transition:opacity .6s ease;pointer-events:none;
-  background:radial-gradient(circle at 50% 40%,transparent 0%,transparent 18%,rgba(4,6,12,.97) 58%),repeating-conic-gradient(from var(--ra) at 50% 40%,rgba(255,214,120,.34) 0deg 7deg,transparent 7deg 22deg);animation:bkRa 9s linear infinite}
+  background:radial-gradient(circle at 50% 40%,transparent 0%,transparent 18%,rgba(4,6,12,.97) 58%),repeating-conic-gradient(from var(--ra,0deg) at 50% 40%,rgba(255,214,120,.34) 0deg 7deg,transparent 7deg 22deg);animation:bkRa 9s linear infinite}
 .bk[data-ph="charge"] .bk-rays{opacity:.5}
 .bk[data-ph="boom"] .bk-rays,.bk[data-ph="reveal"] .bk-rays{opacity:1}
 .bk[data-ph="store"] .bk-rays{opacity:0;transition-duration:.4s}
@@ -1428,7 +1428,7 @@ textarea.txt{min-height:84px;padding:10px 12px;resize:vertical;font:500 16px/1.4
 .bk-pack{position:absolute;left:-90px;top:-105px;width:180px;height:250px;padding:0;border:0;background:none;cursor:pointer;animation:bkIn .45s cubic-bezier(.2,.9,.3,1.3) both,bkBob 2.4s ease-in-out .45s infinite}
 .bk[data-ph="charge"] .bk-pack{animation:bkShake 1s linear both}
 .bk[data-ph="boom"] .bk-pack,.bk[data-ph="reveal"] .bk-pack,.bk[data-ph="store"] .bk-pack{animation:none;transform:scale(1.15);pointer-events:none}
-.bk-top,.bk-bot{position:absolute;left:0;width:180px;box-sizing:border-box;overflow:hidden;border:2px solid var(--bc);background:radial-gradient(circle at 50% 62%,color-mix(in srgb,var(--bc) 45%,transparent) 0%,transparent 60%),linear-gradient(160deg,color-mix(in srgb,var(--bc) 25%,#170A1E) 0%,#120A1A 60%,#0B0712 100%);background-size:180px 250px}
+.bk-top,.bk-bot{position:absolute;left:0;width:180px;box-sizing:border-box;overflow:hidden;border:2px solid var(--bc);background:radial-gradient(circle at 50% 62%,color-mix(in srgb,var(--bc) 45%,transparent) 0%,transparent 60%),linear-gradient(160deg,color-mix(in srgb,var(--bc) 25%,#170A1E) 0%,#120A1A 60%,#0B0712 100%);background-color:#170A1E;background-size:180px 250px}
 .bk-top{top:0;height:66px;border-bottom:2px dashed rgba(255,255,255,.55)}
 .bk-bot{top:66px;height:184px;border-top:0;background-position:0 -66px}
 .bk-pack.holo .bk-top,.bk-pack.holo .bk-bot{border-color:#FFFFFF;background:linear-gradient(115deg,rgba(255,79,163,.28),rgba(255,194,61,.22),rgba(61,255,176,.22),rgba(56,232,255,.28),rgba(180,140,255,.28)),#121626;background-size:180px 250px}
@@ -1567,3 +1567,10 @@ textarea.txt{min-height:84px;padding:10px 12px;resize:vertical;font:500 16px/1.4
 .cev-a.urg .cev-t span{color:var(--orange);font-weight:600}
 .cev-a:active{background:var(--panel2)}
 @media (min-width:900px){.jprep{display:grid;grid-template-columns:1fr 1fr;align-items:stretch}.jprep>:not(.switch):not(.box){grid-column:1/-1}}
+
+/* vieux iPhone (iOS < 16.2) sans color-mix : le booster garde un fond sombre et lisible */
+@supports not (color: color-mix(in srgb, red, red)) {
+  .bk-ov{background:rgba(4,6,12,.93)}
+  .bk-top,.bk-bot{background:linear-gradient(160deg,#2A1430 0%,#120A1A 60%,#0B0712 100%)}
+  .bk-glow{background:radial-gradient(circle,rgba(255,214,120,.55) 0%,transparent 70%)}
+}

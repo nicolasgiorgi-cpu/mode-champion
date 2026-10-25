@@ -21,6 +21,8 @@ window.MC = window.MC || {};
   function jp(gr, id) { return gr.joueurs.filter(function (p) { return p.joueur.id === id; })[0] || null; }
   function actifs(gr) { return gr.joueurs.filter(function (p) { return p.joueur.actif && !/^test$/i.test(p.joueur.prenom); }).sort(function (a, b) { return a.joueur.prenom.localeCompare(b.joueur.prenom, 'fr'); }); }
   function persoDe(gr, id) { return SK.missionPerso({ defmissions: (gr.defmissions || []).filter(function (m) { return m.joueurId === id; }) }); }
+  // la mission principale encore en cours (pas celle dont la date est passée)
+  function persoActif(gr, id) { var m = persoDe(gr, id); return m && !(m.fin && m.fin < L.today()) ? m : null; }
   function persosToutes(gr, id) { return SK.missionPerso({ defmissions: (gr.defmissions || []).filter(function (m) { return m.joueurId === id; }) }, true); }
   function p1De(gr, id, mid) { var p = jp(gr, id); return p ? SK.plus1({ encouragements: p.encouragements || [] }, mid) : []; }
   function dataDe(gr, id) { var p = jp(gr, id); return { etoiles: (p && p.etoiles) || [], encouragements: (p && p.encouragements) || [] }; }
@@ -201,7 +203,7 @@ window.MC = window.MC || {};
     return both().then(function (r) {
       var gr = r[0], x = jp(gr, p.id);
       if (!x) return '<main class="screen">' + MC.educBar(gr, 'Encourager', '#/educ/joueurs', 'Enfants') + '<div class="empty">Enfant introuvable.</div></main>';
-      var m = persoDe(gr, p.id);
+      var m = persoActif(gr, p.id);   // une mission terminée ne reçoit plus d'encouragement
       if (!ENC || ENC.jid !== p.id) {
         var e0 = q.evt ? evtById(q.evt) : evtDuJour();
         ENC = { jid: p.id, quoi: m && (!q.m || q.m === m.id) && p1De(gr, p.id, m.id).length < SK.maxPlus1(m) ? m.id : 'autre', ev: e0 ? e0.id : '', mot: '', retour: q.evt ? '#/educ/evt/' + q.evt : '#/educ/joueur/' + p.id + '?t=missions' };
@@ -247,7 +249,12 @@ window.MC = window.MC || {};
     var retour = ENC.retour;
     envoyerPlus1(ENC.jid, mid, ENC.ev, mot, b).then(function (r) { ENC = null; app.go(retour); }).catch(function () { });
   };
-  document.addEventListener('hashchange', function () { if (location.hash.indexOf('#/educ/encourager/') !== 0) ENC = null; });
+  // (hashchange arrive sur window, pas sur document)
+  window.addEventListener('hashchange', function () {
+    if (location.hash.indexOf('#/educ/encourager/') !== 0) ENC = null;
+    // une mission principale commencée puis abandonnée ne revient pas la fois suivante
+    if (NM && NM.type === 'perso' && location.hash.indexOf('#/educ/missions/nouvelle') !== 0) NM = null;
+  });
 
   // ======================================================================
   // Progrès › Skills : ÉVALUER (Skills v2, 25/10/2026) — un seul écran pour tout
@@ -545,7 +552,7 @@ window.MC = window.MC || {};
       return '<li class="mpres"><a class="grow" href="#/educ/joueur/' + esc(m.joueurId) + '?t=missions"><span class="t1">' + esc(nomDe(gr, m.joueurId)) + ' · ' + esc(D ? D.nom : '') + ' · ' + esc(SK.titreMission(m)) + '</span>' +
         '<span class="t2">' + et.n + ' / ' + et.max + ' étoile' + (et.max > 1 ? 's' : '') + ' · ' + (et.expiree ? '<b style="color:var(--orange)">terminée le ' + jourTxt(m.fin) + '</b>' : m.fin ? 'jusqu\'au ' + jourTxt(m.fin) : 'sans date') + (last ? ' · dernier +1 : ' + esc(qui(gr, last)) + ', ' + jourTxt(last.date) : '') + '</span>' +
         '<span class="row" style="gap:8px;margin-top:4px">' + MC.encDots(n) + '<span class="small" style="color:var(--violet)">' + MC.encTxt(n) + '</span>' + (n >= SK.PROPOSE_AU && et.restantes.length ? '<span class="pill" style="--pc:var(--gold)">À valider</span>' : '') + '</span></a>' +
-        (et.restantes.length ? '<button type="button" class="btn2 sm gold" data-act="valMission" data-m="' + esc(m.id) + '">Valider l\'étoile</button>' : '') + (et.expiree ? '' : btnPlus1(gr, m.joueurId, m)) + '</li>';
+        (et.restantes.length ? '<button type="button" class="btn2 sm gold" data-act="valMission" data-m="' + esc(m.id) + '" aria-label="Valider une étoile pour ' + esc(nomDe(gr, m.joueurId)) + '">Valider l\'étoile</button>' : '') + (et.expiree ? '' : btnPlus1(gr, m.joueurId, m)) + '</li>';
     }).join('');
     var reussies = (gr.defmissions || []).filter(function (m) { return m.sorte === 'etoile' && m.statut === 'faite'; }).sort(function (a, b) { return (a.faiteLe || '') < (b.faiteLe || '') ? 1 : -1; });
     var sans = kids.filter(function (p) { var m = persoDe(gr, p.joueur.id); return !m || etatDe(gr, m).expiree; }).length;
@@ -606,7 +613,7 @@ window.MC = window.MC || {};
   // ---------- créer une mission ----------
   var NM = null;
   function nmInit(type, joueur) {
-    if (NM && NM.type === type && (type !== 'perso' || !joueur || NM.joueurs.indexOf(joueur) >= 0)) return NM;
+    if (NM && NM.type === type && (type !== 'perso' || !joueur || NM.joueurs.indexOf(joueur) >= 0)) { if (joueur) NM.depuis = joueur; return NM; }
     var vac = SK.prochainesVacances(L.today());
     NM = { type: type, titre: '', texte: '', video: '', fin: type === 'perso' ? vac.date : L.addDays(L.today(), 14), finChoix: 'vac', xp: 50, questions: type === 'qcm' ? [{ q: '', opts: ['', '', ''], ok: -1 }] : [],
       joueurs: joueur ? [joueur] : [], filtre: 'tous', d: '', etoiles: [], mot: '', depuis: joueur || '' };
@@ -624,7 +631,7 @@ window.MC = window.MC || {};
   function nmPlan(gr, st) {
     // pour chaque enfant choisi : les étoiles qui lui resteront, la mission remplacée, ou pourquoi il n'aura rien
     return st.joueurs.map(function (id) {
-      var x = jp(gr, id), d = dataDe(gr, id), A = SK.acquis(d), cur = persoDe(gr, id);
+      var x = jp(gr, id), d = dataDe(gr, id), A = SK.acquis(d), cur = persoActif(gr, id);   // une mission terminée ne bloque pas
       var reste = st.d ? st.etoiles.filter(function (e) { return !A[SK.key(st.d, e)]; }) : [];
       var r = { id: id, nom: x ? x.joueur.prenom : '?', reste: reste, cur: cur };
       if (!st.d || !st.etoiles.length) r.ko = '';
@@ -709,8 +716,18 @@ window.MC = window.MC || {};
       gr.defmissions = (gr.defmissions || []).filter(function (x) { return rm.indexOf(x.id) < 0; }).concat(r.missions || []);
       persist();
       var n = (r.missions || []).length, back = st.depuis ? '#/educ/joueur/' + st.depuis + '?t=missions' : '#/educ/missions';
+      // les enfants que le serveur a laissés de côté (données du téléphone pas à jour : un autre éduc vient de lui en donner une…)
+      var RAISON = { deja: 'a déjà ces étoiles', encours: 'a déjà une mission en cours', autre: 'a une mission d\'un autre éduc' };
+      var ig = (r.ignores || []).map(function (x) { return nomDe(gr, x.joueurId) + ' ' + (RAISON[x.raison] || 'pas changé'); });
+      if (!n) {
+        b.disabled = false;
+        ui.toast('Aucune mission donnée : ' + (ig.join(', ') || 'rien à changer') + '.', true);
+        MC.loadGroup(true).then(function () { app.rerender(); }).catch(function () { });
+        return;
+      }
       NM = null;
-      ui.toast(n === 1 ? 'Mission donnée à ' + nomDe(gr, r.missions[0].joueurId) + ' : elle la voit dans son appli' : 'Mission donnée à ' + n + ' enfants : ils la voient dans leur appli');
+      ui.toast((n === 1 ? 'Mission donnée à ' + nomDe(gr, r.missions[0].joueurId) + ' : elle la voit dans son appli' : 'Mission donnée à ' + n + ' enfants : ils la voient dans leur appli') +
+        (ig.length ? '. Pas changé : ' + ig.join(', ') + '.' : ''), !!ig.length);
       app.go(back);
     }).catch(function (e) { b.disabled = false; ui.toast(e.message, true); });
   };
@@ -792,7 +809,7 @@ window.MC = window.MC || {};
           '<button type="button" class="lnk" data-act="retEtoile" data-id="' + esc(s.row.id) + '" data-j="' + esc(id) + '" style="color:var(--dim)">Retirer</button></li>';
         var n = isM ? p1De(gr, id, m.id).length : 0;
         return '<li class="li skrow' + (isM ? ' mis' : '') + '"><span class="skno">' + icon('star', 14) + '</span><span class="grow"><span class="t1">' + esc(s.def.nom) + '</span><span class="t2">' + (isM ? '<b style="color:var(--violet)">sa mission principale · ' + MC.encTxt(n) + '</b>' : '« ' + esc(s.def.phrase) + ' »') + demTxt + '</span></span>' +
-          (isM ? btnPlus1(gr, id, m, '', true) : '') + '<button type="button" class="btn2 sm gold" data-act="valEtoile" data-j="' + esc(id) + '" data-d="' + D.id + '" data-e="' + s.def.id + '">Valider</button></li>';
+          (isM ? btnPlus1(gr, id, m, '', true) : '') + '<button type="button" class="btn2 sm gold" data-act="valEtoile" data-j="' + esc(id) + '" data-d="' + D.id + '" data-e="' + s.def.id + '" aria-label="Valider l\'étoile ' + esc(s.def.nom) + '">Valider</button></li>';
       }).join('') + '</ul></section>';
     }).join('');
     return '<div class="between"><span class="hud" style="color:var(--gold)">' + SK.total(d) + ' / ' + SK.MAX_TOTAL + ' étoiles' + (SK.totalBrille(d) ? ' · ' + SK.totalBrille(d) + ' brillent' : '') + '</span>' + (m && !etatDe(gr, m).expiree ? '' : '<a class="lnk" href="#/educ/missions/nouvelle?type=perso&joueur=' + esc(id) + '">Lui donner une mission principale</a>') + '</div>' + cartes +
@@ -807,7 +824,7 @@ window.MC = window.MC || {};
         (m.texte ? '<p class="small" style="margin:0">« ' + esc(m.texte) + ' »</p>' : '') +
         '<ul class="list">' + et.etoiles.map(function (x) {
           return '<li class="li skrow' + (x.row ? ' acq' : ' mis') + '"><span class="' + (x.row ? 'skok' : 'skno') + '">' + icon('star', 14) + '</span><span class="grow"><span class="t1">' + esc(x.def.nom) + '</span><span class="t2">' + (x.row ? 'gagnée le ' + jourTxt(x.row.date) + ' · ' + esc(qui(gr, x.row)) : '« ' + esc(x.def.phrase) + ' »') + '</span></span>' +
-            (x.row ? '' : '<button type="button" class="btn2 sm gold" data-act="valEtoile" data-j="' + esc(id) + '" data-d="' + esc(m.domaine) + '" data-e="' + esc(x.id) + '">Valider</button>') + '</li>';
+            (x.row ? '' : '<button type="button" class="btn2 sm gold" data-act="valEtoile" data-j="' + esc(id) + '" data-d="' + esc(m.domaine) + '" data-e="' + esc(x.id) + '" aria-label="Valider l\'étoile ' + esc(x.def.nom) + '">Valider</button>') + '</li>';
         }).join('') + '</ul>' +
         '<div class="row" style="gap:10px">' + MC.encDots(n) + '<span class="small" style="color:var(--soft)">' + MC.encTxt(n) + ' · au ' + SK.PROPOSE_AU + 'e, on vous propose de valider</span></div>' +
         (l.length ? '<ol class="p1list">' + l.map(function (x) {

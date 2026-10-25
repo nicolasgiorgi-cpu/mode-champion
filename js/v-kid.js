@@ -97,9 +97,17 @@
       if (MC.accueil && MC.accueil.needTour('k', me.joueur.id)) { setTimeout(function () { app.go('#/bienvenue', true); }, 0); return null; }
       cur.after = function (root) {
         if (MC.news) setTimeout(function () { if (location.hash.indexOf('#/semaine') === 0) MC.news.maybeShow('k', me.joueur.id); }, 350);
-        // « À regarder » : consulté = replié la prochaine fois
+        // « À regarder » : consulté = replié la prochaine fois. « Consulté » = refermé à la main, ou l'enfant a quitté l'écran
+        // (pas à l'affichage : la mise à jour qui arrive du serveur juste après le replierait sous ses yeux)
         var ar = root && root.querySelector('.areg');
-        if (ar) { var mark = function () { if (ar.open) app.lsSet('mc-areg:' + me.joueur.id, ar.getAttribute('data-sig')); }; mark(); ar.addEventListener('toggle', mark); }
+        if (ar) {
+          var k = 'mc-areg:' + me.joueur.id, sig = ar.getAttribute('data-sig');
+          ar.addEventListener('toggle', function () { if (!ar.open) app.lsSet(k, sig); });
+          if (ar.open) {
+            var quitte = function () { if (location.hash.indexOf('#/semaine') === 0) return; window.removeEventListener('hashchange', quitte); app.lsSet(k, sig); };
+            window.addEventListener('hashchange', quitte);
+          }
+        }
       };
       return paintSemaine(me, app.S.stats);
     });
@@ -163,7 +171,8 @@
     // ouvert tant qu'il y a du nouveau, replié une fois consulté
     var aRegarder = bandeauMissions(me) + bilanNote + props + pendNote, aReg = '';
     if (aRegarder) {
-      var sig = [bandeauMissions(me) ? 'm' : '', bilanNote ? 'b' : '', props ? 'n' + st.proposals.length : '', pendNote ? 'r' + pend : ''].join('|') + '|' + L.today();
+      var bm = bandeauMissions(me), bmV = bm ? ((/data-v="([^"]*)"/.exec(bm) || [])[1] || '') : '';   // le bandeau Missions : son dernier élément compte
+      var sig = [bm ? 'm' + bmV : '', bilanNote ? 'b' : '', props ? 'n' + st.proposals.length : '', pendNote ? 'r' + pend : ''].join('|') + '|' + L.today();
       var vu = app.lsGet('mc-areg:' + me.joueur.id) === sig;
       var nbR = [bandeauMissions(me), bilanNote, props, pendNote].filter(Boolean).length;
       aReg = '<details class="areg"' + (vu ? '' : ' open') + ' data-sig="' + esc(sig) + '"><summary><span class="hud">À regarder · ' + nbR + '</span>' + icon('down', 16) + '</summary><div class="areg-in">' + aRegarder + '</div></details>';

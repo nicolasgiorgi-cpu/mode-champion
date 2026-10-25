@@ -114,6 +114,9 @@ window.MC = window.MC || {};
       host.innerHTML = html(A, me);
       var bk = host.firstChild, timers = [], fini = false, avant = document.activeElement;
       document.body.appendChild(bk);
+      // pendant le booster, le reste de l'appli est inactif (le clavier et les lecteurs d'écran restent dans le booster)
+      var fond = ['app', 'nav'].map(function (id) { return document.getElementById(id); }).filter(Boolean);
+      fond.forEach(function (el) { el.setAttribute('inert', ''); el.setAttribute('aria-hidden', 'true'); });
       var keys = A.items.map(function (x) { return SK.key(x.d, x.e.etoile); });
       function phase(p) { bk.setAttribute('data-ph', p); }
       function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
@@ -136,6 +139,7 @@ window.MC = window.MC || {};
         document.removeEventListener('keydown', onKey, true);
         window.removeEventListener('hashchange', fermer);
         if (bk.parentNode) bk.parentNode.removeChild(bk);
+        fond.forEach(function (el) { el.removeAttribute('inert'); el.removeAttribute('aria-hidden'); });
         if (avant && avant.focus) try { avant.focus({ preventScroll: true }); } catch (e) { }
         resolve(keys);
       }

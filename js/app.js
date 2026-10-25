@@ -169,7 +169,7 @@ MC.app = (function () {
     var c = S.cache || {};
     if (key === 'missions' && S.me && MC.missions) return MC.missions.aFaire(S.me).length + MC.missions.nouveaux('k', S.me).enc.length;
     // (visuels v2) des étoiles arrivées depuis la dernière visite du carnet : l'onglet Skills s'allume en doré
-    if (key === 'skills' && S.me && MC.nouvellesEtoiles) return MC.nouvellesEtoiles(S.me, lsGet('mc-sklu:' + S.me.joueur.id) || '').length;
+    if (key === 'skills' && S.me && MC.nouvellesEtoiles) return MC.nouvellesEtoiles(S.me, MC.luSkills ? MC.luSkills(S.me.joueur.id) : (lsGet('mc-sklu:' + S.me.joueur.id) || '')).length;
     if (key === 'p:prepa' && c.family) return pendingCount(c.family.enfants);
     if (key === 'p:missions' && c.family && MC.missions) { var n = 0; c.family.enfants.forEach(function (d) { n += MC.missions.nouveaux('f', d).enc.length; }); return n; }
     if (key === 'e:progres' && c.group) return pendingCount(mesEnfantsDuGroupe(c.group)) + (MC.demandesSkills ? MC.demandesSkills() : 0);   // + les demandes d'étoiles des enfants (Skills v2)

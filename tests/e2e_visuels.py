@@ -74,6 +74,7 @@ with sync_playwright() as p:
     pg.click('#nav a[href^="#/skills"]'); pg.wait_for_timeout(900)
     check('booster : il arrive', pg.query_selector('.bk') is not None and pg.get_attribute('.bk', 'data-ph') == 'arrive', pg.get_attribute('.bk', 'data-ph') if pg.query_selector('.bk') else '')
     check('booster : le carnet est derrière, à l\'écran', pg.locator('.sk-tilt').count() == 8)
+    check('booster : le reste de l\'appli est inactif pendant le booster', pg.get_attribute('#app', 'inert') is not None)
     shot(pg, 'bk-arrive')
     pg.click('.bk .bk-pack', force=True); pg.wait_for_timeout(1250)
     check('booster : il explose (boom)', pg.get_attribute('.bk', 'data-ph') in ('boom', 'reveal'), pg.get_attribute('.bk', 'data-ph'))
@@ -84,6 +85,7 @@ with sync_playwright() as p:
     shot(pg, 'bk-multi')
     pg.click('.bk .bk-btn'); pg.wait_for_timeout(1300)
     check('booster : rangé (fermé)', pg.query_selector('.bk') is None)
+    check('booster fermé : l\'appli redevient active', pg.get_attribute('#app', 'inert') is None)
     check('booster : les étoiles arrivent dans les cartes (pop)', pg.locator('.sk-pips .et.pop').count() >= 1, pg.locator('.sk-pips .et.pop').count())
     check('onglet Skills redevenu normal', pg.query_selector('#nav a.gold') is None)
     go(pg, '#/skills', 900)
@@ -118,6 +120,15 @@ with sync_playwright() as p:
     check('après « Passer » : onglet normal', pg.query_selector('#nav a.gold') is None)
 
     # les retouches côté enfant
+    # « À regarder » ne se replie pas tout seul quand la mise à jour du serveur arrive
+    pg.evaluate("Object.keys(localStorage).filter(k => k.indexOf('mc-areg:') === 0).forEach(k => localStorage.removeItem(k))")
+    go(pg, '#/semaine', 900)
+    if pg.query_selector('.areg'):
+        o1 = pg.get_attribute('.areg', 'open') is not None
+        pg.evaluate("MC.app.loadMe(true).then(() => MC.app.rerender())"); pg.wait_for_timeout(1500)
+        check('« À regarder » reste ouvert après la mise à jour', o1 and pg.get_attribute('.areg', 'open') is not None)
+        go(pg, '#/profil', 500); go(pg, '#/semaine', 900)
+        check('« À regarder » replié une fois consulté (écran quitté)', pg.get_attribute('.areg', 'open') is None)
     go(pg, '#/jour/meafou', 900)
     order = pg.evaluate("""() => { var m = document.querySelector('main'), o = n => { var e = m.querySelector(n); return e ? e.getBoundingClientRect().top + scrollY : -1; };
       return [o('.grid3'), o('.jprep .box'), o('[data-k="son"]'), o('[data-act="startRun"]'), o('ol'), o('.note.gold'), o('.jdeja')]; }""")

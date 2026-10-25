@@ -243,8 +243,8 @@ window.MC = window.MC || {};
     return '<main class="screen">' + sub(R, R.base, 'Missions', T(R, 'Les mots de mes éducs', 'Les mots de ses éducs')) +
       '<div class="head"><span class="kicker" style="color:var(--green)">' + l.length + ' en tout</span><h1 class="big sm">' + T(R, 'Les mots de mes éducs', 'Les mots des éducs') + '</h1></div>' +
       (l.length ? '<ol class="p1list">' + l.map(function (x) {
-        var s = x.missionId ? SK.star(x.domaine, x.etoile) : null;
-        return '<li class="p1row' + ((x.cree || '') > lu ? ' new' : '') + '">' + (x.missionId ? p1Tag() : '<b class="p1tag mot">' + icon('heart', 14) + '</b>') + '<span class="grow"><span class="p1-k">' + quiQuand(x) + ((x.cree || '') > lu ? ' · nouveau' : '') + '</span><span class="p1-m">' + (motDe(x) || '+1') + '</span>' + (s ? '<span class="t2" style="margin-top:4px">sur « ' + esc(s.mission) + ' »</span>' : '') + '</span></li>';
+        var sq = SK.surQuoi(d, x);
+        return '<li class="p1row' + ((x.cree || '') > lu ? ' new' : '') + '">' + (x.missionId ? p1Tag() : '<b class="p1tag mot">' + icon('heart', 14) + '</b>') + '<span class="grow"><span class="p1-k">' + quiQuand(x) + ((x.cree || '') > lu ? ' · nouveau' : '') + '</span><span class="p1-m">' + (motDe(x) || '+1') + '</span>' + (sq ? '<span class="t2" style="margin-top:4px">sur « ' + esc(sq) + ' »</span>' : '') + '</span></li>';
       }).join('') + '</ol>' : '<div class="empty">' + T(R, 'Pas encore de mot : ils arrivent ici quand un éduc t\'encourage.', 'Pas encore de mot des éducs.') + '</div>') + '</main>';
   }
 
@@ -384,21 +384,32 @@ window.MC = window.MC || {};
   // (visuels v2) les étoiles arrivées depuis la dernière visite : le booster se joue à l'ouverture de Skills,
   // puis les cartes montrent leurs nouvelles étoiles (elles « tombent » à leur place, étiquette « Nouvelle étoile »)
   var APRES = null;
+  // la dernière visite du carnet (sur le téléphone, et en mémoire au cas où l'écriture échoue)
+  var LU = {};
+  function luSkills(jid) { var a = app.lsGet('mc-sklu:' + jid) || '', b = LU[jid] || ''; return a > b ? a : b; }
+  MC.luSkills = luSkills;
   app.route('/skills', function (p, q, cur) {
     return app.loadMe().then(function (me) {
-      var jid = me.joueur.id, lu = app.lsGet('mc-sklu:' + jid) || '', nouv = nouvellesEtoiles(me, lu), o = {};
+      var jid = me.joueur.id, lu = luSkills(jid), nouv = nouvellesEtoiles(me, lu), o = {};
       if (APRES && APRES.jid === jid) { o.nouv = {}; APRES.keys.forEach(function (k) { o.nouv[k] = true; }); APRES = null; }
+      cur.cleanup = unbindCards;
       cur.after = function (root) {
         bindCards(root);
         var mx = new Date(0).toISOString(); (me.etoiles || []).forEach(function (e) { [e.maj, e.cree].forEach(function (t) { if (t && t > mx) mx = t; }); });
-        app.lsSet('mc-sklu:' + jid, mx); app.refreshNav();
-        if (nouv.length && MC.booster) MC.booster(me, nouv, lu).then(function (keys) { APRES = { jid: jid, keys: keys }; if (location.hash.indexOf('#/skills') === 0 && location.hash.indexOf('#/skills/') !== 0) app.rerender(); });
+        // si le téléphone refuse d'écrire (stockage plein, navigation privée), la date est gardée en mémoire : le booster ne revient pas en boucle
+        app.lsSet('mc-sklu:' + jid, mx);
+        if (app.lsGet('mc-sklu:' + jid) !== mx) LU[jid] = mx; else delete LU[jid];
+        app.refreshNav();
+        if (nouv.length && MC.booster) MC.booster(me, nouv, lu).then(function (keys) {
+          // rangé dans le carnet : les étoiles arrivent dans leurs cartes. Fermé en quittant Skills : rien à rejouer plus tard
+          if (location.hash.indexOf('#/skills') === 0 && location.hash.indexOf('#/skills/') !== 0) { APRES = { jid: jid, keys: keys }; app.rerender(); }
+        });
       };
       return skillsHome(kidR(me), o);
     });
   }, { kid: true, nav: 'skills', live: true, bg: '#2E2612' });
   app.route('/skills/:dom', function (p, q, cur) {
-    return app.loadMe().then(function (me) { cur.after = bindCards; return skillsCarte(kidR(me), p.dom); });
+    return app.loadMe().then(function (me) { cur.after = bindCards; cur.cleanup = unbindCards; return skillsCarte(kidR(me), p.dom); });
   }, { kid: true, nav: 'skills', live: true, bg: '#2E2612' });
 
   // ======================================================================
@@ -413,6 +424,7 @@ window.MC = window.MC || {};
         var R = famR(fam);
         if (mark) cur.after = function (root) { M.marquerLu('f', R.d.joueur.id, R.d); app.refreshNav(); bindCards(root); };
         else cur.after = bindCards;
+        cur.cleanup = unbindCards;
         return fn(R, p, q);
       });
     };
@@ -433,6 +445,7 @@ window.MC = window.MC || {};
   app.route('/parent/skills/:dom', parentRoute(function (R, p) { return skillsCarte(R, p.dom); }), { adult: 'f', nav: 'p:skills', bg: '#2E2612' });
 
   // les cartes Skills brillent sous le doigt, comme les cartes des postes
+  function unbindCards() { if (MC.unbindTrophees) MC.unbindTrophees(); }
   function bindCards(root) { if (MC.bindTilt && root) MC.bindTilt(root); if (MC.bindTrophees && root) MC.bindTrophees(root); }
   MC.carteSkill = function (R, D, c, big, o) { return carteHtml(R, D, c, big, o); };
   MC.bindCartesSkills = bindCards;

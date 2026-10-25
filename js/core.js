@@ -1102,6 +1102,7 @@ var Core = (function () {
       if (mid) {
         def = find(ctx.db.rows('defmissions'), mid);
         if (!def || def.sorte !== 'etoile' || def.joueurId !== j.id || def.statut !== 'active') fail('invalide', 'Cette mission n\'est plus en cours.');
+        if (def.fin && def.fin < isoDate(ctx.now)) fail('finie', 'Cette mission est terminée (le ' + def.fin + ') : donnez-lui une nouvelle mission.');
         var lst = etoilesDe(def), max = MAX_PLUS1 * Math.max(1, lst.length);
         if (plus1De(ctx, mid) >= max) fail('limite', 'Déjà ' + max + ' encouragements sur cette mission : c\'est le moment de valider ' + (lst.length > 1 ? 'les étoiles.' : 'l\'étoile.'));
         // l'étoile précise (si l'éduc la choisit), sinon la 1re pas encore gagnée
@@ -1301,7 +1302,11 @@ var Core = (function () {
         patch = { maj: now };
         if (req.titre !== undefined) { patch.titre = cleanText(req.titre, 80); if (!patch.titre) fail('invalide', 'Il faut un titre.'); }
         if (req.texte !== undefined) patch.texte = cleanText(req.texte, 240);
-        if (req.fin !== undefined) patch.fin = validDate(req.fin) ? req.fin : '';
+        if (req.fin !== undefined) {
+          patch.fin = validDate(req.fin) ? req.fin : '';
+          // (une date passée reste permise ici : c'est la façon de terminer une mission tout de suite)
+          if (!patch.fin && m.sorte === 'etoile') fail('invalide', 'Une mission principale a toujours une date de fin.');
+        }
         if (m.sorte !== 'etoile' && req.questions !== undefined) patch.questions = cleanQuestions(req.questions, m.sorte === 'qcm' ? 1 : 0);
         if (m.sorte === 'video' && req.video !== undefined) { patch.video = youtubeId(req.video); if (!patch.video) fail('invalide', 'Adresse de vidéo YouTube non reconnue.'); }
         ctx.db.update('defmissions', m.id, patch);
@@ -1326,14 +1331,17 @@ var Core = (function () {
         ids = ids.filter(function (x, i) { return ids.indexOf(x) === i; });
         if (!ids.length || ids.length > 60) fail('invalide', 'Choisissez 1 à 60 enfants.');
         var jsx = ids.map(function (x) { return joueurActif(ctx, x); });   // tout est vérifié avant d'écrire
-        var fin = validDate(req.fin) ? req.fin : prochainesVacances(isoDate(ctx.now)), ignores = [], remplacees = [], out = [];
+        var auj = isoDate(ctx.now), fin = validDate(req.fin) ? req.fin : prochainesVacances(auj), ignores = [], remplacees = [], out = [];
+        if (fin < auj) fail('invalide', 'La date de fin est déjà passée.');
         var plan = jsx.map(function (j) {
           var reste = lst.filter(function (e) { return !etoileActive(ctx, j.id, dom, e); });
           if (!reste.length) {
             if (!batch) fail('invalide', j.prenom + (lst.length > 1 ? ' a déjà ces étoiles.' : ' a déjà cette étoile.'));
             ignores.push({ joueurId: j.id, raison: 'deja' }); return null;
           }
-          var encours = ctx.db.rows('defmissions').filter(function (x) { return x.sorte === 'etoile' && x.statut === 'active' && x.joueurId === j.id; });
+          // une mission dont la date est passée est finie : elle ne bloque personne, et elle est rangée quand la nouvelle arrive
+          var actives = ctx.db.rows('defmissions').filter(function (x) { return x.sorte === 'etoile' && x.statut === 'active' && x.joueurId === j.id; });
+          var encours = actives.filter(function (x) { return !x.fin || x.fin >= auj; });
           if (encours.length && !req.remplacer) {
             if (!batch) fail('deja', j.prenom + ' a déjà une mission principale en cours.', { missionId: encours[0].id });
             ignores.push({ joueurId: j.id, raison: 'encours' }); return null;
@@ -1343,7 +1351,7 @@ var Core = (function () {
             if (!batch) fail('interdit', 'Sa mission en cours vient de ' + (autreEduc.parNom || 'un autre éduc') + ' : seul cet éduc (ou l\'admin) peut la remplacer.');
             ignores.push({ joueurId: j.id, raison: 'autre', parNom: autreEduc.parNom || '' }); return null;
           }
-          return { j: j, reste: reste, encours: encours };
+          return { j: j, reste: reste, encours: actives };
         }).filter(Boolean);
         plan.forEach(function (x) {
           x.encours.forEach(function (y) { ctx.db.update('defmissions', y.id, { statut: 'retiree', maj: now }); remplacees.push(y.id); });
