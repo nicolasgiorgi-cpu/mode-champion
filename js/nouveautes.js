@@ -137,6 +137,9 @@ MC.news = (function () {
     if (!id || showing || window.__MC_QUIET || document.querySelector('.modal')) return;
     // 1re ouverture : un message simple sur l'appli, pas la liste des mises à jour (des notions qu'on ne connaît pas encore)
     if (MC.accueil && MC.accueil.premiereFois && MC.accueil.premiereFois(role, id)) { showing = true; MC.accueil.bienvenue(role, id).then(function () { showing = false; }); return; }
+    // 2e et 4e ouverture : comment mettre l'appli sur l'écran d'accueil (les nouveautés attendent l'ouverture suivante)
+    var ri = MC.accueil && MC.accueil.rappelInstall ? MC.accueil.rappelInstall(role) : null;
+    if (ri) { showing = true; ri.then(function () { showing = false; }); return; }
     var list = unseen(role, id);
     if (!list.length) return;
     showing = true;

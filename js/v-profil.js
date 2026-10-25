@@ -554,7 +554,7 @@
         '<div class="box"><span class="t2 small">' + (k.visible ? 'Tu apparais dans le classement de ta ligue.' : 'Tes parents ont choisi de ne pas t\'afficher dans le classement des autres.') + '</span></div></div>' +
         '<button type="button" class="btn2 grey" data-act="logoutKid">' + icon('logout', 18) + ' Changer de joueur</button>' +
         '<a class="btn2 grey" href="#/adultes">' + icon('lock', 18) + ' Espace adultes (parents, éducs)</a>' +
-        '<p class="small" style="margin:0;text-align:center">Sur l\'iPad ou le téléphone : menu Partager › « Sur l\'écran d\'accueil » pour avoir le site comme une appli.</p></main>';
+        (MC.accueil && MC.accueil.mobile() && !MC.accueil.installee() ? '<button type="button" class="btn2" data-act="howInstall" data-r="k">' + icon('phone', 18) + ' Mettre l\'appli sur l\'écran d\'accueil</button>' : '') + '</main>';
     });
   }, { kid: true, nav: 'moi' });
   MC.act.togglePrefSon = function () { ui.setMuted(!ui.isMuted()); if (!ui.isMuted()) { ui.unlockAudio(); ui.beep(880, 0.08); } app.rerender(); };

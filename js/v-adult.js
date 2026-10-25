@@ -377,17 +377,6 @@
         '<button type="button" class="btn2 grey" data-act="adultLogout">' + icon('logout', 18) + ' Se déconnecter</button>' + versionLine() + '</div></div></main>';
     });
   }, { adult: 'f', nav: 'p:plus', bg: '#12333A' });
-  MC.act.howInstall = function () {
-    var ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    ui.modal({
-      title: 'Sur l\'écran d\'accueil',
-      body: '<ol class="steps">' + (ios ?
-        '<li><span class="num" style="--sc:var(--cyan)">1</span><span class="tx">Ouvrez le site dans <b>Safari</b>.</span></li><li><span class="num" style="--sc:var(--cyan)">2</span><span class="tx">Touchez <b>Partager</b> (le carré avec une flèche vers le haut).</span></li><li><span class="num" style="--sc:var(--cyan)">3</span><span class="tx">Choisissez <b>Sur l\'écran d\'accueil</b>, puis <b>Ajouter</b>.</span></li>' :
-        '<li><span class="num" style="--sc:var(--cyan)">1</span><span class="tx">Ouvrez le site dans <b>Chrome</b>.</span></li><li><span class="num" style="--sc:var(--cyan)">2</span><span class="tx">Touchez le menu <b>⋮</b> en haut à droite.</span></li><li><span class="num" style="--sc:var(--cyan)">3</span><span class="tx">Choisissez <b>Ajouter à l\'écran d\'accueil</b> (ou <b>Installer l\'application</b>).</span></li>') +
-        '</ol><p class="small">Depuis l\'icône, il faudra se connecter une fois (vous et votre enfant).</p>',
-      actions: [{ label: 'C\'est fait', value: 'ok', cls: 'btn' }, { label: 'Plus tard', value: null, cls: 'btn2 grey' }]
-    }).then(function (v) { if (v === 'ok' && MC.accueil) { MC.accueil.markDone('install'); app.rerender(); } });
-  };
 
   // ======================================================================
   // ÉDUC : 5 onglets (Vestiaire · Joueurs · Compos · Classement · Outils) ; Compos : voir v-compos.js
@@ -558,6 +547,7 @@
         link('#/educ/ajouter', 'plus', 'Ajouter des enfants', 'Depuis Spond, avec leurs codes') +
         '<p class="small" style="margin:0">Spond : le compte et le mot de passe se tapent ici, ils restent sur le serveur du club.</p></section></div>' +
         '<div class="sec" style="gap:20px"><section class="sec"><h2 class="h2">Cet appareil</h2>' + sharedSwitch() +
+        (MC.accueil && MC.accueil.mobile() && !MC.accueil.installee() ? '<button type="button" class="switch" data-act="howInstall" data-r="e"><span class="row">' + icon('phone', 20, 'style="color:var(--cyan);flex:none"') + '<span><span class="t1" style="display:block">Mettre l\'appli sur l\'écran d\'accueil</span><span class="t2" style="display:block">Elle s\'ouvre d\'un geste, comme une vraie appli</span></span></span>' + icon('right', 16) + '</button>' : '') +
         link(app.S.kid ? '#/semaine' : '#/connexion', 'user', 'Côté joueur', 'Voir l\'appli comme les enfants') + '</section>' +
         '<button type="button" class="btn2 grey" data-act="adultLogout">' + icon('logout', 18) + ' Se déconnecter</button>' +
         '<section class="sec"><h2 class="h2">Aide</h2>' +

@@ -257,6 +257,59 @@ MC.accueil = (function () {
   }
   function markArene(id) { if (id && !get('arene:' + id)) set('arene:' + id, Date.now()); }
 
+  // ---------- l'appli sur l'écran d'accueil (iPhone, iPad, Android) ----------
+  // un rappel à la 2e ouverture de l'appli sur l'appareil, puis à la 4e (jamais à la 1re, jamais si elle est déjà installée)
+  var installEvt = null;   // Android (Chrome) : l'installation se propose en un geste
+  window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); installEvt = e; });
+  window.addEventListener('appinstalled', function () { installEvt = null; set('done:install', Date.now()); });
+  function estIos() { try { return /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); } catch (e) { return false; } }
+  function mobile() { try { return estIos() || /Android/i.test(navigator.userAgent); } catch (e) { return false; } }
+  // les ouvertures de l'appli sur cet appareil : une nouvelle ouverture = plus de 30 minutes sans s'en servir
+  var OUV = 'mc-ouvertures';
+  function ouvertures() { var o = app.lsGet(OUV); return o && typeof o === 'object' ? o : { n: 0, t: 0 }; }
+  function compterOuverture() { var o = ouvertures(), now = Date.now(); if (now - (o.t || 0) > 30 * 60000) o.n = (o.n || 0) + 1; o.t = now; app.lsSet(OUV, o); }
+  compterOuverture();
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') compterOuverture(); else { var o = ouvertures(); o.t = Date.now(); app.lsSet(OUV, o); } });
+  function installee() { return standalone() || !!get('done:install'); }
+  function installSheet(role) {
+    var kid = role === 'k', android = !estIos();
+    var etapes = estIos() ?
+      '<li><span class="num" style="--sc:var(--cyan)">1</span><span class="tx">' + (kid ? 'Touche' : 'Touchez') + ' <b>Partager</b> (le carré avec une flèche vers le haut) : en bas de Safari sur iPhone, en haut sur iPad.</span></li>' +
+      '<li><span class="num" style="--sc:var(--cyan)">2</span><span class="tx">' + (kid ? 'Choisis' : 'Choisissez') + ' <b>Sur l\'écran d\'accueil</b> (plus bas dans la liste si besoin).</span></li>' +
+      '<li><span class="num" style="--sc:var(--cyan)">3</span><span class="tx">' + (kid ? 'Touche' : 'Touchez') + ' <b>Ajouter</b>.</span></li>' :
+      '<li><span class="num" style="--sc:var(--cyan)">1</span><span class="tx">Dans Chrome, ' + (kid ? 'touche' : 'touchez') + ' le menu <b>⋮</b> en haut à droite.</span></li>' +
+      '<li><span class="num" style="--sc:var(--cyan)">2</span><span class="tx">' + (kid ? 'Choisis' : 'Choisissez') + ' <b>Ajouter à l\'écran d\'accueil</b> (ou <b>Installer l\'application</b>).</span></li>' +
+      '<li><span class="num" style="--sc:var(--cyan)">3</span><span class="tx">' + (kid ? 'Touche' : 'Touchez') + ' <b>Installer</b> (ou <b>Ajouter</b>).</span></li>';
+    var direct = android && installEvt;
+    return ui.modal({
+      title: 'Sur l\'écran d\'accueil',
+      body: '<p class="lead" style="margin:0">' + (kid ? 'Mets Mode champion sur ton écran d\'accueil : il s\'ouvre d\'un geste, comme une vraie appli.' : 'Mettez Mode champion sur l\'écran d\'accueil : elle s\'ouvre d\'un geste, comme une vraie appli.') + '</p>' +
+        (direct ? '' : '<ol class="steps">' + etapes + '</ol>') +
+        '<p class="small" style="margin:0">' + (direct ? '' : (kid ? 'Ouvert depuis WhatsApp ? Ouvre d\'abord le lien dans ' : 'Ouvert depuis WhatsApp ou un mail ? Ouvrez d\'abord le lien dans ') + (estIos() ? 'Safari' : 'Chrome') + '. ') +
+        (estIos() ? (kid ? 'Depuis l\'icône, il faudra retaper ton code une fois.' : 'Depuis l\'icône, il faudra se reconnecter une fois.') : '') + '</p>',
+      actions: direct ? [{ label: icon('phone', 18) + ' Installer l\'appli', value: 'install', cls: 'btn' }, { label: 'Plus tard', value: null, cls: 'btn2 grey' }]
+        : [{ label: 'C\'est fait', value: 'ok', cls: 'btn' }, { label: 'Plus tard', value: null, cls: 'btn2 grey' }]
+    }).then(function (v) {
+      if (v === 'ok') { markDone('install'); return v; }
+      if (v === 'install' && installEvt) {
+        var e = installEvt; installEvt = null;
+        try { e.prompt(); return e.userChoice.then(function (c) { if (c && c.outcome === 'accepted') markDone('install'); return v; }); } catch (x) { }
+      }
+      return v;
+    });
+  }
+  MC.act.howInstall = function (b) { var r = b && b.getAttribute('data-r'); installSheet(r || (app.S.adult ? app.S.adult.role : 'k')).then(function () { app.rerender(); }); };
+  // le rappel : à la 2e ouverture, puis à la 4e (un seul par ouverture) ; renvoie la promesse de la fenêtre, ou null
+  function rappelInstall(role) {
+    if (window.__MC_QUIET || installee() || !mobile()) return null;
+    var n = ouvertures().n || 0, r1 = get('rappel:install:1'), r2 = get('rappel:install:2');
+    if (get('rappel:install:n') === n) return null;
+    var cran = !r1 && n >= 2 ? 1 : (r1 && !r2 && n >= 4 ? 2 : 0);
+    if (!cran) return null;
+    set('rappel:install:' + cran, Date.now()); set('rappel:install:n', n);
+    return installSheet(role);
+  }
+
   // parent
   function standalone() { try { return !!(navigator.standalone || (window.matchMedia && matchMedia('(display-mode: standalone)').matches)); } catch (e) { return false; } }
   function parentChecklist(fam) {
@@ -349,5 +402,6 @@ MC.accueil = (function () {
   function markDone(k) { set('done:' + k, Date.now()); }
 
   return { premiereFois: premiereFois, bienvenue: bienvenue, resume: resume, needTour: needTour, markTour: markTour, tourLink: tourLink, kidChecklist: kidChecklist, kidChecklistShown: kidChecklistShown, markArene: markArene,
-    parentChecklist: parentChecklist, educChecklist: educChecklist, tip: tip, markDone: markDone };
+    parentChecklist: parentChecklist, educChecklist: educChecklist, tip: tip, markDone: markDone,
+    installSheet: installSheet, rappelInstall: rappelInstall, installee: installee, mobile: mobile };
 })();
