@@ -3,9 +3,10 @@
    - Skills : évaluer (un seul écran, Skills v2 : une étoile = la liste, un atelier = la grille, groupes d'ateliers,
      gardé sur le téléphone puis envoyé à la fin, brille après un plateau, demandes des enfants), le passeport du groupe.
    - Missions : pour le groupe (vidéo + questions, QCM, et « Prépare le jeu à 10 »),
-     individuelles (décrocher une étoile précise).
-   - Le +1 : d'un seul toucher sur la skill demandée, un mot si on veut. Jusqu'à 5 par mission ;
-     au 3e, l'appli propose de valider l'étoile, sans rien faire toute seule.
+     et la mission principale de chaque enfant (visuels v2, 25/10 : 1 à 3 étoiles d'une même carte, une date de fin,
+     donnée à plusieurs enfants d'un coup, avec un récapitulatif par enfant).
+   - Le +1 (un encouragement pour l'enfant) : d'un seul toucher, un mot si on veut. Jusqu'à 5 par étoile visée ;
+     au 3e, l'appli propose de valider, sans rien faire toute seule.
    ========================================================= */
 window.MC = window.MC || {};
 
@@ -22,6 +23,9 @@ window.MC = window.MC || {};
   function persoDe(gr, id) { return SK.missionPerso({ defmissions: (gr.defmissions || []).filter(function (m) { return m.joueurId === id; }) }); }
   function persosToutes(gr, id) { return SK.missionPerso({ defmissions: (gr.defmissions || []).filter(function (m) { return m.joueurId === id; }) }, true); }
   function p1De(gr, id, mid) { var p = jp(gr, id); return p ? SK.plus1({ encouragements: p.encouragements || [] }, mid) : []; }
+  function dataDe(gr, id) { var p = jp(gr, id); return { etoiles: (p && p.etoiles) || [], encouragements: (p && p.encouragements) || [] }; }
+  // la mission principale : où elle en est (étoiles gagnées, restantes, date passée)
+  function etatDe(gr, m) { return SK.etatMission(dataDe(gr, m.joueurId), m, L.today()); }
   function etoileDe(gr, id, d, e) { var p = jp(gr, id); return p ? (p.etoiles || []).filter(function (x) { return x.domaine === d && x.etoile === e; })[0] || null : null; }
   function both() { return Promise.all([MC.loadGroup(), MC.loadCompos ? MC.loadCompos().catch(function () { return null; }) : null]); }
   function jour(e) { return String(e.debut || '').slice(0, 10); }
@@ -54,17 +58,20 @@ window.MC = window.MC || {};
       return r;
     }).catch(function (e) { if (btn) btn.disabled = false; ui.toast(e.message, true); throw e; });
   }
-  // au 3e +1 (et au 5e), l'appli propose de valider l'étoile ; rien d'automatique
+  // au 3e +1 (et au dernier), l'appli propose de valider l'étoile (ou de choisir laquelle) ; rien d'automatique
   function proposerValidation(jid, mid, n, evId) {
     var gr = G(), m = (gr.defmissions || []).filter(function (x) { return x.id === mid; })[0];
     if (!m || m.statut !== 'active') return;
-    var s = SK.star(m.domaine, m.etoile), D = SK.dom(m.domaine), nom = nomDe(gr, jid);
+    var et = etatDe(gr, m), D = SK.dom(m.domaine), nom = nomDe(gr, jid);
+    if (!et.restantes.length) return;
     setTimeout(function () {
+      var acts = et.restantes.map(function (x) { return { label: MC.ui.icon('star', 18) + ' ' + esc(x.def.nom), value: x.id, cls: 'btn gold' }; });
+      acts.push({ label: 'Plus tard', value: null, cls: 'btn2 grey' });
       ui.modal({
         title: (n === SK.PROPOSE_AU ? '3e +1' : n + ' +1') + ' pour ' + esc(nom),
-        body: '<p class="lead">« ' + esc(SK.titreMission(m)) + ' » : ' + esc(nom) + ' est sur la bonne voie. Valider l\'étoile <b>' + esc(D.nom + ' · ' + s.nom) + '</b> maintenant ?</p><p class="small">Rien d\'automatique : c\'est vous qui décidez. Vous pourrez aussi la valider plus tard.</p>',
-        actions: [{ label: icon('star', 18) + ' Valider l\'étoile', value: 'ok', cls: 'btn gold' }, { label: 'Plus tard', value: null, cls: 'btn2 grey' }]
-      }).then(function (v) { if (v === 'ok') valider([{ joueurId: jid, domaine: m.domaine, etoile: m.etoile }], evId).then(function () { app.rerender(); }); else app.rerender(); });
+        body: '<p class="lead">« ' + esc(SK.titreMission(m)) + ' » : ' + esc(nom) + ' est sur la bonne voie. Valider ' + (et.restantes.length > 1 ? 'une étoile' : 'l\'étoile') + ' <b>' + esc(D.nom) + '</b> maintenant ?</p><p class="small">Rien d\'automatique : c\'est vous qui décidez. Vous pourrez aussi la valider plus tard.</p>',
+        actions: acts
+      }).then(function (v) { if (v) valider([{ joueurId: jid, domaine: m.domaine, etoile: v }], evId).then(function () { app.rerender(); }); else app.rerender(); });
     }, 120);
   }
   function valider(list, evId, btn, brille) {
@@ -84,6 +91,17 @@ window.MC = window.MC || {};
   MC.act.plus1 = function (b) {
     envoyerPlus1(b.getAttribute('data-j'), b.getAttribute('data-m'), b.getAttribute('data-ev'), '', b).then(function (r) { if (!(r.nb === SK.PROPOSE_AU || r.nb === r.max)) app.rerender(); }).catch(function () { });
   };
+  MC.act.valMission = function (b) {
+    var gr = G(), m = (gr.defmissions || []).filter(function (x) { return x.id === b.getAttribute('data-m'); })[0];
+    if (!m) return;
+    var et = etatDe(gr, m), nom = nomDe(gr, m.joueurId);
+    if (et.restantes.length === 1) { valider([{ joueurId: m.joueurId, domaine: m.domaine, etoile: et.restantes[0].id }], b.getAttribute('data-ev'), b).then(function () { app.rerender(); }).catch(function () { }); return; }
+    var acts = et.restantes.map(function (x) { return { label: icon('star', 18) + ' ' + esc(x.def.nom), value: x.id, cls: 'btn gold' }; });
+    acts.push({ label: 'Annuler', value: null, cls: 'btn2 grey' });
+    ui.modal({ title: 'Valider pour ' + esc(nom), body: '<p class="lead">Quelle étoile de sa mission « ' + esc(SK.titreMission(m)) + ' » ?</p>', actions: acts }).then(function (v) {
+      if (v) valider([{ joueurId: m.joueurId, domaine: m.domaine, etoile: v }], b.getAttribute('data-ev')).then(function () { app.rerender(); }).catch(function () { });
+    });
+  };
   MC.act.valEtoile = function (b) {
     valider([{ joueurId: b.getAttribute('data-j'), domaine: b.getAttribute('data-d'), etoile: b.getAttribute('data-e') }], b.getAttribute('data-ev'), b).then(function () { app.rerender(); }).catch(function () { });
   };
@@ -91,7 +109,7 @@ window.MC = window.MC || {};
     var gr = G(), id = b.getAttribute('data-id'), jid = b.getAttribute('data-j'), x = jp(gr, jid), e = x && (x.etoiles || []).filter(function (y) { return y.id === id; })[0];
     if (!e) return;
     var s = SK.star(e.domaine, e.etoile);
-    ui.modal({ title: 'Retirer cette étoile ?', body: '<p class="lead">L\'étoile <b>' + esc(SK.dom(e.domaine).nom + ' · ' + (s ? s.nom : '')) + '</b> de ' + esc(x.joueur.prenom) + ' a été validée par erreur ? Elle redevient grise pour lui (et sa mission perso repart si elle la visait).</p>', actions: [{ label: 'Retirer', value: true, cls: 'btn pink' }, { label: 'Annuler', value: false, cls: 'btn2 grey' }] }).then(function (ok) {
+    ui.modal({ title: 'Retirer cette étoile ?', body: '<p class="lead">L\'étoile <b>' + esc(SK.dom(e.domaine).nom + ' · ' + (s ? s.nom : '')) + '</b> de ' + esc(x.joueur.prenom) + ' a été validée par erreur ? Elle redevient grise pour lui (et sa mission principale repart si elle la visait).</p>', actions: [{ label: 'Retirer', value: true, cls: 'btn pink' }, { label: 'Annuler', value: false, cls: 'btn2 grey' }] }).then(function (ok) {
       if (!ok) return;
       app.adultCall('retirerEtoile', { id: id }).then(function (r) {
         x.etoiles = x.etoiles.filter(function (y) { return y.id !== id; });
@@ -124,8 +142,8 @@ window.MC = window.MC || {};
   };
   // le bouton +1 (et son état : combien, envoyé aujourd'hui, 5 atteints)
   function btnPlus1(gr, jid, m, evId, small) {
-    var l = p1De(gr, jid, m.id), n = l.length, today = l.some(function (x) { return x.date === L.today(); });
-    if (n >= SK.MAX_PLUS1) return '<span class="pill" style="--pc:var(--gold)">5 +1 · à valider</span>';
+    var l = p1De(gr, jid, m.id), n = l.length, today = l.some(function (x) { return x.date === L.today(); }), max = SK.maxPlus1(m);
+    if (n >= max) return '<span class="pill" style="--pc:var(--gold)">' + max + ' +1 · à valider</span>';
     return '<button type="button" class="p1btn' + (small ? ' sm' : '') + (today ? ' done' : '') + '" data-act="plus1" data-j="' + esc(jid) + '" data-m="' + esc(m.id) + '"' + (evId ? ' data-ev="' + esc(evId) + '"' : '') + ' aria-label="+1 pour ' + esc(nomDe(gr, jid)) + ' : ' + esc(SK.titreMission(m)) + '">+1</button>';
   }
   MC.btnPlus1 = btnPlus1;
@@ -134,19 +152,19 @@ window.MC = window.MC || {};
   // Sur la page d'un entraînement ou d'un plateau : évaluer des Skills, les missions des présents
   // ======================================================================
   MC.pendantSeance = function (gr, e, pres, train) {
-    var rows = pres.map(function (id) { var m = persoDe(gr, id); return m ? { id: id, m: m } : null; }).filter(Boolean)
+    var rows = pres.map(function (id) { var m = persoDe(gr, id); return m && !etatDe(gr, m).expiree ? { id: id, m: m } : null; }).filter(Boolean)
       .sort(function (a, b) { return nomDe(gr, a.id).localeCompare(nomDe(gr, b.id), 'fr'); });
     var list = rows.map(function (x) {
       var l = p1De(gr, x.id, x.m.id), n = l.length, today = l.filter(function (y) { return y.date === L.today(); })[0];
       return '<li class="mpres"><a class="grow" href="#/educ/joueur/' + esc(x.id) + '?t=missions"><span class="t1">' + esc(nomDe(gr, x.id)) + ' · ' + esc(SK.titreMission(x.m)) + '</span><span class="t2">' +
-        (today ? '<b style="color:var(--green)">' + icon('check', 12) + ' +1 envoyé aujourd\'hui · il le voit</b>' : n + ' +1 reçu' + (n > 1 ? 's' : '')) + (n >= SK.PROPOSE_AU ? ' · étoile à valider quand vous voulez' : '') + '</span></a>' +
+        (today ? '<b style="color:var(--green)">' + icon('check', 12) + ' +1 envoyé aujourd\'hui · il le voit</b>' : MC.encTxt(n)) + (n >= SK.PROPOSE_AU ? ' · à valider quand vous voulez' : '') + '</span></a>' +
         '<a class="cbtn grey" href="#/educ/encourager/' + esc(x.id) + '?m=' + esc(x.m.id) + '&evt=' + esc(e.id) + '" aria-label="+1 avec un mot pour ' + esc(nomDe(gr, x.id)) + '">' + icon('edit', 16) + '</a>' + btnPlus1(gr, x.id, x.m, e.id) + '</li>';
     }).join('');
     var nq = queue(evs(), e.id).length, plat = estPlateau(e);
     return '<section class="sec"><h2 class="h2">' + (plat ? 'Après le plateau' : train ? 'Après la séance' : 'Après l\'événement') + '</h2>' +
       '<a class="li" href="#/educ/skills?evt=' + esc(e.id) + '">' + icon(plat ? 'spark' : 'star', 20, 'style="color:var(--gold);flex:none"') + '<span class="grow"><span class="t1">' + (plat ? 'Faire briller des étoiles' : 'Évaluer des Skills') + '</span><span class="t2">' + (nq ? '<b style="color:var(--pink)">' + nq + ' pas encore envoyée' + (nq > 1 ? 's' : '') + '</b> · ' : '') + 'Avec les ' + pres.length + ' présents' + (plat ? ' · elles brillent' : ' · une étoile ou un atelier') + '</span></span>' + icon('right', 16) + '</a>' +
       '<div class="between" style="margin-top:6px"><span class="mlab" style="margin:0">Missions des présents</span><span class="small">un toucher = +1</span></div>' +
-      (list ? '<ul class="list">' + list + '</ul>' : '<p class="small" style="margin:0">Aucun présent n\'a de mission perso pour l\'instant. Donnez-en une depuis Progrès › Missions ou la fiche d\'un enfant.</p>') +
+      (list ? '<ul class="list">' + list + '</ul>' : '<p class="small" style="margin:0">Aucun présent n\'a de mission principale en cours. Donnez-en une depuis Progrès › Missions ou la fiche d\'un enfant.</p>') +
       '<button type="button" class="li" data-act="encAutre" data-ev="' + esc(e.id) + '">' + icon('heart', 20, 'style="color:var(--green);flex:none"') + '<span class="grow"><span class="t1">Encourager un autre enfant</span><span class="t2">Un +1 avec un mot, sur sa mission ou autre chose</span></span>' + icon('right', 16) + '</button></section>';
   };
   MC.act.encAutre = function (b) {
@@ -173,22 +191,22 @@ window.MC = window.MC || {};
       var m = persoDe(gr, p.id);
       if (!ENC || ENC.jid !== p.id) {
         var e0 = q.evt ? evtById(q.evt) : evtDuJour();
-        ENC = { jid: p.id, quoi: m && (!q.m || q.m === m.id) && p1De(gr, p.id, m.id).length < SK.MAX_PLUS1 ? m.id : 'autre', ev: e0 ? e0.id : '', mot: '', retour: q.evt ? '#/educ/evt/' + q.evt : '#/educ/joueur/' + p.id + '?t=missions' };
+        ENC = { jid: p.id, quoi: m && (!q.m || q.m === m.id) && p1De(gr, p.id, m.id).length < SK.maxPlus1(m) ? m.id : 'autre', ev: e0 ? e0.id : '', mot: '', retour: q.evt ? '#/educ/evt/' + q.evt : '#/educ/joueur/' + p.id + '?t=missions' };
       }
       return paintEnc(gr, x, m);
     });
   }, { adult: 'e', nav: 'e:enfants', bg: BG });
   function paintEnc(gr, x, m) {
-    var nom = x.joueur.prenom, n = m ? p1De(gr, x.joueur.id, m.id).length : 0, plein = m && n >= SK.MAX_PLUS1;
+    var nom = x.joueur.prenom, n = m ? p1De(gr, x.joueur.id, m.id).length : 0, plein = m && n >= SK.maxPlus1(m);
     var t = L.today(), recents = evts().filter(function (e) { return !e.annule && jour(e) <= t && jour(e) >= L.addDays(t, -21) && (e.sorte === 'entrainement' || e.sorte === 'plateau'); })
       .sort(function (a, b) { return jour(a) < jour(b) ? 1 : -1; }).slice(0, 5);
-    var quoi = '<div class="seg3" style="--n:2">' + (m ? '<button type="button" class="opt' + (ENC.quoi === m.id ? ' on' : '') + '" style="--oc:var(--gold)" aria-pressed="' + (ENC.quoi === m.id) + '" data-act="encQuoi" data-v="' + esc(m.id) + '"' + (plein ? ' disabled' : '') + '>★ ' + esc(SK.titreMission(m)) + (plein ? ' (5 +1)' : '') + '</button>' : '<span class="opt" style="opacity:.6">Pas de mission perso</span>') +
+    var quoi = '<div class="seg3" style="--n:2">' + (m ? '<button type="button" class="opt' + (ENC.quoi === m.id ? ' on' : '') + '" style="--oc:var(--gold)" aria-pressed="' + (ENC.quoi === m.id) + '" data-act="encQuoi" data-v="' + esc(m.id) + '"' + (plein ? ' disabled' : '') + '>★ ' + esc(SK.titreMission(m)) + (plein ? ' (' + SK.maxPlus1(m) + ' +1)' : '') + '</button>' : '<span class="opt" style="opacity:.6">Pas de mission principale</span>') +
       '<button type="button" class="opt' + (ENC.quoi === 'autre' ? ' on' : '') + '" aria-pressed="' + (ENC.quoi === 'autre') + '" data-act="encQuoi" data-v="autre">Autre chose</button></div>';
     var quand = '<div class="cop-list" style="grid-template-columns:1fr">' + recents.map(function (e) {
       var on = ENC.ev === e.id;
       return '<button type="button" class="cop' + (on ? ' on' : '') + '" aria-pressed="' + on + '" data-act="encEv" data-v="' + esc(e.id) + '"><span class="nm">' + esc(MC.evtOccasion(e)) + '</span><span class="ck">' + icon('check', 14) + '</span></button>';
     }).join('') + '<button type="button" class="cop' + (!ENC.ev ? ' on' : '') + '" aria-pressed="' + !ENC.ev + '" data-act="encEv" data-v=""><span class="nm">Sans événement (aujourd\'hui)</span><span class="ck">' + icon('check', 14) + '</span></button></div>';
-    var info = ENC.quoi !== 'autre' && m ? (n + 1 === SK.PROPOSE_AU ? 'Ce sera son 3e +1 : l\'appli te proposera de valider l\'étoile. Rien d\'automatique, c\'est toi qui décides.' : 'Ce sera son ' + (n + 1) + (n === 0 ? 'er' : 'e') + ' +1 sur ' + SK.MAX_PLUS1 + '.') : 'Sur autre chose : le mot est obligatoire.';
+    var info = ENC.quoi !== 'autre' && m ? (n + 1 === SK.PROPOSE_AU ? 'Ce sera son 3e encouragement : l\'appli te proposera de valider. Rien d\'automatique, c\'est toi qui décides.' : 'Ce sera son ' + (n + 1) + (n === 0 ? 'er' : 'e') + ' encouragement sur cette mission (il voit le nombre, sans total).') : 'Sur autre chose : le mot est obligatoire.';
     return '<main class="screen">' + MC.educBar(gr, 'Encourager · ' + nom, ENC.retour, ENC.retour.indexOf('evt') >= 0 ? 'La séance' : nom) +
       '<div class="head"><span class="kicker" style="color:var(--green)">+1 avec un mot</span><h1 class="big sm">Encourager ' + esc(nom) + '</h1></div>' +
       '<section class="sec"><h2 class="mlab" style="margin:0">Sur quoi</h2>' + quoi + '</section>' +
@@ -343,12 +361,12 @@ window.MC = window.MC || {};
     else if (sel.length === 1) {
       var k0 = sel[0], p0 = SK.parseKey(k0), s0 = SK.star(p0.d, p0.e), nAcq = 0;
       corps = '<p class="small" style="margin:0;color:var(--soft)">« ' + esc(s0.phrase) + ' »<br><span style="color:var(--dim)">' + esc(s0.repere) + '</span></p><ul class="list">' + ids.map(function (id) {
-        var x = etat(gr, id, k0, plat, q), m = persoDe(gr, id), isM = m && m.domaine === p0.d && m.etoile === p0.e, n = isM ? p1De(gr, id, m.id).length : 0;
+        var x = etat(gr, id, k0, plat, q), m = persoDe(gr, id), isM = m && !etatDe(gr, m).expiree && SK.dansMission(m, p0.d, p0.e), n = isM ? p1De(gr, id, m.id).length : 0;
         if (x.deja) nAcq++;
         var right = x.deja ? '<span class="skok">' + icon('star', 14) + (x.brille ? ' Brille' : ' Acquise') + '</span>'
           : (isM ? btnPlus1(gr, id, m, e && e.id, true) : '') + '<button type="button" class="evc evtog' + (x.on ? ' on' : '') + (x.gagnee ? ' gagnee' : '') + '" aria-pressed="' + !!x.on + '" data-act="evCell" data-k="' + esc(id + '|' + k0) + '" aria-label="' + esc(nomDe(gr, id) + ' : ' + s0.nom) + '">' + icon('star', 18) + '</button>';
         return '<li class="li skrow' + (x.deja ? ' acq' : '') + (isM ? ' mis' : '') + '">' + nivTag(gr, id) + '<span class="grow"><span class="t1">' + esc(nomDe(gr, id)) + '</span>' +
-          (x.deja ? '<span class="t2">' + (x.brille ? 'brille · ' + esc(x.row.brilleParNom) + ', ' + jourTxt(x.row.brille) : 'par ' + esc(qui(gr, x.row)) + ', ' + jourTxt(x.row.date)) + '</span>' : x.gagnee ? '<span class="t2">gagnée à l\'entraînement : touchez pour la faire briller</span>' : isM ? '<span class="t2" style="color:var(--green)">sa mission · ' + n + ' +1 sur ' + SK.MAX_PLUS1 + '</span>' : '') + '</span>' + right + '</li>';
+          (x.deja ? '<span class="t2">' + (x.brille ? 'brille · ' + esc(x.row.brilleParNom) + ', ' + jourTxt(x.row.brille) : 'par ' + esc(qui(gr, x.row)) + ', ' + jourTxt(x.row.date)) + '</span>' : x.gagnee ? '<span class="t2">gagnée à l\'entraînement : touchez pour la faire briller</span>' : isM ? '<span class="t2" style="color:var(--violet)">sa mission principale · ' + MC.encTxt(n) + '</span>' : '') + '</span>' + right + '</li>';
       }).join('') + '</ul><p class="small" style="margin:0">' + nAcq + ' / ' + ids.length + (plat ? ' la font déjà briller' : ' l\'ont déjà') + '</p>';
     } else {
       var defs = sel.map(function (k) { var p = SK.parseKey(k); return { k: k, s: SK.star(p.d, p.e), D: SK.dom(p.d) }; });
@@ -510,21 +528,22 @@ window.MC = window.MC || {};
     var indiv = (gr.defmissions || []).filter(function (m) { return m.sorte === 'etoile' && m.statut === 'active' && jp(gr, m.joueurId) && jp(gr, m.joueurId).joueur.actif; })
       .sort(function (a, b) { return nomDe(gr, a.joueurId).localeCompare(nomDe(gr, b.joueurId), 'fr'); });
     var ind = indiv.map(function (m) {
-      var l = p1De(gr, m.joueurId, m.id), n = l.length, last = l[0];
-      return '<li class="mpres"><a class="grow" href="#/educ/joueur/' + esc(m.joueurId) + '?t=missions"><span class="t1">' + esc(nomDe(gr, m.joueurId)) + ' · ★ ' + esc(SK.titreMission(m)) + '</span><span class="t2">' + (last ? 'dernier : ' + esc(qui(gr, last)) + ', ' + jourTxt(last.date) : 'pas encore de +1') + '</span>' +
-        '<span class="row" style="gap:8px;margin-top:4px">' + MC.jauge5(n) + (n >= SK.PROPOSE_AU ? '<span class="pill" style="--pc:var(--gold)">À valider</span>' : '') + '</span></a>' +
-        (n >= SK.PROPOSE_AU ? '<button type="button" class="btn2 sm gold" data-act="valEtoile" data-j="' + esc(m.joueurId) + '" data-d="' + esc(m.domaine) + '" data-e="' + esc(m.etoile) + '">Valider ★</button>' : '') + btnPlus1(gr, m.joueurId, m) + '</li>';
+      var l = p1De(gr, m.joueurId, m.id), n = l.length, last = l[0], et = etatDe(gr, m), D = SK.dom(m.domaine);
+      return '<li class="mpres"><a class="grow" href="#/educ/joueur/' + esc(m.joueurId) + '?t=missions"><span class="t1">' + esc(nomDe(gr, m.joueurId)) + ' · ' + esc(D ? D.nom : '') + ' · ' + esc(SK.titreMission(m)) + '</span>' +
+        '<span class="t2">' + et.n + ' / ' + et.max + ' étoile' + (et.max > 1 ? 's' : '') + ' · ' + (et.expiree ? '<b style="color:var(--orange)">terminée le ' + jourTxt(m.fin) + '</b>' : m.fin ? 'jusqu\'au ' + jourTxt(m.fin) : 'sans date') + (last ? ' · dernier +1 : ' + esc(qui(gr, last)) + ', ' + jourTxt(last.date) : '') + '</span>' +
+        '<span class="row" style="gap:8px;margin-top:4px">' + MC.encDots(n) + '<span class="small" style="color:var(--violet)">' + MC.encTxt(n) + '</span>' + (n >= SK.PROPOSE_AU && et.restantes.length ? '<span class="pill" style="--pc:var(--gold)">À valider</span>' : '') + '</span></a>' +
+        (et.restantes.length ? '<button type="button" class="btn2 sm gold" data-act="valMission" data-m="' + esc(m.id) + '">Valider ★</button>' : '') + (et.expiree ? '' : btnPlus1(gr, m.joueurId, m)) + '</li>';
     }).join('');
     var reussies = (gr.defmissions || []).filter(function (m) { return m.sorte === 'etoile' && m.statut === 'faite'; }).sort(function (a, b) { return (a.faiteLe || '') < (b.faiteLe || '') ? 1 : -1; });
-    var sans = kids.filter(function (p) { return !persoDe(gr, p.joueur.id); }).length;
+    var sans = kids.filter(function (p) { var m = persoDe(gr, p.joueur.id); return !m || etatDe(gr, m).expiree; }).length;
     return '<main class="screen">' + MC.educBar(gr, 'Progrès') + MC.progresTabs('missions') +
       '<section class="sec"><h2 class="h2">Pour le groupe</h2>' + (groupe ? '<ul class="list">' + groupe + '</ul>' : '<p class="small" style="margin:0">Pas encore de mission pour le groupe.</p>') + '</section>' +
-      '<section class="sec"><div class="between"><h2 class="h2">Individuelles</h2><span class="small">une étoile à décrocher</span></div>' +
-      (ind ? '<ul class="list">' + ind + '</ul>' : '<p class="small" style="margin:0">Pas encore de mission perso.</p>') +
-      (sans ? '<p class="small" style="margin:0">' + sans + ' enfant' + (sans > 1 ? 's' : '') + ' sans mission perso.</p>' : '') +
-      '<p class="small" style="margin:0">Jusqu\'à 5 +1 par mission. Au 3e, l\'appli propose de valider l\'étoile ; rien d\'automatique, c\'est un éduc qui valide.</p></section>' +
-      '<div class="grid2"><a class="btn2" href="#/educ/missions/nouvelle?type=video">' + icon('plus', 16) + ' Pour le groupe</a><a class="btn2" href="#/educ/missions/nouvelle?type=perso">' + icon('plus', 16) + ' Individuelle</a></div>' +
-      (reussies.length ? '<details><summary class="small" style="cursor:pointer;color:var(--cyan);min-height:32px">Missions perso réussies (' + reussies.length + ')</summary><ul class="list" style="margin-top:6px">' + reussies.map(function (m) { return '<li><a class="li" href="#/educ/joueur/' + esc(m.joueurId) + '?t=missions"><span class="grow"><span class="t1">' + esc(nomDe(gr, m.joueurId)) + ' · ★ ' + esc(SK.titreMission(m)) + '</span><span class="t2">étoile validée le ' + jourTxt(m.faiteLe) + '</span></span></a></li>'; }).join('') + '</ul></details>' : '') +
+      '<section class="sec"><div class="between"><h2 class="h2">Missions principales</h2><span class="small">1 à 3 étoiles par enfant</span></div>' +
+      (ind ? '<ul class="list">' + ind + '</ul>' : '<p class="small" style="margin:0">Pas encore de mission principale.</p>') +
+      (sans ? '<p class="small" style="margin:0">' + sans + ' enfant' + (sans > 1 ? 's' : '') + ' sans mission principale en cours.</p>' : '') +
+      '<p class="small" style="margin:0">Jusqu\'à 5 encouragements (+1) par étoile visée. Au 3e, l\'appli propose de valider ; rien d\'automatique, c\'est un éduc qui valide.</p></section>' +
+      '<div class="grid2"><a class="btn2" href="#/educ/missions/nouvelle?type=video">' + icon('plus', 16) + ' Pour le groupe</a><a class="btn2 gold" href="#/educ/missions/nouvelle?type=perso">' + icon('plus', 16) + ' Mission principale</a></div>' +
+      (reussies.length ? '<details><summary class="small" style="cursor:pointer;color:var(--cyan);min-height:32px">Missions principales réussies (' + reussies.length + ')</summary><ul class="list" style="margin-top:6px">' + reussies.map(function (m) { return '<li><a class="li" href="#/educ/joueur/' + esc(m.joueurId) + '?t=missions"><span class="grow"><span class="t1">' + esc(nomDe(gr, m.joueurId)) + ' · ★ ' + esc(SK.titreMission(m)) + '</span><span class="t2">réussie le ' + jourTxt(m.faiteLe) + '</span></span></a></li>'; }).join('') + '</ul></details>' : '') +
       '</main>';
   }
 
@@ -574,57 +593,112 @@ window.MC = window.MC || {};
   // ---------- créer une mission ----------
   var NM = null;
   function nmInit(type, joueur) {
-    if (NM && NM.type === type && (type !== 'perso' || !joueur || NM.joueurId === joueur)) return NM;
-    NM = { type: type, titre: '', texte: '', video: '', fin: L.addDays(L.today(), 14), xp: 50, questions: type === 'qcm' ? [{ q: '', opts: ['', '', ''], ok: -1 }] : [], joueurId: joueur || '', d: '', e: '' };
+    if (NM && NM.type === type && (type !== 'perso' || !joueur || NM.joueurs.indexOf(joueur) >= 0)) return NM;
+    var vac = SK.prochainesVacances(L.today());
+    NM = { type: type, titre: '', texte: '', video: '', fin: type === 'perso' ? vac.date : L.addDays(L.today(), 14), finChoix: 'vac', xp: 50, questions: type === 'qcm' ? [{ q: '', opts: ['', '', ''], ok: -1 }] : [],
+      joueurs: joueur ? [joueur] : [], filtre: 'tous', d: '', etoiles: [], mot: '', depuis: joueur || '' };
     return NM;
   }
   app.route('/educ/missions/nouvelle', function (p, q) {
     return both().then(function (r) {
       var gr = r[0], type = q.type === 'perso' ? 'perso' : q.type === 'qcm' ? 'qcm' : 'video';
       var st = nmInit(type, q.joueur);
-      if (q.joueur) st.joueurId = q.joueur;
       return type === 'perso' ? paintNouvellePerso(gr, st, q) : paintNouvelleGroupe(gr, st);
     });
   }, { adult: 'e', nav: 'e:progres', bg: '#33122A' });
-  function paintNouvellePerso(gr, st, q) {
-    var back = q.joueur ? '#/educ/joueur/' + q.joueur + '?t=missions' : '#/educ/missions';
-    var bar = MC.educBar(gr, 'Mission perso', back, q.joueur ? nomDe(gr, q.joueur) : 'Missions');
-    var head = '<div class="head"><span class="kicker" style="color:var(--gold)">Individuelle</span><h1 class="big sm">Une étoile à décrocher</h1><p class="small" style="margin:0">L\'enfant voit sa mission dans son onglet Missions, avec ses +1. Une seule à la fois.</p></div>';
-    if (!st.joueurId) {
-      return '<main class="screen">' + bar + head + '<section class="sec"><h2 class="mlab" style="margin:0">1. Pour qui ?</h2><div class="cop-list">' + actifs(gr).map(function (p) {
-        var m = persoDe(gr, p.joueur.id);
-        return '<button type="button" class="cop" data-act="nmKid" data-v="' + esc(p.joueur.id) + '"><span class="nm">' + esc(p.joueur.prenom) + (m ? '<small class="csp">a déjà « ' + esc(SK.titreMission(m)) + ' »</small>' : '') + '</span></button>';
-      }).join('') + '</div></section></main>';
-    }
-    var x = jp(gr, st.joueurId), cur = persoDe(gr, st.joueurId), d = { etoiles: (x && x.etoiles) || [] };
-    var bloque = cur && cur.parQui && cur.parQui !== gr.moi.id && !gr.moi.admin;   // la mission d'un autre éduc : lui ou l'admin la remplace
-    var doms = '<div class="skdoms">' + SK.DOMAINES.map(function (D) { var on = D.id === st.d; return '<button type="button" class="opt' + (on ? ' on' : '') + '" style="--oc:' + D.color + '" aria-pressed="' + on + '" data-act="nmDom" data-v="' + D.id + '">' + icon(D.icon, 16) + ' ' + esc(D.nom) + ' · ' + SK.carte(d, D.id).n + '/' + D.etoiles.length + '</button>'; }).join('') + '</div>';
-    var stars = st.d ? '<div class="sec" style="gap:6px">' + SK.carte(d, st.d).stars.map(function (s) {
-      var on = st.e === s.def.id;
-      return '<button type="button" class="cop' + (on ? ' on' : '') + '"' + (s.row ? ' disabled' : ' data-act="nmStar" data-v="' + s.def.id + '"') + ' aria-pressed="' + on + '"><span class="nm">★ ' + esc(s.def.mission) + '<small class="csp">' + (s.row ? 'déjà gagnée' : '« ' + esc(s.def.phrase) + ' »') + '</small></span><span class="ck">' + icon('check', 14) + '</span></button>';
-    }).join('') + '</div>' : '';
-    return '<main class="screen">' + bar + head +
-      '<section class="sec"><div class="between"><h2 class="mlab" style="margin:0">Pour ' + esc(x ? x.joueur.prenom : '?') + '</h2>' + (q.joueur ? '' : '<button type="button" class="lnk" data-act="nmKid" data-v="">Changer</button>') + '</div>' +
-      (bloque ? '<div class="note">' + icon('info', 20) + '<span>' + esc(x ? x.joueur.prenom : '') + ' a déjà la mission « ' + esc(SK.titreMission(cur)) + ' », donnée par ' + esc(cur.parNom || 'un autre éduc') + ' : seul cet éduc (ou l\'admin) peut la remplacer. Encouragez-le avec un +1 !</span></div>' :
-        cur ? '<div class="note gold">' + icon('info', 20) + '<span>Elle remplace sa mission en cours « ' + esc(SK.titreMission(cur)) + ' » (ses +1 restent dans son historique).</span></div>' : '') + '</section>' +
-      '<section class="sec"><h2 class="mlab" style="margin:0">La carte</h2>' + doms + '</section>' +
-      (st.d ? '<section class="sec"><h2 class="mlab" style="margin:0">L\'étoile</h2>' + stars + '</section>' : '') +
-      '<button type="button" class="btn gold" data-act="nmPerso"' + (st.d && st.e && !bloque ? '' : ' disabled') + '>' + icon('star', 18) + ' Donner la mission</button></main>';
+  // ---------- donner une mission principale (visuels v2) : plusieurs enfants d'un coup, une carte, 1 à 3 étoiles,
+  // une date de fin (les prochaines vacances par défaut), un mot ; récapitulatif par enfant avant de donner ----------
+  function nmPlan(gr, st) {
+    // pour chaque enfant choisi : les étoiles qui lui resteront, la mission remplacée, ou pourquoi il n'aura rien
+    return st.joueurs.map(function (id) {
+      var x = jp(gr, id), d = dataDe(gr, id), A = SK.acquis(d), cur = persoDe(gr, id);
+      var reste = st.d ? st.etoiles.filter(function (e) { return !A[SK.key(st.d, e)]; }) : [];
+      var r = { id: id, nom: x ? x.joueur.prenom : '?', reste: reste, cur: cur };
+      if (!st.d || !st.etoiles.length) r.ko = '';
+      else if (!reste.length) r.ko = st.etoiles.length > 1 ? 'a déjà ces étoiles' : 'a déjà cette étoile';
+      else if (cur && cur.parQui && cur.parQui !== gr.moi.id && !gr.moi.admin) r.ko = 'sa mission vient de ' + (cur.parNom || 'un autre éduc') + ' : lui ou l\'admin peut la remplacer';
+      return r;
+    });
   }
-  MC.act.nmKid = function (b) { NM.joueurId = b.getAttribute('data-v'); NM.d = ''; NM.e = ''; app.rerender(); };
-  MC.act.nmDom = function (b) { NM.d = b.getAttribute('data-v'); NM.e = ''; app.rerender(); };
-  MC.act.nmStar = function (b) { NM.e = b.getAttribute('data-v'); app.rerender(); };
+  function paintNouvellePerso(gr, st, q) {
+    var back = st.depuis ? '#/educ/joueur/' + st.depuis + '?t=missions' : '#/educ/missions';
+    var bar = MC.educBar(gr, 'Mission principale', back, st.depuis ? nomDe(gr, st.depuis) : 'Missions');
+    var head = '<div class="head"><span class="kicker" style="color:var(--gold)">Mission principale</span><h1 class="big sm">Donner une mission principale</h1><p class="small" style="margin:0">1 à 3 étoiles d\'une même carte, jusqu\'à une date. L\'enfant la voit en haut de ses Missions et sur sa carte Skills, avec vos encouragements. Une seule à la fois : la nouvelle remplace celle en cours.</p></div>';
+    // 1. les enfants
+    var ev = evtDuJour(), pres = ev ? presentsDe(ev, gr) : [];
+    var kids = actifs(gr).filter(function (p) {
+      if (st.filtre === 'presents') return pres.indexOf(p.joueur.id) >= 0;
+      if (st.filtre === 'sans') { var m = persoDe(gr, p.joueur.id); return !m || etatDe(gr, m).expiree; }
+      return true;
+    });
+    var filtres = '<div class="seg3" style="--n:' + (ev ? 3 : 2) + '">' + [['tous', 'Tous']].concat(ev ? [['presents', 'Présents (' + pres.length + ')']] : []).concat([['sans', 'Sans mission']]).map(function (f) {
+      return '<button type="button" class="opt' + (st.filtre === f[0] ? ' on' : '') + '" aria-pressed="' + (st.filtre === f[0]) + '" data-act="nmFiltre" data-v="' + f[0] + '">' + f[1] + '</button>';
+    }).join('') + '</div>';
+    var liste = '<div class="cop-list">' + kids.map(function (p) {
+      var id = p.joueur.id, on = st.joueurs.indexOf(id) >= 0, m = persoDe(gr, id), sub = m ? (etatDe(gr, m).expiree ? 'mission terminée' : 'a « ' + SK.titreMission(m) + ' »') : '';
+      return '<button type="button" class="cop' + (on ? ' on' : '') + '" aria-pressed="' + on + '" data-act="nmKid" data-v="' + esc(id) + '"><span class="nm">' + esc(p.joueur.prenom) + (sub ? '<small class="csp">' + esc(sub) + '</small>' : '') + '</span><span class="ck">' + icon('check', 14) + '</span></button>';
+    }).join('') + '</div>';
+    var tous = kids.length && kids.every(function (p) { return st.joueurs.indexOf(p.joueur.id) >= 0; });
+    var s1 = '<section class="sec"><div class="between"><h2 class="mlab" style="margin:0">1. Pour qui ? · ' + st.joueurs.length + ' choisi' + (st.joueurs.length > 1 ? 's' : '') + '</h2><button type="button" class="lnk" data-act="nmTous">' + (tous ? 'Tout décocher' : 'Tout cocher') + '</button></div>' + filtres + liste + '</section>';
+    // 2. la carte
+    var s2 = '<section class="sec"><h2 class="mlab" style="margin:0">2. La carte</h2><div class="skdoms">' + SK.DOMAINES.map(function (D) { var on = D.id === st.d; return '<button type="button" class="opt' + (on ? ' on' : '') + '" style="--oc:' + D.color + '" aria-pressed="' + on + '" data-act="nmDom" data-v="' + D.id + '">' + icon(D.icon, 16) + ' ' + esc(D.nom) + '</button>'; }).join('') + '</div></section>';
+    // 3. les étoiles (1 à 3) : combien des enfants choisis l'ont déjà
+    var s3 = '<section class="sec"><h2 class="mlab" style="margin:0">3. Les étoiles · 1 à 3</h2><p class="small" style="margin:0">Choisissez d\'abord la carte.</p></section>';
+    if (st.d) {
+      var D = SK.dom(st.d);
+      s3 = '<section class="sec"><h2 class="mlab" style="margin:0">3. Les étoiles · 1 à 3</h2><div class="sec" style="gap:6px">' + D.etoiles.map(function (sd) {
+        var on = st.etoiles.indexOf(sd.id) >= 0, deja = st.joueurs.filter(function (id) { return SK.acquis(dataDe(gr, id))[SK.key(st.d, sd.id)]; }).length, plein = !on && st.etoiles.length >= 3;
+        return '<button type="button" class="cop' + (on ? ' on' : '') + '"' + (plein ? ' disabled' : ' data-act="nmStar" data-v="' + sd.id + '"') + ' aria-pressed="' + on + '"><span class="nm">★ ' + esc(sd.nom) + '<small class="csp">' + (st.joueurs.length ? deja + ' sur ' + st.joueurs.length + ' l\'ont déjà · ' : '') + '« ' + esc(sd.phrase) + ' »</small></span><span class="ck">' + icon('check', 14) + '</span></button>';
+      }).join('') + '</div></section>';
+    }
+    // 4. jusqu'à quand (obligatoire) : les prochaines vacances par défaut
+    var vac = SK.prochainesVacances(L.today()), t = L.today();
+    var choix = [['vac', (vac.nom ? 'Vacances de ' + (vac.nom === 'été' ? 'l\'été' : vac.nom === 'hiver' ? 'l\'hiver' : vac.nom === 'Noël' || vac.nom === 'Toussaint' ? vac.nom : 'printemps') : 'Dans 6 semaines') + ' · ' + ui.fmtDate(vac.date), vac.date], ['4s', '4 semaines · ' + ui.fmtDate(L.addDays(t, 28)), L.addDays(t, 28)], ['6s', '6 semaines · ' + ui.fmtDate(L.addDays(t, 42)), L.addDays(t, 42)], ['autre', 'Autre date', st.finChoix === 'autre' ? st.fin : '']];
+    var s4 = '<section class="sec"><h2 class="mlab" style="margin:0">4. Jusqu\'à quand ?</h2><div class="cop-list" style="grid-template-columns:1fr">' + choix.map(function (c) {
+      var on = st.finChoix === c[0];
+      return '<button type="button" class="cop' + (on ? ' on' : '') + '" aria-pressed="' + on + '" data-act="nmFin" data-v="' + c[0] + '" data-d="' + esc(c[2]) + '"><span class="nm">' + esc(c[1]) + '</span><span class="ck">' + icon('check', 14) + '</span></button>';
+    }).join('') + '</div>' + (st.finChoix === 'autre' ? '<label class="lab" for="nm-pf">La date de fin</label><input id="nm-pf" class="txt" type="date" min="' + L.addDays(t, 1) + '" data-nm="fin" value="' + esc(st.fin) + '">' : '') + '</section>';
+    var s5 = '<section class="sec"><label class="mlab" style="margin:0" for="nm-mot">5. Un mot (facultatif)</label><textarea id="nm-mot" class="txt" rows="2" maxlength="240" data-nm="mot" placeholder="Ex. : On travaille la passe à gauche jusqu\'à Noël !">' + esc(st.mot) + '</textarea></section>';
+    // le récapitulatif par enfant
+    var plan = nmPlan(gr, st), ok = plan.filter(function (r) { return r.ko === undefined; });
+    var recap = '';
+    if (st.d && st.etoiles.length && st.joueurs.length) {
+      recap = '<section class="sec"><h2 class="mlab" style="margin:0">Récapitulatif · ' + ok.length + ' enfant' + (ok.length > 1 ? 's' : '') + '</h2><ul class="list">' + plan.map(function (r) {
+        var t2 = r.ko !== undefined ? '<span style="color:var(--orange)">Pas de mission : ' + esc(r.ko) + '</span>'
+          : esc(r.reste.map(function (e) { return SK.star(st.d, e).nom; }).join(', ')) + (r.reste.length < st.etoiles.length ? ' <span style="color:var(--dim)">(a déjà les autres)</span>' : '') + (r.cur ? ' · <span style="color:var(--gold)">remplace « ' + esc(SK.titreMission(r.cur)) + ' »</span>' : '');
+        return '<li class="li"><span class="grow"><span class="t1">' + esc(r.nom) + '</span><span class="t2">' + t2 + '</span></span></li>';
+      }).join('') + '</ul></section>';
+    }
+    var pret = ok.length && st.fin && st.fin > t;
+    return '<main class="screen">' + bar + head + s1 + s2 + s3 + s4 + s5 + recap +
+      '<button type="button" class="btn gold" data-act="nmPerso"' + (pret ? '' : ' disabled') + '>' + icon('star', 18) + ' Donner la mission' + (ok.length ? ' · ' + ok.length + ' enfant' + (ok.length > 1 ? 's' : '') : '') + '</button>' +
+      '<p class="small" style="margin:0;text-align:center">Les +1 déjà reçus restent dans l\'historique de chaque enfant.</p></main>';
+  }
+  MC.act.nmFiltre = function (b) { NM.filtre = b.getAttribute('data-v'); app.rerender(); };
+  MC.act.nmKid = function (b) { var id = b.getAttribute('data-v'), i = NM.joueurs.indexOf(id); if (i >= 0) NM.joueurs.splice(i, 1); else NM.joueurs.push(id); app.rerender(); };
+  MC.act.nmTous = function () {
+    var gr = G(), b = document.querySelectorAll('[data-act="nmKid"]'), ids = Array.prototype.map.call(b, function (x) { return x.getAttribute('data-v'); });
+    var tous = ids.every(function (id) { return NM.joueurs.indexOf(id) >= 0; });
+    if (tous) NM.joueurs = NM.joueurs.filter(function (id) { return ids.indexOf(id) < 0; });
+    else ids.forEach(function (id) { if (NM.joueurs.indexOf(id) < 0) NM.joueurs.push(id); });
+    app.rerender();
+  };
+  MC.act.nmDom = function (b) { var v = b.getAttribute('data-v'); if (NM.d !== v) { NM.d = v; NM.etoiles = []; } app.rerender(); };
+  MC.act.nmStar = function (b) { var e = b.getAttribute('data-v'), i = NM.etoiles.indexOf(e); if (i >= 0) NM.etoiles.splice(i, 1); else if (NM.etoiles.length < 3) NM.etoiles.push(e); app.rerender(); };
+  MC.act.nmFin = function (b) { NM.finChoix = b.getAttribute('data-v'); var d = b.getAttribute('data-d'); NM.fin = d || (NM.finChoix === 'autre' ? '' : NM.fin); app.rerender(); };
   MC.act.nmPerso = function (b) {
-    var gr = G(), st = NM, s = SK.star(st.d, st.e), cur = persoDe(gr, st.joueurId);
-    if (!s) return;
+    var gr = G(), st = NM, plan = nmPlan(gr, st).filter(function (r) { return r.ko === undefined; });
+    if (!plan.length || !st.d || !st.etoiles.length) return;
+    if (!st.fin || st.fin <= L.today()) { ui.toast('Choisissez une date de fin.', true); return; }
     b.disabled = true;
-    app.adultCall('defMission', { sorte: 'etoile', joueurId: st.joueurId, domaine: st.d, etoile: st.e, titre: s.mission, remplacer: !!cur }).then(function (r) {
-      if (cur) cur.statut = 'retiree';
-      gr.defmissions = (gr.defmissions || []).filter(function (x) { return x.statut !== 'retiree'; });
-      gr.defmissions.push(r.mission); persist();
-      var jid = st.joueurId; NM = null;
-      ui.toast('Mission donnée à ' + nomDe(gr, jid) + ' : elle la voit dans son appli');
-      app.go('#/educ/joueur/' + jid + '?t=missions');
+    app.adultCall('defMission', { sorte: 'etoile', joueurIds: plan.map(function (r) { return r.id; }), domaine: st.d, etoiles: st.etoiles, fin: st.fin, texte: st.mot, remplacer: true }).then(function (r) {
+      var rm = r.remplacees || [];
+      gr.defmissions = (gr.defmissions || []).filter(function (x) { return rm.indexOf(x.id) < 0; }).concat(r.missions || []);
+      persist();
+      var n = (r.missions || []).length, back = st.depuis ? '#/educ/joueur/' + st.depuis + '?t=missions' : '#/educ/missions';
+      NM = null;
+      ui.toast(n === 1 ? 'Mission donnée à ' + nomDe(gr, r.missions[0].joueurId) + ' : elle la voit dans son appli' : 'Mission donnée à ' + n + ' enfants : ils la voient dans leur appli');
+      app.go(back);
     }).catch(function (e) { b.disabled = false; ui.toast(e.message, true); });
   };
   function paintNouvelleGroupe(gr, st) {
@@ -661,7 +735,7 @@ window.MC = window.MC || {};
     else if (k === 'o') NM.questions[i].opts[j] = e.target.value;
     else NM[k] = e.target.value;
   });
-  document.addEventListener('change', function (e) { var k = e.target && e.target.getAttribute && e.target.getAttribute('data-nm'); if (k === 'fin' && NM) NM.fin = e.target.value; });
+  document.addEventListener('change', function (e) { var k = e.target && e.target.getAttribute && e.target.getAttribute('data-nm'); if (k === 'fin' && NM) { NM.fin = e.target.value; if (NM.type === 'perso') app.rerender(); } });
   MC.act.nmAddQ = function () { NM.questions.push({ q: '', opts: ['', '', ''], ok: -1 }); app.rerender(); };
   MC.act.nmDelQ = function (b) { NM.questions.splice(Number(b.getAttribute('data-i')), 1); app.rerender(); };
   MC.act.nmAddOpt = function (b) { var q = NM.questions[Number(b.getAttribute('data-i'))]; if (q.opts.length < 4) q.opts.push(''); app.rerender(); };
@@ -696,7 +770,7 @@ window.MC = window.MC || {};
     var cartes = SK.DOMAINES.map(function (D) {
       var c = SK.carte(d, D.id);
       return '<section class="fsk"><div class="between" style="align-items:center"><h2 class="h2" style="color:' + D.color + '">' + icon(D.icon, 18) + ' ' + esc(D.nom) + '</h2><span class="skcell" style="--gc:' + c.grade.color + '">' + esc(c.grade.nom) + ' · ' + c.n + '/' + c.max + (c.nbBrille ? ' · ' + c.nbBrille + ' brille' + (c.nbBrille > 1 ? 'nt' : '') : '') + '</span></div><ul class="list">' + c.stars.map(function (s) {
-        var isM = m && m.domaine === D.id && m.etoile === s.def.id;
+        var isM = m && !etatDe(gr, m).expiree && SK.dansMission(m, D.id, s.def.id);
         var dm = (d.demandes || []).filter(function (x) { return x.statut === 'attente' && x.domaine === D.id && x.etoile === s.def.id; })[0];
         var demTxt = dm ? ' · <b style="color:var(--cyan)">' + (dm.sorte === 'briller' ? 'demande à la faire briller' : 'demande l\'étoile') + '</b>' : '';
         if (s.row) return '<li class="li skrow acq' + (s.brille ? ' brille' : '') + '"><span class="skok">' + icon(s.brille ? 'spark' : 'star', 14) + '</span><span class="grow"><span class="t1">' + esc(s.def.nom) + '</span><span class="t2">par ' + esc(qui(gr, s.row)) + ', ' + jourTxt(s.row.date) + (s.row.occasion ? ' · ' + esc(s.row.occasion) : '') + (s.row.essais ? ' · essais ' + s.row.essais.map(function (v) { return v ? '✓' : '✗'; }).join('') : '') +
@@ -704,30 +778,34 @@ window.MC = window.MC || {};
           (s.brille ? '<button type="button" class="lnk" data-act="eteEtoile" data-id="' + esc(s.row.id) + '" data-j="' + esc(id) + '" style="color:var(--dim)">Éteindre</button>' : '') +
           '<button type="button" class="lnk" data-act="retEtoile" data-id="' + esc(s.row.id) + '" data-j="' + esc(id) + '" style="color:var(--dim)">Retirer</button></li>';
         var n = isM ? p1De(gr, id, m.id).length : 0;
-        return '<li class="li skrow' + (isM ? ' mis' : '') + '"><span class="skno">' + icon('star', 14) + '</span><span class="grow"><span class="t1">' + esc(s.def.nom) + '</span><span class="t2">' + (isM ? '<b style="color:var(--green)">sa mission · ' + n + ' +1 sur ' + SK.MAX_PLUS1 + '</b>' : '« ' + esc(s.def.phrase) + ' »') + demTxt + '</span></span>' +
+        return '<li class="li skrow' + (isM ? ' mis' : '') + '"><span class="skno">' + icon('star', 14) + '</span><span class="grow"><span class="t1">' + esc(s.def.nom) + '</span><span class="t2">' + (isM ? '<b style="color:var(--violet)">sa mission principale · ' + MC.encTxt(n) + '</b>' : '« ' + esc(s.def.phrase) + ' »') + demTxt + '</span></span>' +
           (isM ? btnPlus1(gr, id, m, '', true) : '') + '<button type="button" class="btn2 sm gold" data-act="valEtoile" data-j="' + esc(id) + '" data-d="' + D.id + '" data-e="' + s.def.id + '">Valider</button></li>';
       }).join('') + '</ul></section>';
     }).join('');
-    return '<div class="between"><span class="hud" style="color:var(--gold)">' + SK.total(d) + ' / ' + SK.MAX_TOTAL + ' étoiles' + (SK.totalBrille(d) ? ' · ' + SK.totalBrille(d) + ' brillent' : '') + '</span>' + (m ? '' : '<a class="lnk" href="#/educ/missions/nouvelle?type=perso&joueur=' + esc(id) + '">Lui donner une mission perso</a>') + '</div>' + cartes +
+    return '<div class="between"><span class="hud" style="color:var(--gold)">' + SK.total(d) + ' / ' + SK.MAX_TOTAL + ' étoiles' + (SK.totalBrille(d) ? ' · ' + SK.totalBrille(d) + ' brillent' : '') + '</span>' + (m && !etatDe(gr, m).expiree ? '' : '<a class="lnk" href="#/educ/missions/nouvelle?type=perso&joueur=' + esc(id) + '">Lui donner une mission principale</a>') + '</div>' + cartes +
       '<p class="small" style="margin:0">Valider = l\'étoile s\'allume pour lui (+' + C.XP.etoile + ' XP) ; elle brille quand elle est vue au plateau (+' + C.XP.brille + ' XP, depuis Évaluer ouvert sur le plateau). Validée par erreur ? « Retirer » ; allumée par erreur ? « Éteindre ».</p>';
   };
   MC.ficheMissions = function (d, gr) {
     var id = d.joueur.id, nom = d.joueur.prenom, m = persoDe(gr, id), out = '';
     if (m) {
-      var l = p1De(gr, id, m.id), n = l.length, s = SK.star(m.domaine, m.etoile);
-      out += '<section class="fmis"><span class="hud" style="color:var(--pink)">Sa mission · depuis le ' + jourTxt(m.debut || m.cree) + '</span><h2 class="h2" style="font-size:24px">★ ' + esc(SK.titreMission(m)) + '</h2>' +
-        '<div class="row" style="gap:10px">' + MC.jauge5(n, true) + '<span class="small" style="color:var(--soft)">' + n + ' sur ' + SK.MAX_PLUS1 + ' · au ' + SK.PROPOSE_AU + 'e, on vous propose de valider</span></div>' +
+      var l = p1De(gr, id, m.id), n = l.length, et = etatDe(gr, m), D = SK.dom(m.domaine);
+      out += '<section class="fmis"><span class="hud" style="color:var(--pink)">Sa mission principale · depuis le ' + jourTxt(m.debut || m.cree) + (m.parNom ? ' · ' + esc(m.parNom) : '') + '</span><h2 class="h2" style="font-size:24px">★ ' + esc((D ? D.nom + ' · ' : '') + SK.titreMission(m)) + '</h2>' +
+        '<span class="small" style="color:var(--soft)">' + et.n + ' / ' + et.max + ' étoile' + (et.max > 1 ? 's' : '') + ' · ' + (et.expiree ? '<b style="color:var(--orange)">terminée le ' + jourTxt(m.fin) + '</b>' : m.fin ? 'jusqu\'au ' + jourTxt(m.fin) : 'sans date') + '</span>' +
+        (m.texte ? '<p class="small" style="margin:0">« ' + esc(m.texte) + ' »</p>' : '') +
+        '<ul class="list">' + et.etoiles.map(function (x) {
+          return '<li class="li skrow' + (x.row ? ' acq' : ' mis') + '"><span class="' + (x.row ? 'skok' : 'skno') + '">' + icon('star', 14) + '</span><span class="grow"><span class="t1">' + esc(x.def.nom) + '</span><span class="t2">' + (x.row ? 'gagnée le ' + jourTxt(x.row.date) + ' · ' + esc(qui(gr, x.row)) : '« ' + esc(x.def.phrase) + ' »') + '</span></span>' +
+            (x.row ? '' : '<button type="button" class="btn2 sm gold" data-act="valEtoile" data-j="' + esc(id) + '" data-d="' + esc(m.domaine) + '" data-e="' + esc(x.id) + '">Valider</button>') + '</li>';
+        }).join('') + '</ul>' +
+        '<div class="row" style="gap:10px">' + MC.encDots(n) + '<span class="small" style="color:var(--soft)">' + MC.encTxt(n) + ' · au ' + SK.PROPOSE_AU + 'e, on vous propose de valider</span></div>' +
         (l.length ? '<ol class="p1list">' + l.map(function (x) {
           return '<li class="p1row"><b class="p1tag">+1</b><span class="grow"><span class="p1-k">' + esc(qui(gr, x)) + ' · ' + esc(x.occasion || jourTxt(x.date)) + '</span>' + (x.mot ? '<span class="p1-m">« ' + esc(x.mot) + ' »</span>' : '') + '</span>' +
             (x.parQui === gr.moi.id || gr.moi.admin ? '<button type="button" class="lnk" data-act="retPlus1" data-id="' + esc(x.id) + '" data-j="' + esc(id) + '" style="color:var(--dim)">Retirer</button>' : '') + '</li>';
-        }).join('') + '</ol>' : '<p class="small" style="margin:0">Pas encore de +1.</p>') +
-        '<div class="fmis-act">' + btnPlus1(gr, id, m, '') + '<a class="btn2 sm" href="#/educ/encourager/' + esc(id) + '?m=' + esc(m.id) + '">' + icon('edit', 14) + ' +1 avec un mot</a>' +
-        '<button type="button" class="btn2 sm gold" data-act="valEtoile" data-j="' + esc(id) + '" data-d="' + esc(m.domaine) + '" data-e="' + esc(m.etoile) + '">' + icon('star', 14) + ' Valider l\'étoile</button></div>' +
-        (s ? '<p class="small" style="margin:0">« ' + esc(s.phrase) + ' » · ' + esc(s.conseil) + '</p>' : '') +
-        '<a class="lnk" href="#/educ/missions/nouvelle?type=perso&joueur=' + esc(id) + '" style="align-self:flex-start">Changer de mission</a></section>';
-    } else out += '<div class="note">' + icon('star', 20) + '<span>Pas de mission perso pour ' + esc(nom) + '. Une étoile Skills à décrocher, qu\'il voit dans son appli avec vos +1.</span></div><a class="btn2 gold" href="#/educ/missions/nouvelle?type=perso&joueur=' + esc(id) + '">' + icon('plus', 16) + ' Lui donner une mission perso</a>';
+        }).join('') + '</ol>' : '<p class="small" style="margin:0">Pas encore d\'encouragement.</p>') +
+        (et.expiree ? '' : '<div class="fmis-act">' + btnPlus1(gr, id, m, '') + '<a class="btn2 sm" href="#/educ/encourager/' + esc(id) + '?m=' + esc(m.id) + '">' + icon('edit', 14) + ' +1 avec un mot</a></div>') +
+        '<a class="lnk" href="#/educ/missions/nouvelle?type=perso&joueur=' + esc(id) + '" style="align-self:flex-start">' + (et.expiree ? 'Lui donner une nouvelle mission' : 'Changer de mission') + '</a></section>';
+    } else out += '<div class="note">' + icon('star', 20) + '<span>Pas de mission principale pour ' + esc(nom) + '. 1 à 3 étoiles Skills à décrocher, qu\'il voit dans son appli avec vos encouragements.</span></div><a class="btn2 gold" href="#/educ/missions/nouvelle?type=perso&joueur=' + esc(id) + '">' + icon('plus', 16) + ' Lui donner une mission principale</a>';
     var faites = persosToutes(gr, id).filter(function (x) { return x.statut === 'faite'; });
-    if (faites.length) out += '<details><summary class="small" style="cursor:pointer;color:var(--cyan);min-height:32px">Ses missions perso réussies (' + faites.length + ')</summary><ul class="small" style="margin:6px 0 0;padding-left:18px;line-height:1.6;color:var(--soft)">' + faites.map(function (x) { return '<li>★ ' + esc(SK.titreMission(x)) + ' · ' + jourTxt(x.faiteLe) + '</li>'; }).join('') + '</ul></details>';
+    if (faites.length) out += '<details><summary class="small" style="cursor:pointer;color:var(--cyan);min-height:32px">Ses missions principales réussies (' + faites.length + ')</summary><ul class="small" style="margin:6px 0 0;padding-left:18px;line-height:1.6;color:var(--soft)">' + faites.map(function (x) { return '<li>★ ' + esc(SK.titreMission(x)) + ' · ' + jourTxt(x.faiteLe) + '</li>'; }).join('') + '</ul></details>';
     // missions du groupe
     var lg = '';
     MC.MISSIONS.forEach(function (Dx) {   // les 2 missions du jeu à 10

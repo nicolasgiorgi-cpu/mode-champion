@@ -242,7 +242,7 @@ MC.demo = (function () {
   }
 
   // ---------- Skills, +1 et missions des éducs ----------
-  // Tom (l'enfant de démo, fils de Coach Nico) : la mission perso « Engager l'épaule au plaquage » et 3 +1, 6 étoiles ;
+  // Tom (l'enfant de démo, fils de Coach Nico) : la mission principale Plaquage « Épaule et Des deux côtés » et 3 +1, 6 étoiles ;
   // une mission vidéo et un QCM pour le groupe, déjà faits par quelques enfants.
   function seedSkills(db, ids, id, today, nowIso, x) {
     var L = MC.logic, ui = MC.ui;
@@ -289,23 +289,26 @@ MC.demo = (function () {
     demande('Tom', 'ruck', 'appuis', 'gagner', 'pasvu', x.julien, x.e0, x.merAv);
     demande('Inès', 'defense', 'parle', 'briller', 'attente', null, x.p2, d2);     // Inès a l'étoile Je parle (pas encore brillante)
     demande('Léo', 'maul', 'arrache', 'gagner', 'attente', null, x.e0, x.merAv);   // Léo n'a pas encore J'arrache
-    function perso(nom, d, e, par, depuis, titre) {
-      var m = { id: id(), sorte: 'etoile', titre: titre, texte: '', video: '', questions: [], joueurId: ids[nom], domaine: d, etoile: e, xp: 0, debut: depuis, fin: '', statut: 'active', parQui: par.id, parNom: par.nom, faiteLe: '', cree: iso(depuis, '20:00'), maj: iso(depuis, '20:00') };
+    // (visuels v2) la mission principale : 1 à 3 étoiles d'une même carte, une date de fin (les prochaines vacances), un mot
+    var vac = MC.SK.prochainesVacances(today).date;
+    function perso(nom, d, e, par, depuis, titre, fin, texte) {
+      var l = Array.isArray(e) ? e : [e];
+      var m = { id: id(), sorte: 'etoile', titre: titre, texte: texte || '', video: '', questions: [], joueurId: ids[nom], domaine: d, etoile: l[0], etoiles: l, xp: 0, debut: depuis, fin: fin || vac, statut: 'active', parQui: par.id, parNom: par.nom, faiteLe: '', cree: iso(depuis, '20:00'), maj: iso(depuis, '20:00') };
       db.insert('defmissions', m); return m;
     }
     function plus1(nom, m, par, ev, dt, mot) {
       db.insert('encouragements', { id: id(), joueurId: ids[nom], missionId: m ? m.id : '', domaine: m ? m.domaine : '', etoile: m ? m.etoile : '', mot: mot || '', parQui: par.id, parNom: par.nom, date: dt, occasion: ev ? occ(ev) : '', evenementId: ev ? ev.id : '', retire: false, cree: iso(dt, '19:' + (10 + Math.floor(Math.random() * 40))) });
     }
-    var mTom = perso('Tom', 'plaquage', 'epaule', x.nico, L.addDays(today, -18), 'Engager l\'épaule au plaquage');
+    var mTom = perso('Tom', 'plaquage', ['epaule', 'deux-cotes'], x.nico, L.addDays(today, -18), 'Épaule et Des deux côtés', vac, 'On vise l\'épaule, des deux côtés, avant les vacances !');
     plus1('Tom', mTom, x.julien, x.p1, d1, 'Bien mieux à droite');
     plus1('Tom', mTom, x.nico, null, L.addDays(today, -10), '');
     plus1('Tom', mTom, x.nico, x.e0, x.merAv, 'Je l\'ai vu ! L\'épaule était bien engagée sur le plaquage de Jules.');
     plus1('Tom', null, x.cyril, x.p1, d1, 'Quelle envie au plateau, continue comme ça !');
-    var mInes = perso('Inès', 'passe', 'gauche', x.nico, L.addDays(today, -6), 'Passer à gauche en courant');
+    var mInes = perso('Inès', 'passe', ['gauche', 'vrillee'], x.nico, L.addDays(today, -6), 'Passe à gauche et Passe vrillée');
     plus1('Inès', mInes, x.nico, x.e0, x.merAv, '');
-    perso('Jules', 'ruck', 'tete', x.julien, L.addDays(today, -9), 'Placer sa tête au ruck');
+    perso('Jules', 'ruck', ['tete', 'porte'], x.julien, L.addDays(today, -9), 'Tête bien placée et Par la porte');
     perso('Maël', 'plaquage', 'cercle', x.cyril, L.addDays(today, -4), 'Serrer fort sans lâcher');
-    perso('Lou', 'passe', 'mains', x.nico, L.addDays(today, -5), 'Réceptionner mains en cible');
+    perso('Lou', 'passe', 'mains', x.nico, L.addDays(today, -35), 'Réceptionner mains en cible', L.addDays(today, -3));   // terminée : la date est passée
     // missions du groupe
     var debV = L.addDays(today, -2), debQ = L.addDays(today, -8);
     var vid = { id: id(), sorte: 'video', titre: 'Le ruck en vidéo', texte: 'Regarde comment Grégory Alldritt gratte le ballon : où est sa tête ?', video: 'Dbp38-ANm5A', joueurId: '', domaine: '', etoile: '',

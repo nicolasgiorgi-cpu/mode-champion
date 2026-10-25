@@ -8,11 +8,19 @@
 window.MC = window.MC || {};
 
 MC.NEWS = [
-  // (Skills v2, branche skills-v2 : texte provisoire, à revoir avec la passe sur les visuels avant la mise en ligne)
-  { id: '2026-11-skills-v2', date: '2026-10-25', pour: ['k', 'f', 'e'],
-    titre: { k: '8 cartes Skills et des étoiles qui brillent', f: 'Skills : 8 cartes et des étoiles qui brillent', e: 'Skills v2 : 8 cartes, un seul écran Évaluer' },
+  // (visuels v2, 25/10) la mission principale, puis les nouvelles cartes et le booster
+  { id: '2026-11-mission-principale', date: '2026-10-25', pour: ['k', 'f', 'e'],
+    titre: { k: 'Ta mission principale', f: 'La mission principale', e: 'La mission principale, à plusieurs enfants d\'un coup' },
     texte: {
-      k: 'Nouvelles cartes : Maul, Défense, Porteur et Soutien. Une étoile vue au plateau brille (+' + 50 + ' XP). Tu l\'as réussie ? Demande-la sur sa carte.',
+      k: 'Tes éducs te donnent 1 à 3 étoiles à décrocher, jusqu\'aux prochaines vacances. Elle est en haut de tes Missions, avec tes encouragements.',
+      f: 'Les éducs donnent à votre enfant 1 à 3 étoiles Skills à décrocher, jusqu\'à une date. Elle est en haut de ses Missions, avec ses encouragements.',
+      e: 'Progrès › Missions › + Mission principale : plusieurs enfants, une carte, 1 à 3 étoiles, une date de fin, un récapitulatif par enfant.'
+    },
+    lien: { k: '#/missions', f: '#/parent/missions', e: '#/educ/missions/nouvelle?type=perso' } },
+  { id: '2026-11-skills-v2', date: '2026-10-25', pour: ['k', 'f', 'e'],
+    titre: { k: '8 cartes Skills et le booster', f: 'Skills : 8 cartes et des étoiles qui brillent', e: 'Skills v2 : 8 cartes, un seul écran Évaluer' },
+    texte: {
+      k: 'Nouvelles cartes : Maul, Défense, Porteur et Soutien. Quand une étoile arrive, l\'onglet Skills s\'allume en doré : ouvre ton booster ! Une étoile vue au plateau brille (+' + 50 + ' XP).',
       f: '4 nouvelles cartes (Maul, Défense, Porteur, Soutien). Une étoile vue au plateau brille ; votre enfant peut demander une étoile aux éducs.',
       e: 'Évaluer : une étoile ou un atelier (grille), les groupes d\'ateliers de la séance, gardé sur le téléphone puis envoyé à la fin ; après un plateau, les étoiles brillent ; les demandes des enfants en haut.'
     },

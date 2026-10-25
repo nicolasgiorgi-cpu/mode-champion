@@ -144,7 +144,9 @@ var Core = (function () {
     // les missions créées par les éducs : pour le groupe (video : une vidéo + des questions ; qcm) ou individuelles
     // (etoile : décrocher une étoile précise, pour un enfant). statut : active, faite (étoile validée), retiree
     defmissions: [['id', 's'], ['sorte', 's'], ['titre', 's'], ['texte', 's'], ['video', 's'], ['questions', 'j'], ['joueurId', 's'], ['domaine', 's'],
-      ['etoile', 's'], ['xp', 'n'], ['debut', 's'], ['fin', 's'], ['statut', 's'], ['parQui', 's'], ['parNom', 's'], ['faiteLe', 's'], ['cree', 's'], ['maj', 's']]
+      ['etoile', 's'], ['xp', 'n'], ['debut', 's'], ['fin', 's'], ['statut', 's'], ['parQui', 's'], ['parNom', 's'], ['faiteLe', 's'], ['cree', 's'], ['maj', 's'],
+      // (25/10, mission principale) 1 à 3 étoiles d'une même carte ; vide = l'ancienne mission d'une étoile (colonne etoile)
+      ['etoiles', 'j']]
   };
 
   // Valeur brute (texte de la feuille) -> valeur typée
@@ -322,8 +324,11 @@ var Core = (function () {
   function pubDef(m) {
     return { id: m.id, sorte: m.sorte, titre: m.titre || '', texte: m.texte || '', video: m.video || '', questions: Array.isArray(m.questions) ? m.questions : [],
       joueurId: m.joueurId || '', domaine: m.domaine || '', etoile: m.etoile || '', xp: Number(m.xp) || 0, debut: m.debut || '', fin: m.fin || '',
-      statut: m.statut || 'active', parQui: m.parQui || '', parNom: m.parNom || '', faiteLe: m.faiteLe || '', cree: m.cree || '' };
+      statut: m.statut || 'active', parQui: m.parQui || '', parNom: m.parNom || '', faiteLe: m.faiteLe || '', cree: m.cree || '',
+      etoiles: m.sorte === 'etoile' ? etoilesDe(m) : [] };
   }
+  // les étoiles visées par une mission principale (les anciennes n'en ont qu'une, dans la colonne etoile)
+  function etoilesDe(m) { return Array.isArray(m.etoiles) && m.etoiles.length ? m.etoiles.filter(function (e) { return typeof e === 'string'; }) : (m.etoile ? [m.etoile] : []); }
   // les missions des éducs qu'un enfant voit : celles du groupe, et sa mission perso
   function defsDe(db, joueurId) {
     return db.rows('defmissions').filter(function (m) {
@@ -1065,6 +1070,13 @@ var Core = (function () {
     soutien: ['axe', 'montre', 'plus', 'premier', 'replace', 'hors-jeu-pied']
   };
   var MAX_PLUS1 = 5;
+  // les vacances scolaires (zone C, académie de Toulouse) : le 1er jour. La date de fin par défaut d'une mission principale.
+  var VACANCES = ['2026-10-17', '2026-12-19', '2027-02-06', '2027-04-03', '2027-07-03', '2027-10-23', '2027-12-18'];
+  function prochainesVacances(today) {
+    var p = today.split('-'), d = new Date(Date.UTC(Number(p[0]), Number(p[1]) - 1, Number(p[2]) + 7)), t = d.toISOString().slice(0, 10);
+    for (var i = 0; i < VACANCES.length; i++) if (VACANCES[i] >= t) return VACANCES[i];
+    d = new Date(Date.UTC(Number(p[0]), Number(p[1]) - 1, Number(p[2]) + 42)); return d.toISOString().slice(0, 10);
+  }
   function skillOk(d, e) { return typeof d === 'string' && typeof e === 'string' && Object.prototype.hasOwnProperty.call(SKILLS, d) && SKILLS[d].indexOf(e) >= 0; }
   function educNom(ctx) { return ctx.auth.row.nom || 'Un éduc'; }
   function joueurActif(ctx, id) {
@@ -1089,16 +1101,20 @@ var Core = (function () {
     run: function (req, ctx) {
       var j = joueurActif(ctx, req.joueurId), mid = String(req.missionId || ''), def = null;
       var mot = cleanText(req.mot, 140);
+      var et = '';
       if (mid) {
         def = find(ctx.db.rows('defmissions'), mid);
         if (!def || def.sorte !== 'etoile' || def.joueurId !== j.id || def.statut !== 'active') fail('invalide', 'Cette mission n\'est plus en cours.');
-        if (plus1De(ctx, mid) >= MAX_PLUS1) fail('limite', 'Déjà ' + MAX_PLUS1 + ' +1 sur cette mission : c\'est le moment de valider l\'étoile.');
+        var lst = etoilesDe(def), max = MAX_PLUS1 * Math.max(1, lst.length);
+        if (plus1De(ctx, mid) >= max) fail('limite', 'Déjà ' + max + ' encouragements sur cette mission : c\'est le moment de valider ' + (lst.length > 1 ? 'les étoiles.' : 'l\'étoile.'));
+        // l'étoile précise (si l'éduc la choisit), sinon la 1re pas encore gagnée
+        et = typeof req.etoile === 'string' && lst.indexOf(req.etoile) >= 0 ? req.etoile : (lst.filter(function (e) { return !etoileActive(ctx, j.id, def.domaine, e); })[0] || lst[0] || '');
       } else if (!mot) fail('invalide', 'Écrivez un mot, ou choisissez sa mission.');
       var o = occasionDe(ctx, req), now = isoNow(ctx.now);
-      var row = { id: genId(ctx.env), joueurId: j.id, missionId: mid, domaine: def ? def.domaine : '', etoile: def ? def.etoile : '', mot: mot, parQui: ctx.auth.row.id, parNom: educNom(ctx),
+      var row = { id: genId(ctx.env), joueurId: j.id, missionId: mid, domaine: def ? def.domaine : '', etoile: et, mot: mot, parQui: ctx.auth.row.id, parNom: educNom(ctx),
         date: isoDate(ctx.now), occasion: o.occasion, evenementId: o.evenementId, retire: false, cree: now };
       ctx.db.insert('encouragements', row);
-      return { encouragement: pubEnc(row), nb: mid ? plus1De(ctx, mid) : 0, max: MAX_PLUS1 };
+      return { encouragement: pubEnc(row), nb: mid ? plus1De(ctx, mid) : 0, max: def ? MAX_PLUS1 * Math.max(1, etoilesDe(def).length) : MAX_PLUS1 };
     }
   };
   // retirer un +1 donné par erreur : son auteur, ou l'admin
@@ -1129,7 +1145,10 @@ var Core = (function () {
       ctx.db.insert('etoiles', row);
       statut = 'nouvelle';
       ctx.db.rows('defmissions').forEach(function (m) {
-        if (m.sorte === 'etoile' && m.statut === 'active' && m.joueurId === j.id && m.domaine === d && m.etoile === e) {
+        if (m.sorte === 'etoile' && m.statut === 'active' && m.joueurId === j.id && m.domaine === d && etoilesDe(m).indexOf(e) >= 0) {
+          // (mission principale) faite quand toutes ses étoiles sont gagnées
+          var toutes = etoilesDe(m).every(function (x) { return x === e || !!etoileActive(ctx, j.id, d, x); });
+          if (!toutes) return;
           ctx.db.update('defmissions', m.id, { statut: 'faite', faiteLe: isoDate(ctx.now), maj: now });
           if (faites) faites.push(m.id);
         }
@@ -1244,7 +1263,7 @@ var Core = (function () {
       // une seule mission perso à la fois : si l'enfant en a déjà une autre en cours, l'ancienne reste « faite »
       var autre = ctx.db.rows('defmissions').some(function (m) { return m.sorte === 'etoile' && m.statut === 'active' && m.joueurId === e.joueurId; });
       if (!autre) ctx.db.rows('defmissions').forEach(function (m) {
-        if (!rouvertes.length && m.sorte === 'etoile' && m.statut === 'faite' && m.joueurId === e.joueurId && m.domaine === e.domaine && m.etoile === e.etoile) {
+        if (!rouvertes.length && m.sorte === 'etoile' && m.statut === 'faite' && m.joueurId === e.joueurId && m.domaine === e.domaine && etoilesDe(m).indexOf(e.etoile) >= 0) {
           ctx.db.update('defmissions', m.id, { statut: 'active', faiteLe: '', maj: now });
           rouvertes.push(m.id);
         }
@@ -1298,18 +1317,46 @@ var Core = (function () {
         xp: xp >= 0 && xp <= 300 ? xp : (sorte === 'etoile' ? 0 : 50), debut: isoDate(ctx.now), fin: validDate(req.fin) ? req.fin : '', statut: 'active',
         parQui: me.id, parNom: educNom(ctx), faiteLe: '', cree: now, maj: now };
       if (sorte === 'etoile') {
-        var j = joueurActif(ctx, req.joueurId);
-        var dom = String(req.domaine || ''), et = String(req.etoile || '');
-        if (!skillOk(dom, et)) fail('invalide', 'Étoile inconnue.');
-        if (etoileActive(ctx, j.id, dom, et)) fail('invalide', j.prenom + ' a déjà cette étoile.');
-        m.joueurId = j.id; m.domaine = dom; m.etoile = et; m.xp = 0;
-        if (!m.titre) m.titre = m.domaine + ' · ' + m.etoile;
-        // une seule mission perso à la fois : la nouvelle remplace celle en cours (ses +1 restent dans l'historique)
-        var encours = ctx.db.rows('defmissions').filter(function (x) { return x.sorte === 'etoile' && x.statut === 'active' && x.joueurId === j.id; });
-        if (encours.length && !req.remplacer) fail('deja', j.prenom + ' a déjà une mission perso en cours.', { missionId: encours[0].id });
-        var autreEduc = encours.filter(function (x) { return x.parQui !== me.id; })[0];
-        if (autreEduc && !me.admin) fail('interdit', 'Sa mission en cours vient de ' + (autreEduc.parNom || 'un autre éduc') + ' : seul cet éduc (ou l\'admin) peut la remplacer.');
-        encours.forEach(function (x) { ctx.db.update('defmissions', x.id, { statut: 'retiree', maj: now }); });
+        // (25/10) la mission principale : 1 à 3 étoiles d'une même carte, une date de fin (par défaut les prochaines
+        // vacances), pour un enfant (joueurId) ou plusieurs d'un coup (joueurIds). Une seule à la fois par enfant :
+        // la nouvelle remplace celle en cours (remplacer), ses +1 restent dans l'historique.
+        var dom = String(req.domaine || ''), lst = Array.isArray(req.etoiles) ? req.etoiles.map(String) : [String(req.etoile || '')];
+        lst = lst.filter(function (e, i) { return e && lst.indexOf(e) === i; });
+        if (!lst.length || lst.length > 3) fail('invalide', 'Choisissez 1 à 3 étoiles.');
+        lst.forEach(function (e) { if (!skillOk(dom, e)) fail('invalide', 'Étoile inconnue.'); });
+        lst = SKILLS[dom].filter(function (e) { return lst.indexOf(e) >= 0; });
+        var batch = Array.isArray(req.joueurIds), ids = batch ? req.joueurIds.map(String) : [String(req.joueurId || '')];
+        ids = ids.filter(function (x, i) { return ids.indexOf(x) === i; });
+        if (!ids.length || ids.length > 60) fail('invalide', 'Choisissez 1 à 60 enfants.');
+        var jsx = ids.map(function (x) { return joueurActif(ctx, x); });   // tout est vérifié avant d'écrire
+        var fin = validDate(req.fin) ? req.fin : prochainesVacances(isoDate(ctx.now)), ignores = [], remplacees = [], out = [];
+        var plan = jsx.map(function (j) {
+          var reste = lst.filter(function (e) { return !etoileActive(ctx, j.id, dom, e); });
+          if (!reste.length) {
+            if (!batch) fail('invalide', j.prenom + (lst.length > 1 ? ' a déjà ces étoiles.' : ' a déjà cette étoile.'));
+            ignores.push({ joueurId: j.id, raison: 'deja' }); return null;
+          }
+          var encours = ctx.db.rows('defmissions').filter(function (x) { return x.sorte === 'etoile' && x.statut === 'active' && x.joueurId === j.id; });
+          if (encours.length && !req.remplacer) {
+            if (!batch) fail('deja', j.prenom + ' a déjà une mission principale en cours.', { missionId: encours[0].id });
+            ignores.push({ joueurId: j.id, raison: 'encours' }); return null;
+          }
+          var autreEduc = encours.filter(function (x) { return x.parQui !== me.id; })[0];
+          if (autreEduc && !me.admin) {
+            if (!batch) fail('interdit', 'Sa mission en cours vient de ' + (autreEduc.parNom || 'un autre éduc') + ' : seul cet éduc (ou l\'admin) peut la remplacer.');
+            ignores.push({ joueurId: j.id, raison: 'autre', parNom: autreEduc.parNom || '' }); return null;
+          }
+          return { j: j, reste: reste, encours: encours };
+        }).filter(Boolean);
+        plan.forEach(function (x) {
+          x.encours.forEach(function (y) { ctx.db.update('defmissions', y.id, { statut: 'retiree', maj: now }); remplacees.push(y.id); });
+          var mm = clone(m);
+          mm.id = genId(ctx.env); mm.joueurId = x.j.id; mm.domaine = dom; mm.etoile = x.reste[0]; mm.etoiles = x.reste; mm.xp = 0; mm.fin = fin;
+          if (!mm.titre) mm.titre = dom + ' · ' + x.reste.join(', ');
+          ctx.db.insert('defmissions', mm);
+          out.push(pubDef(mm));
+        });
+        return { mission: out[0] || null, missions: out, ignores: ignores, remplacees: remplacees };
       } else {
         if (!m.titre) fail('invalide', 'Il faut un titre.');
         if (sorte === 'video') { m.video = youtubeId(req.video); if (!m.video) fail('invalide', 'Adresse de vidéo YouTube non reconnue.'); }

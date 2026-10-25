@@ -242,22 +242,59 @@ MC.SK = (function () {
     var stars = D.etoiles.map(function (s) { var row = A[key(d, s.id)] || null; if (row) n++; if (brille(row)) nb++; return { def: s, row: row, brille: brille(row) }; });
     return { dom: D, n: n, max: D.etoiles.length, nbBrille: nb, grade: grade(n, D.etoiles.length, nb), stars: stars, suivant: avantGradeSuivant(n, D.etoiles.length) };
   }
-  // la mission perso en cours (une à la fois), ou la dernière faite si on demande
+  // la mission principale en cours (une à la fois), ou toutes (faites comprises) si on demande.
+  // (visuels v2, 25/10) Elle remplace la « mission perso » d'une étoile : 1 à 3 étoiles d'une même carte (m.etoiles,
+  // sinon m.etoile pour les anciennes), une date de fin obligatoire, plusieurs enfants d'un coup côté éduc.
   function missionPerso(data, toutes) {
     var l = ((data && data.defmissions) || []).filter(function (m) { return m.sorte === 'etoile' && (toutes || m.statut === 'active'); });
     l.sort(function (a, b) { return (a.cree || '') < (b.cree || '') ? 1 : -1; });
     return toutes ? l : (l[0] || null);
   }
-  // les +1 d'une mission, du plus récent au plus ancien
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  function aujourdhui() { var d = new Date(); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+  // les étoiles visées par une mission (dans l'ordre de la carte)
+  function etoilesMission(m) {
+    if (!m) return [];
+    var l = Array.isArray(m.etoiles) && m.etoiles.length ? m.etoiles : (m.etoile ? [m.etoile] : []), D = dom(m.domaine);
+    if (!D) return [];
+    return D.etoiles.map(function (s) { return s.id; }).filter(function (id) { return l.indexOf(id) >= 0; });
+  }
+  function dansMission(m, d, e) { return !!(m && m.domaine === d && etoilesMission(m).indexOf(e) >= 0); }
+  // jusqu'à 5 encouragements par étoile visée
+  function maxPlus1(m) { return MAX_PLUS1 * Math.max(1, etoilesMission(m).length); }
+  // où en est une mission : ses étoiles (gagnées ou pas), terminée par la date, réussie
+  function etatMission(data, m, today) {
+    var A = acquis(data), l = etoilesMission(m).map(function (e) { var row = A[key(m.domaine, e)] || null; return { id: e, def: star(m.domaine, e), row: row, brille: brille(row) }; });
+    var n = l.filter(function (x) { return x.row; }).length, t = today || aujourdhui();
+    return { etoiles: l, n: n, max: l.length, restantes: l.filter(function (x) { return !x.row; }), reussie: m.statut === 'faite' || (l.length > 0 && n === l.length),
+      expiree: m.statut === 'active' && !!m.fin && m.fin < t };
+  }
+  // les +1 (encouragements) d'une mission, du plus récent au plus ancien
   function plus1(data, missionId) {
     return ((data && data.encouragements) || []).filter(function (x) { return x.missionId === missionId; })
       .sort(function (a, b) { return (a.cree || '') < (b.cree || '') ? 1 : -1; });
   }
-  function titreMission(m) { var s = star(m.domaine, m.etoile); return s ? s.mission : (m.titre || 'Mission perso'); }
-  // le prochain défi d'un enfant : l'étoile de sa mission perso, sinon une étoile pas encore gagnée de sa carte la plus avancée
+  // le titre : la phrase de mission pour une étoile, les noms des étoiles pour plusieurs
+  function titreMission(m) {
+    var l = etoilesMission(m);
+    if (l.length > 1) { var noms = l.map(function (e) { return star(m.domaine, e).nom; }); return noms.slice(0, -1).join(', ') + ' et ' + noms[noms.length - 1]; }
+    var s = star(m.domaine, l[0] || m.etoile); return s ? s.mission : (m.titre || 'Mission principale');
+  }
+  // les vacances scolaires (zone C, académie de Toulouse) : le 1er jour, un samedi. Pour la date de fin d'une mission.
+  var VACANCES = [['2026-10-17', 'Toussaint'], ['2026-12-19', 'Noël'], ['2027-02-06', 'hiver'], ['2027-04-03', 'printemps'], ['2027-07-03', 'été'],
+    ['2027-10-23', 'Toussaint'], ['2027-12-18', 'Noël']];
+  function addJours(iso, n) { var p = iso.split('-'), d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]) + n); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+  // les prochaines vacances à au moins une semaine : { date, nom } (sinon dans 6 semaines)
+  function prochainesVacances(today) {
+    var t = addJours(today || aujourdhui(), 7);
+    for (var i = 0; i < VACANCES.length; i++) if (VACANCES[i][0] >= t) return { date: VACANCES[i][0], nom: VACANCES[i][1] };
+    return { date: addJours(today || aujourdhui(), 42), nom: '' };
+  }
+  // le prochain défi d'un enfant : la 1re étoile pas encore gagnée de sa mission principale,
+  // sinon une étoile pas encore gagnée de sa carte la plus avancée
   function prochainDefi(data) {
     var m = missionPerso(data);
-    if (m) return { d: m.domaine, e: m.etoile, mission: m };
+    if (m) { var et = etatMission(data, m); var r = et.restantes[0] || et.etoiles[0]; if (r) return { d: m.domaine, e: r.id, mission: m }; }
     var best = null;
     DOMAINES.forEach(function (D) {
       var c = carte(data, D.id);
@@ -287,7 +324,9 @@ MC.SK = (function () {
     DOMAINES: DOMAINES, GRADES: GRADES, ATELIERS: ATELIERS, MAX_PLUS1: MAX_PLUS1, PROPOSE_AU: PROPOSE_AU, MAX_ATELIER: MAX_ATELIER, MAX_TOTAL: MAX_TOTAL,
     dom: dom, star: star, key: key, parseKey: parseKey, grade: grade, paliers: paliers, avantGradeSuivant: avantGradeSuivant, brille: brille,
     acquis: acquis, total: total, totalBrille: totalBrille, carte: carte, atelier: atelier,
-    missionPerso: missionPerso, plus1: plus1, titreMission: titreMission, prochainDefi: prochainDefi,
+    missionPerso: missionPerso, missionPrincipale: missionPerso, plus1: plus1, titreMission: titreMission, prochainDefi: prochainDefi,
+    etoilesMission: etoilesMission, dansMission: dansMission, maxPlus1: maxPlus1, etatMission: etatMission, aujourdhui: aujourdhui,
+    VACANCES: VACANCES, prochainesVacances: prochainesVacances, addJours: addJours,
     demandeEnCours: demandeEnCours, peutDemander: peutDemander
   };
 })();

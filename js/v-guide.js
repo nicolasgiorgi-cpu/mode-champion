@@ -54,7 +54,7 @@
       card('onglets', 'menu', '#38E8FF', 'L\'appli en 4 onglets', 'Prépa · Missions · Skills · Moi',
         ul([
           '<b>Prépa</b> : ta prépa physique. <b>Ma semaine</b> (la séance du jour et GO, tes étoiles), <b>Bilans</b> (tes records et tes niveaux) et <b>Classement</b> (l\'arène).',
-          '<b>Missions</b> : ce que demandent tes éducs. Ta mission perso et ses +1, les missions de toute l\'équipe (choisir ton poste, une vidéo, un QCM), et tous les mots de tes éducs. Une pastille rose = du nouveau.',
+          '<b>Missions</b> : ce que demandent tes éducs. En haut, ta <b>mission principale</b> et ses encouragements ; puis les missions ponctuelles (choisir ton poste, une vidéo, un QCM), et tous les mots de tes éducs. Une pastille rose = du nouveau.',
           '<b>Skills</b> : ton carnet de compétences rugby, 8 cartes d\'étoiles validées par tes éducs.',
           '<b>Moi</b> : ton grade, tes XP, tes postes et tes copains, tes trophées, l\'aide et les réglages.'
         ]), true) +
@@ -101,7 +101,7 @@
           'Onglet <b>Missions</b> : tout ce que tes éducs te demandent. Une pastille rose, et une fois un bandeau « Nouveau dans Missions » en haut de Prépa, te préviennent.',
           '<b>Pour toute l\'équipe</b> : regarder une vidéo puis répondre à quelques questions, ou un QCM. Mission faite = des XP (ils sont écrits sur la mission).',
           'Pour le jeu à 10, <b>2 missions</b>. « <b>Choisis ton poste</b> » : 1 à 3 postes, dans l\'ordre, avec les 7 cartes ou le test « Aide-moi à choisir ». Puis « <b>Avec qui tu aimes jouer</b> » : tes copains, autant que tu veux, c\'est <b>secret</b> (seuls les éducs les voient). Chaque mission accomplie : <b>+' + C.XP.mission + ' XP</b> et son badge. Tu peux changer tes choix quand tu veux (Moi › Mes postes, Mes copains).',
-          '<b>Ta mission perso</b> : une étoile Skills à décrocher, rien que pour toi. Quand un éduc voit que tu es sur la bonne voie, il te donne un <b>+1</b> (avec un petit mot, parfois) : jusqu\'à 5. Un +1 ne donne pas l\'étoile : au 3e, tes éducs peuvent la valider.'
+          '<b>Ta mission principale</b> : 1 à 3 étoiles Skills à décrocher, rien que pour toi, jusqu\'à une date (souvent les prochaines vacances). Elle a un cadre arc-en-ciel, ici et sur sa carte Skills. Quand un éduc voit que tu es sur la bonne voie, il t\'<b>encourage</b> (un +1, avec un petit mot parfois). Un encouragement ne donne pas l\'étoile : c\'est un éduc qui la valide.'
         ])) +
       card('skills', 'star', '#FFC23D', 'Tes Skills', 'Ton carnet de compétences rugby',
         ul([
@@ -162,7 +162,7 @@
           '<b>Sa progression aux bilans</b> : ses résultats à chaque bilan et ce qu\'il a gagné depuis le précédent.',
           'Son grade, ses niveaux exercice par exercice, ses records confirmés.',
           'Les résultats de bilan ou de défi <b>en attente de confirmation</b>.',
-          '<b>Missions</b> : sa mission perso (une étoile Skills à décrocher), les <b>+1</b> et les mots des éducs (qui, quand, à quelle occasion), et les missions de l\'équipe (vidéo, QCM, choix de poste), faites ou pas. Vous suivez : les +1 ne se donnent que par les éducs.',
+          '<b>Missions</b> : sa <b>mission principale</b> (1 à 3 étoiles Skills à décrocher, jusqu\'à une date), les <b>encouragements</b> et les mots des éducs (qui, quand, à quelle occasion), et les missions de l\'équipe (vidéo, QCM, choix de poste), faites ou pas. Vous suivez : les encouragements ne se donnent que par les éducs.',
           '<b>Skills</b> : ses 8 cartes (Plaquage, Ruck, Maul, Défense, Porteur, Passe, Jeu au pied, Soutien), les étoiles validées par les éducs, celles qui <b>brillent</b> (vues au plateau), ses demandes et comment il peut s\'entraîner pour les autres. Vous suivez : seul votre enfant peut demander une étoile.'
         ])) +
       card('p-confirmer', 'check', '#FFC23D', 'Confirmer les résultats', 'Le geste le plus important',
@@ -252,8 +252,8 @@
         ul([
           '<b>Évaluer</b> (Progrès › Skills, ou « Évaluer des Skills » sur la page d\'une séance, après la séance) : une étoile, ou un <b>atelier prêt</b> (2 à 5 étoiles). Une étoile : la liste des présents ; un atelier : une <b>grille</b> enfants × étoiles. Touchez ceux qui ont réussi (règle des 3 essais : 2 réussis sur 3). Tout reste sur le téléphone, même sans réseau, puis <b>Envoyer</b> à la fin : les enfants découvrent leurs étoiles après l\'entraînement. Un éduc suffit ; validée par erreur ? « Retirer » sur sa fiche.',
           '<b>Atelier ou journée d\'évaluation</b> : faites les groupes d\'ateliers de la séance (Entraîn. › Ateliers) ; sur Évaluer, touchez le groupe qui arrive (G1, G2…) pour n\'afficher que lui. <b>Après un plateau</b> (« Faire briller des étoiles » sur sa page) : les étoiles touchées brillent. <b>Demandes des enfants</b> en haut d\'Évaluer : Oui ou Pas vu. <b>Passeport du groupe</b> : toutes les cartes de tous les enfants.',
-          '<b>Mission perso</b> (Progrès › Missions › + Individuelle, ou depuis sa fiche) : une étoile précise à décrocher, une à la fois. L\'enfant la voit dans son onglet Missions.',
-          '<b>Le +1</b> : d\'un seul toucher, sur la page de l\'entraînement ou du plateau, dans Progrès, ou sur sa fiche ; « +1 avec un mot » pour ajouter une phrase et l\'occasion. Il dit « tu es sur la bonne voie » : l\'enfant et sa famille le voient (qui, quand, à quelle occasion). Jusqu\'à 5 par mission. <b>Au 3e, l\'appli propose de valider l\'étoile</b> : rien d\'automatique, c\'est vous qui décidez. Un parent ne donne jamais de +1.',
+          '<b>Mission principale</b> (Progrès › Missions › + Mission principale, ou depuis sa fiche) : 1 à 3 étoiles d\'une même carte, à <b>plusieurs enfants d\'un coup</b> (Tous, Présents, Sans mission), jusqu\'à une date (les prochaines vacances par défaut), avec un mot si vous voulez. Un <b>récapitulatif par enfant</b> montre ce que chacun reçoit (les étoiles qu\'il a déjà sont retirées, la mission remplacée). Une à la fois par enfant ; l\'enfant la voit en haut de ses Missions et sur sa carte Skills (cadre arc-en-ciel).',
+          '<b>Le +1</b> : d\'un seul toucher, sur la page de l\'entraînement ou du plateau, dans Progrès, ou sur sa fiche ; « +1 avec un mot » pour ajouter une phrase et l\'occasion. Il dit « tu es sur la bonne voie » : l\'enfant et sa famille le voient comme un <b>encouragement</b> (qui, quand, à quelle occasion), sans total. Jusqu\'à 5 par étoile visée. <b>Au 3e, l\'appli propose de valider</b> : rien d\'automatique, c\'est vous qui décidez. Un parent ne donne jamais de +1.',
           '<b>Pour le groupe</b> : une vidéo YouTube et quelques questions, ou un QCM, avec une date limite et des XP. Vous voyez qui l\'a faite et la moyenne ; l\'auteur (ou l\'admin) peut changer la date ou la retirer.'
         ])) +
       card('e-compos', 'board', '#38E8FF', 'Les compos : plateaux et entraînements', 'Onglets Entraîn. et Plateaux',

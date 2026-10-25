@@ -486,7 +486,7 @@
       var tr = p.terrain || {}, po = tr.postesOk && tr.postesOk[0] ? pnom[tr.postesOk[0]] : '';
       var mp = MC.SK ? MC.SK.missionPerso({ defmissions: (g.defmissions || []).filter(function (m) { return m.joueurId === p.joueur.id; }) }) : null;
       var n1 = mp ? (p.encouragements || []).filter(function (x) { return x.missionId === mp.id; }).length : 0;
-      var info = [po, tr.passerelle ? 'passerelle vers ' + tr.passerelle : '', mp ? '★ ' + MC.SK.titreMission(mp) + (n1 ? ' · ' + n1 + ' +1' : '') : ''].filter(Boolean).join(' · ');
+      var info = [po, tr.passerelle ? 'passerelle vers ' + tr.passerelle : '', mp ? '★ ' + MC.SK.titreMission(mp) + (n1 ? ' · ' + n1 + ' encouragement' + (n1 > 1 ? 's' : '') : '') : ''].filter(Boolean).join(' · ');
       var isMine = mine.indexOf(p.joueur.id) >= 0;
       return '<li><a class="li" href="#/educ/joueur/' + esc(p.joueur.id) + '">' + (tr.niveau ? '<span class="cniv" style="--lc:' + NIVC[tr.niveau] + '" title="Niveau ' + tr.niveau + '">' + tr.niveau + '</span>' : '<span class="cniv none" title="Niveau à renseigner">?</span>') +
         '<span class="grow"><span class="t1">' + esc(p.joueur.prenom.toUpperCase()) + (isMine ? ' <span class="pill" style="--pc:var(--cyan)">Mon enfant</span>' : '') + (att && isMine ? ' <span class="nbi">' + att + '</span>' : '') + '</span>' +

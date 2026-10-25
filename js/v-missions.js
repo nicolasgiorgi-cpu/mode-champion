@@ -1,7 +1,7 @@
 /* =========================================================
    Mode champion · M12 — MISSIONS et SKILLS côté enfant et côté parent
-   Missions : ce que demandent les éducs (le dernier +1, la mission perso et sa jauge
-   de 5 +1, les missions de l'équipe : poste, vidéo, QCM, et tous les mots des éducs).
+   Missions : ce que demandent les éducs (visuels v2, 25/10 : la mission principale en haut, dans son cadre
+   arc-en-ciel, avec ses encouragements ; puis les missions ponctuelles : poste, vidéo, QCM ; et tous les mots des éducs).
    Skills : le carnet de compétences (8 cartes, Skills v2 du 25/10 ; étoiles validées par les éducs, qui brillent après un plateau ;
    l'enfant peut demander une étoile, une demande à la fois).
    Les parents voient la même chose, en lecture seule : ils ne donnent jamais de +1.
@@ -20,13 +20,52 @@ window.MC = window.MC || {};
   function jour(iso) { return iso ? ui.fmtDate(String(iso).slice(0, 10)) : ''; }
   function navKey(R, k) { return (R.k ? '' : 'p:') + k; }
 
-  // la jauge de 5 +1 (et le seuil du 3e, où l'appli propose aux éducs de valider)
+  // l'ancienne jauge de 5 +1 (gardée pour les écrans qui l'appellent encore)
   function jauge(n, big) {
     var o = '<span class="g5' + (big ? ' big' : '') + '" role="img" aria-label="' + n + ' +1 sur ' + SK.MAX_PLUS1 + '">';
     for (var i = 1; i <= SK.MAX_PLUS1; i++) o += '<i class="' + (i <= n ? 'on' : '') + (i === SK.PROPOSE_AU ? ' seuil' : '') + '"></i>';
     return o + '</span>';
   }
   MC.jauge5 = jauge;
+  // (visuels v2) les encouragements : des points violets, sans total (un +1 ne « remplit » rien : c'est un éduc qui valide l'étoile)
+  function encDots(n) {
+    var o = '<span class="encd" aria-hidden="true">';
+    for (var i = 0; i < Math.min(n, 10); i++) o += '<i></i>';
+    return o + '</span>';
+  }
+  function encTxt(n) { return n + ' encouragement' + (n > 1 ? 's' : ''); }
+  MC.encDots = encDots; MC.encTxt = encTxt;
+  // la mission principale en cours, si sa date n'est pas passée
+  function missionActive(d) { var m = SK.missionPerso(d); return m && !SK.etatMission(d, m, L.today()).expiree ? m : null; }
+  MC.missionActive = missionActive;
+  // « jusqu'aux vacances de Noël (sam. 19 déc.) » ou « jusqu'au sam. 19 déc. »
+  function finTxt(m) {
+    if (!m.fin) return '';
+    var v = SK.VACANCES.filter(function (x) { return x[0] === m.fin; })[0];
+    return v ? 'Jusqu\'aux vacances ' + (v[1] === 'été' ? 'd\'été' : v[1] === 'hiver' ? 'd\'hiver' : v[1] === 'printemps' ? 'de printemps' : 'de ' + v[1]) + ' (' + jour(m.fin) + ')' : 'Jusqu\'au ' + jour(m.fin);
+  }
+  MC.finMission = finTxt;
+  // le bloc « Ma mission principale » (Missions, et rappel dans Skills) : cadre blanc, étiquette soulignée arc-en-ciel
+  function blocMission(R, mp, court) {
+    var d = R.d;
+    if (!mp) return '<p class="small" style="margin:0">' + T(R, 'Pas de mission principale pour l\'instant. Tes éducs t\'en donneront une : 1 à 3 étoiles Skills à décrocher.', 'Pas de mission principale pour l\'instant : les éducs en donnent une (1 à 3 étoiles Skills à décrocher).') + '</p>';
+    var et = SK.etatMission(d, mp, L.today()), Dm = SK.dom(mp.domaine), p1 = SK.plus1(d, mp.id), n = p1.length, last = p1[0];
+    var stars = court ? '' : '<span class="mp-stars">' + et.etoiles.map(function (x) {
+      return '<span class="mp-st' + (x.row ? ' on' : '') + '">' + MC.etoileSvg(x.row ? (x.brille ? 'brille' : 'gagnee') : 'mission', 18, 'mb' + mp.id + x.id) + '<span>' + esc(x.def.nom) + '</span></span>';
+    }).join('') + '</span>';
+    var tag = et.expiree ? 'Mission terminée' : T(R, 'Ma mission principale', 'Sa mission principale');
+    var etat = et.expiree ? 'Terminée le ' + jour(mp.fin) + ' · ' + et.n + ' / ' + et.max + ' étoile' + (et.max > 1 ? 's' : '') + '. ' + T(R, 'Tes éducs vont t\'en donner une nouvelle.', 'Les éducs vont en donner une nouvelle.')
+      : [finTxt(mp), mp.parNom ? 'donnée par ' + esc(mp.parNom) : ''].filter(Boolean).join(' · ');
+    return '<a class="mp-bloc' + (et.expiree ? ' fin' : '') + '" href="' + R.base + '/perso">' +
+      '<span class="mp-tag"><b>' + icon('star', 10) + ' ' + tag + '</b></span><span class="mp-c"><span class="grow">' +
+      '<b class="mp-t">' + esc(Dm ? Dm.nom : '') + ' · ' + esc(SK.titreMission(mp)) + '</b>' + stars +
+      '<span class="mp-enc">' + encDots(n) + '<span>' + encTxt(n).toUpperCase() + ' · ' + et.n + ' / ' + et.max + ' ÉTOILE' + (et.max > 1 ? 'S' : '') + '</span></span>' +
+      '<span class="mp-q">' + etat + '</span>' +
+      (!court && mp.texte ? '<span class="mp-mot">« ' + esc(mp.texte) + ' »</span>' : '') +
+      (!court && last ? '<span class="mp-q">Dernier encouragement : ' + esc(last.parNom) + ', ' + jour(last.date) + (last.mot ? ' · « ' + esc(last.mot) + ' »' : '') + '</span>' : '') +
+      '</span>' + icon('right', 18) + '</span></a>';
+  }
+  MC.blocMission = blocMission;
   function p1Tag() { return '<b class="p1tag">+1</b>'; }
   function motDe(x) { return x.mot ? '« ' + esc(x.mot) + ' »' : (x.missionId ? 'Sur la bonne voie' : ''); }
   function quiQuand(x) { return esc(x.parNom) + ' · ' + esc(x.occasion ? x.occasion.charAt(0).toLowerCase() + x.occasion.slice(1) : jour(x.date)); }
@@ -35,19 +74,19 @@ window.MC = window.MC || {};
   // MISSIONS : en cours · faites
   // ======================================================================
   function missionsHome(R, vue) {
-    var d = R.d, mp = SK.missionPerso(d), groupe = M.groupe(d), nv = M.nouveaux(R.k ? 'k' : 'f', d), luIds = {};
+    var d = R.d, mp = SK.missionPerso(d), mpa = missionActive(d), groupe = M.groupe(d), nv = M.nouveaux(R.k ? 'k' : 'f', d), luIds = {};
     nv.enc.forEach(function (x) { luIds[x.id] = true; }); nv.missions.forEach(function (m) { luIds[m.id] = true; });
     var spec = M.pending(d), faitesG = groupe.filter(function (x) { return x.faite; }), aFaireG = groupe.filter(function (x) { return !x.faite && !x.finie; });
     var persoFaites = SK.missionPerso(d, true).filter(function (m) { return m.statut === 'faite'; });
     // les missions spéciales (le poste, les copains) : chacune sa ligne, faite ou à faire
     var specFaites = MC.MISSIONS.filter(function (Dx) { return M.etat(d, Dx.id).faite; });
-    var nEnCours = spec.length + aFaireG.length + (mp ? 1 : 0), nFaites = faitesG.length + persoFaites.length + specFaites.length;
+    var nEnCours = spec.length + aFaireG.length + (mpa ? 1 : 0), nFaites = faitesG.length + persoFaites.length + specFaites.length;
     function specHref(Dx) { return R.k ? Dx.lien : R.base + '/jeu10'; }
     var tabs = ui.subtabs(navKey(R, 'missions'), [['encours', R.base, 'En cours · ' + nEnCours], ['faites', R.base + '?vue=faites', 'Faites · ' + nFaites]], vue, '#FF4FA3', 'Missions');
     var body = '';
     if (vue === 'faites') {
       var items = [];
-      persoFaites.forEach(function (m) { var s = SK.star(m.domaine, m.etoile), D = SK.dom(m.domaine); items.push({ at: m.faiteLe, html: '<a class="li mrow" href="' + R.sk + '/' + esc(m.domaine) + '"><span class="mic gold">' + icon('star', 18) + '</span><span class="grow"><span class="t1">' + esc(SK.titreMission(m)) + '</span><span class="t2">' + T(R, 'Ta mission perso', 'Sa mission perso') + ' · étoile ' + esc(D ? D.nom : '') + ' · ' + esc(s ? s.nom : '') + ' gagnée le ' + jour(m.faiteLe) + '</span></span>' + icon('right', 16) + '</a>' }); });
+      persoFaites.forEach(function (m) { var D = SK.dom(m.domaine), nb = SK.etoilesMission(m).length; items.push({ at: m.faiteLe, html: '<a class="li mrow" href="' + R.sk + '/' + esc(m.domaine) + '"><span class="mic gold">' + icon('star', 18) + '</span><span class="grow"><span class="t1">' + esc(SK.titreMission(m)) + '</span><span class="t2">' + T(R, 'Ta mission principale', 'Sa mission principale') + ' · ' + esc(D ? D.nom : '') + ' · ' + (nb > 1 ? nb + ' étoiles gagnées' : 'étoile gagnée') + ' le ' + jour(m.faiteLe) + '</span></span>' + icon('right', 16) + '</a>' }); });
       faitesG.forEach(function (x) { items.push({ at: x.date, html: '<a class="li mrow" href="' + R.base + '/m/' + esc(x.def.id) + '"><span class="mic">' + icon(x.def.sorte === 'video' ? 'play' : 'list', 18) + '</span><span class="grow"><span class="t1">' + esc(x.def.titre) + '</span><span class="t2">' + (x.total ? x.score + ' / ' + x.total + ' bonnes réponses · ' : '') + 'faite le ' + jour(x.date) + (x.xp ? ' · +' + x.xp + ' XP' : '') + '</span></span>' + icon('right', 16) + '</a>' }); });
       specFaites.forEach(function (Dx) {
         var ex = M.etat(d, Dx.id);
@@ -57,24 +96,15 @@ window.MC = window.MC || {};
       items.sort(function (a, b) { return (a.at || '') < (b.at || '') ? 1 : -1; });
       body = items.length ? '<ul class="list">' + items.map(function (x) { return '<li>' + x.html + '</li>'; }).join('') + '</ul>' : '<div class="empty">' + T(R, 'Pas encore de mission faite. Elles arrivent ici, avec tes résultats.', 'Pas encore de mission faite.') + '</div>';
     } else {
-      // le dernier +1 ou mot (nouveau s'il n'a pas encore été vu)
-      var encs = (d.encouragements || []).slice().sort(function (a, b) { return a.cree < b.cree ? 1 : -1; }), last = encs[0];
-      if (last) {
-        var isNew = !!luIds[last.id], href = last.missionId && mp && last.missionId === mp.id ? R.base + '/perso' : R.base + '/mots';
-        var sur = last.missionId ? (function () { var s = SK.star(last.domaine, last.etoile); return s ? '« ' + s.mission + ' »' : 'ta mission'; })() : '';
-        body += '<a class="lastp1" href="' + href + '">' + '<span class="row" style="gap:8px">' + (last.missionId ? p1Tag() : icon('heart', 16, 'style="color:var(--green)"')) + '<span class="hud" style="color:var(--green)">' + (isNew ? 'Nouveau · ' : '') + esc(last.parNom) + ' · ' + jour(last.date) + '</span></span>' +
-          (last.missionId ? '<b class="lp-t">' + T(R, 'Tu as reçu un +1', esc(prenom(R)) + ' a reçu un +1') + (sur ? ' sur ' + esc(sur) : '') + '</b>' : '<b class="lp-t">' + T(R, 'Un mot de ton éduc', 'Un mot de son éduc') + '</b>') +
-          (last.mot ? '<span class="lp-m">« ' + esc(last.mot) + ' »</span>' : '') + '</a>';
+      // un nouveau mot d'un éduc (sur autre chose que la mission : les encouragements de la mission sont dans son bloc)
+      var encs = (d.encouragements || []).slice().sort(function (a, b) { return a.cree < b.cree ? 1 : -1; });
+      var lastMot = encs.filter(function (x) { return !x.missionId; })[0];
+      if (lastMot && luIds[lastMot.id]) {
+        body += '<a class="lastp1" href="' + R.base + '/mots"><span class="row" style="gap:8px">' + icon('heart', 16, 'style="color:var(--green)"') + '<span class="hud" style="color:var(--green)">Nouveau · ' + esc(lastMot.parNom) + ' · ' + jour(lastMot.date) + '</span></span>' +
+          '<b class="lp-t">' + T(R, 'Un mot de ton éduc', 'Un mot de son éduc') + '</b>' + (lastMot.mot ? '<span class="lp-m">« ' + esc(lastMot.mot) + ' »</span>' : '') + '</a>';
       }
-      // la mission perso
-      body += '<section class="sec"><h2 class="h2">' + T(R, 'Ma mission perso', 'Sa mission perso') + '</h2>';
-      if (mp) {
-        var n = SK.plus1(d, mp.id).length, st = SK.star(mp.domaine, mp.etoile), Dm = SK.dom(mp.domaine);
-        body += '<a class="mperso" href="' + R.base + '/perso"><span class="grow"><span class="mp-t">' + icon('star', 16, 'style="color:var(--gold)"') + ' ' + esc(SK.titreMission(mp)) + '</span>' +
-          '<span class="row" style="gap:10px;margin-top:8px">' + jauge(n) + '<span class="hud" style="color:var(--green)">' + n + ' / ' + SK.MAX_PLUS1 + ' +1</span></span>' +
-          '<span class="t2">Carte ' + esc(Dm ? Dm.nom : '') + ' · l\'étoile ' + esc(st ? st.nom : '') + (n >= SK.PROPOSE_AU ? ' · ' + T(R, 'tes éducs peuvent la valider', 'ses éducs peuvent la valider') : ' · depuis le ' + jour(mp.debut || mp.cree)) + '</span></span>' + icon('right', 18) + '</a>';
-      } else body += '<p class="small" style="margin:0">' + T(R, 'Pas de mission perso pour l\'instant. Tes éducs t\'en donneront une : une étoile Skills à décrocher.', 'Pas de mission perso pour l\'instant : les éducs en donnent une (une étoile Skills à décrocher).') + '</p>';
-      body += '</section>';
+      // la mission principale
+      body += '<section class="sec">' + blocMission(R, mp) + '</section>';
       // pour toute l'équipe
       var eq = '';
       spec.forEach(function (Dx) {
@@ -86,9 +116,9 @@ window.MC = window.MC || {};
         var t2 = m.sorte === 'video' ? (x.vu ? 'Vidéo vue · ' + (nq ? 'le quiz à faire' : 'à terminer') : 'Une vidéo' + (nq ? ' et ' + nq + ' question' + (nq > 1 ? 's' : '') : '')) : 'QCM · ' + nq + ' question' + (nq > 1 ? 's' : '');
         eq += '<li><a class="li mrow" href="' + R.base + '/m/' + esc(m.id) + '"><span class="mic">' + icon(m.sorte === 'video' ? 'play' : 'list', 18) + '</span><span class="grow"><span class="t1">' + esc(m.titre) + (luIds[m.id] ? ' <span class="pill" style="--pc:var(--pink)">Nouveau</span>' : '') + '</span><span class="t2">' + t2 + (m.fin ? ' · jusqu\'au ' + jour(m.fin) : '') + (m.xp ? ' · +' + m.xp + ' XP' : '') + '</span></span>' + icon('right', 16) + '</a></li>';
       });
-      body += '<section class="sec"><h2 class="h2">Pour toute l\'équipe</h2>' + (eq ? '<ul class="list">' + eq + '</ul>' : '<p class="small" style="margin:0">Rien à faire pour l\'instant.</p>') + '</section>';
+      body += '<section class="sec"><h2 class="h2">Missions ponctuelles</h2>' + (eq ? '<ul class="list">' + eq + '</ul>' : '<p class="small" style="margin:0">Rien à faire pour l\'instant.</p>') + '</section>';
       body += '<a class="li" href="' + R.base + '/mots">' + icon('heart', 20, 'style="color:var(--green);flex:none"') + '<span class="grow"><span class="t1">' + T(R, 'Tous les mots de mes éducs', 'Tous les mots de ses éducs') + '</span><span class="t2">' + encs.length + ' en tout, du plus récent au plus ancien</span></span>' + icon('right', 16) + '</a>';
-      if (!R.k) body += '<p class="small" style="margin:0">Les missions, les +1 et les mots viennent des éducs. Les parents suivent, sans en donner.</p>';
+      if (!R.k) body += '<p class="small" style="margin:0">Les missions, les encouragements et les mots viennent des éducs. Les parents suivent, sans en donner.</p>';
     }
     return '<main class="screen">' + bar(R, 'Missions') + tabs + body + '</main>';
   }
@@ -176,25 +206,31 @@ window.MC = window.MC || {};
   };
 
   // ======================================================================
-  // La mission perso : l'étoile à décrocher, les +1
+  // La mission principale : ses étoiles, ses encouragements
   // ======================================================================
   function missionPerso(R) {
-    var d = R.d, mp = SK.missionPerso(d) || SK.missionPerso(d, true)[0];
-    if (!mp) return '<main class="screen">' + sub(R, R.base, 'Missions', T(R, 'Ma mission perso', 'Sa mission perso')) + '<div class="empty">' + T(R, 'Pas de mission perso pour l\'instant.', 'Pas de mission perso pour l\'instant.') + '</div></main>';
-    var st = SK.star(mp.domaine, mp.etoile), D = SK.dom(mp.domaine), p1 = SK.plus1(d, mp.id), n = p1.length, faite = mp.statut === 'faite';
-    var lu = M.luAt(R.k ? 'k' : 'f', d.joueur.id), row = SK.acquis(d)[mp.domaine + ':' + mp.etoile];
-    var liste = p1.map(function (x, i) {
-      return '<li class="p1row' + ((x.cree || '') > lu ? ' new' : '') + '">' + p1Tag() + '<span class="grow"><span class="p1-k">N°' + (n - i) + ' · ' + quiQuand(x) + ((x.cree || '') > lu ? ' · nouveau' : '') + '</span><span class="p1-m">' + motDe(x) + '</span></span></li>';
+    var d = R.d, mp = SK.missionPerso(d) || SK.missionPerso(d, true)[0], titre = T(R, 'Ma mission principale', 'Sa mission principale');
+    if (!mp) return '<main class="screen">' + sub(R, R.base, 'Missions', titre) + '<div class="empty">' + T(R, 'Pas de mission principale pour l\'instant.', 'Pas de mission principale pour l\'instant.') + '</div></main>';
+    var et = SK.etatMission(d, mp, L.today()), D = SK.dom(mp.domaine), p1 = SK.plus1(d, mp.id), n = p1.length, faite = mp.statut === 'faite';
+    var lu = M.luAt(R.k ? 'k' : 'f', d.joueur.id);
+    var liste = p1.map(function (x) {
+      return '<li class="p1row' + ((x.cree || '') > lu ? ' new' : '') + '">' + p1Tag() + '<span class="grow"><span class="p1-k">' + quiQuand(x) + ((x.cree || '') > lu ? ' · nouveau' : '') + '</span><span class="p1-m">' + motDe(x) + '</span></span></li>';
     }).join('');
-    return '<main class="screen">' + sub(R, R.base, 'Missions', T(R, 'Ma mission perso', 'Sa mission perso')) +
-      '<div class="head"><span class="kicker" style="color:var(--pink)">' + T(R, 'Rien que pour toi, ', 'Mission pour ') + esc(prenom(R)) + ' · depuis le ' + jour(mp.debut || mp.cree) + '</span>' +
-      '<h1 class="big sm">' + icon('star', 30, 'style="color:var(--gold);vertical-align:-3px"') + ' ' + esc(SK.titreMission(mp)) + '</h1>' + (st ? '<p class="lead">« ' + esc(st.phrase) + ' »</p>' : '') + '</div>' +
-      (faite ? '<div class="note gold">' + icon('star', 22) + '<span><b>Mission réussie !</b> L\'étoile ' + esc(st ? st.nom : '') + ' est validée' + (row ? ' par ' + esc(row.parNom) + ', le ' + jour(row.date) : '') + '.' + (R.k ? ' Bravo !' : '') + '</span></div>' : '') +
-      '<a class="li" href="' + R.sk + '/' + esc(mp.domaine) + '">' + icon('star', 20, 'style="color:' + (faite ? 'var(--gold)' : 'var(--faint)') + ';flex:none"') + '<span class="grow"><span class="t1">' + T(R, 'Dans mon carnet', 'Dans son carnet') + ' : ' + esc(D ? D.nom : '') + ' · ' + esc(st ? st.nom : '') + '</span><span class="t2">' + (faite ? 'Étoile gagnée' : 'Grise tant qu\'un éduc ne l\'a pas validée') + '</span></span>' + icon('right', 16) + '</a>' +
-      '<section class="p1box"><div class="between" style="align-items:center"><span class="hud" style="color:var(--green)">' + T(R, 'Tes +1', 'Ses +1') + '</span><span class="row" style="gap:10px">' + jauge(n, true) + '<b class="hud" style="color:var(--green);font-size:15px">' + n + ' / ' + SK.MAX_PLUS1 + '</b></span></div>' +
-      (!faite ? '<p class="small" style="margin:0;color:var(--soft)">' + (n >= SK.PROPOSE_AU ? n + ' +1 : ' + T(R, 'tes éducs peuvent valider l\'étoile au prochain entraînement.', 'les éducs peuvent valider l\'étoile au prochain entraînement.') + ' ' : '') + 'Un +1 veut dire « ' + T(R, 'tu es', 'il est') + ' sur la bonne voie » : il ne donne pas l\'étoile, c\'est un éduc qui la valide.</p>' : '') +
-      (liste ? '<span class="mlab" style="margin:4px 0 0">' + T(R, 'Tes +1', 'Ses +1') + ', du plus récent</span><ol class="p1list">' + liste + '</ol>' : '<p class="small" style="margin:0">Pas encore de +1 : ça viendra à l\'entraînement ou au plateau.</p>') + '</section>' +
-      (st && !faite ? '<section class="sec"><h2 class="h2">Comment ' + T(R, 't\'entraîner', 'il peut s\'entraîner') + '</h2><p class="lead" style="color:var(--soft)">' + esc(st.conseil) + '</p></section>' : '') +
+    var stars = et.etoiles.map(function (x) {
+      return '<li><a class="li sk-row' + (x.row ? ' on' : ' mis') + '" href="' + R.sk + '/' + esc(mp.domaine) + '"><span class="sk-st">' + MC.etoileSvg(x.row ? (x.brille ? 'brille' : 'gagnee') : 'mission', 22, 'mp' + x.id) + '</span><span class="grow"><span class="t1">' + esc(x.def.nom) + '</span><span class="t2">« ' + esc(x.def.phrase) + ' »</span>' +
+        '<span class="t2" style="color:' + (x.row ? 'var(--gold)' : 'var(--dim)') + '">' + (x.row ? 'Gagnée le ' + jour(x.row.date) + ' · ' + esc(x.row.parNom) : 'À gagner · grise tant qu\'un éduc ne l\'a pas validée') + '</span></span>' + icon('right', 16) + '</a></li>';
+    }).join('');
+    var conseils = et.restantes.map(function (x, i) { return '<details' + (i === 0 ? ' open' : '') + '><summary><b>' + esc(x.def.nom) + '</b></summary><p class="small" style="margin:6px 0 0;color:var(--soft)">' + esc(x.def.conseil) + '</p></details>'; }).join('');
+    return '<main class="screen">' + sub(R, R.base, 'Missions', titre) +
+      '<div class="head"><span class="kicker" style="color:var(--pink)">' + T(R, 'Rien que pour toi, ', 'Mission pour ') + esc(prenom(R)) + (mp.parNom ? ' · par ' + esc(mp.parNom) : '') + ' · depuis le ' + jour(mp.debut || mp.cree) + '</span>' +
+      '<h1 class="big sm">' + esc((D ? D.nom + ' · ' : '') + SK.titreMission(mp)) + '</h1>' + (mp.texte ? '<p class="lead">« ' + esc(mp.texte) + ' »</p>' : '') +
+      '<p class="small" style="margin:0;color:var(--soft)">' + (et.expiree ? 'Terminée le ' + jour(mp.fin) + ' · ' : mp.fin ? finTxt(mp) + ' · ' : '') + et.n + ' / ' + et.max + ' étoile' + (et.max > 1 ? 's' : '') + ' gagnée' + (et.n > 1 ? 's' : '') + '</p></div>' +
+      (faite ? '<div class="note gold">' + icon('star', 22) + '<span><b>Mission réussie !</b> ' + (et.max > 1 ? 'Les ' + et.max + ' étoiles sont validées.' : 'L\'étoile est validée.') + (R.k ? ' Bravo !' : '') + '</span></div>' : et.expiree ? '<div class="note">' + icon('info', 20) + '<span>La date est passée. ' + T(R, 'Tes éducs vont t\'en donner une nouvelle ; les étoiles que tu n\'as pas encore restent à gagner.', 'Les éducs vont en donner une nouvelle.') + '</span></div>' : '') +
+      '<ul class="list sk-rows">' + stars + '</ul>' +
+      '<section class="p1box"><div class="between" style="align-items:center"><span class="hud" style="color:var(--violet)">' + T(R, 'Tes encouragements', 'Ses encouragements') + '</span><span class="row" style="gap:10px">' + encDots(n) + '<b class="hud" style="color:var(--violet);font-size:15px">' + n + '</b></span></div>' +
+      (!faite ? '<p class="small" style="margin:0;color:var(--soft)">Un encouragement veut dire « ' + T(R, 'tu es', 'il est') + ' sur la bonne voie » : il ne donne pas l\'étoile, c\'est un éduc qui la valide.' + T(R, ' Tu peux aussi la demander, sur sa carte.', '') + '</p>' : '') +
+      (liste ? '<span class="mlab" style="margin:4px 0 0">Du plus récent au plus ancien</span><ol class="p1list">' + liste + '</ol>' : '<p class="small" style="margin:0">Pas encore d\'encouragement : ça viendra à l\'entraînement ou au plateau.</p>') + '</section>' +
+      (conseils && !faite ? '<section class="sec"><h2 class="h2">Comment ' + T(R, 't\'entraîner', 'il peut s\'entraîner') + '</h2><div class="sk-tips">' + conseils + '</div></section>' : '') +
       '</main>';
   }
 
@@ -215,62 +251,84 @@ window.MC = window.MC || {};
   // ======================================================================
   // SKILLS : le carnet
   // ======================================================================
-  function carteHtml(R, D, c, big) {
-    var g = c.grade, pips = c.stars.map(function (s) { return '<i class="' + (s.row ? 'on' : '') + (s.brille ? ' brille' : '') + '"></i>'; }).join('');
-    return '<div class="cp-tilt sk-tilt' + (big ? ' skbig' : '') + '" style="--c:' + g.color + ';--d:' + D.color + ';--glow2:' + ui.rgba(D.color, 0.22) + '">' +
-      '<' + (big ? 'div' : 'a href="' + R.sk + '/' + esc(D.id) + '"') + ' class="cp-card sk-card sk-g' + c.grade.n + '"><span class="cp-in">' +
-      '<span class="sk-art"><span class="sk-em" style="color:' + D.color + '">' + icon(D.icon, big ? 64 : 44) + '</span></span>' +
-      '<span class="sk-body"><span class="sk-nm">' + esc(D.nom) + '</span><span class="sk-gr">' + esc(g.nom) + (c.n ? ' · ' + c.n + ' / ' + c.max : '') + '</span><span class="sk-pips" aria-label="' + c.n + ' étoiles sur ' + c.max + (c.nbBrille ? ', ' + c.nbBrille + ' qui brille' + (c.nbBrille > 1 ? 'nt' : '') : '') + '">' + pips + '</span></span>' +
+  // (visuels v2) la carte brillante : bord du grade vers la couleur de la carte, halo, icône néon trophée qui flotte,
+  // crans de grade, étoiles à facettes ; la carte de la mission principale a le cadre arc-en-ciel A3.
+  // o.nouv : { 'carte:etoile': true } les étoiles qui viennent d'arriver (elles « tombent » à leur place)
+  var UID = 0;
+  function crans(g) { var o = '<span class="sk-cr" aria-hidden="true">'; for (var i = 1; i <= 5; i++) o += '<i class="' + (i <= g.n ? 'on' : '') + '"></i>'; return o + '</span>'; }
+  function pipEtat(s, mp, D) { return s.row ? (s.brille ? 'brille' : 'gagnee') : (mp && SK.dansMission(mp, D.id, s.def.id) ? 'mission' : 'a_gagner'); }
+  function carteHtml(R, D, c, big, o) {
+    o = o || {};
+    var g = c.grade, mp = missionActive(R.d), mis = !!(mp && mp.domaine === D.id), nv = o.nouv || {}, nNew = 0, nMis = 0, u = 'sk' + (++UID);
+    var pips = c.stars.map(function (s, i) {
+      var et = pipEtat(s, mp, D), svg = MC.etoileSvg(et, big ? 18 : 15, u + 'p' + i);
+      if (et === 'mission') nMis++;
+      if (nv[SK.key(D.id, s.def.id)]) { nNew++; svg = svg.replace('class="et ', 'class="et pop ').replace('<svg ', '<svg style="animation-delay:' + (0.15 * nNew).toFixed(2) + 's" '); }
+      return svg;
+    }).join('');
+    var label = c.n + ' étoile' + (c.n > 1 ? 's' : '') + ' sur ' + c.max + (c.nbBrille ? ', ' + c.nbBrille + ' qui brille' + (c.nbBrille > 1 ? 'nt' : '') : '') + (nMis ? ', ' + nMis + ' en mission' : '');
+    var art = '<span class="sk-art">' + (mis ? '<span class="sk-mtag"><b>★ MISSION</b></span>' : '') + (nNew ? '<span class="sk-newtag">' + (nNew > 1 ? nNew + ' NOUVELLES' : 'NOUVELLE ÉTOILE') + '</span>' : '') +
+      MC.trophee(D.id, u, big ? 112 : mis ? 76 : 82) + '</span>';
+    var body = '<span class="sk-body"><span class="sk-nm">' + esc(D.nom) + '</span><span class="sk-gr">' + esc(g.nom) + ' · ' + c.n + ' / ' + c.max + (g.n ? crans(g) : '') + '</span>' +
+      '<span class="sk-pips" role="img" aria-label="' + label + '">' + pips + '</span></span>';
+    var inner = mis ? '<span class="sk-line"><span class="sk-inner">' + art + body + '</span></span>' : art + body;
+    var tag = big ? 'div' : 'a href="' + R.sk + '/' + esc(D.id) + '" aria-label="' + esc(D.nom + ' : ' + g.nom + ', ' + label + (mis ? ', ta mission principale' : '')) + '"';
+    return '<div class="cp-tilt sk-tilt' + (big ? ' skbig' : '') + '" data-carte="' + esc(D.id) + '" style="--c:' + g.color + ';--d:' + D.color + ';--glow2:' + ui.rgba(D.color, 0.22) + '">' +
+      '<' + tag + ' class="cp-card sk-card sk-g' + g.n + (mis ? ' sk-mis' : '') + '"><span class="cp-in">' + inner +
       '<span class="cp-holo"></span><span class="cp-shine"></span></span></' + (big ? 'div' : 'a') + '></div>';
   }
-  function skillsHome(R) {
-    var d = R.d, tot = SK.total(d), def = SK.prochainDefi(d), lu = R.k ? (app.lsGet('mc-sklu:' + d.joueur.id) || '') : '';
-    // les étoiles validées depuis la dernière visite du carnet (pas à la toute 1re visite : tout serait « nouveau »)
-    // (Skills v2) une étoile qui se met à briller compte aussi comme nouvelle (sa date de mise à jour change)
-    var nouv = R.k && lu ? (d.etoiles || []).filter(function (e) { return (e.cree || '') > lu || (e.brille && (e.maj || '') > lu); }) : [];
-    var cartes = SK.DOMAINES.map(function (D) { return carteHtml(R, D, SK.carte(d, D.id)); }).join('');
-    var defi = '';
-    if (def) {
-      var s = SK.star(def.d, def.e), Dd = SK.dom(def.d), n = def.mission ? SK.plus1(d, def.mission.id).length : 0;
-      defi = '<a class="defi2" href="' + (def.mission ? R.base + '/perso' : R.sk + '/' + esc(def.d)) + '"><span class="hud" style="color:var(--gold)">' + (R.k ? 'Ton prochain défi' : 'Son prochain défi') + (def.mission ? ' · ' + T(R, 'ta', 'sa') + ' mission perso' : '') + '</span>' +
-        '<b>' + esc(Dd.nom) + ' · l\'étoile ' + esc(s.nom) + '</b><span class="small" style="color:var(--soft)">« ' + esc(s.phrase) + ' »</span>' +
-        (def.mission ? '<span class="row" style="gap:8px">' + jauge(n) + '<span class="hud" style="color:var(--green)">' + n + ' +1 sur ' + SK.MAX_PLUS1 + (n >= SK.PROPOSE_AU ? ' · à valider' : '') + '</span></span>' : '') + '</a>';
+  // les étoiles arrivées depuis la dernière visite du carnet (pas à la toute 1re visite : tout serait « nouveau »)
+  // une étoile qui se met à briller compte aussi comme nouvelle (sa date de mise à jour change)
+  function nouvellesEtoiles(d, lu) {
+    return lu ? (d.etoiles || []).filter(function (e) { return SK.star(e.domaine, e.etoile) && ((e.cree || '') > lu || (e.brille && (e.maj || '') > lu)); }) : [];
+  }
+  MC.nouvellesEtoiles = nouvellesEtoiles;
+  function skillsHome(R, o) {
+    o = o || {};
+    var d = R.d, tot = SK.total(d), def = SK.prochainDefi(d), mp = SK.missionPerso(d);
+    var cartes = SK.DOMAINES.map(function (D) { return carteHtml(R, D, SK.carte(d, D.id), false, o); }).join('');
+    var rappel = '';
+    if (mp) rappel = blocMission(R, mp, true);
+    else if (def) {
+      var s = SK.star(def.d, def.e), Dd = SK.dom(def.d);
+      rappel = '<a class="defi2" href="' + R.sk + '/' + esc(def.d) + '"><span class="hud" style="color:var(--gold)">' + T(R, 'Ton prochain défi', 'Son prochain défi') + '</span>' +
+        '<b>' + esc(Dd.nom) + ' · l\'étoile ' + esc(s.nom) + '</b><span class="small" style="color:var(--soft)">« ' + esc(s.phrase) + ' »</span></a>';
     }
     return '<main class="screen">' + bar(R, 'Skills') +
-      '<div class="between" style="align-items:center"><h1 class="h2" style="font-size:26px">' + T(R, 'Mes Skills', 'Ses Skills') + '</h1><span class="hud" style="color:var(--gold)">' + tot + ' / ' + SK.MAX_TOTAL + ' étoiles' + (SK.totalBrille(d) ? ' · ' + SK.totalBrille(d) + ' brillent' : '') + '</span></div>' +
-      (nouv.length ? '<div class="note gold">' + icon('star', 22) + '<span><b>' + (nouv.length > 1 ? nouv.length + ' nouvelles étoiles !' : 'Nouvelle étoile !') + '</b> ' + nouv.map(function (e) { var s = SK.star(e.domaine, e.etoile), neuve = (e.cree || '') > lu; return esc((SK.dom(e.domaine) || {}).nom + ' · ' + (s ? s.nom : '')) + (e.brille ? (neuve ? ' (gagnée et brille, ' + esc(e.brilleParNom) + ')' : ' (brille, ' + esc(e.brilleParNom) + ')') : ' (' + esc(e.parNom) + ')'); }).join(', ') + '. +' +
-        nouv.reduce(function (t, e) { return t + ((e.cree || '') > lu ? C.XP.etoile : 0) + (e.brille ? C.XP.brille : 0); }, 0) + ' XP</span></div>' : '') +
-      '<div class="sk-grid">' + cartes + '</div>' + defi +
-      '<p class="small" style="margin:0">Une étoile reste grise tant qu\'un éduc ne l\'a pas validée ; elle <b>brille</b> quand un éduc la voit au plateau. ' + T(R, 'Tu peux aussi la demander, sur sa carte (une demande à la fois). ', '') + 'Un +1 ' + T(R, 'te dit que tu es', 'dit qu\'il est') + ' sur la bonne voie. Les Skills ne sont jamais classés : chacun avance à son rythme.</p></main>';
+      '<div class="between" style="align-items:center;gap:10px"><h1 class="h2" style="font-size:26px;white-space:nowrap">' + T(R, 'Mes Skills', 'Ses Skills') + '</h1><span class="hud" style="color:var(--gold)">' + tot + ' / ' + SK.MAX_TOTAL + ' étoiles' + (SK.totalBrille(d) ? ' · ' + SK.totalBrille(d) + ' brillent' : '') + '</span></div>' +
+      (o.note || '') +
+      '<div class="sk-grid">' + cartes + '</div>' + rappel +
+      '<p class="small" style="margin:0">Une étoile reste grise tant qu\'un éduc ne l\'a pas validée ; elle <b>brille</b> quand un éduc la voit au plateau. Les étoiles se gagnent dans n\'importe quel ordre. ' + T(R, 'Tu peux aussi en demander une, sur sa carte (une demande à la fois). ', '') + 'Les Skills ne sont jamais classés : chacun avance à son rythme.</p></main>';
   }
   function skillsCarte(R, id) {
     var d = R.d, D = SK.dom(id);
     if (!D) return '<main class="screen">' + sub(R, R.sk, 'Skills', 'Skills') + '<div class="empty">Carte introuvable.</div></main>';
-    var c = SK.carte(d, id), mp = SK.missionPerso(d), def = SK.prochainDefi(d);
+    var c = SK.carte(d, id), mp = SK.missionPerso(d), mpa = missionActive(d), def = SK.prochainDefi(d);
     var ladder = '<ol class="sk-lad">' + SK.GRADES.slice(1).map(function (g) { return '<li class="' + (g.n <= c.grade.n ? 'on' : '') + (g.n === c.grade.n ? ' cur' : '') + '" style="--gc:' + g.color + '">' + esc(g.nom) + '</li>'; }).join('') + '</ol>' +
-      (c.suivant ? '<p class="small" style="margin:0;color:var(--soft)">Encore ' + c.suivant.manque + ' étoile' + (c.suivant.manque > 1 ? 's' : '') + ' pour passer <b>' + esc(c.suivant.grade.nom) + '</b>.</p>'
+      (c.suivant ? '<p class="small" style="margin:0;color:var(--soft)">Encore ' + c.suivant.manque + ' étoile' + (c.suivant.manque > 1 ? 's' : '') + ' pour passer <b>' + esc(c.suivant.grade.nom) + '</b>. Dans n\'importe quel ordre.</p>'
         : c.nbBrille < c.max ? '<p class="small" style="margin:0;color:var(--soft)">Toutes gagnées ! Fais-les briller au plateau pour passer <b>Légende</b> (' + c.nbBrille + ' / ' + c.max + ').</p>' : '');
     var dem = SK.demandeEnCours(d);
     // la dernière réponse « pas vu » de chaque étoile (message neutre)
     var pasvu = {}; (d.demandes || []).forEach(function (x) { if (x.statut === 'pasvu' && x.domaine === id) { var k = x.etoile; if (!pasvu[k] || (pasvu[k].maj || '') < (x.maj || '')) pasvu[k] = x; } });
-    var rows = c.stars.map(function (s) {
-      var isM = mp && mp.domaine === id && mp.etoile === s.def.id, isDefi = !s.row && def && def.d === id && def.e === s.def.id;
+    var rows = c.stars.map(function (s, i) {
+      var isM = mpa && SK.dansMission(mpa, id, s.def.id), isDefi = !s.row && def && def.d === id && def.e === s.def.id && !isM;
       var right = '', sub2;
       var demIci = dem && dem.domaine === id && dem.etoile === s.def.id, peut = R.k && SK.peutDemander(d, id, s.def.id);
       if (s.row && s.brille) sub2 = 'Brille depuis le ' + jour(s.row.brille) + ' · vue au plateau' + (s.row.brilleOccasion ? ' (' + esc(s.row.brilleOccasion) + ')' : '') + ' par ' + esc(s.row.brilleParNom);
       else if (s.row) sub2 = 'Gagnée le ' + jour(s.row.date) + ' · ' + esc(s.row.parNom) + (s.row.occasion ? ' · ' + esc(s.row.occasion) : '');
       else if (isM) {
-        var n = SK.plus1(d, mp.id).length, last = SK.plus1(d, mp.id)[0];
-        sub2 = T(R, 'Ta', 'Sa') + ' mission perso depuis le ' + jour(mp.debut || mp.cree) + ' · à valider par un éduc';
-        right = '<span class="sk-p1">' + jauge(n) + (last ? '<small>dernier : ' + esc(last.parNom) + ', ' + jour(last.date) + '</small>' : '') + '</span>';
-      } else sub2 = 'À débloquer';
+        var n = SK.plus1(d, mpa.id).length;
+        sub2 = [T(R, 'Ta', 'Sa') + ' mission principale', finTxt(mpa).replace(/^J/, 'j'), 'à valider par un éduc'].filter(Boolean).join(' · ');
+        right = '<span class="sk-p1">' + encDots(n) + '<small>' + encTxt(n) + '</small></span>';
+      } else sub2 = 'À gagner';
       if (demIci) sub2 += '<br><b style="color:var(--cyan)">' + (dem.sorte === 'briller' ? 'Demande envoyée : la faire briller' : 'Demande envoyée') + ' · un éduc va répondre</b>' + (R.k ? ' <button type="button" class="lnk" data-act="skDemAnn" data-id="' + esc(dem.id) + '">Annuler</button>' : '');
       else if (pasvu[s.def.id] && !(s.row && (s.brille || pasvu[s.def.id].sorte === 'gagner'))) sub2 += '<br><span style="color:var(--dim)">Pas vu cette fois par ' + esc(pasvu[s.def.id].parNom || 'les éducs') + ' : retente ' + (pasvu[s.def.id].sorte === 'briller' ? 'au prochain plateau' : 'à l\'entraînement') + '.</span>';
       if (peut && !demIci) right += '<button type="button" class="btn2 sm' + (peut === 'briller' ? ' gold' : '') + ' skdem" data-act="skDem" data-d="' + esc(id) + '" data-e="' + esc(s.def.id) + '" data-s="' + peut + '">' + (peut === 'briller' ? icon('spark', 14) + ' Fait au plateau' : 'Demander') + '</button>';
-      return '<li class="li sk-row' + (s.row ? ' on' : '') + (s.brille ? ' brille' : '') + (isM ? ' mis' : '') + '"><span class="sk-st">' + icon('star', 22) + '</span><span class="grow"><span class="t1">' + esc(s.def.nom) + (isDefi ? ' <span class="pill" style="--pc:var(--gold)">Prochain défi</span>' : '') + '</span><span class="t2">« ' + esc(s.def.phrase) + ' »</span><span class="t2" style="color:' + (s.row ? 'var(--gold)' : 'var(--dim)') + '">' + sub2 + '</span>' + right + '</span>' +
+      var et = s.row ? (s.brille ? 'brille' : 'gagnee') : isM ? 'mission' : 'a_gagner';
+      return '<li class="li sk-row' + (s.row ? ' on' : '') + (s.brille ? ' brille' : '') + (isM ? ' mis' : '') + '"><span class="sk-st">' + MC.etoileSvg(et, 22, 'r' + id + i) + '</span><span class="grow"><span class="t1">' + esc(s.def.nom) + (isDefi ? ' <span class="pill" style="--pc:var(--gold)">Prochain défi</span>' : '') + '</span><span class="t2">« ' + esc(s.def.phrase) + ' »</span><span class="t2" style="color:' + (s.row ? 'var(--gold)' : 'var(--dim)') + '">' + sub2 + '</span>' + right + '</span>' +
         (isM ? '<a class="cbtn grey" href="' + R.base + '/perso" aria-label="Voir la mission">' + icon('right', 16) + '</a>' : '') + '</li>';
     }).join('');
-    var conseils = c.stars.filter(function (s) { return !s.row; }).sort(function (a, b) { var am = mp && mp.etoile === a.def.id && mp.domaine === id, bm = mp && mp.etoile === b.def.id && mp.domaine === id; return am === bm ? 0 : am ? -1 : 1; })
+    var conseils = c.stars.filter(function (s) { return !s.row; }).sort(function (a, b) { var am = mpa && SK.dansMission(mpa, id, a.def.id), bm = mpa && SK.dansMission(mpa, id, b.def.id); return am === bm ? 0 : am ? -1 : 1; })
       .map(function (s, i) { return '<details' + (i === 0 ? ' open' : '') + '><summary><b>' + esc(s.def.nom) + '</b></summary><p class="small" style="margin:6px 0 0;color:var(--soft)">' + esc(s.def.conseil) + '</p></details>'; }).join('');
     return '<main class="screen">' + sub(R, R.sk, 'Skills', 'Carte ' + D.nom) + carteHtml(R, D, c, true) + ladder +
       '<ul class="list sk-rows">' + rows + '</ul>' +
@@ -323,10 +381,20 @@ window.MC = window.MC || {};
   app.route('/missions/mots', function (p, q, cur) {
     return app.loadMe().then(function (me) { luEnSortant('k', me, cur); return mots(kidR(me)); });
   }, { kid: true, nav: 'missions', live: true, bg: '#12333A' });
+  // (visuels v2) les étoiles arrivées depuis la dernière visite : le booster se joue à l'ouverture de Skills,
+  // puis les cartes montrent leurs nouvelles étoiles (elles « tombent » à leur place, étiquette « Nouvelle étoile »)
+  var APRES = null;
   app.route('/skills', function (p, q, cur) {
     return app.loadMe().then(function (me) {
-      cur.after = function (root) { bindCards(root); var mx = new Date(0).toISOString(); (me.etoiles || []).forEach(function (e) { var t = e.maj || e.cree || ''; if (t > mx) mx = t; }); app.lsSet('mc-sklu:' + me.joueur.id, mx); };
-      return skillsHome(kidR(me));
+      var jid = me.joueur.id, lu = app.lsGet('mc-sklu:' + jid) || '', nouv = nouvellesEtoiles(me, lu), o = {};
+      if (APRES && APRES.jid === jid) { o.nouv = {}; APRES.keys.forEach(function (k) { o.nouv[k] = true; }); APRES = null; }
+      cur.after = function (root) {
+        bindCards(root);
+        var mx = new Date(0).toISOString(); (me.etoiles || []).forEach(function (e) { var t = e.maj || e.cree || ''; if (t > mx) mx = t; });
+        app.lsSet('mc-sklu:' + jid, mx); app.refreshNav();
+        if (nouv.length && MC.booster) MC.booster(me, nouv, lu).then(function (keys) { APRES = { jid: jid, keys: keys }; if (location.hash.indexOf('#/skills') === 0 && location.hash.indexOf('#/skills/') !== 0) app.rerender(); });
+      };
+      return skillsHome(kidR(me), o);
     });
   }, { kid: true, nav: 'skills', live: true, bg: '#2E2612' });
   app.route('/skills/:dom', function (p, q, cur) {
@@ -365,6 +433,7 @@ window.MC = window.MC || {};
   app.route('/parent/skills/:dom', parentRoute(function (R, p) { return skillsCarte(R, p.dom); }), { adult: 'f', nav: 'p:skills', bg: '#2E2612' });
 
   // les cartes Skills brillent sous le doigt, comme les cartes des postes
-  function bindCards(root) { if (MC.bindTilt && root) MC.bindTilt(root); }
-  MC.carteSkill = function (R, D, c, big) { return carteHtml(R, D, c, big); };
+  function bindCards(root) { if (MC.bindTilt && root) MC.bindTilt(root); if (MC.bindTrophees && root) MC.bindTrophees(root); }
+  MC.carteSkill = function (R, D, c, big, o) { return carteHtml(R, D, c, big, o); };
+  MC.bindCartesSkills = bindCards;
 })();
