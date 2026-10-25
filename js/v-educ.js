@@ -40,7 +40,8 @@ window.MC = window.MC || {};
   // ======================================================================
   // Les gestes : +1, valider une étoile, retirer
   // ======================================================================
-  function occasionCtx(evId) { var e = evId ? evtById(evId) : evtDuJour(); return { evenementId: e ? e.id : '', occasion: e && MC.evtOccasion ? MC.evtOccasion(e) : '' }; }
+  // evId === null : aucune occasion (file « Tous les enfants » envoyée plus tard) ; '' : l'événement du jour
+  function occasionCtx(evId) { var e = evId ? evtById(evId) : evId === null ? null : evtDuJour(); return { evenementId: e ? e.id : '', occasion: e && MC.evtOccasion ? MC.evtOccasion(e) : '' }; }
   function envoyerPlus1(jid, mid, evId, mot, btn) {
     var gr = G(), o = occasionCtx(evId), p = { joueurId: jid, missionId: mid || '', mot: mot || '', evenementId: o.evenementId, occasion: o.occasion };
     if (btn) btn.disabled = true;
@@ -141,9 +142,9 @@ window.MC = window.MC || {};
         (today ? '<b style="color:var(--green)">' + icon('check', 12) + ' +1 envoyé aujourd\'hui · il le voit</b>' : n + ' +1 reçu' + (n > 1 ? 's' : '')) + (n >= SK.PROPOSE_AU ? ' · étoile à valider quand vous voulez' : '') + '</span></a>' +
         '<a class="cbtn grey" href="#/educ/encourager/' + esc(x.id) + '?m=' + esc(x.m.id) + '&evt=' + esc(e.id) + '" aria-label="+1 avec un mot pour ' + esc(nomDe(gr, x.id)) + '">' + icon('edit', 16) + '</a>' + btnPlus1(gr, x.id, x.m, e.id) + '</li>';
     }).join('');
-    var nq = (function () { var st = evs(); return (st.q[qKey(e.id)] || []).length; })();
-    return '<section class="sec"><h2 class="h2">' + (train ? 'Après la séance' : 'Après le plateau') + '</h2>' +
-      '<a class="li" href="#/educ/skills?evt=' + esc(e.id) + '">' + icon(train ? 'star' : 'spark', 20, 'style="color:var(--gold);flex:none"') + '<span class="grow"><span class="t1">' + (train ? 'Évaluer des Skills' : 'Faire briller des étoiles') + '</span><span class="t2">' + (nq ? '<b style="color:var(--pink)">' + nq + ' pas encore envoyée' + (nq > 1 ? 's' : '') + '</b> · ' : '') + 'Avec les ' + pres.length + ' présents' + (train ? ' · une étoile ou un atelier' : ' · elles brillent') + '</span></span>' + icon('right', 16) + '</a>' +
+    var nq = queue(evs(), e.id).length, plat = estPlateau(e);
+    return '<section class="sec"><h2 class="h2">' + (plat ? 'Après le plateau' : train ? 'Après la séance' : 'Après l\'événement') + '</h2>' +
+      '<a class="li" href="#/educ/skills?evt=' + esc(e.id) + '">' + icon(plat ? 'spark' : 'star', 20, 'style="color:var(--gold);flex:none"') + '<span class="grow"><span class="t1">' + (plat ? 'Faire briller des étoiles' : 'Évaluer des Skills') + '</span><span class="t2">' + (nq ? '<b style="color:var(--pink)">' + nq + ' pas encore envoyée' + (nq > 1 ? 's' : '') + '</b> · ' : '') + 'Avec les ' + pres.length + ' présents' + (plat ? ' · elles brillent' : ' · une étoile ou un atelier') + '</span></span>' + icon('right', 16) + '</a>' +
       '<div class="between" style="margin-top:6px"><span class="mlab" style="margin:0">Missions des présents</span><span class="small">un toucher = +1</span></div>' +
       (list ? '<ul class="list">' + list + '</ul>' : '<p class="small" style="margin:0">Aucun présent n\'a de mission perso pour l\'instant. Donnez-en une depuis Progrès › Missions ou la fiche d\'un enfant.</p>') +
       '<button type="button" class="li" data-act="encAutre" data-ev="' + esc(e.id) + '">' + icon('heart', 20, 'style="color:var(--green);flex:none"') + '<span class="grow"><span class="t1">Encourager un autre enfant</span><span class="t2">Un +1 avec un mot, sur sa mission ou autre chose</span></span>' + icon('right', 16) + '</button></section>';
@@ -230,7 +231,17 @@ window.MC = window.MC || {};
   // ======================================================================
   var EV = null;
   function evs() {
-    if (!EV) EV = app.lsGet('mc-eval') || {};
+    if (!EV) {
+      EV = app.lsGet('mc-eval') || {};
+      // les essais gagnés (2 sur 3) et pas envoyés de l'ancienne « Journée d'évaluation » (v26) passent dans la file
+      var J = app.lsGet('mc-journee');
+      if (J && J.d && J.ess && SK.dom(J.d)) {
+        var old = [];
+        Object.keys(J.ess).forEach(function (jid) { Object.keys(J.ess[jid] || {}).forEach(function (e) { if ((J.ess[jid][e] || []).filter(function (v) { return v === 1; }).length >= 2 && SK.star(J.d, e)) old.push(jid + '|' + SK.key(J.d, e)); }); });
+        if (old.length) { EV.q = EV.q || {}; EV.repris = old; }
+        app.lsSet('mc-journee', null);
+      }
+    }
     if (!Array.isArray(EV.sel)) EV.sel = ['plaquage:epaule'];
     EV.sel = EV.sel.filter(function (k) { var p = SK.parseKey(k); return p && SK.star(p.d, p.e); }).slice(0, SK.MAX_ATELIER);
     if (!EV.q || typeof EV.q !== 'object') EV.q = {};   // { idÉvénement (ou '_') : ['idJoueur|carte:étoile', …] }
@@ -241,9 +252,11 @@ window.MC = window.MC || {};
   }
   function saveEv() { app.lsSet('mc-eval', EV); }
   function qKey(evtId) { return evtId || '_'; }
-  function queue(st, evtId) { var k = qKey(evtId === undefined ? st.evt : evtId); if (!Array.isArray(st.q[k])) st.q[k] = []; return st.q[k]; }
+  // les étoiles touchées sont rangées par éduc (un autre éduc sur le même téléphone ne voit ni n'envoie celles d'un collègue)
+  function qRoot(st) { var gr = G(), me = (gr && gr.moi && gr.moi.id) || '?'; if (!st.q[me] || typeof st.q[me] !== 'object' || Array.isArray(st.q[me])) st.q[me] = {}; return st.q[me]; }
+  function queue(st, evtId) { var R = qRoot(st), k = qKey(evtId === undefined ? st.evt : evtId); if (!Array.isArray(R[k])) R[k] = []; return R[k]; }
   // combien d'étoiles touchées et pas encore envoyées (tous événements)
-  function enAttente() { var st = evs(), n = 0; Object.keys(st.q).forEach(function (k) { n += (st.q[k] || []).length; }); return n; }
+  function enAttente() { var st = evs(), R = qRoot(st), n = 0; Object.keys(R).forEach(function (k) { n += (R[k] || []).length; }); return n; }
   MC.evalEnAttente = enAttente;
   function estPlateau(e) { return !!(e && e.sorte === 'plateau'); }
   // les groupes d'ateliers publiés (ou au vote) de la séance
@@ -282,18 +295,19 @@ window.MC = window.MC || {};
   app.route('/educ/skills/journee', function () { app.go('#/educ/skills'); return Promise.resolve('<main class="screen"></main>'); }, { adult: 'e', nav: 'e:progres', bg: '#2E2612' });
 
   function paintEval(gr, st) {
+    if (Array.isArray(st.repris) && st.repris.length) { var q0 = queue(st, ''); st.repris.forEach(function (k) { if (q0.indexOf(k) < 0) q0.push(k); }); st.repris = null; saveEv(); }
     var e = st.evt ? evtById(st.evt) : null, plat = estPlateau(e), q = queue(st);
     var tous = e ? presentsDe(e, gr) : actifs(gr).map(function (p) { return p.joueur.id; });
     var grps = groupesDe(e), g = grps.filter(function (x) { return x.id === st.grp; })[0] || null;
     var ok = {}; tous.forEach(function (id) { ok[id] = true; });
-    var ids = g ? g.ids.filter(function (id) { return jp(gr, id) && jp(gr, id).joueur.actif; }) : tous;
+    var ids = g ? g.ids.filter(function (id) { return ok[id]; }) : tous;
     var sel = st.sel, D = SK.dom(st.d);
 
     // l'en-tête : avec qui, et le plateau
     var head = '<section class="skeval"><div class="between" style="align-items:center"><span class="hud" style="color:var(--gold)">Évaluer · ' + ids.length + (g ? ' dans ' + esc(g.nom) : e ? ' présent' + (ids.length > 1 ? 's' : '') : ' enfants') + (e ? ' · ' + esc(e.lieu || e.titre) : '') + '</span><button type="button" class="lnk" data-act="skEvt">Changer</button></div>' +
       (plat ? '<p class="small" style="margin:0;color:var(--gold)">' + icon('spark', 14) + ' Après un plateau : les étoiles que vous touchez <b>brillent</b> (et sont gagnées si l\'enfant ne les avait pas).</p>' : '') +
-      (function () { var autres = Object.keys(st.q).filter(function (k) { return k !== qKey(st.evt) && (st.q[k] || []).length; }); if (!autres.length) return ''; var k = autres[0], ev = k === '_' ? null : evtById(k);
-        return '<a class="small" style="color:var(--pink)" href="#/educ/skills?evt=' + esc(k === '_' ? '' : k) + '">' + st.q[k].length + ' étoile' + (st.q[k].length > 1 ? 's' : '') + ' pas encore envoyée' + (st.q[k].length > 1 ? 's' : '') + (ev ? ' · ' + esc(ev.titre) : '') + '</a>'; })() +
+      (function () { var R = qRoot(st), autres = Object.keys(R).filter(function (k) { return k !== qKey(st.evt) && (R[k] || []).length; }); if (!autres.length) return ''; var k = autres[0], ev = k === '_' ? null : evtById(k);
+        return '<a class="small" style="color:var(--pink)" href="#/educ/skills?evt=' + esc(k === '_' ? '' : k) + '">' + R[k].length + ' étoile' + (R[k].length > 1 ? 's' : '') + ' pas encore envoyée' + (R[k].length > 1 ? 's' : '') + (ev ? ' · ' + esc(ev.titre) : ' · tous les enfants') + '</a>'; })() +
       (function () { var nd = demandesAttente(gr).length; return nd ? '<button type="button" class="lnk" style="align-self:flex-start;color:var(--cyan)" data-act="evVoirDem">' + nd + ' demande' + (nd > 1 ? 's' : '') + ' d\'enfant' + (nd > 1 ? 's' : '') + ' à répondre ↓</button>' : ''; })() + '</section>';
 
     // les demandes des enfants
@@ -386,15 +400,40 @@ window.MC = window.MC || {};
   MC.act.evFerme = function () { var st = evs(); st.ouvert = false; saveEv(); app.rerender(); window.scrollTo(0, 0); };
   MC.act.evVoirDem = function () { var x = document.getElementById('evdem'); if (x) x.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
   MC.act.evGrp = function (b) { var st = evs(); st.grp = b.getAttribute('data-v') || ''; saveEv(); app.rerender(); window.scrollTo(0, 0); };
+  // les enfants à qui on peut encore envoyer : actifs, et présents si la file est celle d'un événement
+  function poolDe(gr, st) {
+    var e = st.evt ? evtById(st.evt) : null, ok = {};
+    (e ? presentsDe(e, gr) : actifs(gr).map(function (p) { return p.joueur.id; })).forEach(function (id) { ok[id] = true; });
+    return ok;
+  }
   MC.act.evSend = function (b) {
-    var st = evs(), e = st.evt ? evtById(st.evt) : null, q = queue(st);
+    var gr = G(), st = evs(), e = st.evt ? evtById(st.evt) : null, q = queue(st), ok = poolDe(gr, st);
     if (!q.length) return;
-    var list = q.map(function (x) { var i = x.indexOf('|'), p = SK.parseKey(x.slice(i + 1)); return { joueurId: x.slice(0, i), domaine: p.d, etoile: p.e }; });
-    var envoyes = q.slice();
-    valider(list, e ? e.id : '', b, estPlateau(e)).then(function () {
-      st.q[qKey(st.evt)] = queue(st).filter(function (x) { return envoyes.indexOf(x) < 0; });
-      saveEv(); app.refreshNav && app.refreshNav(); app.rerender();
-    }).catch(function () { ui.toast('Pas envoyé : les étoiles restent gardées sur le téléphone. Réessayez avec du réseau.', true); });
+    // un enfant devenu inactif ou plus présent sort de la file (sinon le serveur refuserait tout le lot)
+    var hors = q.filter(function (x) { var p = SK.parseKey(x.slice(x.indexOf('|') + 1)); return !ok[x.slice(0, x.indexOf('|'))] || !p || !SK.star(p.d, p.e); });
+    if (hors.length) {
+      var R0 = qRoot(st); R0[qKey(st.evt)] = q.filter(function (x) { return hors.indexOf(x) < 0; }); saveEv();
+      ui.toast(hors.length + ' étoile' + (hors.length > 1 ? 's' : '') + ' retirée' + (hors.length > 1 ? 's' : '') + ' : enfant absent ou plus inscrit');
+      q = queue(st); if (!q.length) { app.rerender(); return; }
+    }
+    var envoyes = q.slice(), lots = [];
+    for (var i = 0; i < envoyes.length; i += 250) lots.push(envoyes.slice(i, i + 250));
+    if (b) b.disabled = true;
+    var chain = Promise.resolve(), faits = [];
+    lots.forEach(function (lot) {
+      chain = chain.then(function () {
+        var list = lot.map(function (x) { var i = x.indexOf('|'), p = SK.parseKey(x.slice(i + 1)); return { joueurId: x.slice(0, i), domaine: p.d, etoile: p.e }; });
+        return valider(list, e ? e.id : null, null, estPlateau(e)).then(function () {
+          faits = faits.concat(lot);
+          var R = qRoot(st); R[qKey(st.evt)] = queue(st).filter(function (x) { return faits.indexOf(x) < 0; }); saveEv();
+        });
+      });
+    });
+    chain.then(function () { app.refreshNav && app.refreshNav(); app.rerender(); }).catch(function (er) {
+      if (b) b.disabled = false;
+      if (er && (er.code === 'reseau' || er.code === 'lent')) ui.toast('Pas envoyé : les étoiles restent gardées sur le téléphone. Réessayez avec du réseau.', true);
+      app.rerender();
+    });
   };
   function repondre(b, oui) {
     var gr = G(), id = b.getAttribute('data-id');
@@ -402,6 +441,7 @@ window.MC = window.MC || {};
     app.adultCall('repondreDemande', { id: id, oui: !!oui }).then(function (r) {
       gr.joueurs.forEach(function (p) { (p.demandes || []).forEach(function (x, i) { if (x.id === id) p.demandes[i] = r.demande; }); });
       if (r.etoile) { var x = jp(gr, r.etoile.joueurId); if (x) { x.etoiles = (x.etoiles || []).filter(function (y) { return y.id !== r.etoile.id; }); x.etoiles.push(r.etoile); } }
+      (r.missionsFaites || []).forEach(function (mid) { (gr.defmissions || []).forEach(function (m) { if (m.id === mid) { m.statut = 'faite'; m.faiteLe = L.today(); } }); });
       persist(); app.refreshNav && app.refreshNav();
       ui.toast(oui ? (r.etoile && r.etoile.brille ? 'L\'étoile brille' : 'Étoile donnée') + ' : ' + nomDe(gr, r.demande.joueurId) + ' la verra' : 'Réponse envoyée : « retente la prochaine fois »');
       app.rerender();
@@ -655,7 +695,7 @@ window.MC = window.MC || {};
     var id = d.joueur.id, m = persoDe(gr, id);
     var cartes = SK.DOMAINES.map(function (D) {
       var c = SK.carte(d, D.id);
-      return '<section class="fsk"><div class="between" style="align-items:center"><h2 class="h2" style="color:' + D.color + '">' + icon(D.icon, 18) + ' ' + esc(D.nom) + '</h2><span class="skcell" style="--gc:' + c.grade.color + '">' + esc(c.grade.nom) + ' · ' + c.n + '/5</span></div><ul class="list">' + c.stars.map(function (s) {
+      return '<section class="fsk"><div class="between" style="align-items:center"><h2 class="h2" style="color:' + D.color + '">' + icon(D.icon, 18) + ' ' + esc(D.nom) + '</h2><span class="skcell" style="--gc:' + c.grade.color + '">' + esc(c.grade.nom) + ' · ' + c.n + '/' + c.max + (c.nbBrille ? ' · ' + c.nbBrille + ' brille' + (c.nbBrille > 1 ? 'nt' : '') : '') + '</span></div><ul class="list">' + c.stars.map(function (s) {
         var isM = m && m.domaine === D.id && m.etoile === s.def.id;
         var dm = (d.demandes || []).filter(function (x) { return x.statut === 'attente' && x.domaine === D.id && x.etoile === s.def.id; })[0];
         var demTxt = dm ? ' · <b style="color:var(--cyan)">' + (dm.sorte === 'briller' ? 'demande à la faire briller' : 'demande l\'étoile') + '</b>' : '';

@@ -88,7 +88,7 @@ assert.ok(r.ok, JSON.stringify(r)); assert.strictEqual(r.etoiles.length, 2); ass
 r = g.call({ action: 'validerEtoiles', token: nico, etoiles: [{ joueurId: P.Tom, domaine: 'pied', etoile: 'pirate' }] }); assert.strictEqual(r.error, 'invalide');
 // après le plateau : brille (une étoile déjà gagnée s'allume, une nouvelle est gagnée et brille)
 r = g.call({ action: 'validerEtoiles', token: julien, evenementId: plateauId, brille: true, etoiles: [{ joueurId: P.Tom, domaine: 'maul', etoile: 'lie' }, { joueurId: P['Léa'], domaine: 'plaquage', etoile: 'epaule' }] });
-assert.ok(r.ok, JSON.stringify(r)); assert.strictEqual(r.brillees, 1); assert.strictEqual(r.etoiles.length, 2);
+assert.ok(r.ok, JSON.stringify(r)); assert.strictEqual(r.brillees, 2, 'une qui s\'allume + une gagnée et qui brille'); assert.strictEqual(r.etoiles.length, 2);
 assert.ok(/^\d{4}-\d{2}-\d{2}$/.test(r.etoiles[0].brille), 'brille = la date');
 assert.strictEqual(r.etoiles[0].brilleParNom, 'Julien'); assert.strictEqual(r.etoiles[0].brilleOccasion, 'Plateau 3 - Carbonne');
 assert.ok(r.etoiles[1].brille, 'gagnée et brille d\'un coup');
@@ -132,5 +132,31 @@ r = g.call({ action: 'validerEtoiles', token: julien, etoiles: [{ joueurId: P.To
 r = g.call({ action: 'me', token: tom }); assert.strictEqual(r.demandes.find(x => x.id === d4.id).statut, 'oui');
 // une étoile qui brille déjà ne se redemande pas
 r = g.call({ action: 'demanderEtoile', token: tom, domaine: 'maul', etoile: 'lie' }); assert.strictEqual(r.error, 'invalide');
+
+// ----- relecture du 25/10 -----
+// au-delà de 300 étoiles d'un coup : refusé (l'appli envoie par lots)
+const big = []; for (let i = 0; i < 301; i++) big.push({ joueurId: P.Tom, domaine: 'passe', etoile: 'mains' });
+r = g.call({ action: 'validerEtoiles', token: nico, etoiles: big }); assert.strictEqual(r.error, 'limite');
+// l'occasion d'une demande ne vient jamais d'un texte tapé par l'enfant
+r = g.call({ action: 'demanderEtoile', token: lea, domaine: 'passe', etoile: 'piston', occasion: 'Validé par le président du club' });
+assert.ok(r.ok); assert.strictEqual(r.demande.occasion, '', 'pas de texte libre');
+g.call({ action: 'retirerDemande', token: lea, id: r.demande.id });
+// une étoile retirée : sa demande « la faire briller » redevient « gagner », et Oui la redonne sans la faire briller
+r = g.call({ action: 'validerEtoiles', token: nico, etoiles: [{ joueurId: P['Léa'], domaine: 'porteur', etoile: 'raffut' }] }); const raf = r.etoiles[0];
+r = g.call({ action: 'demanderEtoile', token: lea, domaine: 'porteur', etoile: 'raffut', evenementId: plateauId }); const dRaf = r.demande; assert.strictEqual(dRaf.sorte, 'briller');
+r = g.call({ action: 'retirerEtoile', token: nico, id: raf.id }); assert.ok(r.ok);
+r = g.call({ action: 'me', token: lea }); assert.strictEqual(r.demandes.find(x => x.id === dRaf.id).sorte, 'gagner');
+r = g.call({ action: 'repondreDemande', token: nico, id: dRaf.id, oui: true }); assert.ok(r.ok); assert.strictEqual(r.etoile.brille, '', 'redonnée sans briller');
+// Oui sur l'étoile de la mission perso : la mission est faite, et la réponse le dit
+r = g.call({ action: 'defMission', token: nico, sorte: 'etoile', joueurId: P['Léa'], domaine: 'soutien', etoile: 'axe' }); const mLea = r.mission; assert.ok(r.ok, JSON.stringify(r));
+r = g.call({ action: 'demanderEtoile', token: lea, domaine: 'soutien', etoile: 'axe' }); const dAxe = r.demande;
+r = g.call({ action: 'repondreDemande', token: julien, id: dAxe.id, oui: true }); assert.deepStrictEqual(r.missionsFaites, [mLea.id]);
+// 10 demandes par jour au plus
+let lim = null;
+for (let i = 0; i < 12 && !lim; i++) {
+  r = g.call({ action: 'demanderEtoile', token: lea, domaine: 'pied', etoile: 'decolle' });
+  if (r.error) lim = r.error; else g.call({ action: 'retirerDemande', token: lea, id: r.demande.id });
+}
+assert.strictEqual(lim, 'limite', '10 demandes par jour au plus');
 
 console.log('SKILLS V2 OK');

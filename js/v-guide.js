@@ -163,7 +163,7 @@
           'Son grade, ses niveaux exercice par exercice, ses records confirmés.',
           'Les résultats de bilan ou de défi <b>en attente de confirmation</b>.',
           '<b>Missions</b> : sa mission perso (une étoile Skills à décrocher), les <b>+1</b> et les mots des éducs (qui, quand, à quelle occasion), et les missions de l\'équipe (vidéo, QCM, choix de poste), faites ou pas. Vous suivez : les +1 ne se donnent que par les éducs.',
-          '<b>Skills</b> : ses 4 cartes (Plaquage, Passe, Ruck, Jeu au pied), les étoiles validées par les éducs et comment il peut s\'entraîner pour les autres.'
+          '<b>Skills</b> : ses 8 cartes (Plaquage, Ruck, Maul, Défense, Porteur, Passe, Jeu au pied, Soutien), les étoiles validées par les éducs, celles qui <b>brillent</b> (vues au plateau), ses demandes et comment il peut s\'entraîner pour les autres. Vous suivez : seul votre enfant peut demander une étoile.'
         ])) +
       card('p-confirmer', 'check', '#FFC23D', 'Confirmer les résultats', 'Le geste le plus important',
         ul([

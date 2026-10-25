@@ -170,12 +170,12 @@ MC.app = (function () {
     if (key === 'missions' && S.me && MC.missions) return MC.missions.aFaire(S.me).length + MC.missions.nouveaux('k', S.me).enc.length;
     if (key === 'p:prepa' && c.family) return pendingCount(c.family.enfants);
     if (key === 'p:missions' && c.family && MC.missions) { var n = 0; c.family.enfants.forEach(function (d) { n += MC.missions.nouveaux('f', d).enc.length; }); return n; }
-    if (key === 'e:progres' && c.group) return pendingCount(mesEnfantsDuGroupe(c.group));
+    if (key === 'e:progres' && c.group) return pendingCount(mesEnfantsDuGroupe(c.group)) + (MC.demandesSkills ? MC.demandesSkills() : 0);   // + les demandes d'étoiles des enfants (Skills v2)
     if (key === 'e:plateaux' && MC.composPending) return MC.composPending('plateau');   // votes et contre-propositions en attente
     if (key === 'e:entrain' && MC.composPending) return MC.composPending('entrainement');
     return 0;
   }
-  var NB_LABEL = { missions: ' à voir', 'p:prepa': ' à confirmer', 'p:missions': ' nouveau', 'e:progres': ' à confirmer', 'e:plateaux': ' à voir', 'e:entrain': ' à voir' };
+  var NB_LABEL = { missions: ' à voir', 'p:prepa': ' à confirmer', 'p:missions': ' nouveau', 'e:progres': ' à traiter', 'e:plateaux': ' à voir', 'e:entrain': ' à voir' };
   // le dernier sous-onglet choisi dans chaque onglet
   function tabHref(it) { var h = lsGet('mc-stab:' + it[0]); return typeof h === 'string' && h.charAt(0) === '#' ? h : it[1]; }
   function rememberTab(key, href) { lsSet('mc-stab:' + (NAV_ALIAS[key] || key), href); }

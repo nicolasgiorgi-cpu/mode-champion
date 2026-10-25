@@ -665,6 +665,7 @@
     o.etoiles = gp.etoiles || d.etoiles || [];
     o.encouragements = gp.encouragements || d.encouragements || [];
     o.missions = gp.missions || d.missions || [];
+    o.demandes = gp.demandes || d.demandes || [];
     o.defmissions = (g.defmissions || []).filter(function (m) { return m.sorte !== 'etoile' || m.joueurId === d.joueur.id; });
     return o;
   }

@@ -29,6 +29,8 @@ with sync_playwright() as p:
     go(pg, ''); pg.evaluate('localStorage.clear()'); pg.reload(); pg.wait_for_timeout(700)
     # ======================== ÉDUC ========================
     go(pg, '#/adultes', 500); pg.click('[data-act="adultWho"][data-w="e"]'); pg.wait_for_timeout(300); pick(pg, 'Coach Nico'); pin(pg, '2468', '#adultzone'); pg.wait_for_timeout(1400)
+    nb = pg.query_selector('#nav a[href^="#/educ/progres"] .nb, #nav a:has-text("Progrès") .nb')
+    check('pastille Progrès : compte les demandes des enfants', nb is not None and int(nb.inner_text()) >= 2, nb.inner_text() if nb else None)
     # la page d'un entraînement : « Après la séance »
     go(pg, '#/educ/evt/sp-demo-e1')
     t = main_txt(pg)
@@ -69,12 +71,25 @@ with sync_playwright() as p:
     cells[0].click(); pg.wait_for_timeout(120)
     go(pg, '#/educ/skills?evt=sp-demo-e0', 900)
     check('après rechargement : toujours 3 prêtes (gardées sur le téléphone)', dock_n(pg) == 3 and len(pg.query_selector_all('.evc.on')) == 3)
-    q = pg.evaluate("JSON.parse(localStorage.getItem('mc-eval')).q['sp-demo-e0']")
-    ids = [x.split('|')[0] for x in q]
+    moi = pg.evaluate('MC.app.S.cache.group.moi.id')
+    q = pg.evaluate("JSON.parse(localStorage.getItem('mc-eval')).q['%s']['sp-demo-e0']" % moi)
+    check('file rangée au nom de l\'éduc', isinstance(q, list) and len(q) == 3, q)
+    # un autre éduc sur le même téléphone ne voit pas la file
+    pg.evaluate("MC.app.S.cache.group.moi.id='autre-educ'; MC.app.rerender()"); pg.wait_for_timeout(500)
+    check('un autre éduc ne voit pas la file d\'un collègue', dock_n(pg) == 0)
+    pg.evaluate("MC.app.S.cache.group.moi.id='%s'; MC.app.rerender()" % moi); pg.wait_for_timeout(500)
+    check('le bon éduc la retrouve', dock_n(pg) == 3)
+    # un enfant qui n'est pas présent (Rose) glissé dans la file : il est retiré à l'envoi, le reste part
+    rose = pg.evaluate("MC.app.S.cache.group.joueurs.filter(p=>p.joueur.prenom==='Rose')[0].joueur.id")
+    pg.evaluate("(()=>{const v=JSON.parse(localStorage.getItem('mc-eval'));v.q['%s']['sp-demo-e0'].push('%s|maul:debout');localStorage.setItem('mc-eval',JSON.stringify(v));})()" % (moi, rose))
+    pg.evaluate("location.reload()"); pg.wait_for_timeout(1500)
+    go(pg, '#/educ/skills?evt=sp-demo-e0', 900)
+    check('Rose glissée dans la file : 4 prêtes', dock_n(pg) == 4, dock_n(pg))
     before = sum(len(kid_['etoiles']) for kid_ in pg.evaluate('MC.app.S.cache.group.joueurs'))
     pg.click('#ev_send'); pg.wait_for_timeout(1200)
     after = sum(len(kid_['etoiles']) for kid_ in pg.evaluate('MC.app.S.cache.group.joueurs'))
-    check('Envoyer : 3 étoiles données', after == before + 3, (before, after))
+    check('Envoyer : 3 étoiles données (Rose, absente, retirée de la file)', after == before + 3, (before, after))
+    check('Rose n\'a pas reçu l\'étoile', not any(x['domaine'] == 'maul' and x['etoile'] == 'debout' for x in kid(pg, 'Rose')['etoiles']))
     check('Envoyer : plus rien en attente', dock_n(pg) == 0)
     # sur un plateau : les étoiles brillent
     go(pg, '#/educ/skills?evt=sp-demo-p2', 1000)
@@ -98,7 +113,7 @@ with sync_playwright() as p:
     leo = kid(pg, 'Léo'); dl = [x for x in leo['demandes'] if x['statut'] == 'attente'][0]
     pg.click('[data-act="demOui"][data-id="%s"]' % dl['id']); pg.wait_for_timeout(1100)
     leo = kid(pg, 'Léo')
-    check('demande Oui : Léo a l\'étoile Maul · Debout', any(x['domaine'] == 'maul' and x['etoile'] == 'debout' for x in leo['etoiles']))
+    check('demande Oui : Léo a l\'étoile Maul · J\'arrache', any(x['domaine'] == 'maul' and x['etoile'] == 'arrache' for x in leo['etoiles']))
     ines = kid(pg, 'Inès'); di = [x for x in ines['demandes'] if x['statut'] == 'attente'][0]
     pg.click('[data-act="demNon"][data-id="%s"]' % di['id']); pg.wait_for_timeout(1100)
     ines = kid(pg, 'Inès')

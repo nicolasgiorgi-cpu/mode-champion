@@ -287,8 +287,8 @@ MC.demo = (function () {
         parQui: par ? par.id : '', parNom: par ? par.nom : '', reponseLe: par ? iso(quand, '21:00') : '', cree: iso(quand, '19:30'), maj: iso(quand, par ? '21:00' : '19:30') });
     }
     demande('Tom', 'ruck', 'appuis', 'gagner', 'pasvu', x.julien, x.e0, x.merAv);
-    demande('Inès', 'defense', 'ligne', 'briller', 'attente', null, x.p2, d2);
-    demande('Léo', 'maul', 'debout', 'gagner', 'attente', null, x.e0, x.merAv);
+    demande('Inès', 'defense', 'parle', 'briller', 'attente', null, x.p2, d2);     // Inès a l'étoile Je parle (pas encore brillante)
+    demande('Léo', 'maul', 'arrache', 'gagner', 'attente', null, x.e0, x.merAv);   // Léo n'a pas encore J'arrache
     function perso(nom, d, e, par, depuis, titre) {
       var m = { id: id(), sorte: 'etoile', titre: titre, texte: '', video: '', questions: [], joueurId: ids[nom], domaine: d, etoile: e, xp: 0, debut: depuis, fin: '', statut: 'active', parQui: par.id, parNom: par.nom, faiteLe: '', cree: iso(depuis, '20:00'), maj: iso(depuis, '20:00') };
       db.insert('defmissions', m); return m;

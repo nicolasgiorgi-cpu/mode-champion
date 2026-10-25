@@ -218,7 +218,7 @@ window.MC = window.MC || {};
   function carteHtml(R, D, c, big) {
     var g = c.grade, pips = c.stars.map(function (s) { return '<i class="' + (s.row ? 'on' : '') + (s.brille ? ' brille' : '') + '"></i>'; }).join('');
     return '<div class="cp-tilt sk-tilt' + (big ? ' skbig' : '') + '" style="--c:' + g.color + ';--d:' + D.color + ';--glow2:' + ui.rgba(D.color, 0.22) + '">' +
-      '<' + (big ? 'div' : 'a href="' + R.sk + '/' + esc(D.id) + '"') + ' class="cp-card sk-card g' + c.n + '"><span class="cp-in">' +
+      '<' + (big ? 'div' : 'a href="' + R.sk + '/' + esc(D.id) + '"') + ' class="cp-card sk-card sk-g' + c.grade.n + '"><span class="cp-in">' +
       '<span class="sk-art"><span class="sk-em" style="color:' + D.color + '">' + icon(D.icon, big ? 64 : 44) + '</span></span>' +
       '<span class="sk-body"><span class="sk-nm">' + esc(D.nom) + '</span><span class="sk-gr">' + esc(g.nom) + (c.n ? ' · ' + c.n + ' / ' + c.max : '') + '</span><span class="sk-pips" aria-label="' + c.n + ' étoiles sur ' + c.max + (c.nbBrille ? ', ' + c.nbBrille + ' qui brille' + (c.nbBrille > 1 ? 'nt' : '') : '') + '">' + pips + '</span></span>' +
       '<span class="cp-holo"></span><span class="cp-shine"></span></span></' + (big ? 'div' : 'a') + '></div>';
@@ -227,7 +227,7 @@ window.MC = window.MC || {};
     var d = R.d, tot = SK.total(d), def = SK.prochainDefi(d), lu = R.k ? (app.lsGet('mc-sklu:' + d.joueur.id) || '') : '';
     // les étoiles validées depuis la dernière visite du carnet (pas à la toute 1re visite : tout serait « nouveau »)
     // (Skills v2) une étoile qui se met à briller compte aussi comme nouvelle (sa date de mise à jour change)
-    var nouv = R.k && lu ? (d.etoiles || []).filter(function (e) { return (e.maj || e.cree || '') > lu; }) : [];
+    var nouv = R.k && lu ? (d.etoiles || []).filter(function (e) { return (e.cree || '') > lu || (e.brille && (e.maj || '') > lu); }) : [];
     var cartes = SK.DOMAINES.map(function (D) { return carteHtml(R, D, SK.carte(d, D.id)); }).join('');
     var defi = '';
     if (def) {
@@ -274,7 +274,7 @@ window.MC = window.MC || {};
       .map(function (s, i) { return '<details' + (i === 0 ? ' open' : '') + '><summary><b>' + esc(s.def.nom) + '</b></summary><p class="small" style="margin:6px 0 0;color:var(--soft)">' + esc(s.def.conseil) + '</p></details>'; }).join('');
     return '<main class="screen">' + sub(R, R.sk, 'Skills', 'Carte ' + D.nom) + carteHtml(R, D, c, true) + ladder +
       '<ul class="list sk-rows">' + rows + '</ul>' +
-      (conseils ? '<section class="sec" id="conseil"><h2 class="h2">Comment ' + T(R, 't\'entraîner', 's\'entraîner') + '</h2><div class="sk-tips">' + conseils + '</div></section>' : '<div class="note gold">' + icon('star', 22) + '<span><b>Carte complète : Légende !</b></span></div>') +
+      (conseils ? '<section class="sec" id="conseil"><h2 class="h2">Comment ' + T(R, 't\'entraîner', 's\'entraîner') + '</h2><div class="sk-tips">' + conseils + '</div></section>' : (c.grade.n === 5 ? '<div class="note gold">' + icon('star', 22) + '<span><b>Carte complète : Légende !</b></span></div>' : '<div class="note gold">' + icon('star', 22) + '<span><b>Toutes gagnées : Diamant !</b> ' + T(R, 'Fais-les', 'Il peut les faire') + ' briller au plateau pour passer Légende (' + c.nbBrille + ' / ' + c.max + ').</span></div>')) +
       '</main>';
   }
 

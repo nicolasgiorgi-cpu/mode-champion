@@ -1145,8 +1145,9 @@ var Core = (function () {
   A.validerEtoiles = {
     auth: ['e'],
     run: function (req, ctx) {
-      var list = Array.isArray(req.etoiles) ? req.etoiles.slice(0, 300) : [];
+      var list = Array.isArray(req.etoiles) ? req.etoiles : [];
       if (!list.length) fail('invalide', 'Aucune étoile à valider.');
+      if (list.length > 300) fail('limite', 'Trop d\'étoiles d\'un coup (300 au plus).');
       var o = occasionDe(ctx, req), now = isoNow(ctx.now), out = [], deja = 0, brillees = 0, faites = [];
       // tout est vérifié avant d'écrire quoi que ce soit
       var js = list.map(function (x) {
@@ -1157,7 +1158,7 @@ var Core = (function () {
         var essais = Array.isArray(x.essais) ? x.essais.slice(0, 3).map(function (v) { return v ? 1 : 0; }) : null;
         var r = allumerEtoile(ctx, js[i], String(x.domaine), String(x.etoile), o, req.brille === true || x.brille === true, essais, now, faites);
         if (r.statut === 'deja') { deja++; return; }
-        if (r.statut === 'brille') brillees++;
+        if (r.row && r.row.brille && (r.statut === 'brille' || req.brille === true || x.brille === true)) brillees++;
         out.push(pubEtoile(r.row, true));
       });
       return { etoiles: out, deja: deja, brillees: brillees, missionsFaites: faites };
@@ -1175,7 +1176,11 @@ var Core = (function () {
       if (enCours) fail('deja', 'Tu as déjà une demande en attente : les éducs vont y répondre.');
       var ex = etoileActive(ctx, me.id, d, e);
       if (ex && ex.brille) fail('invalide', 'Cette étoile brille déjà.');
-      var o = occasionDe(ctx, req), now = isoNow(ctx.now);
+      var auj = isoDate(ctx.now);
+      if (ctx.db.rows('demandes').filter(function (x) { return x.joueurId === me.id && String(x.cree || '').slice(0, 10) === auj; }).length >= 10) fail('limite', 'Assez de demandes pour aujourd\'hui : réessaie demain.');
+      // l'occasion vient seulement de l'événement choisi (jamais d'un texte tapé par l'enfant)
+      var evId = String(req.evenementId || ''), ev = evId ? find(ctx.db.rows('evenements'), evId) : null;
+      var o = { occasion: ev ? cleanText(ev.titre, 60) : '', evenementId: ev ? ev.id : '' }, now = isoNow(ctx.now);
       var row = { id: genId(ctx.env), joueurId: me.id, domaine: d, etoile: e, sorte: ex ? 'briller' : 'gagner', evenementId: o.evenementId, occasion: o.occasion,
         statut: 'attente', parQui: '', parNom: '', reponseLe: '', cree: now, maj: now };
       ctx.db.insert('demandes', row);
@@ -1199,10 +1204,13 @@ var Core = (function () {
       var x = find(ctx.db.rows('demandes'), String(req.id || ''));
       if (!x || x.statut !== 'attente') fail('introuvable', 'Cette demande n\'est plus en attente.');
       var j = joueurActif(ctx, x.joueurId), now = isoNow(ctx.now), etoile = null;
+      var faites = [];
       if (req.oui === true) {
         var o = { occasion: x.occasion, evenementId: x.evenementId };
         if (req.occasion !== undefined || req.evenementId !== undefined) o = occasionDe(ctx, req);
-        var r = allumerEtoile(ctx, j, x.domaine, x.etoile, o, x.sorte === 'briller', null, now, []);
+        // « la faire briller » sur une étoile retirée entre-temps : on la redonne, sans la faire briller
+        var briller = x.sorte === 'briller' && !!etoileActive(ctx, j.id, x.domaine, x.etoile);
+        var r = allumerEtoile(ctx, j, x.domaine, x.etoile, o, briller, null, now, faites);
         etoile = r.row ? pubEtoile(r.row, true) : null;
         // demande close par allumerEtoile ; si l'étoile était déjà là (validée entre-temps), on la clôt quand même
         var y = find(ctx.db.rows('demandes'), x.id);
@@ -1210,7 +1218,7 @@ var Core = (function () {
       } else {
         ctx.db.update('demandes', x.id, { statut: 'pasvu', parQui: ctx.auth.row.id, parNom: educNom(ctx), reponseLe: now, maj: now });
       }
-      return { demande: pubDemande(find(ctx.db.rows('demandes'), x.id)), etoile: etoile };
+      return { demande: pubDemande(find(ctx.db.rows('demandes'), x.id)), etoile: etoile, missionsFaites: faites };
     }
   };
   // une étoile validée par erreur : elle disparaît pour l'enfant (gardée dans la feuille) ; sa mission perso redevient en cours
@@ -1226,6 +1234,9 @@ var Core = (function () {
         return { id: e.id, eteinte: true, missionsRouvertes: [] };
       }
       ctx.db.update('etoiles', e.id, { retiree: true, maj: now });
+      ctx.db.rows('demandes').forEach(function (x) {
+        if (x.statut === 'attente' && x.sorte === 'briller' && x.joueurId === e.joueurId && x.domaine === e.domaine && x.etoile === e.etoile) ctx.db.update('demandes', x.id, { sorte: 'gagner', maj: now });
+      });
       var rouvertes = [];
       // une seule mission perso à la fois : si l'enfant en a déjà une autre en cours, l'ancienne reste « faite »
       var autre = ctx.db.rows('defmissions').some(function (m) { return m.sorte === 'etoile' && m.statut === 'active' && m.joueurId === e.joueurId; });

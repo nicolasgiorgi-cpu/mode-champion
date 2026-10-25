@@ -1209,8 +1209,8 @@ a.opt{text-decoration:none}
 .sk-pips{display:flex;gap:4px}
 .sk-pips i{width:14px;height:14px;clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);background:#2A3557}
 .sk-pips i.on{background:var(--gold)}
-.sk-card.g0{background:linear-gradient(160deg,#34405F,#1E2740)}
-.sk-card.g5 .cp-holo{opacity:.45}
+.sk-card.sk-g0{background:linear-gradient(160deg,#34405F,#1E2740)}
+.sk-card.sk-g5 .cp-holo{opacity:.45}
 .defi2{display:flex;flex-direction:column;gap:6px;padding:12px;background:rgba(255,194,61,.07);border:1px solid rgba(255,194,61,.5);color:var(--ink);text-decoration:none}
 .sk-lad{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}
 .sk-lad li{padding:7px 2px;text-align:center;font:700 10px/1 var(--f-hud);letter-spacing:.06em;text-transform:uppercase;color:var(--faint);border:1px solid var(--line)}
