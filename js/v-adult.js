@@ -243,11 +243,27 @@
       icon('play', 14) + '<span>' + (one ? esc(kids[0].prenom) : 'Enfant') + '</span></button>';
   }
   MC.passBtn = passBtn;
+  // (25/10) son espace s'ouvre sans son code : le parent est déjà entré avec le code de la famille
+  var passing = false;
   function passTo(k) {
-    app.lockAdult();
-    if (app.S.kid && app.S.kid.joueur && app.S.kid.joueur.id === k.id) { app.go('#/semaine'); ui.toast('À toi ' + k.prenom + ' !'); return; }
-    if (app.S.kid) app.setKid(null);
-    app.go('#/connexion?k=' + encodeURIComponent(k.id));
+    if (app.S.kid && app.S.kid.joueur && app.S.kid.joueur.id === k.id) { app.lockAdult(); app.go('#/semaine'); ui.toast('À toi ' + k.prenom + ' !'); return; }
+    if (passing) return;
+    passing = true;
+    app.adultCall('ouvrirEnfant', { joueurId: k.id }).then(function (r) {
+      passing = false;
+      app.lockAdult();
+      app.setKid({ token: r.token, joueur: r.joueur });
+      if (r.me) app.setMe(r.me);
+      if (r.joueur.mustChange) app.go('#/premiere');
+      else { app.go('#/semaine'); ui.toast('À toi ' + k.prenom + ' !'); }
+    }).catch(function (e) {
+      passing = false;
+      if (e.code === 'session') return;
+      // serveur pas encore à jour (ou pas de réseau) : comme avant, l'enfant tape son code
+      app.lockAdult();
+      if (app.S.kid) app.setKid(null);
+      app.go('#/connexion?k=' + encodeURIComponent(k.id));
+    });
   }
   MC.act.passKid = function (b) {
     var id = b.getAttribute('data-id');
@@ -255,7 +271,7 @@
     if (k) return passTo(k);
     ui.modal({
       title: 'Passer le téléphone à…',
-      body: '<p class="small" style="margin:0">Il fait sa séance avec son code secret. Pour revenir ici, votre code vous sera redemandé.</p>',
+      body: '<p class="small" style="margin:0">Son espace s\'ouvre directement, sans son code. Pour revenir ici, votre code vous sera redemandé.</p>',
       actions: passList.map(function (x, i) { return { label: icon('play', 16) + ' ' + esc(x.prenom), value: i + 1, cls: 'btn' }; }).concat([{ label: 'Annuler', value: 0, cls: 'btn2 grey' }])
     }).then(function (i) { if (i) passTo(passList[i - 1]); });
   };

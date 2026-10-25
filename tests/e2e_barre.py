@@ -41,7 +41,7 @@ with sync_playwright() as p:
     tid = pg.evaluate("MC.loadGroup().then(g=>g.joueurs.find(p=>p.joueur.prenom==='Tom').joueur.id)")
     avis = pg.evaluate("MC.loadCompos().then(c=>c.avis[0] && c.avis[0].id)")
     audit(pg, ['#/educ', '#/educ/entrainements', '#/educ/plateaux', '#/educ/progres', '#/educ/skills', '#/educ/missions', '#/educ/joueurs', '#/educ/compos', '#/educ/classement', '#/educ/reglages', '#/educ/joueur/' + tid, '#/educ/ajouter', '#/educ/familles',
-               '#/educ/educs', '#/educ/progres/bilans', '#/educ/mission', '#/educ/terrain', '#/educ/evt-nouveau', '#/educ/evt/sp-demo-p3', '#/educ/evt/sp-demo-e1', '#/educ/evt/sp-demo-e1/presents',
+               '#/educ/educs', '#/educ/progres/bilans', '#/educ/mission/poste', '#/educ/mission/copains', '#/educ/terrain', '#/educ/evt-nouveau', '#/educ/evt/sp-demo-p3', '#/educ/evt/sp-demo-e1', '#/educ/evt/sp-demo-e1/presents',
                '#/educ/skills/passeport', '#/educ/missions/nouvelle?type=video', '#/educ/missions/nouvelle?type=perso', '#/educ/encourager/' + tid,
                '#/educ/compo/sp-demo-p3', '#/educ/compo/sp-demo-p1', '#/educ/compo/sp-demo-p4', '#/educ/compo/sp-demo-e1?p=ateliers', '#/educ/compo/sp-demo-e0?p=matchs',
                '#/educ/avis/' + avis, '#/educ/nouveautes', '#/educ/spond', '#/guide?pour=educ&de=educ%2Fcompos'])

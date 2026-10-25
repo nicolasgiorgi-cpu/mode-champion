@@ -14,6 +14,47 @@ MC.accueil = (function () {
   function get(k) { return all()[k]; }
   function set(k, v) { var o = all(); if (v === null) delete o[k]; else o[k] = v; app.lsSet(KEY, o); }
 
+  // ---------- le 1er message : l'appli en 4 lignes (un onglet = une ligne), sans détails ----------
+  var RESUME = {
+    k: [['bolt', '#38E8FF', 'Prépa', 'tes séances à la maison, 15 à 20 minutes, guidées avec le chrono'],
+      ['target', '#FF7FBC', 'Missions', 'les défis que te lancent tes éducs'],
+      ['star', '#FFC23D', 'Skills', 'tes étoiles rugby, validées par tes éducs au terrain'],
+      ['user', '#3DFFB0', 'Moi', 'ton niveau, tes badges et tes records']],
+    f: [['bolt', '#38E8FF', 'Prépa', 'ses séances à la maison, et ses résultats à confirmer'],
+      ['target', '#FF7FBC', 'Missions', 'les défis et les encouragements de ses éducs'],
+      ['star', '#FFC23D', 'Skills', 'ses étoiles rugby, validées par les éducs au terrain'],
+      ['menu', '#C9AEFF', 'Plus', 'votre code, l\'aide et les réglages']],
+    e: [['calendar', '#38E8FF', 'Entraîn.', 'les entraînements : qui est là, les groupes'],
+      ['flag', '#FFC23D', 'Plateaux', 'les plateaux et leurs équipes'],
+      ['trend', '#3DFFB0', 'Progrès', 'où en sont les enfants : prépa, missions, Skills'],
+      ['kids', '#C9AEFF', 'Enfants', 'la fiche de chaque enfant']]
+  };
+  var INTRO = {
+    k: 'Ta prépa physique de rugby, comme un jeu vidéo. Tout est dans les 4 onglets du bas :',
+    f: 'Le carnet de prépa physique et de rugby des M12. Votre enfant s\'entraîne à la maison et progresse avec ses éducs ; vous suivez tout ici :',
+    e: 'L\'appli des M12 : la prépa physique et les progrès rugby des enfants, les entraînements et les plateaux. 4 onglets :'
+  };
+  function resume(role) {
+    return '<ul class="obres">' + RESUME[role].map(function (x) { return '<li style="--rc:' + x[1] + '">' + icon(x[0], 22) + '<span><b>' + x[2] + '</b> : ' + esc(x[3]) + '.</span></li>'; }).join('') + '</ul>' +
+      '<p class="small" style="margin:0">' + (role === 'k' ? 'Une question ? Touche le « ? » en haut de l\'écran.' : 'Une question ? Le « ? » en haut de chaque écran explique tout.') + '</p>';
+  }
+  // 1re ouverture sur cet appareil, sans visite : ce message simple, et jamais la liste des nouveautés d'avant son arrivée
+  function premiereFois(role, id) {
+    if (!id || window.__MC_QUIET || get('tour:' + role + ':' + id) || get('bvn:' + role + ':' + id)) return false;
+    return !!(MC.news && MC.news.jamaisVu && MC.news.jamaisVu(role, id));
+  }
+  function bienvenue(role, id) {
+    set('bvn:' + role + ':' + id, Date.now());
+    if (MC.news) MC.news.markAll(role, id);
+    var me = app.S.me, nom = role === 'k' && me && me.joueur ? me.joueur.prenom : '';
+    return ui.modal({
+      title: role === 'k' ? 'Bienvenue' + (nom ? ', ' + esc(nom) : '') + ' !' : 'Bienvenue dans Mode champion',
+      body: '<p class="lead" style="margin:0">' + esc(INTRO[role]) + '</p>' + resume(role),
+      actions: [{ label: 'C\'est parti !', value: 'ok', cls: 'btn' }],
+      onOpen: function (host) { host.classList.add('sheet-bvn'); }
+    });
+  }
+
   // ---------- visites ----------
   function needTour(role, id) {
     if (window.__MC_QUIET) return false;   // tests automatiques des anciens écrans
@@ -70,14 +111,14 @@ MC.accueil = (function () {
     var nextBtn = '<button type="button" class="btn" data-act="obNext" data-r="k">' + (i === 0 ? 'C\'est parti' : 'Suivant') + ' ' + icon('right', 18) + '</button>';
     var noBilan = !(me.records || []).some(function (r) { return /^\d+$/.test(String(r.bilan)); });
     if (i === 0) return frame('k', n, i, '<span class="obshield">' + ui.avatar(k.prenom, k.couleur, 170) + '</span>', 'bienvenue',
-      'Bienvenue dans l\'arène, ' + esc(k.prenom) + ' !', '<p class="lead">Ici, tu deviens plus fort, plus rapide et plus solide, comme les joueurs du XV de France. 5 choses à savoir, et c\'est parti.</p>', nextBtn);
+      'Bienvenue dans l\'arène, ' + esc(k.prenom) + ' !', '<p class="lead">' + esc(INTRO.k) + '</p>' + resume('k'), nextBtn);
     if (i === 1) {
       var wk = C.SEMAINE.map(function (tp, d) { var j = C.JOURS[tp]; return '<span style="--gc:' + j.color + '"><b>' + esc(j.court.charAt(0)) + '</b>' + (j.slot < 0 ? '<i class="zz">—</i>' : ui.starSvg(20, d < 3 || d === 5 ? '#FFC23D' : 'none', d < 3 || d === 5 ? '#FFC23D' : '#34405F')) + '</span>'; }).join('');
       return frame('k', n, i, '<div class="gweek obweek">' + wk + '</div><div class="note gold" style="margin-top:12px">' + icon('gift', 30) + '<span>6 étoiles dans la semaine : le coffre s\'ouvre, <b>+1 étoile bonus</b>.</span></div>', 'tes étoiles',
-        '1 séance =<br>1 étoile', '<p class="lead">Chaque jour, ta mission t\'attend dans <b>Ma semaine</b> : 15 à 20 minutes. Un jour raté ? Tu le rattrapes un autre jour de la même semaine.</p>', nextBtn);
+        '1 séance =<br>1 étoile', '<p class="lead">Chaque jour, ta séance t\'attend dans <b>Ma semaine</b> : 15 à 20 minutes. Un jour raté ? Tu le rattrapes un autre jour de la même semaine.</p>', nextBtn);
     }
     if (i === 2) return frame('k', n, i, '<svg class="obring" viewBox="0 0 200 200" role="img" aria-label="Le chrono de la séance"><circle cx="100" cy="100" r="82" fill="none" stroke="#1E2740" stroke-width="14"/><circle cx="100" cy="100" r="82" fill="none" stroke="#3DFFB0" stroke-width="14" stroke-dasharray="515" stroke-dashoffset="190" transform="rotate(-90 100 100)" style="filter:drop-shadow(0 0 8px #3DFFB0)"/><text x="100" y="108" text-anchor="middle" font-family="Chakra Petch,monospace" font-weight="700" font-size="56" fill="#E8ECF7">30</text><text x="100" y="134" text-anchor="middle" font-family="Chakra Petch,monospace" font-weight="600" font-size="12" letter-spacing="2" fill="#8A93AD">IL RESTE</text></svg>', 'la séance guidée',
-      'Le site<br>te guide', '<p class="lead">Touche <b>GO</b> : le chrono, les bips et le bonhomme animé te montrent quoi faire. <b>Détails</b> explique comment bien faire sans te blesser, et <b>Retour</b> annule un clic de trop.</p>', nextBtn, { kc: 'var(--green)' });
+      'L\'appli<br>te guide', '<p class="lead">Touche <b>C\'est parti !</b> puis <b>GO</b> : le chrono, les bips et le bonhomme animé te montrent quoi faire. <b>Détails</b> explique comment bien faire sans te blesser, et <b>Retour</b> annule un clic de trop.</p>', nextBtn, { kc: 'var(--green)' });
     if (i === 3) return frame('k', n, i, '<div class="obtests">' + C.TESTS.map(function (t) { return '<span>' + esc(t.court) + '</span>'; }).join('') + '</div>', 'le bilan',
       'Le bilan, c\'est quoi ?', '<ul class="obul"><li><b>12 petits tests</b> (sauts, gainage, navette…), toutes les 8 semaines environ, <b>avec un adulte</b> qui regarde et compte.</li>' +
       '<li>Il <b>règle tes niveaux</b> exercice par exercice, et tes résultats deviennent tes <b>records</b>.</li>' +
@@ -86,7 +127,7 @@ MC.accueil = (function () {
       (noBilan ? '<a class="btn2 gold" href="#/bilan" data-act="obBilan">' + icon('trophy', 16) + ' D\'abord mon bilan, avec un adulte</a>' : '');
     return frame('k', n, i, '<div class="obgrades">' + C.GRADES.slice(0, 4).reverse().map(function (g, j) { return '<span class="' + (j === 3 ? 'me' : '') + '"><b>' + esc(g.nom) + '</b><small>' + ui.fmtNum(g.xp) + ' XP</small></span>'; }).join('') + '</div>', 'monte en grade',
       'Deviens une légende', '<p class="lead">Chaque séance rapporte des <b>XP</b> : tu montes de grade, tu débloques des <b>badges</b> et tu entres dans <b>l\'arène</b> face aux joueurs de ton niveau. Et dans <b>Missions</b> et <b>Skills</b>, tes éducs te lancent des défis rugby et valident tes étoiles.</p>' +
-      '<div class="note cyan">' + icon('star', 20) + '<span>Pour bien démarrer : <b>tes premiers pas</b>, 4 petites missions sur Prépa › Ma semaine, <b>+' + C.XP.premiersPas + ' XP</b> à la fin.</span></div>', last, { kc: 'var(--violet)' });
+      '<div class="note cyan">' + icon('star', 20) + '<span>Pour bien démarrer : <b>tes premiers pas</b>, 4 petites étapes sur Prépa › Ma semaine, <b>+' + C.XP.premiersPas + ' XP</b> à la fin.</span></div>', last, { kc: 'var(--violet)' });
   }
   MC.act.obDoneKid = function () { finish('k'); };
   MC.act.obBilan = function () { var id = app.S.kid && app.S.kid.joueur.id; if (id) markTour('k', id); step.k = 0; app.go('#/bilan', true); };
@@ -102,11 +143,11 @@ MC.accueil = (function () {
     var nextBtn = '<button type="button" class="btn" data-act="obNext" data-r="f">Suivant ' + icon('right', 18) + '</button>';
     function li(t) { return '<li class="row" style="align-items:flex-start">' + icon('check', 18, 'style="color:var(--green);flex:none;margin-top:2px"') + '<span>' + t + '</span></li>'; }
     if (i === 0) return frame('f', n, i, '<span class="obshield">' + (one ? ui.avatar(one.prenom, one.couleur, 150) : ui.avatar('M', '#3DFFB0', 150).replace('>M<', '>M12<')) + '</span>', 'espace parent',
-      'Bienvenue, ' + esc(famName(fam)), '<p class="lead">Mode champion, c\'est le carnet de prépa physique des M12, en version jeu vidéo. ' + esc(P) + ' s\'entraîne' + (fam.enfants.length > 1 ? 'nt' : '') + ' à la maison, vous suivez ses progrès.</p>' +
-      '<ul class="obul plain">' + li('Préparé par les éducateurs M12, adapté aux 9-11 ans : poids du corps, aucune charge.') + li('15 à 20 minutes, 4 jours par semaine, guidé exercice par exercice.') + li('Ni publicité, ni compte à créer. Les codes sont gardés chiffrés.') + '</ul>', nextBtn, { kc: 'var(--green)' });
+      'Bienvenue, ' + esc(famName(fam)), '<p class="lead">' + esc(INTRO.f) + '</p>' + resume('f') +
+      '<p class="small" style="margin:0;color:var(--soft)">Préparé par les éducateurs M12, adapté aux 9-11 ans. Ni publicité, ni compte à créer.</p>', nextBtn, { kc: 'var(--green)' });
     if (i === 1) return frame('f', n, i, '', 'votre rôle · 2 minutes par semaine', 'Vous gardez la main',
       '<div class="sec">' +
-      '<div class="note">' + icon('pulse', 24, 'style="color:var(--cyan)"') + '<span><b>Suivre</b> : chaque séance, la progression d\'un bilan à l\'autre (onglet Prépa), les missions et les +1 de ses éducs, et ses Skills.</span></div>' +
+      '<div class="note">' + icon('pulse', 24, 'style="color:var(--cyan)"') + '<span><b>Suivre</b> : chaque séance et la progression d\'un bilan à l\'autre (onglet Prépa), ses missions et les encouragements de ses éducs, ses étoiles Skills.</span></div>' +
       '<div class="note pink">' + icon('check', 24) + '<span><b>Confirmer ses résultats</b> : bilans et défis. Votre OK les fait entrer dans son classement. Une pastille rose vous prévient.</span></div>' +
       '<div class="note gold">' + icon('up', 24) + '<span><b>Ajuster ses niveaux</b> : trop facile, trop dur ? Vous pouvez changer le niveau de chaque exercice.</span></div></div>', nextBtn, { kc: 'var(--green)' });
     var shared = app.sharedDevice();
@@ -114,7 +155,7 @@ MC.accueil = (function () {
       '<div class="sec">' +
       '<button type="button" class="choice' + (shared ? ' on' : '') + '" data-act="obShared" data-v="1" aria-pressed="' + shared + '"><span class="lb">Mon téléphone ou ma tablette<small>Votre espace se verrouille quand ' + esc(one ? one.prenom : 'votre enfant') + ' s\'en sert : votre code est redemandé.</small></span><span class="rd"></span></button>' +
       '<button type="button" class="choice' + (!shared ? ' on' : '') + '" data-act="obShared" data-v="0" aria-pressed="' + !shared + '"><span class="lb">' + (one ? 'Son' : 'Leur') + ' propre appareil<small>Vous restez connecté sur le vôtre.</small></span><span class="rd"></span></button>' +
-      '<p class="small" style="margin:0">Modifiable à tout moment dans Plus.</p></div>',
+      '<p class="small" style="margin:0">Modifiable à tout moment dans Plus. Pour ' + (one ? 'lui' : 'leur') + ' passer le téléphone : touchez <b>▶ ' + esc(one ? one.prenom : 'son prénom') + '</b> en haut à droite, ' + (one ? 'son' : 'leur') + ' espace s\'ouvre sans code.</p></div>',
       '<button type="button" class="btn" data-act="obDone" data-r="f">Entrer dans mon espace ' + icon('right', 18) + '</button>', { kc: 'var(--green)' });
   }
   MC.act.obShared = function (b) { app.setShared(b.getAttribute('data-v') === '1'); app.rerender(); };
@@ -132,12 +173,13 @@ MC.accueil = (function () {
     if (i === 0) {
       var pend = 0; players.forEach(function (p) { p.records.forEach(function (r) { if (r.statut === 'attente') pend++; }); });
       return frame('e', n, i, '<div class="grid3" style="width:100%"><div class="tile"><span class="v">' + players.length + '</span><span class="l">joueurs</span></div><div class="tile"><span class="v" style="color:var(--green)">' + players.filter(function (p) { return p.joueur.aUnCode; }).length + '</span><span class="l">connectés</span></div><div class="tile"><span class="v" style="color:var(--pink)">' + pend + '</span><span class="l">à valider</span></div></div>', 'espace éduc',
-        'Bienvenue, ' + esc(g.moi.nom), '<p class="lead">4 onglets, un par usage : <b>Entraîn.</b> (présents, ateliers, matchs), <b>Plateaux</b> (compos), <b>Progrès</b> (prépa physique, Skills, missions) et <b>Enfants</b>. La gestion est derrière l\'engrenage, en haut.</p>', nextBtn, { kc: 'var(--violet)' });
+        'Bienvenue, ' + esc(g.moi.nom), '<p class="lead">' + esc(INTRO.e) + '</p>' + resume('e') +
+        '<p class="small" style="margin:0;color:var(--soft)">Les réglages (codes, familles, éducs) sont derrière l\'engrenage, en haut.</p>', nextBtn, { kc: 'var(--violet)' });
     }
     if (i === 1) return frame('e', n, i, '', 'votre semaine type · 5 minutes', 'Trois réflexes',
       '<div class="sec">' +
       '<div class="note pink"><span class="pill" style="--pc:var(--pink)">1</span><span><b>Confirmer les résultats de votre enfant</b> (s\'il est dans le groupe) : une pastille rose sur Progrès vous prévient. Ceux des autres enfants, c\'est leur famille.</span></div>' +
-      '<div class="note gold"><span class="pill" style="--pc:var(--gold)">2</span><span><b>Encourager</b> : à l\'entraînement, un <b>+1</b> d\'un seul toucher sur la mission d\'un enfant présent ; au 3e, l\'appli propose de valider son étoile Skills.</span></div>' +
+      '<div class="note gold"><span class="pill" style="--pc:var(--gold)">2</span><span><b>Encourager et valider</b> : à l\'entraînement, un <b>+1</b> d\'un seul toucher sur la mission principale d\'un enfant présent (au 3e, l\'appli propose de valider l\'étoile) ; après la séance, <b>Évaluer</b> pour valider les étoiles Skills vues au terrain.</span></div>' +
       '<div class="note"><span class="pill" style="--pc:var(--cyan)">3</span><span><b>Relancer ceux qui décrochent</b> : Enfants › « À relancer » (rien depuis 7 jours, ou jamais connecté).</span></div></div>', nextBtn, { kc: 'var(--violet)' });
     if (!pick) pick = (g.moi.enfants || []).slice();
     var list = players.slice().sort(function (a, b) { return a.joueur.prenom.localeCompare(b.joueur.prenom, 'fr'); });
@@ -306,6 +348,6 @@ MC.accueil = (function () {
   MC.act.tipOk = function (b) { set('tip:' + b.getAttribute('data-k'), Date.now()); var t = b.closest('.obtip'); if (t) t.remove(); };
   function markDone(k) { set('done:' + k, Date.now()); }
 
-  return { needTour: needTour, markTour: markTour, tourLink: tourLink, kidChecklist: kidChecklist, kidChecklistShown: kidChecklistShown, markArene: markArene,
+  return { premiereFois: premiereFois, bienvenue: bienvenue, resume: resume, needTour: needTour, markTour: markTour, tourLink: tourLink, kidChecklist: kidChecklist, kidChecklistShown: kidChecklistShown, markArene: markArene,
     parentChecklist: parentChecklist, educChecklist: educChecklist, tip: tip, markDone: markDone };
 })();

@@ -187,7 +187,7 @@
       card('p-partage', 'phone', '#38E8FF', 'Il utilise votre téléphone', 'Pas de téléphone ou d\'iPad à lui ? Aucun problème',
         ul([
           'Ouvrez le site sur votre téléphone (Partager › « Sur l\'écran d\'accueil » pour l\'avoir comme une appli).',
-          '<b>Lui passer le téléphone</b> : touchez <b>▶ son prénom</b>, en haut à droite de votre espace. Il tape son code secret la 1re fois, puis il reste connecté : les fois suivantes, il arrive directement sur sa semaine.',
+          '<b>Lui passer le téléphone</b> : touchez <b>▶ son prénom</b>, en haut à droite de votre espace. Son espace s\'ouvre directement, sans son code (vous êtes déjà entré avec le code de la famille). Pour revenir dans votre espace : « Rendre le téléphone », puis votre code.',
           '<b>Le récupérer</b> : le bouton <b>🔒 Parent</b>, en haut à droite de son côté (à la place du ▶), ou « J\'ai fini : je rends le téléphone » à la fin de sa séance. Vous tapez votre code et vous voilà dans votre espace.',
           'Frères et sœurs sur le même téléphone : chacun a son profil. « Pas Tom ? Changer de joueur » en haut de la semaine, ou « J\'ai fini » à la fin de la séance. S\'il n\'a pas servi depuis 30 min, le site demande « C\'est bien toi ? » avant de commencer.',
           'Votre espace parent est protégé : sur un appareil partagé, votre code est redemandé après 10 min, ou dès qu\'on repasse côté joueur. Votre enfant ne peut donc pas confirmer lui-même ses résultats. Réglage « Appareil partagé avec un enfant » dans l\'onglet <b>Plus</b>.',
@@ -244,9 +244,8 @@
       card('e-mission', 'ball', '#FFC23D', 'Postes et copains (jeu à 10)', 'Les missions « Choisis ton poste » et « Avec qui tu aimes jouer »',
         ul([
           'Deux missions séparées, chacune avec ses XP et son badge : « Choisis ton poste » (1 à 3 <b>postes</b>, dans l\'ordre), puis « Avec qui tu aimes jouer » (ses <b>copains</b>, sans limite ; débloquée une fois le poste choisi). Les copains sont secrets : ni les autres enfants ni les parents ne les voient.',
-          'Progrès › Missions › <b>Choisis ton poste</b> ou <b>Avec qui tu aimes jouer</b> : qui a fait chaque mission, les postes demandés (choix 1 et choix 2-3), les copains de chacun.',
-          'La fiche d\'un joueur montre ses postes, son test « Aide-moi à choisir », ses copains et ceux qui l\'ont choisi (⇄ = ils se sont choisis l\'un l\'autre).',
-          'Les réponses envoyées avec l\'ancien site « Choisis ton poste » se reprennent d\'un bouton, si le Google Form range ses réponses dans la feuille de l\'appli.'
+          'Chaque mission a sa page dans Progrès › Missions : <b>Choisis ton poste</b> (qui l\'a faite, les postes demandés, choix 1 et choix 2-3), <b>Avec qui tu aimes jouer</b> (les copains de chacun).',
+          'La fiche d\'un joueur (onglet Terrain) montre les 2 missions : ses postes et son test « Aide-moi à choisir », puis, repliés « éducs uniquement », ses copains et ceux qui l\'ont choisi (⇄ = ils se sont choisis l\'un l\'autre).'
         ])) +
       card('skills-e', 'star', '#FFC23D', 'Skills, missions et +1', 'Progrès › Skills et Missions',
         ul([

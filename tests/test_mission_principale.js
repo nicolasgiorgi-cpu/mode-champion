@@ -112,4 +112,17 @@ assert.deepStrictEqual(r.remplacees, [mLea.id], 'la mission terminée est rangé
 const mCy = r.missions[0].id;
 r = g.call({ action: 'defMission', token: cyril, id: mCy, fin: '' }); assert.strictEqual(r.error, 'invalide', 'sans date');
 
+// ----- 4. un parent ouvre l'espace de son enfant sans le code de l'enfant (25/10) -----
+r = g.call({ action: 'addPlayer', token: nico, prenom: 'Zoé', familleNom: 'Famille Z' }); const zoe = r.joueur.id, fz = r.familleCode;
+r = g.call({ action: 'adultLogin', role: 'f', joueurId: zoe, code: fz }); assert.ok(r.ok, JSON.stringify(r)); const parentZ = r.token;
+r = g.call({ action: 'ouvrirEnfant', token: parentZ, joueurId: zoe }); assert.ok(r.ok && r.token && r.joueur.id === zoe, JSON.stringify(r));
+const tokZ = r.token;
+r = g.call({ action: 'me', token: tokZ }); assert.ok(r.ok && r.joueur.id === zoe, 'la session de l\'enfant marche');
+r = g.call({ action: 'ouvrirEnfant', token: parentZ, joueurId: P.Tom }); assert.strictEqual(r.error, 'interdit', 'pas l\'enfant d\'une autre famille');
+r = g.call({ action: 'ouvrirEnfant', token: tom, joueurId: P.Tom }); assert.ok(!r.ok, 'pas avec une session d\'enfant');
+// un éduc : seulement son propre enfant
+r = g.call({ action: 'ouvrirEnfant', token: julien, joueurId: zoe }); assert.strictEqual(r.error, 'interdit');
+g.call({ action: 'mesEnfants', token: julien, ids: [zoe] });
+r = g.call({ action: 'ouvrirEnfant', token: julien, joueurId: zoe }); assert.ok(r.ok && r.joueur.id === zoe, JSON.stringify(r));
+
 console.log('MISSION PRINCIPALE OK');

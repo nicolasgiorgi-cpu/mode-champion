@@ -8,6 +8,9 @@
 window.MC = window.MC || {};
 
 MC.NEWS = [
+  { id: '2026-10-25-sans-code', date: '2026-10-25', pour: ['f', 'e'],
+    titre: 'Son espace, sans son code',
+    texte: { f: 'Touchez ▶ son prénom en haut à droite : l\'espace de votre enfant s\'ouvre directement, sans son code. Pour revenir : « Rendre le téléphone », puis votre code.', e: 'Votre enfant (engrenage › Mon enfant) : touchez ▶ son prénom en haut à droite, son espace s\'ouvre sans son code.' } },
   // (visuels v2, 25/10) la mission principale, puis les nouvelles cartes et le booster
   { id: '2026-11-mission-principale', date: '2026-10-25', pour: ['k', 'f', 'e'],
     titre: { k: 'Ta mission principale', f: 'La mission principale', e: 'La mission principale, à plusieurs enfants d\'un coup' },
@@ -35,7 +38,7 @@ MC.NEWS = [
       f: 'Votre enfant choisit son poste, puis ses copains (secrets) : deux missions, chacune avec ses XP et son badge.',
       e: '« Choisis ton poste » et « Avec qui tu aimes jouer » sont séparées. Le suivi des deux : Progrès › Missions.'
     },
-    lien: { k: '#/missions', f: '#/parent/missions', e: '#/educ/mission' } },
+    lien: { k: '#/missions', f: '#/parent/missions', e: '#/educ/mission/poste' } },
   { id: '2026-10-passer', date: '2026-10-24', pour: ['f', 'e'],
     titre: 'Passer le téléphone à votre enfant',
     texte: { f: 'Touchez ▶ son prénom, en haut à droite : il arrive sur sa séance. Pour revenir : « Rendre le téléphone », puis votre code.', e: 'Votre enfant (engrenage › Mon enfant) a son bouton ▶ en haut à droite. Pour revenir : « Rendre le téléphone », puis votre code.' } },
@@ -69,7 +72,7 @@ MC.NEWS = [
       f: 'Votre enfant choisit son poste et ses copains pour le jeu à 10 (les copains restent entre lui et les éducs). C\'est dans son onglet Missions.',
       e: '« Choisis ton poste » est maintenant une mission dans l\'appli, avec les copains en plus. Tout est dans Progrès › Missions, et dans la fiche de chaque enfant.'
     },
-    lien: { k: '#/mission', e: '#/educ/mission' } },
+    lien: { k: '#/mission', e: '#/educ/mission/poste' } },
   { id: '2026-10-12-nav', date: '2026-10-12', pour: ['k', 'f', 'e'],
     titre: { k: 'Une navigation plus simple', f: 'Votre espace en 4 onglets', e: 'Votre espace en 4 onglets' },
     texte: {
@@ -118,6 +121,8 @@ MC.news = (function () {
     return MC.NEWS.filter(function (n) { return n.pour.indexOf(role) >= 0 && pick(n.titre, role); })
       .sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; });
   }
+  // jamais ouvert sur cet appareil (aucune nouveauté vue ni écartée)
+  function jamaisVu(role, id) { return !Object.prototype.hasOwnProperty.call(all(), role + ':' + id); }
   function unseen(role, id) { var s = seen(role, id); return forRole(role).filter(function (n) { return s.indexOf(n.id) < 0; }); }
   function markAll(role, id) { if (!id) return; var o = all(); o[role + ':' + id] = forRole(role).map(function (n) { return n.id; }); app.lsSet(KEY, o); }
 
@@ -130,6 +135,8 @@ MC.news = (function () {
   var showing = false;
   function maybeShow(role, id) {
     if (!id || showing || window.__MC_QUIET || document.querySelector('.modal')) return;
+    // 1re ouverture : un message simple sur l'appli, pas la liste des mises à jour (des notions qu'on ne connaît pas encore)
+    if (MC.accueil && MC.accueil.premiereFois && MC.accueil.premiereFois(role, id)) { showing = true; MC.accueil.bienvenue(role, id).then(function () { showing = false; }); return; }
     var list = unseen(role, id);
     if (!list.length) return;
     showing = true;
@@ -169,5 +176,5 @@ MC.news = (function () {
     return MC.loadGroup().then(function (g) { return pageHtml('e', g.moi.id, ui.topbar({ back: '#/educ/reglages', backLabel: 'Réglages', title: 'Les nouveautés', help: ui.helpLink('educ') })); });
   }, { adult: 'e', nav: 'e:gear', bg: '#2A1640' });
 
-  return { unseen: unseen, markAll: markAll, maybeShow: maybeShow, forRole: forRole };
+  return { unseen: unseen, markAll: markAll, maybeShow: maybeShow, forRole: forRole, jamaisVu: jamaisVu };
 })();

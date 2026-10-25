@@ -451,7 +451,7 @@
     if (e.quizResume && !/^pas fait$/i.test(e.quizResume.trim())) return e.quizResume.split('\n');
     return [];
   }
-  // la partie « Jeu à 10 » de la fiche d'un joueur
+  // les 2 missions sur la fiche d'un joueur (onglet Terrain) : « Choisis ton poste », puis « Avec qui tu aimes jouer »
   MC.missionKid = function (d, g) {
     if (!M.def('poste')) return '';
     var e = M.etat(d, MID), names = prenoms(g), mutual = {};
@@ -460,31 +460,52 @@
     var par = choisiPar(g, d.joueur.id).map(function (j) { return esc(j.prenom); });
     var test = resumeTest(e);
     function pastille(ok) { return ok ? '<span class="pill" style="background:var(--green)">Faite</span>' : '<span class="pill" style="background:var(--orange)">À faire</span>'; }
-    return '<section class="sec"><h2 class="h2">Jeu à 10</h2>' +
+    // deux missions séparées, chacune sous son titre (comme côté enfant)
+    return '<section class="sec"><div class="between"><h2 class="h2">Choisis ton poste</h2>' + pastille(e.posteFait) + '</div>' +
       '<div class="box" style="display:flex;flex-direction:column;gap:10px">' +
-      '<div><span class="between"><span class="mlab">Mission « Choisis ton poste »' + (e.source === 'formulaire' ? ' (site « Choisis ton poste »)' : '') + '</span>' + pastille(e.posteFait) + '</span>' + (e.postes.length ? ptags(e.postes, true) : '<span class="small">Pas encore choisis.</span>') + '</div>' +
+      '<div><span class="mlab">Ses postes, dans l\'ordre</span>' + (e.postes.length ? ptags(e.postes, true) : '<span class="small">Pas encore choisis.</span>') + '</div>' +
       (test.length ? '<details><summary class="small" style="cursor:pointer;color:var(--cyan)">Son test « Aide-moi à choisir »</summary><ul class="small" style="margin:6px 0 0;padding-left:18px;line-height:1.5">' + test.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul></details>' : '') +
+      '</div></section>' +
+      '<section class="sec"><div class="between"><h2 class="h2">Avec qui tu aimes jouer</h2>' + pastille(e.copainsFait) + '</div>' +
       // (retouche UI-13) les préférences de copains restent secrètes : repliées, marquées « éducs uniquement »
-      '<details class="edonly"><summary><span class="mlab">Mission « Avec qui tu aimes jouer »</span><span class="edonly-k">' + icon('lock', 12) + ' Éducs uniquement</span>' + pastille(e.copainsFait) + '</summary>' +
+      '<div class="box"><details class="edonly" style="border-top:0;padding-top:0"><summary><span class="mlab">Ses copains et ceux qui l\'ont choisi</span><span class="edonly-k">' + icon('lock', 12) + ' Éducs uniquement</span></summary>' +
       '<div class="edonly-b"><div><span class="mlab">Ses copains (secret)</span><span class="small" style="color:var(--soft)">' + (cop.length ? cop.join(', ') : (e.copainsFait ? 'Aucun' : 'Pas encore choisis')) + '</span></div>' +
       '<div><span class="mlab">L\'ont choisi comme copain</span><span class="small" style="color:var(--soft)">' + (par.length ? par.join(', ') : 'Personne pour l\'instant') + '</span></div>' +
       (cop.length && Object.keys(mutual).length ? '<span class="small">⇄ en vert : ils se sont choisis l\'un l\'autre.</span>' : '') +
       '</div></details></div></section>';
   };
 
+  // ---------- côté éduc : une page par mission (Progrès › Missions) ----------
   var edMsn = { filtre: 'all' };
-  app.route('/educ/mission', function () {
-    return MC.loadGroup().then(function (g) { app.refreshNav(); return paintEducMission(g); });
+  app.route('/educ/mission', function () { app.go('#/educ/mission/poste', true); return Promise.resolve('<main class="screen"></main>'); }, { adult: 'e', nav: 'e:progres', bg: '#2A1640' });
+  app.route('/educ/mission/:id', function (p) {
+    return MC.loadGroup().then(function (g) { app.refreshNav(); return p.id === 'copains' ? paintEducCopains(g) : paintEducPoste(g); });
   }, { adult: 'e', nav: 'e:progres', bg: '#2A1640' });
-  function paintEducMission(g) {
-    var names = prenoms(g);
-    var players = g.joueurs.filter(function (p) { return p.joueur.actif && !/^test$/i.test(p.joueur.prenom); }).sort(function (a, b) { return a.joueur.prenom.localeCompare(b.joueur.prenom, 'fr'); });
-    var nPoste = 0, nCop = 0, rien = 0, choix1 = {}, autres = {};
+  function joueursMission(g) {
+    return g.joueurs.filter(function (p) { return p.joueur.actif && !/^test$/i.test(p.joueur.prenom); }).sort(function (a, b) { return a.joueur.prenom.localeCompare(b.joueur.prenom, 'fr'); });
+  }
+  function pastilleFaite(ok) { return '<span class="pill" style="background:' + (ok ? 'var(--green)' : 'var(--orange)') + '">' + (ok ? 'Faite' : 'À faire') + '</span>'; }
+  var LAB = 'style="text-transform:none;font-family:var(--f-body);letter-spacing:0;font-size:12px"';
+  function tuilesMission(n, tot, quoi) {
+    return '<div class="grid2"><div class="tile"><span class="v" style="color:var(--green)">' + n + '</span><span class="l" ' + LAB + '>' + quoi + '</span></div>' +
+      '<div class="tile"><span class="v" style="color:var(--orange)">' + (tot - n) + '</span><span class="l" ' + LAB + '>pas encore</span></div></div>';
+  }
+  function filtresMission(tot, todo) {
+    return '<div class="grid2"><button type="button" class="opt' + (edMsn.filtre === 'all' ? ' on' : '') + '" aria-pressed="' + (edMsn.filtre === 'all') + '" data-act="msnFiltre" data-v="all">Tous · ' + tot + '</button>' +
+      '<button type="button" class="opt' + (edMsn.filtre === 'todo' ? ' on' : '') + '" style="--oc:var(--orange)" aria-pressed="' + (edMsn.filtre === 'todo') + '" data-act="msnFiltre" data-v="todo">Pas encore · ' + todo + '</button></div>';
+  }
+  function ligneJoueur(p, ok, contenu) {
+    return '<li><a class="li" href="#/educ/joueur/' + esc(p.joueur.id) + '?t=terrain" style="align-items:flex-start">' + ui.hexa(p.joueur.prenom, p.joueur.couleur) +
+      '<span class="grow" style="display:flex;flex-direction:column;gap:6px"><span class="between"><span class="t1">' + esc(p.joueur.prenom.toUpperCase()) + '</span>' + pastilleFaite(ok) + '</span>' + contenu + '</span></a></li>';
+  }
+  // « Choisis ton poste » : qui l'a faite, les postes demandés
+  function paintEducPoste(g) {
+    var players = joueursMission(g), n = 0, choix1 = {}, autres = {};
     M.POSTES.forEach(function (p) { choix1[p.id] = []; autres[p.id] = []; });
     players.forEach(function (p) {
       var e = etatDe(p);
-      if (e.posteFait) nPoste++; if (e.copainsFait) nCop++; if (!e.posteFait && !e.copainsFait) rien++;
-      e.postes.forEach(function (id, i) { (i === 0 ? choix1 : autres)[id].push(p.joueur.prenom + (i ? ' (' + (i + 1) + ')' : '')); });
+      if (e.posteFait) n++;
+      e.postes.forEach(function (id, i) { if (choix1[id]) (i === 0 ? choix1 : autres)[id].push(p.joueur.prenom + (i ? ' (' + (i + 1) + ')' : '')); });
     });
     var max = 1;
     M.POSTES.forEach(function (p) { max = Math.max(max, choix1[p.id].length + autres[p.id].length); });
@@ -494,43 +515,35 @@
         '<span class="tr"><i style="width:' + (a / max * 100) + '%;background:' + p.color + '"></i><i style="width:' + (b / max * 100) + '%;background:' + hexA(p.color, 0.35) + '"></i></span><span class="n" style="color:' + p.color + '">' + a + (b ? '+' + b : '') + '</span></summary>' +
         '<p class="small" style="margin:6px 0 4px">' + (a || b ? (a ? '<b style="color:var(--ink)">Choix 1 :</b> ' + choix1[p.id].map(esc).join(', ') : '') + (b ? (a ? '<br>' : '') + '<b style="color:var(--ink)">Choix 2 ou 3 :</b> ' + autres[p.id].map(esc).join(', ') : '') : 'Personne pour l\'instant.') + '</p></details>';
     }).join('');
-    var list = players.filter(function (p) { var e = etatDe(p); return edMsn.filtre === 'all' || (edMsn.filtre === 'todo' && !(e.posteFait && e.copainsFait)); });
-    var rows = list.map(function (p) {
-      var e = etatDe(p), cop = e.copains.map(function (id) { return names[id]; }).filter(Boolean);
-      var tag = '<span class="row" style="gap:4px;flex-wrap:wrap;justify-content:flex-end"><span class="pill" style="background:' + (e.posteFait ? 'var(--green)' : 'var(--orange)') + '">Poste</span><span class="pill" style="background:' + (e.copainsFait ? 'var(--green)' : 'var(--orange)') + '">Copains</span></span>';
-      return '<li><a class="li" href="#/educ/joueur/' + esc(p.joueur.id) + '" style="align-items:flex-start">' + ui.hexa(p.joueur.prenom, p.joueur.couleur) +
-        '<span class="grow" style="display:flex;flex-direction:column;gap:6px"><span class="between"><span class="t1">' + esc(p.joueur.prenom.toUpperCase()) + '</span>' + tag + '</span>' +
-        (e.postes.length ? ptags(e.postes, true) : '') +
-        (cop.length ? '<span class="t2">Copains : ' + cop.map(esc).join(', ') + '</span>' : '') + '</span></a></li>';
-    }).join('');
-    var imp = g.importPostes;
-    var impTxt = imp ? 'Dernière reprise le ' + esc(ui.fmtDate(String(imp.quand).slice(0, 10))) + ' : ' + imp.reponses + ' réponse' + (imp.reponses > 1 ? 's' : '') + ', ' + imp.importes + ' reprise' + (imp.importes > 1 ? 's' : '') + '.' +
-      (imp.inconnus && imp.inconnus.length ? ' Pas reconnus : ' + imp.inconnus.map(esc).join(', ') + '.' : '') + (imp.ambigus && imp.ambigus.length ? ' Homonymes à vérifier : ' + imp.ambigus.map(esc).join(', ') + '.' : '') : 'Pas encore de reprise.';
-    var lab = 'style="text-transform:none;font-family:var(--f-body);letter-spacing:0;font-size:12px"';
-    return '<main class="screen">' + MC.educBar(g, 'Le jeu à 10', '#/educ/missions', 'Missions') +
-      '<div class="head"><span class="kicker" style="color:var(--gold)">2 missions spéciales · ' + players.length + ' joueurs</span><h1 class="big md">Le jeu à 10</h1>' +
-      '<p class="lead">Deux missions séparées : « Choisis ton poste » (1 à 3 postes, dans l\'ordre), puis « Avec qui tu aimes jouer » (les copains, secrets : seuls les éducs les voient).</p></div>' +
-      '<div class="grid3"><div class="tile"><span class="v" style="color:var(--green)">' + nPoste + '</span><span class="l" ' + lab + '>ont choisi leur poste</span></div>' +
-      '<div class="tile"><span class="v" style="color:var(--green)">' + nCop + '</span><span class="l" ' + lab + '>ont choisi leurs copains</span></div>' +
-      '<div class="tile"><span class="v" style="color:var(--orange)">' + rien + '</span><span class="l" ' + lab + '>aucune des deux</span></div></div>' +
-      '<div class="cols2"><section class="sec"><h2 class="h2">Postes demandés</h2><p class="small" style="margin:0">Barre pleine = choix n°1, barre pâle = choix 2 ou 3. Touchez un poste pour voir les prénoms.</p><div class="pbars">' + bars + '</div>' +
-      '<h2 class="h2" style="margin-top:12px">Ancien site « Choisis ton poste »</h2>' +
-      '<p class="small" style="margin:0">Les réponses envoyées avec l\'ancien site sont reprises dans l\'appli (un enfant qui a déjà choisi dans l\'appli garde ses choix). Il faut que le formulaire range ses réponses dans la feuille de l\'appli : Google Forms › Réponses › Associer à Sheets › feuille existante.</p>' +
-      '<p class="small" style="margin:0;color:var(--soft)">' + impTxt + '</p>' +
-      '<button type="button" class="btn2" data-act="msnImport">' + icon('refresh', 16) + ' Reprendre les réponses du formulaire</button></section>' +
-      '<section class="sec"><h2 class="h2">Les joueurs</h2>' +
-      '<div class="grid2"><button type="button" class="opt' + (edMsn.filtre === 'all' ? ' on' : '') + '" aria-pressed="' + (edMsn.filtre === 'all') + '" data-act="msnFiltre" data-v="all">Tous · ' + players.length + '</button>' +
-      '<button type="button" class="opt' + (edMsn.filtre === 'todo' ? ' on' : '') + '" style="--oc:var(--orange)" aria-pressed="' + (edMsn.filtre === 'todo') + '" data-act="msnFiltre" data-v="todo">Pas finies · ' + players.filter(function (p) { var e = etatDe(p); return !(e.posteFait && e.copainsFait); }).length + '</button></div>' +
+    var list = players.filter(function (p) { return edMsn.filtre === 'all' || !etatDe(p).posteFait; });
+    var rows = list.map(function (p) { var e = etatDe(p); return ligneJoueur(p, e.posteFait, e.postes.length ? ptags(e.postes, true) : '<span class="t2">Pas encore choisi</span>'); }).join('');
+    return '<main class="screen">' + MC.educBar(g, 'Choisis ton poste', '#/educ/missions', 'Missions') +
+      '<div class="head"><span class="kicker" style="color:var(--gold)">Mission spéciale · ' + players.length + ' joueurs</span><h1 class="big md">Choisis ton poste</h1>' +
+      '<p class="lead">Chaque enfant choisit 1 à 3 postes, dans l\'ordre, avec les 7 cartes ou le test « Aide-moi à choisir ». Ensuite, il peut faire « <a href="#/educ/mission/copains">Avec qui tu aimes jouer</a> ».</p></div>' +
+      tuilesMission(n, players.length, 'ont choisi leur poste') +
+      '<div class="cols2"><section class="sec"><h2 class="h2">Postes demandés</h2><p class="small" style="margin:0">Barre pleine = choix n°1, barre pâle = choix 2 ou 3. Touchez un poste pour voir les prénoms.</p><div class="pbars">' + bars + '</div></section>' +
+      '<section class="sec"><h2 class="h2">Les joueurs</h2>' + filtresMission(players.length, players.length - n) +
       '<ul class="list">' + (rows || '<li class="empty">Personne.</li>') + '</ul></section></div></main>';
   }
+  // « Avec qui tu aimes jouer » : les copains de chacun (secret : seuls les éducs les voient)
+  function paintEducCopains(g) {
+    var players = joueursMission(g), names = prenoms(g), n = 0;
+    players.forEach(function (p) { if (etatDe(p).copainsFait) n++; });
+    var list = players.filter(function (p) { return edMsn.filtre === 'all' || !etatDe(p).copainsFait; });
+    var rows = list.map(function (p) {
+      var e = etatDe(p), par = choisiPar(g, p.joueur.id), mutual = {};
+      par.forEach(function (j) { mutual[j.id] = true; });
+      var cop = e.copains.map(function (id) { return names[id] ? (mutual[id] ? '<b style="color:var(--green)">' + esc(names[id]) + ' ⇄</b>' : esc(names[id])) : ''; }).filter(Boolean);
+      return ligneJoueur(p, e.copainsFait, '<span class="t2">' + (cop.length ? 'Copains : ' + cop.join(', ') : e.copainsFait ? 'Aucun copain choisi' : (e.posteFait ? 'Pas encore choisi' : 'Pas encore choisi (son poste d\'abord)')) + '</span>' +
+        '<span class="t2">' + (par.length ? 'Choisi par ' + par.length + ' enfant' + (par.length > 1 ? 's' : '') : 'Personne ne l\'a encore choisi') + '</span>');
+    }).join('');
+    return '<main class="screen">' + MC.educBar(g, 'Avec qui tu aimes jouer', '#/educ/missions', 'Missions') +
+      '<div class="head"><span class="kicker" style="color:var(--gold)">Mission spéciale · ' + players.length + ' joueurs</span><h1 class="big md">Avec qui tu aimes jouer</h1>' +
+      '<p class="lead">Chaque enfant choisit ses copains, sans limite. Elle s\'ouvre une fois « <a href="#/educ/mission/poste">Choisis ton poste</a> » faite.</p></div>' +
+      '<div class="note">' + icon('lock', 20) + '<span><b>Secret :</b> seuls les éducs voient les copains, ni les autres enfants ni les parents. ⇄ en vert : ils se sont choisis l\'un l\'autre.</span></div>' +
+      tuilesMission(n, players.length, 'ont choisi leurs copains') +
+      '<section class="sec"><h2 class="h2">Les joueurs</h2>' + filtresMission(players.length, players.length - n) +
+      '<ul class="list">' + (rows || '<li class="empty">Personne.</li>') + '</ul></section></main>';
+  }
   MC.act.msnFiltre = function (b) { edMsn.filtre = b.getAttribute('data-v'); app.rerender(); };
-  MC.act.msnImport = function (b) {
-    b.disabled = true;
-    app.adultCall('importPostes', {}).then(function (r) {
-      var i = r.info;
-      ui.toast(i.importes ? i.importes + ' joueur' + (i.importes > 1 ? 's' : '') + ' repris du formulaire' : 'Rien de nouveau dans le formulaire');
-      return MC.loadGroup(true);
-    }).then(function () { app.rerender(); })
-      .catch(function (e) { b.disabled = false; ui.toast(e.code === 'invalide' ? 'Le serveur doit d\'abord être mis à jour.' : e.message, true); });
-  };
 })();

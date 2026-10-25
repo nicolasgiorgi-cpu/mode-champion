@@ -16,8 +16,9 @@ def pin(pg, code, sel='.modal'):
 def noscroll(pg): return pg.evaluate('document.scrollingElement.scrollWidth <= innerWidth + 1')
 def nb(pg): return pg.evaluate("(function(){var a=document.querySelectorAll('#nav a')[1];var n=a&&a.querySelector('.nb');return n?+n.textContent:0})()")
 def close_news(pg):
-    if pg.query_selector('.modal.sheet-news'):
-        pg.click('.modal.sheet-news button[data-i="0"]'); pg.wait_for_timeout(300)
+    for k in ['.modal.sheet-news', '.modal.sheet-bvn']:
+        if pg.query_selector(k):
+            pg.click(k + ' button[data-i="0"]'); pg.wait_for_timeout(300)
 def pick(pg, nom):
     pg.click('[data-act="adultPick"][data-nom="%s"]' % nom); pg.wait_for_timeout(300)
 with sync_playwright() as p:
@@ -25,7 +26,13 @@ with sync_playwright() as p:
     pg.on('pageerror', lambda e: errs.append(str(e)))
     pg.goto(BASE); pg.evaluate('localStorage.clear()'); pg.reload(); pg.wait_for_timeout(700)
     pg.click('.kidbtn:has-text("TOM")'); pg.wait_for_timeout(300); pin(pg, '2580'); pg.wait_for_timeout(1200)
-    check('nouveauté de la mission à l\'ouverture', pg.query_selector('.modal.sheet-news') is not None and 'jeu à 10' in pg.inner_text('.modal.sheet-news'))
+    # 1re ouverture sur cet appareil : le message de bienvenue, pas les mises à jour
+    check('1re ouverture : bienvenue simple, pas les nouveautés', pg.query_selector('.modal.sheet-bvn') is not None and pg.query_selector('.modal.sheet-news') is None)
+    close_news(pg)
+    # un joueur qui revient (il a déjà vu l'appli sur ce téléphone) : les nouveautés pas encore vues
+    pg.evaluate("(() => { const id = MC.app.S.me.joueur.id, o = JSON.parse(localStorage.getItem('mc-news') || '{}'); o['k:' + id] = o['k:' + id].filter(x => x.indexOf('jeu10') < 0); localStorage.setItem('mc-news', JSON.stringify(o)); })()")
+    pg.reload(); pg.wait_for_timeout(1500)
+    check('retour : nouveauté de la mission', pg.query_selector('.modal.sheet-news') is not None and 'jeu à 10' in pg.inner_text('.modal.sheet-news').lower(), pg.inner_text('.modal') if pg.query_selector('.modal') else '')
     close_news(pg)
     check('bandeau « Nouveau dans Missions » sur Prépa', pg.query_selector('.nbanner') is not None)
     n0 = nb(pg)
@@ -139,22 +146,34 @@ with sync_playwright() as p:
         pg.click('[data-act="obEducDone"]'); pg.wait_for_timeout(1000)
     close_news(pg)
     pg.goto(BASE + '#/educ/missions'); pg.wait_for_timeout(700)
-    check('Progrès › Missions : lien jeu à 10', pg.query_selector('a[href="#/educ/mission"]') is not None)
-    pg.click('a[href="#/educ/mission"]'); pg.wait_for_timeout(700)
+    # deux missions séparées, chacune sa page et son titre
+    check('Progrès › Missions : 2 liens séparés', pg.query_selector('a[href="#/educ/mission/poste"]') is not None and pg.query_selector('a[href="#/educ/mission/copains"]') is not None)
+    pg.click('a[href="#/educ/mission/poste"]'); pg.wait_for_timeout(700)
     t = pg.inner_text('main').upper()
-    check('éduc : vue de la mission', 'POSTES DEMANDÉS' in t and len(pg.query_selector_all('.pbar')) == 7, t[:200])
-    check('éduc : pas de joueur Test', 'TEST' not in t)
-    check('pas de défilement horizontal (éduc mission)', noscroll(pg))
-    full(pg, 'm14-educ-mission')
-    pg.click('[data-act="msnImport"]'); pg.wait_for_timeout(600)
-    check('reprise du formulaire : message clair en démo', 'serveur Google' in pg.inner_text('#toast'), pg.inner_text('#toast'))
+    check('éduc : page « Choisis ton poste »', 'CHOISIS TON POSTE' in pg.inner_text('main h1').upper() and 'POSTES DEMANDÉS' in t and len(pg.query_selector_all('.pbar')) == 7, t[:200])
+    check('éduc : poste, ni « jeu à 10 » en titre ni les copains', 'JEU À 10' not in t and 'COPAINS :' not in t, t[:300])
+    check('éduc : plus de reprise de l\'ancien site', pg.query_selector('[data-act="msnImport"]') is None and 'ANCIEN SITE' not in t and 'FORMULAIRE' not in t)
+    check('éduc : pas de joueur Test', 'TEST' not in [x.inner_text().strip().upper() for x in pg.query_selector_all('main .list .t1')])
+    check('pas de défilement horizontal (éduc poste)', noscroll(pg))
+    full(pg, 'm14-educ-poste')
+    pg.goto(BASE + '#/educ/missions'); pg.wait_for_timeout(600)
+    pg.click('a[href="#/educ/mission/copains"]'); pg.wait_for_timeout(700)
+    t = pg.inner_text('main').upper()
+    check('éduc : page « Avec qui tu aimes jouer »', 'AVEC QUI TU AIMES JOUER' in pg.inner_text('main h1').upper() and 'COPAINS :' in t and 'SECRET' in t, t[:300])
+    check('éduc : copains, pas les postes demandés', 'POSTES DEMANDÉS' not in t and len(pg.query_selector_all('.pbar')) == 0)
+    check('éduc : copain réciproque sur la page copains', '⇄' in t)
+    check('pas de défilement horizontal (éduc copains)', noscroll(pg))
+    full(pg, 'm14b-educ-copains')
+    pg.goto(BASE + '#/educ/mission'); pg.wait_for_timeout(700)
+    check('ancien lien #/educ/mission → « Choisis ton poste »', '#/educ/mission/poste' in pg.url, pg.url)
     tid = pg.evaluate("MC.app.S.cache.group.joueurs.find(p=>p.joueur.prenom==='Tom').joueur.id")
     pg.goto(BASE + '#/educ/joueur/' + tid + '?t=terrain'); pg.wait_for_timeout(900)
     # (visuels v2) les copains sont repliés, « éducs uniquement » : on ouvre
     check('fiche : copains repliés « éducs uniquement »', pg.get_attribute('.edonly', 'open') is None and 'UNIQUEMENT' in pg.inner_text('.edonly summary').upper())
     pg.click('.edonly summary'); pg.wait_for_timeout(200)
     t = pg.inner_text('main').upper()
-    check('fiche : partie Jeu à 10', 'JEU À 10' in t and 'SES COPAINS' in t, t[:200])
+    h2 = [x.inner_text().strip().upper() for x in pg.query_selector_all('main h2')]
+    check('fiche : les 2 missions sous leur titre', 'CHOISIS TON POSTE' in h2 and 'AVEC QUI TU AIMES JOUER' in h2 and 'JEU À 10' not in h2 and 'SES COPAINS' in t, h2)
     check('fiche : copain réciproque (Sacha ⇄)', 'SACHA ⇄' in t)
     check('fiche : choisi par Sacha', "L'ONT CHOISI" in t)
     full(pg, 'm15-educ-fiche')

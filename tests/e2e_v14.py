@@ -19,9 +19,10 @@ with sync_playwright() as p:
     # --- joueur existant (Tom) : nouveautés à l'ouverture
     pg.click('.kidbtn:has-text("TOM")'); pg.wait_for_timeout(300); pin(pg,'2580'); pg.wait_for_timeout(1200)
     check('Tom : semaine', '#/semaine' in pg.url, pg.url)
-    check('Tom : « Quoi de neuf ? »', pg.query_selector('.modal.sheet-news') is not None)
-    shot(pg,'k01-news')
-    if pg.query_selector('.modal.sheet-news'): pg.click('.modal.sheet-news button[data-i="0"]'); pg.wait_for_timeout(300)
+    # 1re ouverture sur cet appareil : un message simple sur l'appli, pas la liste des mises à jour
+    check('Tom : message de bienvenue simple (pas « Quoi de neuf ? »)', pg.query_selector('.modal.sheet-bvn') is not None and pg.query_selector('.modal.sheet-news') is None and len(pg.query_selector_all('.modal .obres li')) == 4)
+    shot(pg,'k01-bienvenue')
+    if pg.query_selector('.modal.sheet-bvn'): pg.click('.modal.sheet-bvn button[data-i="0"]'); pg.wait_for_timeout(300)
     check('barre du haut + onglets', pg.query_selector('.topbar') is not None and pg.is_visible('#nav') and len(pg.query_selector_all('#nav a'))==4)
     nb=pg.evaluate("(()=>{const n=document.getElementById('nav').getBoundingClientRect();return [n.bottom, innerHeight, n.left, n.right, innerWidth]})()")
     if W<1000: check('onglets collés en bas, pleine largeur', abs(nb[0]-nb[1])<1 and nb[2]==0 and abs(nb[3]-nb[4])<1, nb)

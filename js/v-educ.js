@@ -539,7 +539,7 @@ window.MC = window.MC || {};
     var kids = actifs(gr), groupe = '';
     MC.MISSIONS.forEach(function (Dx) {   // les 2 missions du jeu à 10 : le poste, les copains
       var f = kids.filter(function (p) { return M.etat({ missions: p.missions || [] }, Dx.id).faite; }).length;
-      groupe += '<li><a class="li mrow" href="#/educ/mission"><span class="mtag">' + (Dx.id === 'poste' ? 'Poste' : 'Copains') + '</span><span class="grow"><span class="t1">' + esc(Dx.titre) + '</span><span class="t2">' + f + ' / ' + kids.length + ' l\'ont faite' + (kids.length - f ? ' · ' + (kids.length - f) + ' pas encore' : '') + '</span></span>' + icon('right', 16) + '</a></li>';
+      groupe += '<li><a class="li mrow" href="#/educ/mission/' + Dx.id + '"><span class="mtag">' + (Dx.id === 'poste' ? 'Poste' : 'Copains') + '</span><span class="grow"><span class="t1">' + esc(Dx.titre) + '</span><span class="t2">' + f + ' / ' + kids.length + ' l\'ont faite' + (kids.length - f ? ' · ' + (kids.length - f) + ' pas encore' : '') + '</span></span>' + icon('right', 16) + '</a></li>';
     });
     (gr.defmissions || []).filter(function (m) { return m.sorte !== 'etoile' && m.statut !== 'retiree'; }).sort(function (a, b) { return a.cree < b.cree ? 1 : -1; }).forEach(function (m) {
       var s = statsGroupe(gr, m);

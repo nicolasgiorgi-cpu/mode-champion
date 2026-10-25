@@ -1574,3 +1574,8 @@ textarea.txt{min-height:84px;padding:10px 12px;resize:vertical;font:500 16px/1.4
   .bk-top,.bk-bot{background:linear-gradient(160deg,#2A1430 0%,#120A1A 60%,#0B0712 100%)}
   .bk-glow{background:radial-gradient(circle,rgba(255,214,120,.55) 0%,transparent 70%)}
 }
+/* ---------- le 1er message : l'appli en 4 lignes ---------- */
+.obres{list-style:none;margin:4px 0 8px;padding:0;display:flex;flex-direction:column;gap:10px}
+.obres li{display:flex;align-items:flex-start;gap:12px;padding:10px 12px;background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--rc);font-size:15px;line-height:1.4;color:var(--soft)}
+.obres li svg{flex:none;color:var(--rc);margin-top:1px}
+.obres li b{color:var(--ink)}

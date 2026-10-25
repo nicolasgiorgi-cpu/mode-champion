@@ -165,7 +165,8 @@ with sync_playwright() as p:
     visit(pg, '#/educ/reglages', 'e21-reglages', '', 'Réglages')
     visit(pg, '#/educ/classement', 'e22-classement', 'Progrès', "L'arène")
     visit(pg, '#/educ/progres/bilans', 'e23-bilans', 'Progrès')
-    visit(pg, '#/educ/mission', 'e24-jeu10', 'Progrès')
+    visit(pg, '#/educ/mission/poste', 'e24-poste', 'Progrès', 'Choisis ton poste')
+    visit(pg, '#/educ/mission/copains', 'e24b-copains', 'Progrès', 'Avec qui tu aimes jouer')
     b.close()
 print('ERREURS JS :', errs if errs else 'aucune')
 bad = [n for n, c in res if not c]

@@ -449,6 +449,19 @@ var Core = (function () {
     }
   };
 
+  // (25/10) un parent ouvre l'espace de son enfant sans le code de l'enfant (il est déjà entré avec le code de la famille) ;
+  // un éduc aussi, pour son propre enfant (engrenage › Mon enfant). L'enfant arrive sur sa semaine, ou choisit son code
+  // s'il n'en a pas encore.
+  A.ouvrirEnfant = {
+    auth: ['f', 'e'],
+    run: function (req, ctx) {
+      var j = find(ctx.db.rows('joueurs'), String(req.joueurId || ''));
+      if (!j || !j.actif) fail('introuvable', 'Joueur introuvable.');
+      var ok = ctx.auth.r === 'f' ? j.familleId === ctx.auth.id : (mesEnfantsEduc(ctx) || []).indexOf(j.id) >= 0;
+      if (!ok) fail('interdit', ctx.auth.r === 'f' ? 'Ce joueur n\'est pas dans votre famille.' : 'Ce n\'est pas votre enfant (engrenage › Mon enfant).');
+      return { token: makeToken(ctx.secret, 'p', j.id, Number(j.pinV || 0), ctx.now + TOKEN_JOUEUR), joueur: pubJoueur(j), me: j.mustChange ? null : dossier(ctx, j, true) };
+    }
+  };
   A.setPin = {
     auth: ['p'],
     run: function (req, ctx) {
