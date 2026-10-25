@@ -1,7 +1,7 @@
 /* =========================================================
    Mode champion · M12 — ÉDUCS : Progrès › Skills et Missions, le +1, la fiche d'un enfant
-   - Skills : évaluer pendant la séance (domaine › étoile › les présents), le passeport du groupe,
-     la journée d'évaluation (groupes qui tournent, 3 essais par critère, étoile à 2 sur 3).
+   - Skills : évaluer (un seul écran, Skills v2 : une étoile = la liste, un atelier = la grille, groupes d'ateliers,
+     gardé sur le téléphone puis envoyé à la fin, brille après un plateau, demandes des enfants), le passeport du groupe.
    - Missions : pour le groupe (vidéo + questions, QCM, et « Prépare le jeu à 10 »),
      individuelles (décrocher une étoile précise).
    - Le +1 : d'un seul toucher sur la skill demandée, un mot si on veut. Jusqu'à 5 par mission ;
@@ -66,15 +66,17 @@ window.MC = window.MC || {};
       }).then(function (v) { if (v === 'ok') valider([{ joueurId: jid, domaine: m.domaine, etoile: m.etoile }], evId).then(function () { app.rerender(); }); else app.rerender(); });
     }, 120);
   }
-  function valider(list, evId, btn) {
+  function valider(list, evId, btn, brille) {
     var gr = G(), o = occasionCtx(evId);
     if (btn) btn.disabled = true;
-    return app.adultCall('validerEtoiles', { etoiles: list, evenementId: o.evenementId, occasion: o.occasion }).then(function (r) {
-      r.etoiles.forEach(function (e) { var x = jp(gr, e.joueurId); if (x) { x.etoiles = x.etoiles || []; x.etoiles.push(e); } });
+    return app.adultCall('validerEtoiles', { etoiles: list, evenementId: o.evenementId, occasion: o.occasion, brille: !!brille }).then(function (r) {
+      r.etoiles.forEach(function (e) { var x = jp(gr, e.joueurId); if (x) { x.etoiles = (x.etoiles || []).filter(function (y) { return y.id !== e.id; }); x.etoiles.push(e); } });
+      // une demande de l'enfant sur une étoile validée est close par le serveur : pareil ici
+      list.forEach(function (it) { var x = jp(gr, it.joueurId); (x && x.demandes || []).forEach(function (d) { if (d.statut === 'attente' && d.domaine === it.domaine && d.etoile === it.etoile && (d.sorte !== 'briller' || brille)) d.statut = 'oui'; }); });
       (r.missionsFaites || []).forEach(function (id) { (gr.defmissions || []).forEach(function (m) { if (m.id === id) { m.statut = 'faite'; m.faiteLe = L.today(); } }); });
       persist();
-      if (r.etoiles.length === 1) { var e0 = r.etoiles[0], s = SK.star(e0.domaine, e0.etoile); ui.toast('★ ' + (s ? s.nom : 'Étoile') + ' validée pour ' + nomDe(gr, e0.joueurId) + (r.missionsFaites && r.missionsFaites.length ? ' · mission réussie !' : '')); }
-      else ui.toast(r.etoiles.length + ' étoile' + (r.etoiles.length > 1 ? 's' : '') + ' validée' + (r.etoiles.length > 1 ? 's' : '') + (r.deja ? ' · ' + r.deja + ' déjà acquise' + (r.deja > 1 ? 's' : '') : ''));
+      if (r.etoiles.length === 1) { var e0 = r.etoiles[0], s = SK.star(e0.domaine, e0.etoile); ui.toast('★ ' + (s ? s.nom : 'Étoile') + (r.brillees ? ' brille' : ' validée') + ' pour ' + nomDe(gr, e0.joueurId) + (r.missionsFaites && r.missionsFaites.length ? ' · mission réussie !' : '')); }
+      else ui.toast(r.etoiles.length + ' étoile' + (r.etoiles.length > 1 ? 's' : '') + ' envoyée' + (r.etoiles.length > 1 ? 's' : '') + (r.brillees ? ' (' + r.brillees + ' qui brille' + (r.brillees > 1 ? 'nt' : '') + ')' : '') + (r.deja ? ' · ' + r.deja + ' déjà acquise' + (r.deja > 1 ? 's' : '') : ''));
       return r;
     }).catch(function (e) { if (btn) btn.disabled = false; ui.toast(e.message, true); throw e; });
   }
@@ -94,6 +96,18 @@ window.MC = window.MC || {};
         x.etoiles = x.etoiles.filter(function (y) { return y.id !== id; });
         (r.missionsRouvertes || []).forEach(function (mid) { (gr.defmissions || []).forEach(function (m) { if (m.id === mid) { m.statut = 'active'; m.faiteLe = ''; } }); });
         persist(); ui.toast('Étoile retirée'); app.rerender();
+      }).catch(function (er) { ui.toast(er.message, true); });
+    });
+  };
+  MC.act.eteEtoile = function (b) {
+    var gr = G(), id = b.getAttribute('data-id'), x = jp(gr, b.getAttribute('data-j')), e = x && (x.etoiles || []).filter(function (y) { return y.id === id; })[0];
+    if (!e) return;
+    var s = SK.star(e.domaine, e.etoile);
+    ui.modal({ title: 'Éteindre cette étoile ?', body: '<p class="lead"><b>' + esc(SK.dom(e.domaine).nom + ' · ' + (s ? s.nom : '')) + '</b> de ' + esc(x.joueur.prenom) + ' ne brille plus, mais reste gagnée.</p>', actions: [{ label: 'Éteindre', value: true, cls: 'btn pink' }, { label: 'Annuler', value: false, cls: 'btn2 grey' }] }).then(function (ok) {
+      if (!ok) return;
+      app.adultCall('retirerEtoile', { id: id, eteindre: true }).then(function () {
+        e.brille = ''; e.brilleParNom = ''; e.brilleOccasion = ''; e.brilleParQui = '';
+        persist(); ui.toast('Étoile éteinte'); app.rerender();
       }).catch(function (er) { ui.toast(er.message, true); });
     });
   };
@@ -127,8 +141,9 @@ window.MC = window.MC || {};
         (today ? '<b style="color:var(--green)">' + icon('check', 12) + ' +1 envoyé aujourd\'hui · il le voit</b>' : n + ' +1 reçu' + (n > 1 ? 's' : '')) + (n >= SK.PROPOSE_AU ? ' · étoile à valider quand vous voulez' : '') + '</span></a>' +
         '<a class="cbtn grey" href="#/educ/encourager/' + esc(x.id) + '?m=' + esc(x.m.id) + '&evt=' + esc(e.id) + '" aria-label="+1 avec un mot pour ' + esc(nomDe(gr, x.id)) + '">' + icon('edit', 16) + '</a>' + btnPlus1(gr, x.id, x.m, e.id) + '</li>';
     }).join('');
-    return '<section class="sec"><h2 class="h2">' + (train ? 'Pendant la séance' : 'Pendant et après le plateau') + '</h2>' +
-      '<a class="li" href="#/educ/skills?evt=' + esc(e.id) + '">' + icon('star', 20, 'style="color:var(--gold);flex:none"') + '<span class="grow"><span class="t1">Évaluer des Skills</span><span class="t2">Avec les ' + pres.length + ' présents du jour</span></span>' + icon('right', 16) + '</a>' +
+    var nq = (function () { var st = evs(); return (st.q[qKey(e.id)] || []).length; })();
+    return '<section class="sec"><h2 class="h2">' + (train ? 'Après la séance' : 'Après le plateau') + '</h2>' +
+      '<a class="li" href="#/educ/skills?evt=' + esc(e.id) + '">' + icon(train ? 'star' : 'spark', 20, 'style="color:var(--gold);flex:none"') + '<span class="grow"><span class="t1">' + (train ? 'Évaluer des Skills' : 'Faire briller des étoiles') + '</span><span class="t2">' + (nq ? '<b style="color:var(--pink)">' + nq + ' pas encore envoyée' + (nq > 1 ? 's' : '') + '</b> · ' : '') + 'Avec les ' + pres.length + ' présents' + (train ? ' · une étoile ou un atelier' : ' · elles brillent') + '</span></span>' + icon('right', 16) + '</a>' +
       '<div class="between" style="margin-top:6px"><span class="mlab" style="margin:0">Missions des présents</span><span class="small">un toucher = +1</span></div>' +
       (list ? '<ul class="list">' + list + '</ul>' : '<p class="small" style="margin:0">Aucun présent n\'a de mission perso pour l\'instant. Donnez-en une depuis Progrès › Missions ou la fiche d\'un enfant.</p>') +
       '<button type="button" class="li" data-act="encAutre" data-ev="' + esc(e.id) + '">' + icon('heart', 20, 'style="color:var(--green);flex:none"') + '<span class="grow"><span class="t1">Encourager un autre enfant</span><span class="t2">Un +1 avec un mot, sur sa mission ou autre chose</span></span>' + icon('right', 16) + '</button></section>';
@@ -203,43 +218,197 @@ window.MC = window.MC || {};
   document.addEventListener('hashchange', function () { if (location.hash.indexOf('#/educ/encourager/') !== 0) ENC = null; });
 
   // ======================================================================
-  // Progrès › Skills : évaluer (domaine › étoile › les enfants présents)
+  // Progrès › Skills : ÉVALUER (Skills v2, 25/10/2026) — un seul écran pour tout
+  // - 1 étoile choisie : la liste des enfants ; plusieurs (un atelier) : une grille enfants × étoiles ;
+  // - groupes d'ateliers publiés pour la séance : des pastilles pour n'afficher que le groupe qui arrive ;
+  // - l'éduc touche ceux qui ont réussi (règle des 3 essais, 2 réussis sur 3, dans sa tête) ;
+  // - gardé sur le téléphone (même sans réseau), envoyé en une fois à la fin :
+  //   les enfants découvrent leurs étoiles après l'entraînement ;
+  // - ouvert depuis un plateau : les étoiles touchées brillent (gagnées et brillent si besoin) ;
+  // - les demandes des enfants en haut : Oui / Pas vu.
+  // Remplace « Évaluer des Skills » et la « Journée d'évaluation » (3 cases par essai) de la v26.
   // ======================================================================
-  var SKS = null;
-  function sks() { if (!SKS) SKS = app.lsGet('mc-sks') || { d: 'plaquage', e: 'epaule', evt: '' }; return SKS; }
-  function saveSks() { app.lsSet('mc-sks', SKS); }
+  var EV = null;
+  function evs() {
+    if (!EV) EV = app.lsGet('mc-eval') || {};
+    if (!Array.isArray(EV.sel)) EV.sel = ['plaquage:epaule'];
+    EV.sel = EV.sel.filter(function (k) { var p = SK.parseKey(k); return p && SK.star(p.d, p.e); }).slice(0, SK.MAX_ATELIER);
+    if (!EV.q || typeof EV.q !== 'object') EV.q = {};   // { idÉvénement (ou '_') : ['idJoueur|carte:étoile', …] }
+    if (typeof EV.evt !== 'string') EV.evt = '';
+    if (typeof EV.grp !== 'string') EV.grp = '';
+    if (!SK.dom(EV.d)) EV.d = EV.sel.length ? SK.parseKey(EV.sel[0]).d : SK.DOMAINES[0].id;
+    return EV;
+  }
+  function saveEv() { app.lsSet('mc-eval', EV); }
+  function qKey(evtId) { return evtId || '_'; }
+  function queue(st, evtId) { var k = qKey(evtId === undefined ? st.evt : evtId); if (!Array.isArray(st.q[k])) st.q[k] = []; return st.q[k]; }
+  // combien d'étoiles touchées et pas encore envoyées (tous événements)
+  function enAttente() { var st = evs(), n = 0; Object.keys(st.q).forEach(function (k) { n += (st.q[k] || []).length; }); return n; }
+  MC.evalEnAttente = enAttente;
+  function estPlateau(e) { return !!(e && e.sorte === 'plateau'); }
+  // les groupes d'ateliers publiés (ou au vote) de la séance
+  function groupesDe(e) {
+    var cd = app.S.cache.compos; if (!e || !cd) return [];
+    var c = (cd.compos || []).filter(function (x) { return x.evenementId === e.id && x.partie === 'ateliers' && (x.statut === 'publiee' || x.statut === 'vote'); })[0];
+    if (!c) return [];
+    return (c.equipes || []).map(function (t) { return { id: String(t.id), nom: String(t.nom || t.id), ids: (t.joueurs || []).map(function (j) { return j.id; }) }; }).filter(function (t) { return t.ids.length; });
+  }
+  // les demandes des enfants en attente
+  function demandesAttente(gr) {
+    var out = [];
+    actifs(gr).forEach(function (p) { (p.demandes || []).forEach(function (x) { if (x.statut === 'attente') out.push(x); }); });
+    return out.sort(function (a, b) { return (a.cree || '') < (b.cree || '') ? -1 : 1; });
+  }
+  MC.demandesSkills = function () { var gr = G(); return gr ? demandesAttente(gr).length : 0; };
+  // l'état d'une case : déjà (rien à faire), à toucher, touchée
+  function etat(gr, id, k, plat, q) {
+    var p = SK.parseKey(k), row = etoileDe(gr, id, p.d, p.e);
+    if (row && (!plat || row.brille)) return { deja: true, brille: !!row.brille, row: row };
+    return { deja: false, gagnee: !!row, on: q.indexOf(id + '|' + k) >= 0 };
+  }
+  function nomCourt(s) { return s.nom.length > 14 ? s.nom.slice(0, 13) + '.' : s.nom; }
+
   app.route('/educ/skills', function (p, q) {
     return both().then(function (r) {
-      var gr = r[0], st = sks();
+      var gr = r[0], st = evs();
       app.refreshNav();
-      if (q.evt !== undefined) { st.evt = q.evt; saveSks(); }
-      else if (st.evt && !evtById(st.evt)) st.evt = '';
+      if (q.evt !== undefined && q.evt !== st.evt) { st.evt = q.evt; st.grp = ''; saveEv(); }
+      else if (st.evt && !evtById(st.evt)) { st.evt = ''; st.grp = ''; }
       if (!st.evt && q.evt === undefined) { var ej = evtDuJour(); if (ej) st.evt = ej.id; }
-      return paintSkills(gr, st);
+      return paintEval(gr, st);
     });
   }, { adult: 'e', nav: 'e:progres', bg: '#2E2612' });
-  function paintSkills(gr, st) {
-    var e = st.evt ? evtById(st.evt) : null, ids = e ? presentsDe(e, gr) : actifs(gr).map(function (p) { return p.joueur.id; });
-    var D = SK.dom(st.d) || SK.DOMAINES[0], s = SK.star(D.id, st.e) || D.etoiles[0];
-    var doms = '<div class="skdoms">' + SK.DOMAINES.map(function (x) { var on = x.id === D.id; return '<button type="button" class="opt' + (on ? ' on' : '') + '" style="--oc:' + x.color + '" aria-pressed="' + on + '" data-act="skDom" data-v="' + x.id + '">' + icon(x.icon, 16) + ' ' + esc(x.nom) + '</button>'; }).join('') + '</div>';
-    var stars = '<div class="skstars">' + D.etoiles.map(function (x) { var on = x.id === s.id; return '<button type="button" class="opt' + (on ? ' on' : '') + '" style="--oc:var(--gold)" aria-pressed="' + on + '" data-act="skStar" data-v="' + x.id + '">★ ' + esc(x.nom) + '</button>'; }).join('') + '</div>';
-    var rows = ids.map(function (id) {
-      var acq = etoileDe(gr, id, D.id, s.id), m = persoDe(gr, id), isM = m && m.domaine === D.id && m.etoile === s.id, n = isM ? p1De(gr, id, m.id).length : 0;
-      var right = acq ? '<span class="skok">' + icon('star', 14) + ' Acquise</span>' : (isM ? btnPlus1(gr, id, m, e && e.id, true) : '') + '<button type="button" class="btn2 sm gold" data-act="valEtoile" data-j="' + esc(id) + '" data-d="' + D.id + '" data-e="' + s.id + '"' + (e ? ' data-ev="' + esc(e.id) + '"' : '') + '>Valider ★</button>';
-      return '<li class="li skrow' + (acq ? ' acq' : '') + (isM ? ' mis' : '') + '">' + nivTag(gr, id) + '<span class="grow"><span class="t1">' + esc(nomDe(gr, id)) + '</span>' +
-        (acq ? '<span class="t2">par ' + esc(qui(gr, acq)) + ', ' + jourTxt(acq.date) + '</span>' : isM ? '<span class="t2" style="color:var(--green)">sa mission · ' + n + ' +1 sur ' + SK.MAX_PLUS1 + '</span>' : '') + '</span>' + right + '</li>';
-    }).join('');
-    var nAcq = ids.filter(function (id) { return etoileDe(gr, id, D.id, s.id); }).length;
-    return '<main class="screen">' + MC.educBar(gr, 'Progrès') + MC.progresTabs('skills') +
-      '<section class="skeval"><div class="between" style="align-items:center"><span class="hud" style="color:var(--gold)">Évaluer · ' + ids.length + (e ? ' présent' + (ids.length > 1 ? 's' : '') + ' · ' + esc(e.lieu || e.titre) : ' enfants') + '</span><button type="button" class="lnk" data-act="skEvt">Changer</button></div>' +
-      doms + stars + '<p class="small" style="margin:0;color:var(--soft)">« ' + esc(s.phrase) + ' » · ' + nAcq + ' / ' + ids.length + ' l\'ont déjà</p></section>' +
-      (ids.length ? '<ul class="list">' + rows + '</ul>' : '<div class="empty">Personne : cochez d\'abord les présents de la séance.</div>') +
-      '<p class="small" style="margin:0">Le +1 dit « tu es sur la bonne voie » ; seul « Valider » donne l\'étoile. Au 3e +1, l\'appli propose de valider, sans le faire toute seule.</p>' +
-      '<div class="grid2"><a class="li" href="#/educ/skills/passeport">' + icon('list', 20, 'style="color:var(--cyan);flex:none"') + '<span class="grow"><span class="t1">Passeport du groupe</span><span class="t2">Toutes les cartes</span></span>' + icon('right', 16) + '</a>' +
-      '<a class="li" href="#/educ/skills/journee">' + icon('calendar', 20, 'style="color:var(--gold);flex:none"') + '<span class="grow"><span class="t1">Journée d\'évaluation</span><span class="t2">Ateliers, 3 essais</span></span>' + icon('right', 16) + '</a></div></main>';
+  // l'ancienne journée d'évaluation : le même écran
+  app.route('/educ/skills/journee', function () { app.go('#/educ/skills'); return Promise.resolve('<main class="screen"></main>'); }, { adult: 'e', nav: 'e:progres', bg: '#2E2612' });
+
+  function paintEval(gr, st) {
+    var e = st.evt ? evtById(st.evt) : null, plat = estPlateau(e), q = queue(st);
+    var tous = e ? presentsDe(e, gr) : actifs(gr).map(function (p) { return p.joueur.id; });
+    var grps = groupesDe(e), g = grps.filter(function (x) { return x.id === st.grp; })[0] || null;
+    var ok = {}; tous.forEach(function (id) { ok[id] = true; });
+    var ids = g ? g.ids.filter(function (id) { return jp(gr, id) && jp(gr, id).joueur.actif; }) : tous;
+    var sel = st.sel, D = SK.dom(st.d);
+
+    // l'en-tête : avec qui, et le plateau
+    var head = '<section class="skeval"><div class="between" style="align-items:center"><span class="hud" style="color:var(--gold)">Évaluer · ' + ids.length + (g ? ' dans ' + esc(g.nom) : e ? ' présent' + (ids.length > 1 ? 's' : '') : ' enfants') + (e ? ' · ' + esc(e.lieu || e.titre) : '') + '</span><button type="button" class="lnk" data-act="skEvt">Changer</button></div>' +
+      (plat ? '<p class="small" style="margin:0;color:var(--gold)">' + icon('spark', 14) + ' Après un plateau : les étoiles que vous touchez <b>brillent</b> (et sont gagnées si l\'enfant ne les avait pas).</p>' : '') +
+      (function () { var autres = Object.keys(st.q).filter(function (k) { return k !== qKey(st.evt) && (st.q[k] || []).length; }); if (!autres.length) return ''; var k = autres[0], ev = k === '_' ? null : evtById(k);
+        return '<a class="small" style="color:var(--pink)" href="#/educ/skills?evt=' + esc(k === '_' ? '' : k) + '">' + st.q[k].length + ' étoile' + (st.q[k].length > 1 ? 's' : '') + ' pas encore envoyée' + (st.q[k].length > 1 ? 's' : '') + (ev ? ' · ' + esc(ev.titre) : '') + '</a>'; })() +
+      (function () { var nd = demandesAttente(gr).length; return nd ? '<button type="button" class="lnk" style="align-self:flex-start;color:var(--cyan)" data-act="evVoirDem">' + nd + ' demande' + (nd > 1 ? 's' : '') + ' d\'enfant' + (nd > 1 ? 's' : '') + ' à répondre ↓</button>' : ''; })() + '</section>';
+
+    // les demandes des enfants
+    var dems = demandesAttente(gr), demHtml = '';
+    if (dems.length) demHtml = '<section class="sec" id="evdem"><div class="between"><h2 class="mlab" style="margin:0">Demandes des enfants (' + dems.length + ')</h2><span class="small">quand vous voulez</span></div><ul class="list">' + dems.map(function (x) {
+      var s = SK.star(x.domaine, x.etoile), Dd = SK.dom(x.domaine);
+      return '<li class="li evdem"><span class="grow"><span class="t1">' + esc(nomDe(gr, x.joueurId)) + ' · ' + esc(Dd ? Dd.nom : '') + ' · ' + esc(s ? s.nom : x.etoile) + '</span><span class="t2">' + (x.sorte === 'briller' ? 'L\'a fait au plateau' + (x.occasion ? ' (' + esc(x.occasion) + ')' : '') + ' : la faire briller ?' : 'Demande l\'étoile' + (x.occasion ? ' (' + esc(x.occasion) + ')' : '')) + '</span></span>' +
+        '<button type="button" class="btn2 sm grey" data-act="demNon" data-id="' + esc(x.id) + '">Pas vu</button><button type="button" class="btn2 sm gold" data-act="demOui" data-id="' + esc(x.id) + '">Oui</button></li>';
+    }).join('') + '</ul></section>';
+
+    // le choix des étoiles : un atelier prêt, ou carte › étoiles (plusieurs possibles)
+    var ateliers = '<div class="skstars evats">' + SK.ATELIERS.map(function (a) { var on = a.etoiles.length === sel.length && a.etoiles.every(function (k) { return sel.indexOf(k) >= 0; });
+      return '<button type="button" class="opt' + (on ? ' on' : '') + '" style="--oc:var(--cyan)" aria-pressed="' + on + '" data-act="evAt" data-v="' + a.id + '">' + esc(a.nom) + '</button>'; }).join('') + '</div>';
+    var doms = '<div class="skdoms evdoms">' + SK.DOMAINES.map(function (x) { var on = x.id === D.id, n = sel.filter(function (k) { return k.indexOf(x.id + ':') === 0; }).length;
+      return '<button type="button" class="opt' + (on ? ' on' : '') + '" style="--oc:' + x.color + '" aria-pressed="' + on + '" data-act="evDom" data-v="' + x.id + '">' + icon(x.icon, 16) + ' ' + esc(x.nom) + (n ? ' · ' + n : '') + '</button>'; }).join('') + '</div>';
+    var stars = '<div class="skstars">' + D.etoiles.map(function (x) { var k = SK.key(D.id, x.id), on = sel.indexOf(k) >= 0;
+      return '<button type="button" class="opt' + (on ? ' on' : '') + '" style="--oc:var(--gold)" aria-pressed="' + on + '" data-act="evStar" data-v="' + k + '">★ ' + esc(x.nom) + '</button>'; }).join('') + '</div>';
+    var atSel = SK.ATELIERS.filter(function (a) { return a.etoiles.length === sel.length && a.etoiles.every(function (k) { return sel.indexOf(k) >= 0; }); })[0];
+    var resume = sel.map(function (k) { var p = SK.parseKey(k); return SK.star(p.d, p.e).nom; }).join(' · ');
+    var choix = (sel.length && !st.ouvert)
+      ? '<section class="sec evsel"><div class="between" style="align-items:center"><span class="grow"><span class="mlab" style="margin:0">' + (atSel ? 'Atelier · ' + esc(atSel.nom) : sel.length > 1 ? sel.length + ' étoiles' : 'L\'étoile') + '</span><span class="small" style="display:block;color:var(--soft)">' + esc(resume) + '</span></span><button type="button" class="btn2 sm grey" data-act="evOuvre">Changer</button></div></section>'
+      : '<section class="sec"><div class="between"><h2 class="mlab" style="margin:0">Les étoiles (' + sel.length + ' / ' + SK.MAX_ATELIER + ')</h2>' + (sel.length ? '<span><button type="button" class="lnk" data-act="evClr">Effacer</button> <button type="button" class="btn2 sm gold" data-act="evFerme">OK</button></span>' : '') + '</div>' +
+        '<span class="small" style="color:var(--dim)">Un atelier prêt</span>' + ateliers + '<span class="small" style="color:var(--dim)">Ou carte par carte (plusieurs possibles)</span>' + doms + stars + '</section>';
+
+    // les groupes d'ateliers
+    var grpHtml = grps.length ? '<div class="evgrps" role="group" aria-label="Groupe">' + [{ id: '', nom: 'Tous' }].concat(grps).map(function (x) { var on = x.id === st.grp;
+      return '<button type="button" class="opt' + (on ? ' on' : '') + '" style="--oc:var(--cyan)" aria-pressed="' + on + '" data-act="evGrp" data-v="' + esc(x.id) + '">' + esc(x.nom) + '</button>'; }).join('') + '</div>' : '';
+
+    // les enfants : liste (1 étoile) ou grille (plusieurs)
+    var corps = '';
+    if (!sel.length) corps = '<div class="empty">Choisissez une étoile, ou un atelier prêt.</div>';
+    else if (!ids.length) corps = '<div class="empty">Personne : cochez d\'abord les présents de la séance.</div>';
+    else if (sel.length === 1) {
+      var k0 = sel[0], p0 = SK.parseKey(k0), s0 = SK.star(p0.d, p0.e), nAcq = 0;
+      corps = '<p class="small" style="margin:0;color:var(--soft)">« ' + esc(s0.phrase) + ' »<br><span style="color:var(--dim)">' + esc(s0.repere) + '</span></p><ul class="list">' + ids.map(function (id) {
+        var x = etat(gr, id, k0, plat, q), m = persoDe(gr, id), isM = m && m.domaine === p0.d && m.etoile === p0.e, n = isM ? p1De(gr, id, m.id).length : 0;
+        if (x.deja) nAcq++;
+        var right = x.deja ? '<span class="skok">' + icon('star', 14) + (x.brille ? ' Brille' : ' Acquise') + '</span>'
+          : (isM ? btnPlus1(gr, id, m, e && e.id, true) : '') + '<button type="button" class="evc evtog' + (x.on ? ' on' : '') + (x.gagnee ? ' gagnee' : '') + '" aria-pressed="' + !!x.on + '" data-act="evCell" data-k="' + esc(id + '|' + k0) + '" aria-label="' + esc(nomDe(gr, id) + ' : ' + s0.nom) + '">' + icon('star', 18) + '</button>';
+        return '<li class="li skrow' + (x.deja ? ' acq' : '') + (isM ? ' mis' : '') + '">' + nivTag(gr, id) + '<span class="grow"><span class="t1">' + esc(nomDe(gr, id)) + '</span>' +
+          (x.deja ? '<span class="t2">' + (x.brille ? 'brille · ' + esc(x.row.brilleParNom) + ', ' + jourTxt(x.row.brille) : 'par ' + esc(qui(gr, x.row)) + ', ' + jourTxt(x.row.date)) + '</span>' : x.gagnee ? '<span class="t2">gagnée à l\'entraînement : touchez pour la faire briller</span>' : isM ? '<span class="t2" style="color:var(--green)">sa mission · ' + n + ' +1 sur ' + SK.MAX_PLUS1 + '</span>' : '') + '</span>' + right + '</li>';
+      }).join('') + '</ul><p class="small" style="margin:0">' + nAcq + ' / ' + ids.length + (plat ? ' la font déjà briller' : ' l\'ont déjà') + '</p>';
+    } else {
+      var defs = sel.map(function (k) { var p = SK.parseKey(k); return { k: k, s: SK.star(p.d, p.e), D: SK.dom(p.d) }; });
+      corps = '<p class="small" style="margin:0;color:var(--soft)">Après les 3 essais, touchez ceux qui ont réussi 2 fois sur 3.</p>' +
+        '<div class="evgrid" style="--n:' + defs.length + '"><span></span>' + defs.map(function (x) { return '<span class="evh" style="--dc:' + x.D.color + '" title="' + esc(x.s.phrase) + '">' + esc(nomCourt(x.s)) + '</span>'; }).join('') +
+        ids.map(function (id) {
+          return '<span class="evn">' + esc(nomDe(gr, id)) + '</span>' + defs.map(function (x) {
+            var c = etat(gr, id, x.k, plat, q);
+            if (c.deja) return '<span class="evc deja" title="' + (c.brille ? 'brille déjà' : 'déjà acquise') + '">' + (c.brille ? 'brille' : 'déjà') + '</span>';
+            return '<button type="button" class="evc' + (c.on ? ' on' : '') + (c.gagnee ? ' gagnee' : '') + '" aria-pressed="' + !!c.on + '" data-act="evCell" data-k="' + esc(id + '|' + x.k) + '" aria-label="' + esc(nomDe(gr, id) + ' : ' + x.s.nom + (c.gagnee ? ' (gagnée, faire briller)' : '')) + '">' + icon('star', 18) + '</button>';
+          }).join('');
+        }).join('') + '</div>' +
+        '<details class="evrep"><summary class="small">Ce qu\'on regarde</summary>' + defs.map(function (x) { return '<p class="small" style="margin:6px 0 0"><b>' + esc(x.s.nom) + '</b> : ' + esc(x.s.repere) + '</p>'; }).join('') + '</details>';
+    }
+
+    var n = q.length;
+    var dock = '<div class="cp-bar evdock"><span class="grow small" style="color:var(--soft)" id="ev_t">' + dockTxt(n) + '</span>' +
+      '<button type="button" class="btn" id="ev_send" data-act="evSend"' + (n ? '' : ' disabled') + '>' + icon('send', 16) + ' Envoyer</button></div>';
+
+    return '<main class="screen">' + MC.educBar(gr, 'Progrès') + MC.progresTabs('skills') + head + choix +
+      (grpHtml ? '<section class="sec"><h2 class="mlab" style="margin:0">Le groupe qui arrive</h2>' + grpHtml + '</section>' : '') +
+      '<section class="sec">' + corps + '</section>' + demHtml +
+      '<p class="small" style="margin:0">Les enfants découvrent leurs étoiles après l\'entraînement, quand vous envoyez. Le +1 dit « tu es sur la bonne voie » ; seule une étoile envoyée la donne.</p>' +
+      '<div class="grid2"><a class="li" href="#/educ/skills/passeport">' + icon('list', 20, 'style="color:var(--cyan);flex:none"') + '<span class="grow"><span class="t1">Passeport du groupe</span><span class="t2">Toutes les cartes</span></span>' + icon('right', 16) + '</a></div>' +
+      dock + '</main>';
   }
-  MC.act.skDom = function (b) { var st = sks(), D = SK.dom(b.getAttribute('data-v')); st.d = D.id; st.e = D.etoiles[0].id; saveSks(); app.rerender(); };
-  MC.act.skStar = function (b) { var st = sks(); st.e = b.getAttribute('data-v'); saveSks(); app.rerender(); };
+  function dockTxt(n) { return '<b id="ev_n">' + n + '</b> ' + (n > 1 ? 'étoiles prêtes, gardées' : 'étoile prête, gardée') + ' sur le téléphone'; }
+  function majDock() {
+    var st = evs(), n = queue(st).length, t = document.getElementById('ev_t'), b = document.getElementById('ev_send');
+    if (t) t.innerHTML = dockTxt(n); if (b) b.disabled = !n;
+  }
+  MC.act.evCell = function (b) {
+    var st = evs(), k = b.getAttribute('data-k'), q = queue(st), i = q.indexOf(k);
+    if (i >= 0) q.splice(i, 1); else q.push(k);
+    saveEv();
+    var on = i < 0; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on));
+    majDock(); app.refreshNav && app.refreshNav();
+  };
+  MC.act.evAt = function (b) { var st = evs(), a = SK.atelier(b.getAttribute('data-v')); if (!a) return; st.sel = a.etoiles.slice(0, SK.MAX_ATELIER); st.d = SK.parseKey(st.sel[0]).d; st.ouvert = false; saveEv(); app.rerender(); };
+  MC.act.evDom = function (b) { var st = evs(); st.d = b.getAttribute('data-v'); saveEv(); app.rerender(); };
+  MC.act.evStar = function (b) {
+    var st = evs(), k = b.getAttribute('data-v'), i = st.sel.indexOf(k);
+    if (i >= 0) st.sel.splice(i, 1);
+    else { if (st.sel.length >= SK.MAX_ATELIER) { ui.toast(SK.MAX_ATELIER + ' étoiles au plus par atelier'); return; } st.sel.push(k); }
+    saveEv(); app.rerender();
+  };
+  MC.act.evClr = function () { var st = evs(); st.sel = []; st.ouvert = true; saveEv(); app.rerender(); };
+  MC.act.evOuvre = function () { var st = evs(); st.ouvert = true; saveEv(); app.rerender(); };
+  MC.act.evFerme = function () { var st = evs(); st.ouvert = false; saveEv(); app.rerender(); window.scrollTo(0, 0); };
+  MC.act.evVoirDem = function () { var x = document.getElementById('evdem'); if (x) x.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+  MC.act.evGrp = function (b) { var st = evs(); st.grp = b.getAttribute('data-v') || ''; saveEv(); app.rerender(); window.scrollTo(0, 0); };
+  MC.act.evSend = function (b) {
+    var st = evs(), e = st.evt ? evtById(st.evt) : null, q = queue(st);
+    if (!q.length) return;
+    var list = q.map(function (x) { var i = x.indexOf('|'), p = SK.parseKey(x.slice(i + 1)); return { joueurId: x.slice(0, i), domaine: p.d, etoile: p.e }; });
+    var envoyes = q.slice();
+    valider(list, e ? e.id : '', b, estPlateau(e)).then(function () {
+      st.q[qKey(st.evt)] = queue(st).filter(function (x) { return envoyes.indexOf(x) < 0; });
+      saveEv(); app.refreshNav && app.refreshNav(); app.rerender();
+    }).catch(function () { ui.toast('Pas envoyé : les étoiles restent gardées sur le téléphone. Réessayez avec du réseau.', true); });
+  };
+  function repondre(b, oui) {
+    var gr = G(), id = b.getAttribute('data-id');
+    b.disabled = true;
+    app.adultCall('repondreDemande', { id: id, oui: !!oui }).then(function (r) {
+      gr.joueurs.forEach(function (p) { (p.demandes || []).forEach(function (x, i) { if (x.id === id) p.demandes[i] = r.demande; }); });
+      if (r.etoile) { var x = jp(gr, r.etoile.joueurId); if (x) { x.etoiles = (x.etoiles || []).filter(function (y) { return y.id !== r.etoile.id; }); x.etoiles.push(r.etoile); } }
+      persist(); app.refreshNav && app.refreshNav();
+      ui.toast(oui ? (r.etoile && r.etoile.brille ? 'L\'étoile brille' : 'Étoile donnée') + ' : ' + nomDe(gr, r.demande.joueurId) + ' la verra' : 'Réponse envoyée : « retente la prochaine fois »');
+      app.rerender();
+    }).catch(function (er) { b.disabled = false; ui.toast(er.message, true); });
+  }
+  MC.act.demOui = function (b) { repondre(b, true); };
+  MC.act.demNon = function (b) { repondre(b, false); };
   MC.act.skEvt = function () {
     var gr = G(), t = L.today();
     var list = evts().filter(function (e) { return !e.annule && jour(e) >= L.addDays(t, -14) && jour(e) <= L.addDays(t, 2); }).sort(function (a, b) { return jour(a) < jour(b) ? 1 : -1; });
@@ -248,11 +417,12 @@ window.MC = window.MC || {};
       body: '<div class="sec" style="gap:6px">' + list.map(function (e) { return '<button type="button" class="li" data-skev="' + esc(e.id) + '">' + icon(e.sorte === 'plateau' ? 'flag' : 'calendar', 18) + '<span class="grow"><span class="t1">' + esc(e.titre) + '</span><span class="t2">' + esc(ui.fmtDate(jour(e))) + ' · ' + presentsDe(e, gr).length + ' présents</span></span></button>'; }).join('') +
         '<button type="button" class="li" data-skev="">' + icon('kids', 18) + '<span class="grow"><span class="t1">Tous les enfants</span><span class="t2">' + actifs(gr).length + ' enfants</span></span></button></div>',
       actions: [{ label: 'Fermer', value: null, cls: 'btn2 grey' }],
-      onOpen: function (host, close) { host.addEventListener('click', function (ev) { var x = ev.target.closest('[data-skev]'); if (x) { var st = sks(); st.evt = x.getAttribute('data-skev'); saveSks(); close(null); app.go('#/educ/skills?evt=' + st.evt); } }); }
+      onOpen: function (host, close) { host.addEventListener('click', function (ev) { var x = ev.target.closest('[data-skev]'); if (x) { var st = evs(); st.evt = x.getAttribute('data-skev'); st.grp = ''; saveEv(); close(null); app.go('#/educ/skills?evt=' + st.evt); } }); }
     });
   };
 
   // ---------- le passeport du groupe ----------
+  var ABR = { plaquage: 'Plaq.', ruck: 'Ruck', maul: 'Maul', defense: 'Déf.', porteur: 'Port.', passe: 'Passe', pied: 'Pied', soutien: 'Sout.' };
   app.route('/educ/skills/passeport', function () {
     return MC.loadGroup().then(function (gr) {
       var kids = actifs(gr), tot = {}, mois = L.today().slice(0, 7), ceMois = 0;
@@ -267,77 +437,11 @@ window.MC = window.MC || {};
       }).join('');
       return '<main class="screen">' + MC.educBar(gr, 'Passeport du groupe', '#/educ/skills', 'Skills') +
         '<div class="head"><span class="kicker" style="color:var(--gold)">' + kids.length + ' enfants · ' + ceMois + ' étoile' + (ceMois > 1 ? 's' : '') + ' validée' + (ceMois > 1 ? 's' : '') + ' ce mois-ci</span><h1 class="big sm">Le passeport</h1>' +
-        '<p class="small" style="margin:0">Le nombre d\'étoiles de chaque carte (sur 5). Touchez un prénom pour sa fiche. Jamais montré aux enfants comme un classement.</p></div>' +
-        '<div class="sktable-w"><table class="sktable"><thead><tr><th></th>' + SK.DOMAINES.map(function (D) { return '<th scope="col" style="color:' + D.color + '">' + esc(D.nom.replace('Jeu au pied', 'Pied')) + '</th>'; }).join('') + '<th>Tout</th></tr></thead><tbody>' + rows + '</tbody>' +
+        '<p class="small" style="margin:0">Le nombre d\'étoiles de chaque carte (' + SK.DOMAINES.map(function (D) { return ABR[D.id] + ' ' + D.etoiles.length; }).join(', ') + '). Touchez un prénom pour sa fiche. Jamais montré aux enfants comme un classement.</p></div>' +
+        '<div class="sktable-w"><table class="sktable"><thead><tr><th></th>' + SK.DOMAINES.map(function (D) { return '<th scope="col" style="color:' + D.color + '" title="' + esc(D.nom) + '">' + esc(ABR[D.id] || D.nom) + '</th>'; }).join('') + '<th>Tout</th></tr></thead><tbody>' + rows + '</tbody>' +
         '<tfoot><tr><th>Total</th>' + SK.DOMAINES.map(function (D) { return '<td>' + tot[D.id] + '</td>'; }).join('') + '<td></td></tr></tfoot></table></div></main>';
     });
   }, { adult: 'e', nav: 'e:progres', bg: '#2E2612' });
-
-  // ---------- la journée d'évaluation : un atelier, un groupe, 3 essais par critère ----------
-  // une étoile = critère réussi 2 essais sur 3
-  var J = null;
-  function jstate() { if (!J) J = app.lsGet('mc-journee') || { d: '', kids: [], ess: {} }; return J; }
-  function saveJ() { app.lsSet('mc-journee', J); }
-  function reussis(a) { return (a || []).filter(function (v) { return v === 1; }).length; }
-  app.route('/educ/skills/journee', function () {
-    return both().then(function (r) { return paintJournee(r[0], jstate()); });
-  }, { adult: 'e', nav: 'e:progres', bg: '#2E2612' });
-  function paintJournee(gr, st) {
-    var bar = MC.educBar(gr, 'Journée d\'évaluation', '#/educ/skills', 'Skills');
-    var intro = '<div class="head"><span class="kicker" style="color:var(--gold)">Comme sur la grille papier</span><h1 class="big sm">Journée d\'évaluation</h1>' +
-      '<p class="small" style="margin:0">Un éduc par atelier, des groupes de 5 qui tournent. 3 essais par critère : l\'étoile est gagnée à 2 réussis sur 3.</p></div>';
-    var doms = '<div class="skdoms">' + SK.DOMAINES.map(function (x) { var on = x.id === st.d; return '<button type="button" class="opt' + (on ? ' on' : '') + '" style="--oc:' + x.color + '" aria-pressed="' + on + '" data-act="jDom" data-v="' + x.id + '">' + icon(x.icon, 16) + ' ' + esc(x.nom) + '</button>'; }).join('') + '</div>';
-    if (!st.d) return '<main class="screen">' + bar + intro + '<section class="sec"><h2 class="mlab" style="margin:0">1. Mon atelier</h2>' + doms + '</section></main>';
-    var D = SK.dom(st.d), e = evtDuJour(), pool = e ? presentsDe(e, gr) : actifs(gr).map(function (p) { return p.joueur.id; });
-    var pick = '<div class="cop-list">' + pool.map(function (id) { var on = st.kids.indexOf(id) >= 0; return '<button type="button" class="cop' + (on ? ' on' : '') + '" aria-pressed="' + on + '" data-act="jKid" data-v="' + esc(id) + '"><span class="nm">' + esc(nomDe(gr, id)) + '</span><span class="ck">' + icon('check', 14) + '</span></button>'; }).join('') + '</div>';
-    var cards = st.kids.map(function (id) {
-      var ess = st.ess[id] = st.ess[id] || {};
-      return '<section class="jcard"><div class="between"><b class="jnm">' + esc(nomDe(gr, id)) + '</b><span class="small">' + SK.carte({ etoiles: (jp(gr, id) || {}).etoiles || [] }, D.id).n + ' / 5 déjà</span></div>' + D.etoiles.map(function (s) {
-        var acq = etoileDe(gr, id, D.id, s.id), a = ess[s.id] || [null, null, null], ok = reussis(a) >= 2;
-        if (acq) return '<div class="jrow acq"><span class="grow"><b>' + esc(s.nom) + '</b><small>déjà acquise (' + esc(qui(gr, acq)) + ', ' + jourTxt(acq.date) + ')</small></span><span class="skok">' + icon('star', 14) + '</span></div>';
-        return '<div class="jrow' + (ok ? ' ok' : '') + '"><span class="grow"><b>' + esc(s.nom) + '</b><small>' + esc(s.phrase) + '</small></span><span class="jess">' + [0, 1, 2].map(function (k) {
-          var v = a[k]; return '<button type="button" class="je' + (v === 1 ? ' y' : v === 0 ? ' n' : '') + '" data-act="jEss" data-j="' + esc(id) + '" data-s="' + s.id + '" data-k="' + k + '" aria-label="Essai ' + (k + 1) + ' : ' + (v === 1 ? 'réussi' : v === 0 ? 'raté' : 'pas encore') + '">' + (v === 1 ? icon('check', 16) : v === 0 ? icon('x', 16) : k + 1) + '</button>';
-        }).join('') + '</span>' + (ok ? '<span class="skok" title="Étoile gagnée">' + icon('star', 14) + '</span>' : '') + '</div>';
-      }).join('') + '</section>';
-    }).join('');
-    var gagnees = aValider(gr, st);
-    return '<main class="screen">' + bar + intro +
-      '<section class="sec"><h2 class="mlab" style="margin:0">1. Mon atelier</h2>' + doms + '</section>' +
-      '<section class="sec"><div class="between"><h2 class="mlab" style="margin:0">2. Le groupe (' + st.kids.length + ')</h2><span class="small">' + (e ? 'les présents du jour' : 'tous les enfants') + '</span></div>' + pick + '</section>' +
-      (st.kids.length ? '<section class="sec"><h2 class="mlab" style="margin:0">3. Les essais · touchez : ✓ réussi, ✗ raté</h2>' + cards + '</section>' : '') +
-      (st.kids.length ? '<div class="cp-bar jdock"><span class="grow small" style="color:var(--soft)">' + gagnees.length + ' étoile' + (gagnees.length > 1 ? 's' : '') + ' à valider</span>' +
-        '<button type="button" class="btn2 sm grey" data-act="jNext">Suivant</button><button type="button" class="btn" data-act="jSend"' + (gagnees.length ? '' : ' disabled') + '>' + icon('star', 16) + ' Valider</button></div>' : '') + '</main>';
-  }
-  function aValider(gr, st) {
-    var out = [];
-    st.kids.forEach(function (id) {
-      var ess = st.ess[id] || {};
-      SK.dom(st.d).etoiles.forEach(function (s) { if (!etoileDe(gr, id, st.d, s.id) && reussis(ess[s.id]) >= 2) out.push({ joueurId: id, domaine: st.d, etoile: s.id, essais: (ess[s.id] || []).map(function (v) { return v === 1 ? 1 : 0; }) }); });
-    });
-    return out;
-  }
-  MC.act.jDom = function (b) { var st = jstate(); st.d = b.getAttribute('data-v'); st.ess = {}; saveJ(); app.rerender(); };
-  MC.act.jKid = function (b) { var st = jstate(), id = b.getAttribute('data-v'), i = st.kids.indexOf(id); if (i >= 0) st.kids.splice(i, 1); else st.kids.push(id); saveJ(); app.rerender(); };
-  MC.act.jEss = function (b) {
-    var st = jstate(), id = b.getAttribute('data-j'), s = b.getAttribute('data-s'), k = Number(b.getAttribute('data-k'));
-    var ess = st.ess[id] = st.ess[id] || {}, a = ess[s] = ess[s] || [null, null, null];
-    a[k] = a[k] === null || a[k] === undefined ? 1 : a[k] === 1 ? 0 : null;
-    saveJ(); app.rerender();
-  };
-  MC.act.jSend = function (b) {
-    var gr = G(), st = jstate(), list = aValider(gr, st);
-    if (!list.length) return;
-    valider(list, '', b).then(function () { app.rerender(); }).catch(function () { });
-  };
-  MC.act.jNext = function () {
-    var gr = G(), st = jstate(), reste = aValider(gr, st).length;
-    function go() { st.kids = []; st.ess = {}; saveJ(); app.rerender(); window.scrollTo(0, 0); }
-    if (!reste) return go();
-    ui.modal({ title: 'Groupe suivant ?', body: '<p class="lead">' + reste + ' étoile' + (reste > 1 ? 's' : '') + ' gagnée' + (reste > 1 ? 's' : '') + ' pas encore validée' + (reste > 1 ? 's' : '') + '.</p>', actions: [{ label: 'Valider puis passer', value: 'v', cls: 'btn' }, { label: 'Passer sans valider', value: 'p', cls: 'btn2 grey' }, { label: 'Annuler', value: null, cls: 'btn2 grey' }] }).then(function (v) {
-      if (v === 'v') valider(aValider(gr, st), '').then(go).catch(function () { });
-      else if (v === 'p') go();
-    });
-  };
 
   // ======================================================================
   // Progrès › Missions
@@ -454,7 +558,7 @@ window.MC = window.MC || {};
     }
     var x = jp(gr, st.joueurId), cur = persoDe(gr, st.joueurId), d = { etoiles: (x && x.etoiles) || [] };
     var bloque = cur && cur.parQui && cur.parQui !== gr.moi.id && !gr.moi.admin;   // la mission d'un autre éduc : lui ou l'admin la remplace
-    var doms = '<div class="skdoms">' + SK.DOMAINES.map(function (D) { var on = D.id === st.d; return '<button type="button" class="opt' + (on ? ' on' : '') + '" style="--oc:' + D.color + '" aria-pressed="' + on + '" data-act="nmDom" data-v="' + D.id + '">' + icon(D.icon, 16) + ' ' + esc(D.nom) + ' · ' + SK.carte(d, D.id).n + '/5</button>'; }).join('') + '</div>';
+    var doms = '<div class="skdoms">' + SK.DOMAINES.map(function (D) { var on = D.id === st.d; return '<button type="button" class="opt' + (on ? ' on' : '') + '" style="--oc:' + D.color + '" aria-pressed="' + on + '" data-act="nmDom" data-v="' + D.id + '">' + icon(D.icon, 16) + ' ' + esc(D.nom) + ' · ' + SK.carte(d, D.id).n + '/' + D.etoiles.length + '</button>'; }).join('') + '</div>';
     var stars = st.d ? '<div class="sec" style="gap:6px">' + SK.carte(d, st.d).stars.map(function (s) {
       var on = st.e === s.def.id;
       return '<button type="button" class="cop' + (on ? ' on' : '') + '"' + (s.row ? ' disabled' : ' data-act="nmStar" data-v="' + s.def.id + '"') + ' aria-pressed="' + on + '"><span class="nm">★ ' + esc(s.def.mission) + '<small class="csp">' + (s.row ? 'déjà gagnée' : '« ' + esc(s.def.phrase) + ' »') + '</small></span><span class="ck">' + icon('check', 14) + '</span></button>';
@@ -553,14 +657,19 @@ window.MC = window.MC || {};
       var c = SK.carte(d, D.id);
       return '<section class="fsk"><div class="between" style="align-items:center"><h2 class="h2" style="color:' + D.color + '">' + icon(D.icon, 18) + ' ' + esc(D.nom) + '</h2><span class="skcell" style="--gc:' + c.grade.color + '">' + esc(c.grade.nom) + ' · ' + c.n + '/5</span></div><ul class="list">' + c.stars.map(function (s) {
         var isM = m && m.domaine === D.id && m.etoile === s.def.id;
-        if (s.row) return '<li class="li skrow acq"><span class="skok">' + icon('star', 14) + '</span><span class="grow"><span class="t1">' + esc(s.def.nom) + '</span><span class="t2">par ' + esc(qui(gr, s.row)) + ', ' + jourTxt(s.row.date) + (s.row.occasion ? ' · ' + esc(s.row.occasion) : '') + (s.row.essais ? ' · essais ' + s.row.essais.map(function (v) { return v ? '✓' : '✗'; }).join('') : '') + '</span></span><button type="button" class="lnk" data-act="retEtoile" data-id="' + esc(s.row.id) + '" data-j="' + esc(id) + '" style="color:var(--dim)">Retirer</button></li>';
+        var dm = (d.demandes || []).filter(function (x) { return x.statut === 'attente' && x.domaine === D.id && x.etoile === s.def.id; })[0];
+        var demTxt = dm ? ' · <b style="color:var(--cyan)">' + (dm.sorte === 'briller' ? 'demande à la faire briller' : 'demande l\'étoile') + '</b>' : '';
+        if (s.row) return '<li class="li skrow acq' + (s.brille ? ' brille' : '') + '"><span class="skok">' + icon(s.brille ? 'spark' : 'star', 14) + '</span><span class="grow"><span class="t1">' + esc(s.def.nom) + '</span><span class="t2">par ' + esc(qui(gr, s.row)) + ', ' + jourTxt(s.row.date) + (s.row.occasion ? ' · ' + esc(s.row.occasion) : '') + (s.row.essais ? ' · essais ' + s.row.essais.map(function (v) { return v ? '✓' : '✗'; }).join('') : '') +
+          (s.brille ? '<br><b style="color:var(--gold)">brille</b> depuis le ' + jourTxt(s.row.brille) + (s.row.brilleOccasion ? ' · ' + esc(s.row.brilleOccasion) : '') + ' · ' + esc(s.row.brilleParNom) : '') + demTxt + '</span></span>' +
+          (s.brille ? '<button type="button" class="lnk" data-act="eteEtoile" data-id="' + esc(s.row.id) + '" data-j="' + esc(id) + '" style="color:var(--dim)">Éteindre</button>' : '') +
+          '<button type="button" class="lnk" data-act="retEtoile" data-id="' + esc(s.row.id) + '" data-j="' + esc(id) + '" style="color:var(--dim)">Retirer</button></li>';
         var n = isM ? p1De(gr, id, m.id).length : 0;
-        return '<li class="li skrow' + (isM ? ' mis' : '') + '"><span class="skno">' + icon('star', 14) + '</span><span class="grow"><span class="t1">' + esc(s.def.nom) + '</span><span class="t2">' + (isM ? '<b style="color:var(--green)">sa mission · ' + n + ' +1 sur ' + SK.MAX_PLUS1 + '</b>' : '« ' + esc(s.def.phrase) + ' »') + '</span></span>' +
+        return '<li class="li skrow' + (isM ? ' mis' : '') + '"><span class="skno">' + icon('star', 14) + '</span><span class="grow"><span class="t1">' + esc(s.def.nom) + '</span><span class="t2">' + (isM ? '<b style="color:var(--green)">sa mission · ' + n + ' +1 sur ' + SK.MAX_PLUS1 + '</b>' : '« ' + esc(s.def.phrase) + ' »') + demTxt + '</span></span>' +
           (isM ? btnPlus1(gr, id, m, '', true) : '') + '<button type="button" class="btn2 sm gold" data-act="valEtoile" data-j="' + esc(id) + '" data-d="' + D.id + '" data-e="' + s.def.id + '">Valider</button></li>';
       }).join('') + '</ul></section>';
     }).join('');
-    return '<div class="between"><span class="hud" style="color:var(--gold)">' + SK.total(d) + ' / 20 étoiles</span>' + (m ? '' : '<a class="lnk" href="#/educ/missions/nouvelle?type=perso&joueur=' + esc(id) + '">Lui donner une mission perso</a>') + '</div>' + cartes +
-      '<p class="small" style="margin:0">Valider = l\'étoile s\'allume pour lui (+' + C.XP.etoile + ' XP). Validée par erreur ? « Retirer ».</p>';
+    return '<div class="between"><span class="hud" style="color:var(--gold)">' + SK.total(d) + ' / ' + SK.MAX_TOTAL + ' étoiles' + (SK.totalBrille(d) ? ' · ' + SK.totalBrille(d) + ' brillent' : '') + '</span>' + (m ? '' : '<a class="lnk" href="#/educ/missions/nouvelle?type=perso&joueur=' + esc(id) + '">Lui donner une mission perso</a>') + '</div>' + cartes +
+      '<p class="small" style="margin:0">Valider = l\'étoile s\'allume pour lui (+' + C.XP.etoile + ' XP) ; elle brille quand elle est vue au plateau (+' + C.XP.brille + ' XP, depuis Évaluer ouvert sur le plateau). Validée par erreur ? « Retirer » ; allumée par erreur ? « Éteindre ».</p>';
   };
   MC.ficheMissions = function (d, gr) {
     var id = d.joueur.id, nom = d.joueur.prenom, m = persoDe(gr, id), out = '';

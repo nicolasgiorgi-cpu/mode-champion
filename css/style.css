@@ -1310,3 +1310,25 @@ textarea.txt{min-height:84px;padding:10px 12px;resize:vertical;font:500 16px/1.4
 .tb-kc{display:flex;align-items:center;gap:10px}
 .tb-pass{text-decoration:none}
 .tb-kc span{display:inline-flex;align-items:center;gap:3px;flex:none}
+
+/* ===== Skills v2 (25/10/2026) : étoiles qui brillent, demandes, écran Évaluer (grille d'atelier) ===== */
+.sk-pips{flex-wrap:wrap}
+.sk-pips i.brille{background:#FFF1C2;outline:1.5px solid var(--gold);outline-offset:1px}
+.sk-row.brille .sk-st{color:#FFF1C2}
+.sk-row .skdem{margin-top:6px;align-self:flex-start}
+.evats .opt{font-size:11px}
+.evdoms{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media (min-width:700px){ .evdoms{grid-template-columns:repeat(4,minmax(0,1fr))} }
+.evgrps{display:flex;gap:6px;flex-wrap:wrap}
+.evgrps .opt{min-height:40px;padding:0 14px;font-size:13px}
+.evgrid{display:grid;grid-template-columns:minmax(64px,1.3fr) repeat(var(--n),minmax(0,1fr));gap:6px;align-items:center}
+.evh{font-size:11px;line-height:1.15;font-weight:600;color:var(--dc,var(--soft));text-align:center;overflow-wrap:anywhere;hyphens:auto}
+.evn{font-size:14px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.evc{height:46px;min-width:0;display:flex;align-items:center;justify-content:center;background:var(--panel2);border:1px solid var(--line2);color:var(--faint);padding:0}
+.evc.gagnee{color:var(--gold);border-style:dashed;border-color:rgba(255,194,61,.55)}
+.evc.on{background:var(--gold);border-color:var(--gold);color:#2B1D00}
+.evc.deja{border-color:transparent;background:transparent;color:var(--dim);font:600 10px/1 var(--f-hud);letter-spacing:.06em;text-transform:uppercase}
+.evtog{width:52px;flex:none}
+.evrep summary{cursor:pointer;color:var(--soft)}
+.evdem .btn2{flex:none}
+.evsel{padding:10px 12px;background:var(--panel2);border:1px solid var(--line)}

@@ -406,7 +406,8 @@ window.MC = window.MC || {};
     niveau: 100,      // montée de niveau (une fois par niveau atteint)
     premiersPas: 100, // les 4 « premiers pas » du nouveau joueur (une fois)
     mission: 200,     // une mission spéciale accomplie (en plus de son badge)
-    etoile: 100       // une étoile Skills validée par un éduc
+    etoile: 100,      // une étoile Skills validée par un éduc
+    brille: 50        // (Skills v2) une étoile qui brille : vue au plateau
   };
 
   MC.CONTENT = {

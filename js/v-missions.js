@@ -2,7 +2,8 @@
    Mode champion · M12 — MISSIONS et SKILLS côté enfant et côté parent
    Missions : ce que demandent les éducs (le dernier +1, la mission perso et sa jauge
    de 5 +1, les missions de l'équipe : poste, vidéo, QCM, et tous les mots des éducs).
-   Skills : le carnet de compétences (4 cartes, 5 étoiles chacune, validées par les éducs).
+   Skills : le carnet de compétences (8 cartes, Skills v2 du 25/10 ; étoiles validées par les éducs, qui brillent après un plateau ;
+   l'enfant peut demander une étoile, une demande à la fois).
    Les parents voient la même chose, en lecture seule : ils ne donnent jamais de +1.
    ========================================================= */
 window.MC = window.MC || {};
@@ -215,17 +216,18 @@ window.MC = window.MC || {};
   // SKILLS : le carnet
   // ======================================================================
   function carteHtml(R, D, c, big) {
-    var g = c.grade, pips = c.stars.map(function (s) { return '<i class="' + (s.row ? 'on' : '') + '"></i>'; }).join('');
+    var g = c.grade, pips = c.stars.map(function (s) { return '<i class="' + (s.row ? 'on' : '') + (s.brille ? ' brille' : '') + '"></i>'; }).join('');
     return '<div class="cp-tilt sk-tilt' + (big ? ' skbig' : '') + '" style="--c:' + g.color + ';--d:' + D.color + ';--glow2:' + ui.rgba(D.color, 0.22) + '">' +
       '<' + (big ? 'div' : 'a href="' + R.sk + '/' + esc(D.id) + '"') + ' class="cp-card sk-card g' + c.n + '"><span class="cp-in">' +
       '<span class="sk-art"><span class="sk-em" style="color:' + D.color + '">' + icon(D.icon, big ? 64 : 44) + '</span></span>' +
-      '<span class="sk-body"><span class="sk-nm">' + esc(D.nom) + '</span><span class="sk-gr">' + esc(g.nom) + (c.n ? ' · ' + c.n + ' / 5' : '') + '</span><span class="sk-pips" aria-label="' + c.n + ' étoiles sur 5">' + pips + '</span></span>' +
+      '<span class="sk-body"><span class="sk-nm">' + esc(D.nom) + '</span><span class="sk-gr">' + esc(g.nom) + (c.n ? ' · ' + c.n + ' / ' + c.max : '') + '</span><span class="sk-pips" aria-label="' + c.n + ' étoiles sur ' + c.max + (c.nbBrille ? ', ' + c.nbBrille + ' qui brille' + (c.nbBrille > 1 ? 'nt' : '') : '') + '">' + pips + '</span></span>' +
       '<span class="cp-holo"></span><span class="cp-shine"></span></span></' + (big ? 'div' : 'a') + '></div>';
   }
   function skillsHome(R) {
     var d = R.d, tot = SK.total(d), def = SK.prochainDefi(d), lu = R.k ? (app.lsGet('mc-sklu:' + d.joueur.id) || '') : '';
     // les étoiles validées depuis la dernière visite du carnet (pas à la toute 1re visite : tout serait « nouveau »)
-    var nouv = R.k && lu ? (d.etoiles || []).filter(function (e) { return (e.cree || '') > lu; }) : [];
+    // (Skills v2) une étoile qui se met à briller compte aussi comme nouvelle (sa date de mise à jour change)
+    var nouv = R.k && lu ? (d.etoiles || []).filter(function (e) { return (e.maj || e.cree || '') > lu; }) : [];
     var cartes = SK.DOMAINES.map(function (D) { return carteHtml(R, D, SK.carte(d, D.id)); }).join('');
     var defi = '';
     if (def) {
@@ -235,26 +237,37 @@ window.MC = window.MC || {};
         (def.mission ? '<span class="row" style="gap:8px">' + jauge(n) + '<span class="hud" style="color:var(--green)">' + n + ' +1 sur ' + SK.MAX_PLUS1 + (n >= SK.PROPOSE_AU ? ' · à valider' : '') + '</span></span>' : '') + '</a>';
     }
     return '<main class="screen">' + bar(R, 'Skills') +
-      '<div class="between" style="align-items:center"><h1 class="h2" style="font-size:26px">' + T(R, 'Mes Skills', 'Ses Skills') + '</h1><span class="hud" style="color:var(--gold)">' + tot + ' / 20 étoiles</span></div>' +
-      (nouv.length ? '<div class="note gold">' + icon('star', 22) + '<span><b>' + (nouv.length > 1 ? nouv.length + ' nouvelles étoiles !' : 'Nouvelle étoile !') + '</b> ' + nouv.map(function (e) { var s = SK.star(e.domaine, e.etoile); return esc((SK.dom(e.domaine) || {}).nom + ' · ' + (s ? s.nom : '')) + ' (' + esc(e.parNom) + ')'; }).join(', ') + '. +' + (C.XP.etoile * nouv.length) + ' XP</span></div>' : '') +
+      '<div class="between" style="align-items:center"><h1 class="h2" style="font-size:26px">' + T(R, 'Mes Skills', 'Ses Skills') + '</h1><span class="hud" style="color:var(--gold)">' + tot + ' / ' + SK.MAX_TOTAL + ' étoiles' + (SK.totalBrille(d) ? ' · ' + SK.totalBrille(d) + ' brillent' : '') + '</span></div>' +
+      (nouv.length ? '<div class="note gold">' + icon('star', 22) + '<span><b>' + (nouv.length > 1 ? nouv.length + ' nouvelles étoiles !' : 'Nouvelle étoile !') + '</b> ' + nouv.map(function (e) { var s = SK.star(e.domaine, e.etoile), neuve = (e.cree || '') > lu; return esc((SK.dom(e.domaine) || {}).nom + ' · ' + (s ? s.nom : '')) + (e.brille ? (neuve ? ' (gagnée et brille, ' + esc(e.brilleParNom) + ')' : ' (brille, ' + esc(e.brilleParNom) + ')') : ' (' + esc(e.parNom) + ')'); }).join(', ') + '. +' +
+        nouv.reduce(function (t, e) { return t + ((e.cree || '') > lu ? C.XP.etoile : 0) + (e.brille ? C.XP.brille : 0); }, 0) + ' XP</span></div>' : '') +
       '<div class="sk-grid">' + cartes + '</div>' + defi +
-      '<p class="small" style="margin:0">Une étoile reste grise tant qu\'un éduc ne l\'a pas validée, à l\'entraînement ou au plateau. Un +1 ' + T(R, 'te dit que tu es', 'dit qu\'il est') + ' sur la bonne voie. Les Skills ne sont jamais classés : chacun avance à son rythme.</p></main>';
+      '<p class="small" style="margin:0">Une étoile reste grise tant qu\'un éduc ne l\'a pas validée ; elle <b>brille</b> quand un éduc la voit au plateau. ' + T(R, 'Tu peux aussi la demander, sur sa carte (une demande à la fois). ', '') + 'Un +1 ' + T(R, 'te dit que tu es', 'dit qu\'il est') + ' sur la bonne voie. Les Skills ne sont jamais classés : chacun avance à son rythme.</p></main>';
   }
   function skillsCarte(R, id) {
     var d = R.d, D = SK.dom(id);
     if (!D) return '<main class="screen">' + sub(R, R.sk, 'Skills', 'Skills') + '<div class="empty">Carte introuvable.</div></main>';
     var c = SK.carte(d, id), mp = SK.missionPerso(d), def = SK.prochainDefi(d);
-    var ladder = '<ol class="sk-lad">' + SK.GRADES.slice(1).map(function (g) { return '<li class="' + (g.n <= c.n ? 'on' : '') + (g.n === c.n ? ' cur' : '') + '" style="--gc:' + g.color + '">' + esc(g.nom) + '</li>'; }).join('') + '</ol>';
+    var ladder = '<ol class="sk-lad">' + SK.GRADES.slice(1).map(function (g) { return '<li class="' + (g.n <= c.grade.n ? 'on' : '') + (g.n === c.grade.n ? ' cur' : '') + '" style="--gc:' + g.color + '">' + esc(g.nom) + '</li>'; }).join('') + '</ol>' +
+      (c.suivant ? '<p class="small" style="margin:0;color:var(--soft)">Encore ' + c.suivant.manque + ' étoile' + (c.suivant.manque > 1 ? 's' : '') + ' pour passer <b>' + esc(c.suivant.grade.nom) + '</b>.</p>'
+        : c.nbBrille < c.max ? '<p class="small" style="margin:0;color:var(--soft)">Toutes gagnées ! Fais-les briller au plateau pour passer <b>Légende</b> (' + c.nbBrille + ' / ' + c.max + ').</p>' : '');
+    var dem = SK.demandeEnCours(d);
+    // la dernière réponse « pas vu » de chaque étoile (message neutre)
+    var pasvu = {}; (d.demandes || []).forEach(function (x) { if (x.statut === 'pasvu' && x.domaine === id) { var k = x.etoile; if (!pasvu[k] || (pasvu[k].maj || '') < (x.maj || '')) pasvu[k] = x; } });
     var rows = c.stars.map(function (s) {
       var isM = mp && mp.domaine === id && mp.etoile === s.def.id, isDefi = !s.row && def && def.d === id && def.e === s.def.id;
       var right = '', sub2;
-      if (s.row) sub2 = 'Gagnée le ' + jour(s.row.date) + ' · ' + esc(s.row.parNom) + (s.row.occasion ? ' · ' + esc(s.row.occasion) : '');
+      var demIci = dem && dem.domaine === id && dem.etoile === s.def.id, peut = R.k && SK.peutDemander(d, id, s.def.id);
+      if (s.row && s.brille) sub2 = 'Brille depuis le ' + jour(s.row.brille) + ' · vue au plateau' + (s.row.brilleOccasion ? ' (' + esc(s.row.brilleOccasion) + ')' : '') + ' par ' + esc(s.row.brilleParNom);
+      else if (s.row) sub2 = 'Gagnée le ' + jour(s.row.date) + ' · ' + esc(s.row.parNom) + (s.row.occasion ? ' · ' + esc(s.row.occasion) : '');
       else if (isM) {
         var n = SK.plus1(d, mp.id).length, last = SK.plus1(d, mp.id)[0];
         sub2 = T(R, 'Ta', 'Sa') + ' mission perso depuis le ' + jour(mp.debut || mp.cree) + ' · à valider par un éduc';
         right = '<span class="sk-p1">' + jauge(n) + (last ? '<small>dernier : ' + esc(last.parNom) + ', ' + jour(last.date) + '</small>' : '') + '</span>';
       } else sub2 = 'À débloquer';
-      return '<li class="sk-row' + (s.row ? ' on' : '') + (isM ? ' mis' : '') + '"><span class="sk-st">' + icon('star', 22) + '</span><span class="grow"><span class="t1">' + esc(s.def.nom) + (isDefi ? ' <span class="pill" style="--pc:var(--gold)">Prochain défi</span>' : '') + '</span><span class="t2">« ' + esc(s.def.phrase) + ' »</span><span class="t2" style="color:' + (s.row ? 'var(--gold)' : 'var(--dim)') + '">' + sub2 + '</span>' + right + '</span>' +
+      if (demIci) sub2 += '<br><b style="color:var(--cyan)">' + (dem.sorte === 'briller' ? 'Demande envoyée : la faire briller' : 'Demande envoyée') + ' · un éduc va répondre</b>' + (R.k ? ' <button type="button" class="lnk" data-act="skDemAnn" data-id="' + esc(dem.id) + '">Annuler</button>' : '');
+      else if (pasvu[s.def.id] && !(s.row && (s.brille || pasvu[s.def.id].sorte === 'gagner'))) sub2 += '<br><span style="color:var(--dim)">Pas vu cette fois par ' + esc(pasvu[s.def.id].parNom || 'les éducs') + ' : retente ' + (pasvu[s.def.id].sorte === 'briller' ? 'au prochain plateau' : 'à l\'entraînement') + '.</span>';
+      if (peut && !demIci) right += '<button type="button" class="btn2 sm' + (peut === 'briller' ? ' gold' : '') + ' skdem" data-act="skDem" data-d="' + esc(id) + '" data-e="' + esc(s.def.id) + '" data-s="' + peut + '">' + (peut === 'briller' ? icon('spark', 14) + ' Fait au plateau' : 'Demander') + '</button>';
+      return '<li class="li sk-row' + (s.row ? ' on' : '') + (s.brille ? ' brille' : '') + (isM ? ' mis' : '') + '"><span class="sk-st">' + icon('star', 22) + '</span><span class="grow"><span class="t1">' + esc(s.def.nom) + (isDefi ? ' <span class="pill" style="--pc:var(--gold)">Prochain défi</span>' : '') + '</span><span class="t2">« ' + esc(s.def.phrase) + ' »</span><span class="t2" style="color:' + (s.row ? 'var(--gold)' : 'var(--dim)') + '">' + sub2 + '</span>' + right + '</span>' +
         (isM ? '<a class="cbtn grey" href="' + R.base + '/perso" aria-label="Voir la mission">' + icon('right', 16) + '</a>' : '') + '</li>';
     }).join('');
     var conseils = c.stars.filter(function (s) { return !s.row; }).sort(function (a, b) { var am = mp && mp.etoile === a.def.id && mp.domaine === id, bm = mp && mp.etoile === b.def.id && mp.domaine === id; return am === bm ? 0 : am ? -1 : 1; })
@@ -264,6 +277,31 @@ window.MC = window.MC || {};
       (conseils ? '<section class="sec" id="conseil"><h2 class="h2">Comment ' + T(R, 't\'entraîner', 's\'entraîner') + '</h2><div class="sk-tips">' + conseils + '</div></section>' : '<div class="note gold">' + icon('star', 22) + '<span><b>Carte complète : Légende !</b></span></div>') +
       '</main>';
   }
+
+  // ----- l'enfant demande une étoile (une demande à la fois) -----
+  MC.act.skDem = function (b) {
+    var d = b.getAttribute('data-d'), e = b.getAttribute('data-e'), sorte = b.getAttribute('data-s'), s = SK.star(d, e), D = SK.dom(d);
+    if (!s) return;
+    ui.modal({
+      title: sorte === 'briller' ? 'Tu l\'as fait au plateau ?' : 'Tu l\'as réussie ?',
+      body: '<p class="lead"><b>' + esc(D.nom + ' · ' + s.nom) + '</b> : « ' + esc(s.phrase) + ' »</p><p class="small">' +
+        (sorte === 'briller' ? 'Les éducs vont regarder s\'ils l\'ont vu au plateau. Si oui, ton étoile brille.' : 'Les éducs vont te répondre. Si c\'est oui, ton étoile s\'allume.') + ' Une seule demande à la fois.</p>',
+      actions: [{ label: icon('send', 16) + ' Demander', value: true, cls: 'btn gold' }, { label: 'Annuler', value: false, cls: 'btn2 grey' }]
+    }).then(function (ok) {
+      if (!ok) return;
+      app.kidCall('demanderEtoile', { domaine: d, etoile: e }).then(function (r) {
+        var me = app.S.me; if (me) { me.demandes = (me.demandes || []).concat([r.demande]); app.setMe(me); }
+        ui.toast('Demande envoyée : un éduc va te répondre'); app.rerender();
+      }).catch(function (er) { ui.toast(er.message, true); });
+    });
+  };
+  MC.act.skDemAnn = function (b) {
+    var id = b.getAttribute('data-id');
+    app.kidCall('retirerDemande', { id: id }).then(function () {
+      var me = app.S.me; if (me) { me.demandes = (me.demandes || []).filter(function (x) { return x.id !== id; }); app.setMe(me); }
+      ui.toast('Demande annulée'); app.rerender();
+    }).catch(function (er) { ui.toast(er.message, true); });
+  };
 
   // ======================================================================
   // Routes enfant
@@ -287,7 +325,7 @@ window.MC = window.MC || {};
   }, { kid: true, nav: 'missions', live: true, bg: '#12333A' });
   app.route('/skills', function (p, q, cur) {
     return app.loadMe().then(function (me) {
-      cur.after = function (root) { bindCards(root); var mx = new Date(0).toISOString(); (me.etoiles || []).forEach(function (e) { if ((e.cree || '') > mx) mx = e.cree; }); app.lsSet('mc-sklu:' + me.joueur.id, mx); };
+      cur.after = function (root) { bindCards(root); var mx = new Date(0).toISOString(); (me.etoiles || []).forEach(function (e) { var t = e.maj || e.cree || ''; if (t > mx) mx = t; }); app.lsSet('mc-sklu:' + me.joueur.id, mx); };
       return skillsHome(kidR(me));
     });
   }, { kid: true, nav: 'skills', live: true, bg: '#2E2612' });

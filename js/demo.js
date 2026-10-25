@@ -252,7 +252,12 @@ MC.demo = (function () {
       plaquage: [['Arthur', 5], ['Inès', 4], ['Léo', 3], ['Sacha', 3], ['Nina', 2], ['Enzo', 2], ['Chloé', 1], ['Gabin', 2], ['Louise', 2]],
       passe: [['Nina', 4], ['Inès', 3], ['Louise', 3], ['Chloé', 2], ['Jules', 2], ['Léo', 1], ['Arthur', 2]],
       ruck: [['Léo', 3], ['Enzo', 2], ['Adam', 2], ['Gabin', 3], ['Noah', 1]],
-      pied: [['Louise', 2], ['Chloé', 1], ['Nina', 1]]
+      pied: [['Louise', 2], ['Chloé', 1], ['Nina', 1]],
+      // (Skills v2) les nouvelles cartes
+      maul: [['Léo', 2], ['Enzo', 1], ['Gabin', 1]],
+      defense: [['Arthur', 2], ['Inès', 3], ['Sacha', 1]],
+      porteur: [['Gabin', 2], ['Nina', 1], ['Jules', 1]],
+      soutien: [['Louise', 2], ['Jules', 1], ['Chloé', 1]]
     };
     var edus = [x.nico, x.julien, x.cyril];
     Object.keys(E).forEach(function (d) {
@@ -260,7 +265,10 @@ MC.demo = (function () {
       E[d].forEach(function (t, k) {
         for (var i = 0; i < t[1]; i++) {
           var e = edus[(k + i) % 3], ev = i % 2 ? x.p1 : x.p2, dt = String(ev.debut).slice(0, 10);
-          db.insert('etoiles', { id: id(), joueurId: ids[t[0]], domaine: d, etoile: stars[(i + k) % 5].id, parQui: e.id, parNom: e.nom, date: dt, occasion: occ(ev), evenementId: ev.id, essais: null, retiree: false, cree: iso(dt, '11:00'), maj: iso(dt, '11:00') });
+          // (Skills v2) la 1re étoile des enfants qui en ont 3 ou plus brille : vue au plateau
+          var br = i === 0 && t[1] >= 3 && ev.sorte !== 'entrainement';
+          db.insert('etoiles', { id: id(), joueurId: ids[t[0]], domaine: d, etoile: stars[(i + k) % stars.length].id, parQui: e.id, parNom: e.nom, date: dt, occasion: occ(ev), evenementId: ev.id, essais: null, retiree: false, cree: iso(dt, '11:00'), maj: iso(dt, '11:00'),
+            brille: br ? dt : '', brilleParQui: br ? e.id : '', brilleParNom: br ? e.nom : '', brilleOccasion: br ? occ(ev) : '', brilleEvenementId: br ? ev.id : '' });
         }
       });
     });
@@ -268,8 +276,19 @@ MC.demo = (function () {
     var tom = ids['Tom'], d1 = String(x.p1.debut).slice(0, 10), d2 = String(x.p2.debut).slice(0, 10);
     [['plaquage', 'joue', x.nico, x.merAv, occ(x.e0)], ['plaquage', 'cercle', x.julien, d1, occ(x.p1)], ['passe', 'mains', x.nico, d1, occ(x.p1)], ['passe', 'en-courant', x.julien, d2, occ(x.p2)],
       ['passe', 'droite', x.cyril, d2, occ(x.p2)], ['ruck', 'dos-plat', x.nico, d1, occ(x.p1)]].forEach(function (t) {
-      db.insert('etoiles', { id: id(), joueurId: tom, domaine: t[0], etoile: t[1], parQui: t[2].id, parNom: t[2].nom, date: t[3], occasion: t[4], evenementId: '', essais: null, retiree: false, cree: iso(t[3], '12:00'), maj: iso(t[3], '12:00') });
+      // (Skills v2) Mains en cible brille : vue au plateau
+      var br = t[0] === 'passe' && t[1] === 'mains';
+      db.insert('etoiles', { id: id(), joueurId: tom, domaine: t[0], etoile: t[1], parQui: t[2].id, parNom: t[2].nom, date: t[3], occasion: t[4], evenementId: '', essais: null, retiree: false, cree: iso(t[3], '12:00'), maj: iso(t[3], br ? '13:00' : '12:00'),
+        brille: br ? t[3] : '', brilleParQui: br ? x.julien.id : '', brilleParNom: br ? x.julien.nom : '', brilleOccasion: br ? t[4] : '', brilleEvenementId: '' });
     });
+    // (Skills v2) les demandes des enfants : Tom a eu un « pas vu » ; Inès et Léo attendent une réponse
+    function demande(nom, d, e, sorte, statut, par, ev, quand) {
+      db.insert('demandes', { id: id(), joueurId: ids[nom], domaine: d, etoile: e, sorte: sorte, evenementId: ev ? ev.id : '', occasion: ev ? occ(ev) : '', statut: statut,
+        parQui: par ? par.id : '', parNom: par ? par.nom : '', reponseLe: par ? iso(quand, '21:00') : '', cree: iso(quand, '19:30'), maj: iso(quand, par ? '21:00' : '19:30') });
+    }
+    demande('Tom', 'ruck', 'appuis', 'gagner', 'pasvu', x.julien, x.e0, x.merAv);
+    demande('Inès', 'defense', 'ligne', 'briller', 'attente', null, x.p2, d2);
+    demande('Léo', 'maul', 'debout', 'gagner', 'attente', null, x.e0, x.merAv);
     function perso(nom, d, e, par, depuis, titre) {
       var m = { id: id(), sorte: 'etoile', titre: titre, texte: '', video: '', questions: [], joueurId: ids[nom], domaine: d, etoile: e, xp: 0, debut: depuis, fin: '', statut: 'active', parQui: par.id, parNom: par.nom, faiteLe: '', cree: iso(depuis, '20:00'), maj: iso(depuis, '20:00') };
       db.insert('defmissions', m); return m;

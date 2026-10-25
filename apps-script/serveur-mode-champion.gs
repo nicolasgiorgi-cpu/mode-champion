@@ -131,7 +131,13 @@ var Core = (function () {
     // ---- Skills, encouragements et missions des éducs ----
     // une étoile Skills validée par un éduc (domaine + étoile) ; retiree = validée par erreur (gardée pour l'historique)
     etoiles: [['id', 's'], ['joueurId', 's'], ['domaine', 's'], ['etoile', 's'], ['parQui', 's'], ['parNom', 's'], ['date', 's'], ['occasion', 's'],
-      ['evenementId', 's'], ['essais', 'j'], ['retiree', 'b'], ['cree', 's'], ['maj', 's']],
+      ['evenementId', 's'], ['essais', 'j'], ['retiree', 'b'], ['cree', 's'], ['maj', 's'],
+      // (25/10, Skills v2) l'étoile « brille » : vue au plateau (date, par qui, où) ; vide = gagnée à l'entraînement seulement
+      ['brille', 's'], ['brilleParQui', 's'], ['brilleParNom', 's'], ['brilleOccasion', 's'], ['brilleEvenementId', 's']],
+    // (25/10, Skills v2) la demande d'un enfant : « valide-moi cette étoile » (sorte gagner) ou « je l'ai fait au plateau » (briller)
+    // statut : attente, oui (étoile donnée ou allumée), pasvu (message neutre), retiree (l'enfant l'a annulée) ; une seule en attente par enfant
+    demandes: [['id', 's'], ['joueurId', 's'], ['domaine', 's'], ['etoile', 's'], ['sorte', 's'], ['evenementId', 's'], ['occasion', 's'], ['statut', 's'],
+      ['parQui', 's'], ['parNom', 's'], ['reponseLe', 's'], ['cree', 's'], ['maj', 's']],
     // un « +1 » (ou un mot) d'un éduc à un enfant : sur sa mission perso (missionId) ou sur autre chose (mot obligatoire)
     encouragements: [['id', 's'], ['joueurId', 's'], ['missionId', 's'], ['domaine', 's'], ['etoile', 's'], ['mot', 's'], ['parQui', 's'], ['parNom', 's'],
       ['date', 's'], ['occasion', 's'], ['evenementId', 's'], ['retire', 'b'], ['cree', 's']],
@@ -300,9 +306,14 @@ var Core = (function () {
     return { id: m.id, joueurId: m.joueurId, mission: m.mission, reponses: out, faite: !!m.faite, date: m.date || '', source: m.source || '', maj: m.maj || m.cree || '' };
   }
   function pubEtoile(e, full) {
-    var o = { id: e.id, joueurId: e.joueurId, domaine: e.domaine, etoile: e.etoile, parNom: e.parNom || '', date: e.date || '', occasion: e.occasion || '', cree: e.cree || '' };
-    if (full) { o.parQui = e.parQui || ''; o.essais = Array.isArray(e.essais) ? e.essais : null; }
+    var o = { id: e.id, joueurId: e.joueurId, domaine: e.domaine, etoile: e.etoile, parNom: e.parNom || '', date: e.date || '', occasion: e.occasion || '', cree: e.cree || '',
+      brille: e.brille || '', brilleParNom: e.brilleParNom || '', brilleOccasion: e.brilleOccasion || '', maj: e.maj || e.cree || '' };
+    if (full) { o.parQui = e.parQui || ''; o.essais = Array.isArray(e.essais) ? e.essais : null; o.brilleParQui = e.brilleParQui || ''; o.evenementId = e.evenementId || ''; }
     return o;
+  }
+  function pubDemande(x) {
+    return { id: x.id, joueurId: x.joueurId, domaine: x.domaine || '', etoile: x.etoile || '', sorte: x.sorte || 'gagner', evenementId: x.evenementId || '', occasion: x.occasion || '',
+      statut: x.statut || 'attente', parNom: x.parNom || '', reponseLe: x.reponseLe || '', cree: x.cree || '', maj: x.maj || x.cree || '' };
   }
   function pubEnc(x) {
     return { id: x.id, joueurId: x.joueurId, missionId: x.missionId || '', domaine: x.domaine || '', etoile: x.etoile || '', mot: x.mot || '', parQui: x.parQui || '', parNom: x.parNom || '',
@@ -337,7 +348,8 @@ var Core = (function () {
       missions: where(db.rows('missions'), 'joueurId', joueur.id).map(function (m) { return pubMission(m, parent); }),
       etoiles: where(db.rows('etoiles'), 'joueurId', joueur.id).filter(function (e) { return !e.retiree; }).map(function (e) { return pubEtoile(e, ctx.auth && ctx.auth.r === 'e'); }),
       encouragements: where(db.rows('encouragements'), 'joueurId', joueur.id).filter(function (x) { return !x.retire; }).map(pubEnc),
-      defmissions: defsDe(db, joueur.id)
+      defmissions: defsDe(db, joueur.id),
+      demandes: where(db.rows('demandes'), 'joueurId', joueur.id).filter(function (x) { return x.statut !== 'retiree'; }).map(pubDemande)
     };
   }
 
@@ -856,6 +868,7 @@ var Core = (function () {
       var seances = db.rows('seances'), records = db.rows('records'), journal = db.rows('journal'), missions = db.rows('missions');
       var fams = db.rows('familles'), terrain = db.rows('terrain');
       var etoiles = db.rows('etoiles').filter(function (e) { return !e.retiree; }), encs = db.rows('encouragements').filter(function (x) { return !x.retire; });
+      var dems = db.rows('demandes').filter(function (x) { return x.statut !== 'retiree'; });
       var joueurs = db.rows('joueurs').map(function (j) {
         return {
           joueur: pubJoueur(j),
@@ -866,7 +879,8 @@ var Core = (function () {
           missions: where(missions, 'joueurId', j.id).map(function (m) { return pubMission(m, false); }),
           terrain: pubTerrain(find(terrain, j.id)),
           etoiles: where(etoiles, 'joueurId', j.id).map(function (e) { return pubEtoile(e, true); }),
-          encouragements: where(encs, 'joueurId', j.id).map(pubEnc)
+          encouragements: where(encs, 'joueurId', j.id).map(pubEnc),
+          demandes: where(dems, 'joueurId', j.id).map(pubDemande)
         };
       });
       var imp = null;
@@ -1039,11 +1053,16 @@ var Core = (function () {
   //   il ne donne jamais l'étoile : au 3e, l'appli propose aux éducs de la valider, rien d'automatique.
   // - Un parent ne donne jamais de +1 ; l'enfant et sa famille voient les +1 et les mots.
   // ---------------------------------------------------------
+  // (25/10, Skills v2) 8 cartes ; les identifiants déjà en ligne ne changent jamais (une étoile validée garde son id)
   var SKILLS = {
     plaquage: ['epaule', 'joue', 'deux-cotes', 'cercle', 'tomber'],
-    passe: ['mains', 'en-courant', 'droite', 'gauche', 'vrillee'],
-    ruck: ['dos-plat', 'appuis', 'tete', 'gagne', 'roulade'],
-    pied: ['decolle', 'chandelle', 'rasant', 'ramasse', 'vise']
+    ruck: ['dos-plat', 'appuis', 'tete', 'gagne', 'roulade', 'hors-jeu', 'porte'],
+    maul: ['debout', 'tourne', 'lie', 'arrache', 'avance', 'arrete'],
+    defense: ['ligne', 'jeu', 'parle', 'cadre', 'retour'],
+    porteur: ['droit', 'avance', 'cherche', 'raffut', 'tombe', 'ballon-camp'],
+    passe: ['mains', 'en-courant', 'droite', 'gauche', 'vrillee', 'piston'],
+    pied: ['decolle', 'chandelle', 'rasant', 'ramasse', 'vise', 'deux-pieds'],
+    soutien: ['axe', 'montre', 'plus', 'premier', 'replace', 'hors-jeu-pied']
   };
   var MAX_PLUS1 = 5;
   function skillOk(d, e) { return typeof d === 'string' && typeof e === 'string' && Object.prototype.hasOwnProperty.call(SKILLS, d) && SKILLS[d].indexOf(e) >= 0; }
@@ -1093,35 +1112,108 @@ var Core = (function () {
       return { id: x.id };
     }
   };
-  // valider des étoiles : une ou plusieurs (évaluer pendant la séance, journée d'évaluation)
+  // donner une étoile (ou la faire briller) à un enfant : utilisé par validerEtoiles et repondreDemande
+  // renvoie { row, statut: 'nouvelle' | 'brille' | 'deja' } ; la mission perso qui visait l'étoile est faite ;
+  // une demande en attente de l'enfant sur cette étoile est close (oui)
+  function allumerEtoile(ctx, j, d, e, o, brille, essais, now, faites) {
+    var ex = etoileActive(ctx, j.id, d, e), row = null, statut = 'deja', me = ctx.auth.row;
+    var b = brille ? { brille: isoDate(ctx.now), brilleParQui: me.id, brilleParNom: educNom(ctx), brilleOccasion: o.occasion, brilleEvenementId: o.evenementId } : null;
+    if (ex) {
+      if (b && !ex.brille) { b.maj = now; ctx.db.update('etoiles', ex.id, b); statut = 'brille'; }
+      row = find(ctx.db.rows('etoiles'), ex.id);
+    } else {
+      row = { id: genId(ctx.env), joueurId: j.id, domaine: d, etoile: e, parQui: me.id, parNom: educNom(ctx),
+        date: isoDate(ctx.now), occasion: o.occasion, evenementId: o.evenementId, essais: essais || null, retiree: false, cree: now, maj: now,
+        brille: '', brilleParQui: '', brilleParNom: '', brilleOccasion: '', brilleEvenementId: '' };
+      if (b) Object.keys(b).forEach(function (k) { row[k] = b[k]; });
+      ctx.db.insert('etoiles', row);
+      statut = 'nouvelle';
+      ctx.db.rows('defmissions').forEach(function (m) {
+        if (m.sorte === 'etoile' && m.statut === 'active' && m.joueurId === j.id && m.domaine === d && m.etoile === e) {
+          ctx.db.update('defmissions', m.id, { statut: 'faite', faiteLe: isoDate(ctx.now), maj: now });
+          if (faites) faites.push(m.id);
+        }
+      });
+    }
+    // la demande de l'enfant sur cette étoile est satisfaite (pour « briller », seulement si l'étoile brille maintenant)
+    ctx.db.rows('demandes').forEach(function (x) {
+      if (x.statut === 'attente' && x.joueurId === j.id && x.domaine === d && x.etoile === e && (x.sorte !== 'briller' || (row && row.brille))) {
+        ctx.db.update('demandes', x.id, { statut: 'oui', parQui: me.id, parNom: educNom(ctx), reponseLe: now, maj: now });
+      }
+    });
+    return { row: row, statut: statut };
+  }
+  // valider des étoiles : une ou plusieurs (après la séance, atelier ou journée d'évaluation, après un plateau)
+  // brille : true (pour toute la liste) ou x.brille (par étoile) = l'étoile a été vue au plateau
   A.validerEtoiles = {
     auth: ['e'],
     run: function (req, ctx) {
       var list = Array.isArray(req.etoiles) ? req.etoiles.slice(0, 300) : [];
       if (!list.length) fail('invalide', 'Aucune étoile à valider.');
-      var o = occasionDe(ctx, req), now = isoNow(ctx.now), out = [], deja = 0, faites = [];
+      var o = occasionDe(ctx, req), now = isoNow(ctx.now), out = [], deja = 0, brillees = 0, faites = [];
       // tout est vérifié avant d'écrire quoi que ce soit
       var js = list.map(function (x) {
         if (!x || !skillOk(String(x.domaine), String(x.etoile))) fail('invalide', 'Étoile inconnue.');
         return joueurActif(ctx, x.joueurId);
       });
       list.forEach(function (x, i) {
-        var j = js[i];
-        if (etoileActive(ctx, j.id, x.domaine, x.etoile)) { deja++; return; }
         var essais = Array.isArray(x.essais) ? x.essais.slice(0, 3).map(function (v) { return v ? 1 : 0; }) : null;
-        var row = { id: genId(ctx.env), joueurId: j.id, domaine: String(x.domaine), etoile: String(x.etoile), parQui: ctx.auth.row.id, parNom: educNom(ctx),
-          date: isoDate(ctx.now), occasion: o.occasion, evenementId: o.evenementId, essais: essais, retiree: false, cree: now, maj: now };
-        ctx.db.insert('etoiles', row);
-        out.push(pubEtoile(row, true));
-        // la mission perso qui visait cette étoile est faite
-        ctx.db.rows('defmissions').forEach(function (m) {
-          if (m.sorte === 'etoile' && m.statut === 'active' && m.joueurId === j.id && m.domaine === row.domaine && m.etoile === row.etoile) {
-            ctx.db.update('defmissions', m.id, { statut: 'faite', faiteLe: isoDate(ctx.now), maj: now });
-            faites.push(m.id);
-          }
-        });
+        var r = allumerEtoile(ctx, js[i], String(x.domaine), String(x.etoile), o, req.brille === true || x.brille === true, essais, now, faites);
+        if (r.statut === 'deja') { deja++; return; }
+        if (r.statut === 'brille') brillees++;
+        out.push(pubEtoile(r.row, true));
       });
-      return { etoiles: out, deja: deja, missionsFaites: faites };
+      return { etoiles: out, deja: deja, brillees: brillees, missionsFaites: faites };
+    }
+  };
+  // ----- les demandes des enfants -----
+  // l'enfant demande une étoile pas encore gagnée (gagner) ou de faire briller une étoile qu'il a (briller) ;
+  // une seule demande en attente à la fois ; les éducs répondent Oui ou Pas vu, quand ils veulent
+  A.demanderEtoile = {
+    auth: ['p'],
+    run: function (req, ctx) {
+      var me = ctx.auth.row, d = String(req.domaine || ''), e = String(req.etoile || '');
+      if (!skillOk(d, e)) fail('invalide', 'Étoile inconnue.');
+      var enCours = ctx.db.rows('demandes').filter(function (x) { return x.joueurId === me.id && x.statut === 'attente'; })[0];
+      if (enCours) fail('deja', 'Tu as déjà une demande en attente : les éducs vont y répondre.');
+      var ex = etoileActive(ctx, me.id, d, e);
+      if (ex && ex.brille) fail('invalide', 'Cette étoile brille déjà.');
+      var o = occasionDe(ctx, req), now = isoNow(ctx.now);
+      var row = { id: genId(ctx.env), joueurId: me.id, domaine: d, etoile: e, sorte: ex ? 'briller' : 'gagner', evenementId: o.evenementId, occasion: o.occasion,
+        statut: 'attente', parQui: '', parNom: '', reponseLe: '', cree: now, maj: now };
+      ctx.db.insert('demandes', row);
+      return { demande: pubDemande(row) };
+    }
+  };
+  // l'enfant annule sa demande en attente
+  A.retirerDemande = {
+    auth: ['p'],
+    run: function (req, ctx) {
+      var x = find(ctx.db.rows('demandes'), String(req.id || ''));
+      if (!x || x.joueurId !== ctx.auth.row.id || x.statut !== 'attente') fail('introuvable', 'Introuvable.');
+      ctx.db.update('demandes', x.id, { statut: 'retiree', maj: isoNow(ctx.now) });
+      return { id: x.id };
+    }
+  };
+  // un éduc répond : oui (l'étoile est donnée, ou elle brille) ou pas vu (message neutre, l'enfant peut redemander)
+  A.repondreDemande = {
+    auth: ['e'],
+    run: function (req, ctx) {
+      var x = find(ctx.db.rows('demandes'), String(req.id || ''));
+      if (!x || x.statut !== 'attente') fail('introuvable', 'Cette demande n\'est plus en attente.');
+      var j = joueurActif(ctx, x.joueurId), now = isoNow(ctx.now), etoile = null;
+      if (req.oui === true) {
+        var o = { occasion: x.occasion, evenementId: x.evenementId };
+        if (req.occasion !== undefined || req.evenementId !== undefined) o = occasionDe(ctx, req);
+        var r = allumerEtoile(ctx, j, x.domaine, x.etoile, o, x.sorte === 'briller', null, now, []);
+        etoile = r.row ? pubEtoile(r.row, true) : null;
+        // demande close par allumerEtoile ; si l'étoile était déjà là (validée entre-temps), on la clôt quand même
+        var y = find(ctx.db.rows('demandes'), x.id);
+        if (y.statut === 'attente') ctx.db.update('demandes', x.id, { statut: 'oui', parQui: ctx.auth.row.id, parNom: educNom(ctx), reponseLe: now, maj: now });
+      } else {
+        ctx.db.update('demandes', x.id, { statut: 'pasvu', parQui: ctx.auth.row.id, parNom: educNom(ctx), reponseLe: now, maj: now });
+      }
+      return { demande: pubDemande(find(ctx.db.rows('demandes'), x.id)), etoile: etoile };
     }
   };
   // une étoile validée par erreur : elle disparaît pour l'enfant (gardée dans la feuille) ; sa mission perso redevient en cours
@@ -1131,6 +1223,11 @@ var Core = (function () {
       var e = find(ctx.db.rows('etoiles'), String(req.id || ''));
       if (!e || e.retiree) fail('introuvable', 'Introuvable.');
       var now = isoNow(ctx.now);
+      if (req.eteindre === true) {
+        if (!e.brille) fail('invalide', 'Cette étoile ne brille pas.');
+        ctx.db.update('etoiles', e.id, { brille: '', brilleParQui: '', brilleParNom: '', brilleOccasion: '', brilleEvenementId: '', maj: now });
+        return { id: e.id, eteinte: true, missionsRouvertes: [] };
+      }
       ctx.db.update('etoiles', e.id, { retiree: true, maj: now });
       var rouvertes = [];
       // une seule mission perso à la fois : si l'enfant en a déjà une autre en cours, l'ancienne reste « faite »

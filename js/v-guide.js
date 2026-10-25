@@ -34,7 +34,7 @@
   function xpTable() {
     var X = C.XP;
     var rows = [['Séance à la maison (lundi → jeudi)', X.seance], ['Club du mercredi ou du samedi', X.club], ['Récup du dimanche', X.recup], ['Semaine parfaite (les 6 étoiles)', X.bonus],
-      ['Badge gagné, ou palier bronze / argent / or', X.badge], ['Record battu (confirmé par un adulte)', X.record], ['Niveau monté (la 1re fois)', X.niveau], ['Premiers pas réussis (une fois)', X.premiersPas], ['Mission spéciale accomplie', X.mission], ['Étoile Skills validée par un éduc', X.etoile]];
+      ['Badge gagné, ou palier bronze / argent / or', X.badge], ['Record battu (confirmé par un adulte)', X.record], ['Niveau monté (la 1re fois)', X.niveau], ['Premiers pas réussis (une fois)', X.premiersPas], ['Mission spéciale accomplie', X.mission], ['Étoile Skills validée par un éduc', X.etoile], ['Étoile Skills qui brille (vue au plateau)', X.brille]];
     return '<div class="gxp">' + rows.map(function (r) { return '<span>' + esc(r[0]) + '</span><span>+' + r[1] + ' XP</span>'; }).join('') + '</div>';
   }
   function grades() {
@@ -55,7 +55,7 @@
         ul([
           '<b>Prépa</b> : ta prépa physique. <b>Ma semaine</b> (la séance du jour et GO, tes étoiles), <b>Bilans</b> (tes records et tes niveaux) et <b>Classement</b> (l\'arène).',
           '<b>Missions</b> : ce que demandent tes éducs. Ta mission perso et ses +1, les missions de toute l\'équipe (choisir ton poste, une vidéo, un QCM), et tous les mots de tes éducs. Une pastille rose = du nouveau.',
-          '<b>Skills</b> : ton carnet de compétences rugby, 4 cartes de 5 étoiles validées par tes éducs.',
+          '<b>Skills</b> : ton carnet de compétences rugby, 8 cartes d\'étoiles validées par tes éducs.',
           '<b>Moi</b> : ton grade, tes XP, tes postes et tes copains, tes trophées, l\'aide et les réglages.'
         ]), true) +
       card('semaine', 'star', '#FFC23D', 'Ta semaine et les étoiles', '1 étoile par jour, 6 par semaine, +1 bonus',
@@ -105,9 +105,10 @@
         ])) +
       card('skills', 'star', '#FFC23D', 'Tes Skills', 'Ton carnet de compétences rugby',
         ul([
-          '4 cartes : <b>Plaquage</b>, <b>Passe</b>, <b>Ruck</b> et <b>Jeu au pied</b>. Chacune a 5 étoiles, à gagner dans l\'ordre que tu veux.',
-          'Une étoile s\'allume quand <b>un éduc la valide</b>, à l\'entraînement, au plateau ou à la journée d\'évaluation : <b>+' + C.XP.etoile + ' XP</b>.',
-          'Ta carte prend du grade à chaque étoile : <b>Bronze</b>, <b>Argent</b>, <b>Or</b>, <b>Diamant</b>, puis <b>Légende</b>.',
+          '8 cartes : <b>Plaquage</b>, <b>Ruck</b>, <b>Maul</b>, <b>Défense</b>, <b>Porteur</b>, <b>Passe</b>, <b>Jeu au pied</b> et <b>Soutien</b>. Leurs étoiles se gagnent dans l\'ordre que tu veux.',
+          'Une étoile s\'allume quand <b>un éduc la valide</b>, après l\'entraînement ou à un atelier d\'évaluation : <b>+' + C.XP.etoile + ' XP</b>. Elle <b>brille</b> quand un éduc la voit au plateau : <b>+' + C.XP.brille + ' XP</b>.',
+          'Tu l\'as réussie ? Sur la carte, <b>Demander</b> (ou <b>Fait au plateau</b> pour la faire briller) : un éduc te répond. Une demande à la fois.',
+          'Ta carte prend du grade : <b>Bronze</b> à la 1re étoile, <b>Argent</b> au tiers, <b>Or</b> aux deux tiers, <b>Diamant</b> quand toutes sont gagnées, et <b>Légende</b> quand toutes brillent.',
           'Touche une carte : ses étoiles, qui les a validées, et comment t\'entraîner pour les autres. Les Skills ne sont jamais classés : chacun avance à son rythme.'
         ])) +
       card('badges', 'shield', '#FF4FA3', 'Les badges', C.BADGES.length + ' badges en ' + C.FAMILLES_BADGES.length + ' familles',
@@ -223,7 +224,7 @@
         ]), true) +
       card('e-vestiaire', 'group', '#3DFFB0', 'Les 4 onglets et l\'engrenage', 'Un onglet par usage',
         ul([
-          '<b>Entraîn.</b> (on arrive ici) : à venir et passés. Un entraînement : les présents de Spond (à corriger d\'un toucher), <b>1. les ateliers</b> puis <b>2. les matchs</b>, et pendant la séance : évaluer des Skills avec les présents, et les missions des présents (un toucher = +1).',
+          '<b>Entraîn.</b> (on arrive ici) : à venir et passés. Un entraînement : les présents de Spond (à corriger d\'un toucher), <b>1. les ateliers</b> puis <b>2. les matchs</b>, et après la séance : évaluer des Skills avec les présents (une étoile ou un atelier), et les missions des présents (un toucher = +1).',
           '<b>Plateaux</b> : à venir et joués. Un plateau : les présents, puis la compo (jeu à 5 ou à 10, 2 versions, vote, contre-propositions), et le +1 pendant et après. Pastille rose = un vote ou une contre-proposition attend.',
           '<b>Progrès</b> : <b>Prépa physique</b> (les résultats de votre enfant à confirmer, ça bouge, le classement, les progrès aux bilans), <b>Skills</b> (évaluer, le passeport du groupe, la journée d\'évaluation) et <b>Missions</b> (pour le groupe, individuelles).',
           '<b>Enfants</b> : <b>Tous</b>, <b>À relancer</b> (rien noté depuis 7 jours) et <b>Niveaux et postes</b> (la fiche terrain du groupe). Toucher un prénom ouvre sa fiche, partout dans l\'appli.',
@@ -249,8 +250,8 @@
         ])) +
       card('skills-e', 'star', '#FFC23D', 'Skills, missions et +1', 'Progrès › Skills et Missions',
         ul([
-          '<b>Évaluer</b> (Progrès › Skills, ou « Évaluer des Skills » sur la page d\'une séance) : la carte, l\'étoile, puis les présents : <b>Valider ★</b> pour ceux qui la réussissent. Un éduc suffit ; validée par erreur ? « Retirer » sur sa fiche.',
-          '<b>Journée d\'évaluation</b> : comme la grille papier. Votre atelier, le groupe, puis 3 essais par critère (✓ / ✗) : l\'étoile est gagnée à 2 réussis sur 3. « Suivant » pour le groupe d\'après. <b>Passeport du groupe</b> : toutes les cartes de tous les enfants.',
+          '<b>Évaluer</b> (Progrès › Skills, ou « Évaluer des Skills » sur la page d\'une séance, après la séance) : une étoile, ou un <b>atelier prêt</b> (2 à 5 étoiles). Une étoile : la liste des présents ; un atelier : une <b>grille</b> enfants × étoiles. Touchez ceux qui ont réussi (règle des 3 essais : 2 réussis sur 3). Tout reste sur le téléphone, même sans réseau, puis <b>Envoyer</b> à la fin : les enfants découvrent leurs étoiles après l\'entraînement. Un éduc suffit ; validée par erreur ? « Retirer » sur sa fiche.',
+          '<b>Atelier ou journée d\'évaluation</b> : faites les groupes d\'ateliers de la séance (Entraîn. › Ateliers) ; sur Évaluer, touchez le groupe qui arrive (G1, G2…) pour n\'afficher que lui. <b>Après un plateau</b> (« Faire briller des étoiles » sur sa page) : les étoiles touchées brillent. <b>Demandes des enfants</b> en haut d\'Évaluer : Oui ou Pas vu. <b>Passeport du groupe</b> : toutes les cartes de tous les enfants.',
           '<b>Mission perso</b> (Progrès › Missions › + Individuelle, ou depuis sa fiche) : une étoile précise à décrocher, une à la fois. L\'enfant la voit dans son onglet Missions.',
           '<b>Le +1</b> : d\'un seul toucher, sur la page de l\'entraînement ou du plateau, dans Progrès, ou sur sa fiche ; « +1 avec un mot » pour ajouter une phrase et l\'occasion. Il dit « tu es sur la bonne voie » : l\'enfant et sa famille le voient (qui, quand, à quelle occasion). Jusqu\'à 5 par mission. <b>Au 3e, l\'appli propose de valider l\'étoile</b> : rien d\'automatique, c\'est vous qui décidez. Un parent ne donne jamais de +1.',
           '<b>Pour le groupe</b> : une vidéo YouTube et quelques questions, ou un QCM, avec une date limite et des XP. Vous voyez qui l\'a faite et la moyenne ; l\'auteur (ou l\'admin) peut changer la date ou la retirer.'

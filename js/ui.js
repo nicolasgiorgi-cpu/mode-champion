@@ -52,6 +52,9 @@ MC.ui = (function () {
     logout: '<path d="M14 4h5v16h-5M10 8l-4 4 4 4M6 12h10"/>',
     bar: '<path d="M6 7v10M18 7v10M3 9v6M21 9v6M6 12h12"/>',
     bolt: '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
+    // Skills : le maul (trois joueurs liés) et la défense (une ligne)
+    pack: '<circle cx="6" cy="7" r="2.5"/><circle cx="12" cy="6" r="2.5"/><circle cx="18" cy="7" r="2.5"/><path d="M3 20v-4.5a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3V20M8.5 12.5l1 7.5M15.5 12.5l-1 7.5"/>',
+    wall: '<path d="M3 6h18v12H3zM3 12h18M9 6v6M15 12v6"/>',
     heart: '<path d="M20.8 8.6a5 5 0 0 0-8.8-3.2A5 5 0 0 0 3.2 8.6c0 5.4 8.8 11 8.8 11s8.8-5.6 8.8-11z"/>',
     spring: '<path d="M7 3h10M7 21h10M7 3l10 3.6L7 10.2l10 3.6L7 17.4 17 21"/>',
     moon: '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',

@@ -371,6 +371,8 @@ MC.logic = (function () {
     // étoiles Skills validées par un éduc
     var nbEtoiles = (data.etoiles || []).length;
     xp += nbEtoiles * (X.etoile || 0);
+    // (Skills v2) une étoile qui brille (vue au plateau) rapporte en plus
+    xp += (data.etoiles || []).filter(function (e) { return !!e.brille; }).length * (X.brille || 0);
     // records battus (confirmés)
     var recOk = (data.records || []).filter(function (r) { return r.statut === 'ok'; }).sort(function (a, b) { return (a.date + a.cree) < (b.date + b.cree) ? -1 : 1; });
     var best = {}, recordsBattus = 0;

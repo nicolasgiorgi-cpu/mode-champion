@@ -8,6 +8,15 @@
 window.MC = window.MC || {};
 
 MC.NEWS = [
+  // (Skills v2, branche skills-v2 : texte provisoire, à revoir avec la passe sur les visuels avant la mise en ligne)
+  { id: '2026-11-skills-v2', date: '2026-10-25', pour: ['k', 'f', 'e'],
+    titre: { k: '8 cartes Skills et des étoiles qui brillent', f: 'Skills : 8 cartes et des étoiles qui brillent', e: 'Skills v2 : 8 cartes, un seul écran Évaluer' },
+    texte: {
+      k: 'Nouvelles cartes : Maul, Défense, Porteur et Soutien. Une étoile vue au plateau brille (+' + 50 + ' XP). Tu l\'as réussie ? Demande-la sur sa carte.',
+      f: '4 nouvelles cartes (Maul, Défense, Porteur, Soutien). Une étoile vue au plateau brille ; votre enfant peut demander une étoile aux éducs.',
+      e: 'Évaluer : une étoile ou un atelier (grille), les groupes d\'ateliers de la séance, gardé sur le téléphone puis envoyé à la fin ; après un plateau, les étoiles brillent ; les demandes des enfants en haut.'
+    },
+    lien: { k: '#/skills', f: '#/parent/skills', e: '#/educ/skills' } },
   { id: '2026-10-retour-adulte', date: '2026-10-24', pour: ['f', 'e'],
     titre: 'Revenir à votre espace en un geste',
     texte: 'Côté enfant, le bouton 🔒 Parent (ou Éduc) est en haut à droite, à la place du ▶ : votre code est redemandé.' },
