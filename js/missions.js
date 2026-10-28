@@ -12,7 +12,7 @@ window.MC = window.MC || {};
 
 MC.MISSIONS = [
   {
-    id: 'poste', ligne: 'jeu10', titre: 'Choisis ton poste', debut: '2026-10-13', fin: '2026-11-02', badge: 'jeu10', lien: '#/mission/postes', icon: 'ball',
+    id: 'poste', ligne: 'jeu10', titre: 'Choisis ton poste', debut: '2026-10-13', fin: '2026-11-09', badge: 'jeu10', lien: '#/mission/postes', icon: 'ball',
     texte: 'Découvre les 7 postes du jeu à 10 et choisis ton top : 1 à 3 postes.'
   },
   {
