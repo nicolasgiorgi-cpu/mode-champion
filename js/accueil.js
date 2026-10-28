@@ -34,8 +34,18 @@ MC.accueil = (function () {
     f: 'Le carnet de prépa physique et de rugby des M12. Votre enfant s\'entraîne à la maison et progresse avec ses éducs ; vous suivez tout ici :',
     e: 'L\'appli des M12 : la prépa physique et les progrès rugby des enfants, les entraînements et les plateaux. 4 onglets :'
   };
+  // V1 (28/10) : pour les enfants et les parents, sans Skills, et les Missions = choisir son poste (MC.CONFIG.ENFANTS)
+  function lignes(role) {
+    if (role === 'e') return RESUME.e;
+    var plein = MC.ouvert('skills') && MC.ouvert('missionsEducs');
+    return RESUME[role].filter(function (x) { return x[2] !== 'Skills' || MC.ouvert('skills'); }).map(function (x) {
+      if (x[2] !== 'Missions' || plein) return x;
+      return [x[0], x[1], x[2], role === 'k' ? 'les missions de tes éducs, comme choisir ton poste pour le jeu à 10' : 'les missions de ses éducs, comme choisir son poste pour le jeu à 10'];
+    });
+  }
+  function intro(role) { return role === 'e' ? INTRO.e : INTRO[role].replace('4 onglets', lignes(role).length + ' onglets'); }
   function resume(role) {
-    return '<ul class="obres">' + RESUME[role].map(function (x) { return '<li style="--rc:' + x[1] + '">' + icon(x[0], 22) + '<span><b>' + x[2] + '</b> : ' + esc(x[3]) + '.</span></li>'; }).join('') + '</ul>' +
+    return '<ul class="obres">' + lignes(role).map(function (x) { return '<li style="--rc:' + x[1] + '">' + icon(x[0], 22) + '<span><b>' + x[2] + '</b> : ' + esc(x[3]) + '.</span></li>'; }).join('') + '</ul>' +
       '<p class="small" style="margin:0">' + (role === 'k' ? 'Une question ? Touche le « ? » en haut de l\'écran.' : 'Une question ? Le « ? » en haut de chaque écran explique tout.') + '</p>';
   }
   // 1re ouverture sur cet appareil, sans visite : ce message simple, et jamais la liste des nouveautés d'avant son arrivée
@@ -49,7 +59,7 @@ MC.accueil = (function () {
     var me = app.S.me, nom = role === 'k' && me && me.joueur ? me.joueur.prenom : '';
     return ui.modal({
       title: role === 'k' ? 'Bienvenue' + (nom ? ', ' + esc(nom) : '') + ' !' : 'Bienvenue dans Mode champion',
-      body: '<p class="lead" style="margin:0">' + esc(INTRO[role]) + '</p>' + resume(role),
+      body: '<p class="lead" style="margin:0">' + esc(intro(role)) + '</p>' + resume(role),
       actions: [{ label: 'C\'est parti !', value: 'ok', cls: 'btn' }],
       onOpen: function (host) { host.classList.add('sheet-bvn'); }
     });
@@ -111,7 +121,7 @@ MC.accueil = (function () {
     var nextBtn = '<button type="button" class="btn" data-act="obNext" data-r="k">' + (i === 0 ? 'C\'est parti' : 'Suivant') + ' ' + icon('right', 18) + '</button>';
     var noBilan = !(me.records || []).some(function (r) { return /^\d+$/.test(String(r.bilan)); });
     if (i === 0) return frame('k', n, i, '<span class="obshield">' + ui.avatar(k.prenom, k.couleur, 170) + '</span>', 'bienvenue',
-      'Bienvenue dans l\'arène, ' + esc(k.prenom) + ' !', '<p class="lead">' + esc(INTRO.k) + '</p>' + resume('k'), nextBtn);
+      'Bienvenue dans l\'arène, ' + esc(k.prenom) + ' !', '<p class="lead">' + esc(intro('k')) + '</p>' + resume('k'), nextBtn);
     if (i === 1) {
       var wk = C.SEMAINE.map(function (tp, d) { var j = C.JOURS[tp]; return '<span style="--gc:' + j.color + '"><b>' + esc(j.court.charAt(0)) + '</b>' + (j.slot < 0 ? '<i class="zz">—</i>' : ui.starSvg(20, d < 3 || d === 5 ? '#FFC23D' : 'none', d < 3 || d === 5 ? '#FFC23D' : '#34405F')) + '</span>'; }).join('');
       return frame('k', n, i, '<div class="gweek obweek">' + wk + '</div><div class="note gold" style="margin-top:12px">' + icon('gift', 30) + '<span>6 étoiles dans la semaine : le coffre s\'ouvre, <b>+1 étoile bonus</b>.</span></div>', 'tes étoiles',
@@ -126,7 +136,7 @@ MC.accueil = (function () {
     var last = '<button type="button" class="btn green" data-act="obDoneKid">' + icon('play', 18) + ' Je commence' + (noBilan ? ' au niveau 1' : '') + ' !</button>' +
       (noBilan ? '<a class="btn2 gold" href="#/bilan" data-act="obBilan">' + icon('trophy', 16) + ' D\'abord mon bilan, avec un adulte</a>' : '');
     return frame('k', n, i, '<div class="obgrades">' + C.GRADES.slice(0, 4).reverse().map(function (g, j) { return '<span class="' + (j === 3 ? 'me' : '') + '"><b>' + esc(g.nom) + '</b><small>' + ui.fmtNum(g.xp) + ' XP</small></span>'; }).join('') + '</div>', 'monte en grade',
-      'Deviens une légende', '<p class="lead">Chaque séance rapporte des <b>XP</b> : tu montes de grade, tu débloques des <b>badges</b> et tu entres dans <b>l\'arène</b> face aux joueurs de ton niveau. Et dans <b>Missions</b> et <b>Skills</b>, tes éducs te lancent des défis rugby et valident tes étoiles.</p>' +
+      'Deviens une légende', '<p class="lead">Chaque séance rapporte des <b>XP</b> : tu montes de grade, tu débloques des <b>badges</b> et tu entres dans <b>l\'arène</b> face aux joueurs de ton niveau. ' + (MC.ouvert('skills') ? 'Et dans <b>Missions</b> et <b>Skills</b>, tes éducs te lancent des défis rugby et valident tes étoiles.' : 'Et dans <b>Missions</b>, tes éducs te lancent des défis, comme choisir ton poste pour le jeu à 10.') + '</p>' +
       '<div class="note cyan">' + icon('star', 20) + '<span>Pour bien démarrer : <b>tes premiers pas</b>, 4 petites étapes sur Prépa › Ma semaine, <b>+' + C.XP.premiersPas + ' XP</b> à la fin.</span></div>', last, { kc: 'var(--violet)' });
   }
   MC.act.obDoneKid = function () { finish('k'); };
@@ -143,11 +153,11 @@ MC.accueil = (function () {
     var nextBtn = '<button type="button" class="btn" data-act="obNext" data-r="f">Suivant ' + icon('right', 18) + '</button>';
     function li(t) { return '<li class="row" style="align-items:flex-start">' + icon('check', 18, 'style="color:var(--green);flex:none;margin-top:2px"') + '<span>' + t + '</span></li>'; }
     if (i === 0) return frame('f', n, i, '<span class="obshield">' + (one ? ui.avatar(one.prenom, one.couleur, 150) : ui.avatar('M', '#3DFFB0', 150).replace('>M<', '>M12<')) + '</span>', 'espace parent',
-      'Bienvenue, ' + esc(famName(fam)), '<p class="lead">' + esc(INTRO.f) + '</p>' + resume('f') +
+      'Bienvenue, ' + esc(famName(fam)), '<p class="lead">' + esc(intro('f')) + '</p>' + resume('f') +
       '<p class="small" style="margin:0;color:var(--soft)">Préparé par les éducateurs M12, adapté aux 9-11 ans. Ni publicité, ni compte à créer.</p>', nextBtn, { kc: 'var(--green)' });
     if (i === 1) return frame('f', n, i, '', 'votre rôle · 2 minutes par semaine', 'Vous gardez la main',
       '<div class="sec">' +
-      '<div class="note">' + icon('pulse', 24, 'style="color:var(--cyan)"') + '<span><b>Suivre</b> : chaque séance et la progression d\'un bilan à l\'autre (onglet Prépa), ses missions et les encouragements de ses éducs, ses étoiles Skills.</span></div>' +
+      '<div class="note">' + icon('pulse', 24, 'style="color:var(--cyan)"') + '<span><b>Suivre</b> : chaque séance et la progression d\'un bilan à l\'autre (onglet Prépa), ' + (MC.ouvert('skills') ? 'ses missions et les encouragements de ses éducs, ses étoiles Skills.' : 'et ses missions, comme le choix de son poste pour le jeu à 10.') + '</span></div>' +
       '<div class="note pink">' + icon('check', 24) + '<span><b>Confirmer ses résultats</b> : bilans et défis. Votre OK les fait entrer dans son classement. Une pastille rose vous prévient.</span></div>' +
       '<div class="note gold">' + icon('up', 24) + '<span><b>Ajuster ses niveaux</b> : trop facile, trop dur ? Vous pouvez changer le niveau de chaque exercice.</span></div></div>', nextBtn, { kc: 'var(--green)' });
     var shared = app.sharedDevice();

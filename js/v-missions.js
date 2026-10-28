@@ -74,12 +74,14 @@ window.MC = window.MC || {};
   // MISSIONS : en cours · faites
   // ======================================================================
   function missionsHome(R, vue) {
-    var d = R.d, mp = SK.missionPerso(d), mpa = missionActive(d), groupe = M.groupe(d), nv = M.nouveaux(R.k ? 'k' : 'f', d), luIds = {};
+    // V1 (28/10) : sans les Skills (mission principale), ni les missions et les mots des éducs, ni les copains (MC.CONFIG.ENFANTS)
+    var skOn = MC.ouvert('skills'), meOn = MC.ouvert('missionsEducs');
+    var d = R.d, mp = skOn ? SK.missionPerso(d) : null, mpa = skOn ? missionActive(d) : null, groupe = meOn ? M.groupe(d) : [], nv = M.nouveaux(R.k ? 'k' : 'f', d), luIds = {};
     nv.enc.forEach(function (x) { luIds[x.id] = true; }); nv.missions.forEach(function (m) { luIds[m.id] = true; });
     var spec = M.pending(d), faitesG = groupe.filter(function (x) { return x.faite; }), aFaireG = groupe.filter(function (x) { return !x.faite && !x.finie; });
-    var persoFaites = SK.missionPerso(d, true).filter(function (m) { return m.statut === 'faite'; });
+    var persoFaites = skOn ? SK.missionPerso(d, true).filter(function (m) { return m.statut === 'faite'; }) : [];
     // les missions spéciales (le poste, les copains) : chacune sa ligne, faite ou à faire
-    var specFaites = MC.MISSIONS.filter(function (Dx) { return M.etat(d, Dx.id).faite; });
+    var specFaites = M.visibles().filter(function (Dx) { return M.etat(d, Dx.id).faite; });
     var nEnCours = spec.length + aFaireG.length + (mpa ? 1 : 0), nFaites = faitesG.length + persoFaites.length + specFaites.length;
     function specHref(Dx) { return R.k ? Dx.lien : R.base + '/jeu10'; }
     var tabs = ui.subtabs(navKey(R, 'missions'), [['encours', R.base, 'En cours · ' + nEnCours], ['faites', R.base + '?vue=faites', 'Faites · ' + nFaites]], vue, '#FF4FA3', 'Missions');
@@ -97,14 +99,14 @@ window.MC = window.MC || {};
       body = items.length ? '<ul class="list">' + items.map(function (x) { return '<li>' + x.html + '</li>'; }).join('') + '</ul>' : '<div class="empty">' + T(R, 'Pas encore de mission faite. Elles arrivent ici, avec tes résultats.', 'Pas encore de mission faite.') + '</div>';
     } else {
       // un nouveau mot d'un éduc (sur autre chose que la mission : les encouragements de la mission sont dans son bloc)
-      var encs = (d.encouragements || []).slice().sort(function (a, b) { return a.cree < b.cree ? 1 : -1; });
+      var encs = meOn ? (d.encouragements || []).slice().sort(function (a, b) { return a.cree < b.cree ? 1 : -1; }) : [];
       var lastMot = encs.filter(function (x) { return !x.missionId; })[0];
       if (lastMot && luIds[lastMot.id]) {
         body += '<a class="lastp1" href="' + R.base + '/mots"><span class="row" style="gap:8px">' + icon('heart', 16, 'style="color:var(--green)"') + '<span class="hud" style="color:var(--green)">Nouveau · ' + esc(lastMot.parNom) + ' · ' + jour(lastMot.date) + '</span></span>' +
           '<b class="lp-t">' + T(R, 'Un mot de ton éduc', 'Un mot de son éduc') + '</b>' + (lastMot.mot ? '<span class="lp-m">« ' + esc(lastMot.mot) + ' »</span>' : '') + '</a>';
       }
       // la mission principale
-      body += '<section class="sec">' + blocMission(R, mp) + '</section>';
+      if (skOn) body += '<section class="sec">' + blocMission(R, mp) + '</section>';
       // pour toute l'équipe
       var eq = '';
       spec.forEach(function (Dx) {
@@ -116,9 +118,9 @@ window.MC = window.MC || {};
         var t2 = m.sorte === 'video' ? (x.vu ? 'Vidéo vue · ' + (nq ? 'le quiz à faire' : 'à terminer') : 'Une vidéo' + (nq ? ' et ' + nq + ' question' + (nq > 1 ? 's' : '') : '')) : 'QCM · ' + nq + ' question' + (nq > 1 ? 's' : '');
         eq += '<li><a class="li mrow" href="' + R.base + '/m/' + esc(m.id) + '"><span class="mic">' + icon(m.sorte === 'video' ? 'play' : 'list', 18) + '</span><span class="grow"><span class="t1">' + esc(m.titre) + (luIds[m.id] ? ' <span class="pill" style="--pc:var(--pink)">Nouveau</span>' : '') + '</span><span class="t2">' + t2 + (m.fin ? ' · jusqu\'au ' + jour(m.fin) : '') + (m.xp ? ' · +' + m.xp + ' XP' : '') + '</span></span>' + icon('right', 16) + '</a></li>';
       });
-      body += '<section class="sec"><h2 class="h2">Missions ponctuelles</h2>' + (eq ? '<ul class="list">' + eq + '</ul>' : '<p class="small" style="margin:0">Rien à faire pour l\'instant.</p>') + '</section>';
-      body += '<a class="li" href="' + R.base + '/mots">' + icon('heart', 20, 'style="color:var(--green);flex:none"') + '<span class="grow"><span class="t1">' + T(R, 'Tous les mots de mes éducs', 'Tous les mots de ses éducs') + '</span><span class="t2">' + encs.length + ' en tout, du plus récent au plus ancien</span></span>' + icon('right', 16) + '</a>';
-      if (!R.k) body += '<p class="small" style="margin:0">Les missions, les encouragements et les mots viennent des éducs. Les parents suivent, sans en donner.</p>';
+      body += '<section class="sec"><h2 class="h2">' + (skOn ? 'Missions ponctuelles' : 'Pour toute l\'équipe') + '</h2>' + (eq ? '<ul class="list">' + eq + '</ul>' : '<p class="small" style="margin:0">Rien à faire pour l\'instant.</p>') + '</section>';
+      if (meOn) body += '<a class="li" href="' + R.base + '/mots">' + icon('heart', 20, 'style="color:var(--green);flex:none"') + '<span class="grow"><span class="t1">' + T(R, 'Tous les mots de mes éducs', 'Tous les mots de ses éducs') + '</span><span class="t2">' + encs.length + ' en tout, du plus récent au plus ancien</span></span>' + icon('right', 16) + '</a>';
+      if (!R.k) body += '<p class="small" style="margin:0">' + (meOn ? 'Les missions, les encouragements et les mots viennent des éducs. Les parents suivent, sans en donner.' : 'Les missions viennent des éducs : ' + esc(prenom(R)) + ' les fait dans son onglet Missions, vous suivez ici.') + '</p>';
     }
     return '<main class="screen">' + bar(R, 'Missions') + tabs + body + '</main>';
   }
@@ -365,6 +367,14 @@ window.MC = window.MC || {};
   // Routes enfant
   // ======================================================================
   function kidR(me) { return { k: true, d: me, base: '#/missions', sk: '#/skills' }; }
+  // V1 (28/10) : une partie pas encore ouverte aux enfants et aux parents (MC.CONFIG.ENFANTS) renvoie ailleurs
+  // (un ancien lien, une nouveauté d'avant, l'onglet gardé en mémoire)
+  function ferme(k, vers) {
+    if (MC.ouvert(k)) return false;
+    setTimeout(function () { app.go(vers, true); }, 0);
+    return true;
+  }
+  function garde(k, vers, fn) { return function (p, q, cur) { return ferme(k, vers) ? null : fn(p, q, cur); }; }
   function luEnSortant(qui, d, cur) {
     // l'onglet a été vu : la pastille s'éteint (les « nouveau » restent affichés cette fois-ci)
     cur.after = function () { M.marquerLu(qui, d.joueur.id, d); app.refreshNav(); };
@@ -372,15 +382,15 @@ window.MC = window.MC || {};
   app.route('/missions', function (p, q, cur) {
     return app.loadMe().then(function (me) { luEnSortant('k', me, cur); return missionsHome(kidR(me), q.vue === 'faites' ? 'faites' : 'encours'); });
   }, { kid: true, nav: 'missions', live: true, bg: '#33122A' });
-  app.route('/missions/m/:id', function (p) {
+  app.route('/missions/m/:id', garde('missionsEducs', '#/missions', function (p) {
     return app.loadMe().then(function (me) { return missionGroupe(kidR(me), p.id); });
-  }, { kid: true, nav: 'missions', bg: '#33122A' });
-  app.route('/missions/perso', function (p, q, cur) {
+  }), { kid: true, nav: 'missions', bg: '#33122A' });
+  app.route('/missions/perso', garde('skills', '#/missions', function (p, q, cur) {
     return app.loadMe().then(function (me) { luEnSortant('k', me, cur); return missionPerso(kidR(me)); });
-  }, { kid: true, nav: 'missions', live: true, bg: '#33122A' });
-  app.route('/missions/mots', function (p, q, cur) {
+  }), { kid: true, nav: 'missions', live: true, bg: '#33122A' });
+  app.route('/missions/mots', garde('missionsEducs', '#/missions', function (p, q, cur) {
     return app.loadMe().then(function (me) { luEnSortant('k', me, cur); return mots(kidR(me)); });
-  }, { kid: true, nav: 'missions', live: true, bg: '#12333A' });
+  }), { kid: true, nav: 'missions', live: true, bg: '#12333A' });
   // (visuels v2) les étoiles arrivées depuis la dernière visite : le booster se joue à l'ouverture de Skills,
   // puis les cartes montrent leurs nouvelles étoiles (elles « tombent » à leur place, étiquette « Nouvelle étoile »)
   var APRES = null;
@@ -388,7 +398,7 @@ window.MC = window.MC || {};
   var LU = {};
   function luSkills(jid) { var a = app.lsGet('mc-sklu:' + jid) || '', b = LU[jid] || ''; return a > b ? a : b; }
   MC.luSkills = luSkills;
-  app.route('/skills', function (p, q, cur) {
+  app.route('/skills', garde('skills', '#/semaine', function (p, q, cur) {
     return app.loadMe().then(function (me) {
       var jid = me.joueur.id, lu = luSkills(jid), nouv = nouvellesEtoiles(me, lu), o = {};
       if (APRES && APRES.jid === jid) { o.nouv = {}; APRES.keys.forEach(function (k) { o.nouv[k] = true; }); APRES = null; }
@@ -407,17 +417,18 @@ window.MC = window.MC || {};
       };
       return skillsHome(kidR(me), o);
     });
-  }, { kid: true, nav: 'skills', live: true, bg: '#2E2612' });
-  app.route('/skills/:dom', function (p, q, cur) {
+  }), { kid: true, nav: 'skills', live: true, bg: '#2E2612' });
+  app.route('/skills/:dom', garde('skills', '#/semaine', function (p, q, cur) {
     return app.loadMe().then(function (me) { cur.after = bindCards; cur.cleanup = unbindCards; return skillsCarte(kidR(me), p.dom); });
-  }, { kid: true, nav: 'skills', live: true, bg: '#2E2612' });
+  }), { kid: true, nav: 'skills', live: true, bg: '#2E2612' });
 
   // ======================================================================
   // Routes parent (l'enfant suivi se choisit en haut)
   // ======================================================================
   function famR(fam) { var d = MC.famKid(fam); return { k: false, d: d, fam: fam, base: '#/parent/missions', sk: '#/parent/skills' }; }
-  function parentRoute(fn, mark) {
+  function parentRoute(fn, mark, module, vers) {
     return function (p, q, cur) {
+      if (module && ferme(module, vers || '#/parent/missions')) return null;
       return MC.loadFamily().then(function (fam) {
         app.refreshNav();
         if (!fam.enfants.length) return MC.parentNoKid(fam);
@@ -430,19 +441,19 @@ window.MC = window.MC || {};
     };
   }
   app.route('/parent/missions', parentRoute(function (R, p, q) { return missionsHome(R, q.vue === 'faites' ? 'faites' : 'encours'); }, true), { adult: 'f', nav: 'p:missions', bg: '#33122A' });
-  app.route('/parent/missions/m/:id', parentRoute(function (R, p) { return missionGroupe(R, p.id); }), { adult: 'f', nav: 'p:missions', bg: '#33122A' });
-  app.route('/parent/missions/perso', parentRoute(function (R) { return missionPerso(R); }, true), { adult: 'f', nav: 'p:missions', bg: '#33122A' });
-  app.route('/parent/missions/mots', parentRoute(function (R) { return mots(R); }, true), { adult: 'f', nav: 'p:missions', bg: '#12333A' });
+  app.route('/parent/missions/m/:id', parentRoute(function (R, p) { return missionGroupe(R, p.id); }, false, 'missionsEducs'), { adult: 'f', nav: 'p:missions', bg: '#33122A' });
+  app.route('/parent/missions/perso', parentRoute(function (R) { return missionPerso(R); }, true, 'skills'), { adult: 'f', nav: 'p:missions', bg: '#33122A' });
+  app.route('/parent/missions/mots', parentRoute(function (R) { return mots(R); }, true, 'missionsEducs'), { adult: 'f', nav: 'p:missions', bg: '#12333A' });
   app.route('/parent/missions/jeu10', parentRoute(function (R) {
     var e = M.etat(R.d, 'jeu10');
     return '<main class="screen">' + sub(R, R.base, 'Missions', 'Le jeu à 10') +
-      '<div class="head"><span class="kicker" style="color:var(--gold)">Missions spéciales</span><h1 class="big sm">Le jeu à 10</h1></div>' +
+      '<div class="head"><span class="kicker" style="color:var(--gold)">' + (MC.ouvert('copains') ? 'Missions spéciales' : 'Mission spéciale') + '</span><h1 class="big sm">Le jeu à 10</h1></div>' +
       (MC.missionParent ? MC.missionParent(R.d) : '') +
-      '<p class="small" style="margin:0">Les copains choisis restent secrets : seuls ' + esc(prenom(R)) + ' et les éducs les voient.</p>' +
+      (MC.ouvert('copains') ? '<p class="small" style="margin:0">Les copains choisis restent secrets : seuls ' + esc(prenom(R)) + ' et les éducs les voient.</p>' : '') +
       (e.postes.length ? '<section class="sec"><h2 class="h2">Ses postes</h2>' + (MC.ptags ? MC.ptags(e.postes, true) : '') + '</section>' : '') + '</main>';
   }), { adult: 'f', nav: 'p:missions', bg: '#2E2612' });
-  app.route('/parent/skills', parentRoute(function (R) { return skillsHome(R); }), { adult: 'f', nav: 'p:skills', bg: '#2E2612' });
-  app.route('/parent/skills/:dom', parentRoute(function (R, p) { return skillsCarte(R, p.dom); }), { adult: 'f', nav: 'p:skills', bg: '#2E2612' });
+  app.route('/parent/skills', parentRoute(function (R) { return skillsHome(R); }, false, 'skills', '#/parent'), { adult: 'f', nav: 'p:skills', bg: '#2E2612' });
+  app.route('/parent/skills/:dom', parentRoute(function (R, p) { return skillsCarte(R, p.dom); }, false, 'skills', '#/parent'), { adult: 'f', nav: 'p:skills', bg: '#2E2612' });
 
   // les cartes Skills brillent sous le doigt, comme les cartes des postes
   function unbindCards() { if (MC.unbindTrophees) MC.unbindTrophees(); }

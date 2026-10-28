@@ -1,5 +1,5 @@
 const fs=require('fs'), vm=require('vm'), assert=require('assert');
-const ctx={window:{}, console, Date, Math, JSON}; ctx.window=ctx; vm.createContext(ctx);
+const ctx={window:{}, console, Date, Math, JSON, __MC_TOUT:true}; ctx.window=ctx; vm.createContext(ctx);   // __MC_TOUT : tout ouvert (Skills, copains), comme avant la V1 du 28/10
 for (const f of ['config','content','core','logic']) vm.runInContext(fs.readFileSync('/home/claude/mode-champion/js/'+f+'.js','utf8'), ctx, {filename:f});
 const L=ctx.MC.logic, C=ctx.MC.CONTENT;
 L._setToday('2026-10-11'); // dimanche

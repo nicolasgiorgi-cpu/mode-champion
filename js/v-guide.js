@@ -34,7 +34,8 @@
   function xpTable() {
     var X = C.XP;
     var rows = [['Séance à la maison (lundi → jeudi)', X.seance], ['Club du mercredi ou du samedi', X.club], ['Récup du dimanche', X.recup], ['Semaine parfaite (les 6 étoiles)', X.bonus],
-      ['Badge gagné, ou palier bronze / argent / or', X.badge], ['Record battu (confirmé par un adulte)', X.record], ['Niveau monté (la 1re fois)', X.niveau], ['Premiers pas réussis (une fois)', X.premiersPas], ['Mission spéciale accomplie', X.mission], ['Étoile Skills validée par un éduc', X.etoile], ['Étoile Skills qui brille (vue au plateau)', X.brille]];
+      ['Badge gagné, ou palier bronze / argent / or', X.badge], ['Record battu (confirmé par un adulte)', X.record], ['Niveau monté (la 1re fois)', X.niveau], ['Premiers pas réussis (une fois)', X.premiersPas], ['Mission spéciale accomplie', X.mission]];
+    if (MC.ouvert('skills')) rows.push(['Étoile Skills validée par un éduc', X.etoile], ['Étoile Skills qui brille (vue au plateau)', X.brille]);
     return '<div class="gxp">' + rows.map(function (r) { return '<span>' + esc(r[0]) + '</span><span>+' + r[1] + ' XP</span>'; }).join('') + '</div>';
   }
   function grades() {
@@ -48,16 +49,21 @@
   }
 
   // ---------- onglet joueur ----------
+  // V1 (28/10) : ce qui est ouvert aux enfants et aux parents (MC.CONFIG.ENFANTS)
+  var SKON, MEON, COPON;
+  function flags() { SKON = MC.ouvert('skills'); MEON = MC.ouvert('missionsEducs'); COPON = MC.ouvert('copains'); }
   function joueur() {
+    flags();
     var J = C.JOURS;
-    return '<p class="lead">Mode champion, c\'est ton carnet de prépa physique… en mode jeu vidéo. Tu t\'entraînes à la maison, tu gagnes des <b>étoiles</b> et des <b>XP</b>, tu montes de <b>niveau</b>, tu débloques des <b>badges</b> et tu te compares aux joueurs de ton niveau. Et tes éducs te donnent des <b>missions</b> et valident tes <b>Skills</b> de rugby.</p>' +
-      card('onglets', 'menu', '#38E8FF', 'L\'appli en 4 onglets', 'Prépa · Missions · Skills · Moi',
+    return '<p class="lead">Mode champion, c\'est ton carnet de prépa physique… en mode jeu vidéo. Tu t\'entraînes à la maison, tu gagnes des <b>étoiles</b> et des <b>XP</b>, tu montes de <b>niveau</b>, tu débloques des <b>badges</b> et tu te compares aux joueurs de ton niveau. ' + (SKON ? 'Et tes éducs te donnent des <b>missions</b> et valident tes <b>Skills</b> de rugby.' : 'Et tes éducs te lancent des <b>missions</b>, comme choisir ton poste pour le jeu à 10.') + '</p>' +
+      card('onglets', 'menu', '#38E8FF', 'L\'appli en ' + (SKON ? 4 : 3) + ' onglets', SKON ? 'Prépa · Missions · Skills · Moi' : 'Prépa · Missions · Moi',
         ul([
           '<b>Prépa</b> : ta prépa physique. <b>Ma semaine</b> (la séance du jour et GO, tes étoiles), <b>Bilans</b> (tes records et tes niveaux) et <b>Classement</b> (l\'arène).',
-          '<b>Missions</b> : ce que demandent tes éducs. En haut, ta <b>mission principale</b> et ses encouragements ; puis les missions ponctuelles (choisir ton poste, une vidéo, un QCM), et tous les mots de tes éducs. Une pastille rose = du nouveau.',
-          '<b>Skills</b> : ton carnet de compétences rugby, 8 cartes d\'étoiles validées par tes éducs.',
-          '<b>Moi</b> : ton grade, tes XP, tes postes et tes copains, tes trophées, l\'aide et les réglages.'
-        ]), true) +
+          SKON && MEON ? '<b>Missions</b> : ce que demandent tes éducs. En haut, ta <b>mission principale</b> et ses encouragements ; puis les missions ponctuelles (choisir ton poste, une vidéo, un QCM), et tous les mots de tes éducs. Une pastille rose = du nouveau.'
+            : '<b>Missions</b> : ce que demandent tes éducs, comme choisir ton poste pour le jeu à 10. Une pastille rose = une mission à faire.',
+          SKON ? '<b>Skills</b> : ton carnet de compétences rugby, 8 cartes d\'étoiles validées par tes éducs.' : '',
+          '<b>Moi</b> : ton grade, tes XP, ' + (COPON ? 'tes postes et tes copains' : 'tes postes') + ', tes trophées, l\'aide et les réglages.'
+        ].filter(Boolean)), true) +
       card('semaine', 'star', '#FFC23D', 'Ta semaine et les étoiles', '1 étoile par jour, 6 par semaine, +1 bonus',
         weekRow() + ul([
           '<b>Lundi</b> : la séance de ' + esc(J.cros.joueur.split(' ')[1]) + ' (force du haut). <b>Mardi</b> : ' + esc(J.capuozzo.joueur.split(' ')[1]) + ' (explosivité). <b>Mercredi</b> : ' + esc(J.dupont.joueur.split(' ')[1]) + ' (cardio) ou le club. <b>Jeudi</b> : ' + esc(J.meafou.joueur.split(' ')[1]) + ' (jambes).',
@@ -96,21 +102,27 @@
           'Paliers de la jauge : <b>14</b> Espoir · <b>28</b> Titulaire · <b>42</b> Capitaine · <b>56</b> Légende (et le badge Légende !).',
           'La jauge repart de zéro à chaque nouveau cycle. Tes XP et ton grade, eux, restent.'
         ])) +
+      (!SKON && !MEON && !COPON ? card('mission', 'target', '#FF4FA3', 'Les missions', 'Ce que demandent tes éducs',
+        ul([
+          'Onglet <b>Missions</b> : ce que tes éducs te demandent. Une pastille rose te prévient quand une mission t\'attend.',
+          'Pour le jeu à 10 : « <b>Choisis ton poste</b> ». Découvre les 7 postes avec leurs cartes, ou fais le test « Aide-moi à choisir », puis choisis ton top : 1 à 3 postes, dans l\'ordre. Mission accomplie : <b>+' + C.XP.mission + ' XP</b> et le badge « Prêt pour le jeu à 10 ».',
+          'Tu peux changer ton choix quand tu veux : Moi › Mes postes.'
+        ])) :
       card('mission', 'target', '#FF4FA3', 'Les missions et les +1', 'Ce que demandent tes éducs',
         ul([
           'Onglet <b>Missions</b> : tout ce que tes éducs te demandent. Une pastille rose, et une fois un bandeau « Nouveau dans Missions » en haut de Prépa, te préviennent.',
           '<b>Pour toute l\'équipe</b> : regarder une vidéo puis répondre à quelques questions, ou un QCM. Mission faite = des XP (ils sont écrits sur la mission).',
           'Pour le jeu à 10, <b>2 missions</b>. « <b>Choisis ton poste</b> » : 1 à 3 postes, dans l\'ordre, avec les 7 cartes ou le test « Aide-moi à choisir ». Puis « <b>Avec qui tu aimes jouer</b> » : tes copains, autant que tu veux, c\'est <b>secret</b> (seuls les éducs les voient). Chaque mission accomplie : <b>+' + C.XP.mission + ' XP</b> et son badge. Tu peux changer tes choix quand tu veux (Moi › Mes postes, Mes copains).',
           '<b>Ta mission principale</b> : 1 à 3 étoiles Skills à décrocher, rien que pour toi, jusqu\'à une date (souvent les prochaines vacances). Elle a un cadre arc-en-ciel, ici et sur sa carte Skills. Quand un éduc voit que tu es sur la bonne voie, il t\'<b>encourage</b> (un +1, avec un petit mot parfois). Un encouragement ne donne pas l\'étoile : c\'est un éduc qui la valide.'
-        ])) +
-      card('skills', 'star', '#FFC23D', 'Tes Skills', 'Ton carnet de compétences rugby',
+        ]))) +
+      (!SKON ? '' : card('skills', 'star', '#FFC23D', 'Tes Skills', 'Ton carnet de compétences rugby',
         ul([
           '8 cartes : <b>Plaquage</b>, <b>Ruck</b>, <b>Maul</b>, <b>Défense</b>, <b>Porteur</b>, <b>Passe</b>, <b>Jeu au pied</b> et <b>Soutien</b>. Leurs étoiles se gagnent dans l\'ordre que tu veux.',
           'Une étoile s\'allume quand <b>un éduc la valide</b>, après l\'entraînement ou à un atelier d\'évaluation : <b>+' + C.XP.etoile + ' XP</b>. Elle <b>brille</b> quand un éduc la voit au plateau : <b>+' + C.XP.brille + ' XP</b>.',
           'Tu l\'as réussie ? Sur la carte, <b>Demander</b> (ou <b>Fait au plateau</b> pour la faire briller) : un éduc te répond. Une demande à la fois.',
           'Ta carte prend du grade : <b>Bronze</b> à la 1re étoile, <b>Argent</b> au tiers, <b>Or</b> aux deux tiers, <b>Diamant</b> quand toutes sont gagnées, et <b>Légende</b> quand toutes brillent.',
           'Touche une carte : ses étoiles, qui les a validées, et comment t\'entraîner pour les autres. Les Skills ne sont jamais classés : chacun avance à son rythme.'
-        ])) +
+        ]))) +
       card('badges', 'shield', '#FF4FA3', 'Les badges', C.BADGES.length + ' badges en ' + C.FAMILLES_BADGES.length + ' familles',
         '<p style="margin:0"><b>Exploit</b> : les défis du tableau du mur, gagnés au bilan ou en défi devant un adulte. Plus <b>Champion</b> : réussir un exercice en N4.</p>' + badgeRow('exploit') +
         '<p style="margin:0"><b>Séances</b> : 10, 25 puis 40 séances du même jour = <b>bronze</b>, <b>argent</b>, <b>or</b>.</p>' + badgeRow('seances') +
@@ -125,7 +137,7 @@
         ])) +
       card('classement', 'podium', '#4D9BFF', 'Le classement et les ligues', 'Tu te compares aux joueurs de ton niveau',
         ul([
-          'Prépa › <b>Classement</b> : il y a un classement <b>par test du bilan</b> (planche, navette, pompes…). Seule la prépa physique compte : tes missions et tes Skills ne sont jamais classés.',
+          'Prépa › <b>Classement</b> : il y a un classement <b>par test du bilan</b> (planche, navette, pompes…). Seule la prépa physique compte : ' + (SKON ? 'tes missions et tes Skills ne sont jamais classés.' : 'tes missions ne sont jamais classées.') + '',
           'Tu es dans la <b>ligue</b> des joueurs qui ont <b>le même niveau</b> que toi sur ce test. S\'il y a moins de ' + MC.CONFIG.LIGUE_MIN + ' joueurs, la ligue s\'ouvre aux niveaux voisins.',
           '2 façons de classer : <b>meilleur score</b>, ou <b>plus gros progrès</b> depuis ton premier bilan. Même si tu n\'es pas le plus fort, tu peux être celui qui progresse le plus !',
           'Seuls les résultats <b>confirmés par un adulte</b> comptent. On n\'y voit que les prénoms. Tes parents peuvent choisir de ne pas t\'afficher.'
@@ -148,11 +160,12 @@
 
   // ---------- onglet parents ----------
   function parents() {
+    flags();
     return '<p class="lead">Votre enfant suit sur ce site le programme de préparation physique des M12 (le « carnet de champion »). Votre rôle : l\'encourager, être là pour les tests, et confirmer ses résultats.</p>' +
       card('p-connexion', 'lock', '#38E8FF', 'Se connecter', 'Un code par famille',
         ul([
           'Bouton <b>Adultes</b> (en haut de l\'écran d\'accueil) › <b>Je suis parent</b> › le <b>prénom de votre enfant</b> › votre <b>code famille</b> à 4 chiffres. La 1re fois, c\'est le code provisoire donné par l\'éducateur : vous choisissez ensuite le vôtre.',
-          'Votre espace a 4 onglets en bas, comme celui de votre enfant : <b>Prépa</b> (les résultats à confirmer en premier, sa semaine et ses séances, ses <b>Bilans</b> et son <b>Classement</b>), <b>Missions</b> (ce que demandent les éducs, ses +1 et leurs mots), <b>Skills</b> (son carnet de compétences) et <b>Plus</b> (codes, appareil, aide). Plusieurs enfants ? Touchez son prénom en haut à gauche : vous restez sur le même onglet.',
+          'Votre espace a ' + (SKON ? 4 : 3) + ' onglets en bas, comme celui de votre enfant : <b>Prépa</b> (les résultats à confirmer en premier, sa semaine et ses séances, ses <b>Bilans</b> et son <b>Classement</b>), ' + (SKON ? '<b>Missions</b> (ce que demandent les éducs, ses +1 et leurs mots), <b>Skills</b> (son carnet de compétences)' : '<b>Missions</b> (ce que demandent les éducs, comme choisir son poste pour le jeu à 10)') + ' et <b>Plus</b> (codes, appareil, aide). Plusieurs enfants ? Touchez son prénom en haut à gauche : vous restez sur le même onglet.',
           'Un seul code pour la famille : les deux parents peuvent l\'utiliser, et il donne accès à tous vos enfants inscrits.',
           'Vous restez connecté sur l\'appareil. Pour changer de code : Plus › Changer mon code parent. Code perdu : l\'éducateur vous en crée un provisoire. Après 5 codes faux, l\'accès se bloque 10 minutes.'
         ]), true) +
@@ -162,9 +175,10 @@
           '<b>Sa progression aux bilans</b> : ses résultats à chaque bilan et ce qu\'il a gagné depuis le précédent.',
           'Son grade, ses niveaux exercice par exercice, ses records confirmés.',
           'Les résultats de bilan ou de défi <b>en attente de confirmation</b>.',
-          '<b>Missions</b> : sa <b>mission principale</b> (1 à 3 étoiles Skills à décrocher, jusqu\'à une date), les <b>encouragements</b> et les mots des éducs (qui, quand, à quelle occasion), et les missions de l\'équipe (vidéo, QCM, choix de poste), faites ou pas. Vous suivez : les encouragements ne se donnent que par les éducs.',
-          '<b>Skills</b> : ses 8 cartes (Plaquage, Ruck, Maul, Défense, Porteur, Passe, Jeu au pied, Soutien), les étoiles validées par les éducs, celles qui <b>brillent</b> (vues au plateau), ses demandes et comment il peut s\'entraîner pour les autres. Vous suivez : seul votre enfant peut demander une étoile.'
-        ])) +
+          SKON && MEON ? '<b>Missions</b> : sa <b>mission principale</b> (1 à 3 étoiles Skills à décrocher, jusqu\'à une date), les <b>encouragements</b> et les mots des éducs (qui, quand, à quelle occasion), et les missions de l\'équipe (vidéo, QCM, choix de poste), faites ou pas. Vous suivez : les encouragements ne se donnent que par les éducs.'
+            : '<b>Missions</b> : les missions de l\'équipe, comme « Choisis ton poste » pour le jeu à 10 : faites ou pas, et les postes qu\'il a choisis.',
+          !SKON ? '' : '<b>Skills</b> : ses 8 cartes (Plaquage, Ruck, Maul, Défense, Porteur, Passe, Jeu au pied, Soutien), les étoiles validées par les éducs, celles qui <b>brillent</b> (vues au plateau), ses demandes et comment il peut s\'entraîner pour les autres. Vous suivez : seul votre enfant peut demander une étoile.'
+        ].filter(Boolean))) +
       card('p-confirmer', 'check', '#FFC23D', 'Confirmer les résultats', 'Le geste le plus important',
         ul([
           'Après un bilan ou un défi, les résultats arrivent dans votre espace. Pour chacun, touchez <b>Confirmer</b> ou <b>Refuser</b> : le bouton s\'allume, vous pouvez changer d\'avis. Rien n\'est envoyé tant que vous n\'avez pas touché <b>Enregistrer mes choix</b>, juste sous la liste.',
@@ -201,7 +215,7 @@
       card('p-classement', 'podium', '#B48CFF', 'Classement et données', 'Prénoms seulement',
         ul([
           'Le classement compare les enfants <b>de même niveau</b> sur chaque test, en meilleur score ou en progrès.',
-          'Prépa › <b>Classement</b> : la ligue de votre enfant, comme il la voit. Seule la prépa physique y compte (jamais les missions ni les Skills).',
+          'Prépa › <b>Classement</b> : la ligue de votre enfant, comme il la voit. Seule la prépa physique y compte (jamais les missions' + (SKON ? ' ni les Skills' : '') + ').',
           'Tous les enfants y apparaissent par défaut. Vous pouvez <b>masquer votre enfant</b> (en bas du classement, ou dans Plus) : il continue de voir sa propre place.',
           'Le site ne garde que des prénoms et des résultats sportifs, dans un fichier du club. Pas d\'adresse e-mail, pas de nom de famille. Les codes sont enregistrés chiffrés.'
         ])) +

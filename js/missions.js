@@ -32,10 +32,14 @@ MC.missions = (function () {
     for (var i = 0; i < l.length; i++) if (l[i].mission === id) return l[i];
     return null;
   }
+  // ce qui est ouvert aux enfants et aux parents (voir MC.CONFIG.ENFANTS) : en V1, pas les copains ni les missions des éducs
+  function ouvert(k) { return !MC.ouvert || MC.ouvert(k); }
+  // les missions spéciales montrées aux enfants et aux parents
+  function visibles() { return MC.MISSIONS.filter(function (M) { return M.id !== 'copains' || ouvert('copains'); }); }
   // missions affichées : commencées (date de début passée) et pas encore faites
   function pending(me) {
     var t = MC.logic.today();
-    return MC.MISSIONS.filter(function (M) { return t >= M.debut && !etat(me, M.id).faite; });
+    return visibles().filter(function (M) { return t >= M.debut && !etat(me, M.id).faite; });
   }
   // l'état d'une mission : « poste » ou « copains » (sur la ligne « jeu10 »), ou la ligne « jeu10 » elle-même (les deux faites)
   function etat(me, id) {
@@ -138,15 +142,15 @@ MC.missions = (function () {
   function aFaire(data) {
     // une mission encore bloquée (les copains avant d'avoir choisi son poste) ne compte pas dans la pastille
     var l = pending(data).filter(function (M) { return !etat(data, M.id).bloquee; }).map(function (M) { return { id: M.id, titre: M.titre, statique: true }; });
-    groupe(data).forEach(function (x) { if (!x.faite && !x.finie) l.push({ id: x.def.id, titre: x.def.titre, statique: false }); });
+    if (ouvert('missionsEducs')) groupe(data).forEach(function (x) { if (!x.faite && !x.finie) l.push({ id: x.def.id, titre: x.def.titre, statique: false }); });
     return l;
   }
   // missions faites (mission spéciale, missions du groupe, missions perso dont l'étoile est validée)
   function nbFaites(data) {
     var n = 0;
-    MC.MISSIONS.forEach(function (M) { if (etat(data, M.id).faite) n++; });
-    groupe(data).forEach(function (x) { if (x.faite) n++; });
-    ((data && data.defmissions) || []).forEach(function (m) { if (m.sorte === 'etoile' && m.statut === 'faite') n++; });
+    visibles().forEach(function (M) { if (etat(data, M.id).faite) n++; });
+    if (ouvert('missionsEducs')) groupe(data).forEach(function (x) { if (x.faite) n++; });
+    if (ouvert('skills')) ((data && data.defmissions) || []).forEach(function (m) { if (m.sorte === 'etoile' && m.statut === 'faite') n++; });
     return n;
   }
   // ---------- ce qui est nouveau pour celui qui regarde (lu ou pas : gardé sur l'appareil) ----------
@@ -163,14 +167,15 @@ MC.missions = (function () {
   function nouveaux(qui, data) {
     if (!data || !data.joueur) return { enc: [], missions: [], n: 0 };
     var lu = luAt(qui, data.joueur.id);
-    var enc = ((data.encouragements) || []).filter(function (x) { return (x.cree || '') > lu; }).sort(function (a, b) { return a.cree < b.cree ? 1 : -1; });
-    var ms = ((data.defmissions) || []).filter(function (m) { return (m.cree || '') > lu && m.statut === 'active'; });
+    // V1 : les +1 (sur la mission principale) viennent avec les Skills, les mots et les missions du groupe avec les missions des éducs
+    var enc = ((data.encouragements) || []).filter(function (x) { return (x.cree || '') > lu && ouvert('missionsEducs') && (!x.missionId || ouvert('skills')); }).sort(function (a, b) { return a.cree < b.cree ? 1 : -1; });
+    var ms = ((data.defmissions) || []).filter(function (m) { return (m.cree || '') > lu && m.statut === 'active' && (m.sorte === 'etoile' ? ouvert('skills') : ouvert('missionsEducs')); });
     return { enc: enc, missions: ms, n: enc.length + ms.length };
   }
 
   return {
     POSTES: POSTES, LABELS: LABELS, QUIZ: QUIZ, QMAX: QMAX,
-    poste: poste, def: def, of: of, pending: pending, etat: etat,
+    poste: poste, def: def, of: of, pending: pending, etat: etat, visibles: visibles, ouvert: ouvert,
     quizResults: quizResults, quizLines: quizLines,
     groupe: groupe, aFaire: aFaire, nbFaites: nbFaites, nouveaux: nouveaux, marquerLu: marquerLu, luAt: luAt
   };

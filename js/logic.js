@@ -7,6 +7,8 @@ window.MC = window.MC || {};
 
 MC.logic = (function () {
   var C = MC.CONTENT, CFG = MC.CONFIG;
+  // ce qui est ouvert aux enfants et aux parents (voir MC.CONFIG.ENFANTS)
+  function ouvert(k) { return !MC.ouvert || MC.ouvert(k); }
 
   // ---------- Dates (jour local, format AAAA-MM-JJ) ----------
   function pad(n) { return (n < 10 ? '0' : '') + n; }
@@ -361,18 +363,22 @@ MC.logic = (function () {
       if (m.mission === 'jeu10') {   // 2 missions sur cette ligne : le poste, puis les copains
         var r = m.reponses || {};
         if (r.postes && r.postes.length) xp += X.mission || 0;
-        if (r.copainsFait) xp += X.mission || 0;
+        if (r.copainsFait && ouvert('copains')) xp += X.mission || 0;
         return;
       }
       if (!m.faite) return;
+      if (!ouvert('missionsEducs')) return;   // V1 : les missions des éducs ne sont pas ouvertes aux enfants
       if (m.reponses && m.reponses.xp !== undefined) xp += Number(m.reponses.xp) || 0;
       else xp += X.mission || 0;
     });
     // étoiles Skills validées par un éduc
+    // (V1, 28/10) tant que les Skills ne sont pas ouverts aux enfants, leurs XP attendent : ils arriveront d'un coup à l'ouverture
     var nbEtoiles = (data.etoiles || []).length;
-    xp += nbEtoiles * (X.etoile || 0);
-    // (Skills v2) une étoile qui brille (vue au plateau) rapporte en plus
-    xp += (data.etoiles || []).filter(function (e) { return !!e.brille; }).length * (X.brille || 0);
+    if (ouvert('skills')) {
+      xp += nbEtoiles * (X.etoile || 0);
+      // (Skills v2) une étoile qui brille (vue au plateau) rapporte en plus
+      xp += (data.etoiles || []).filter(function (e) { return !!e.brille; }).length * (X.brille || 0);
+    }
     // records battus (confirmés)
     var recOk = (data.records || []).filter(function (r) { return r.statut === 'ok'; }).sort(function (a, b) { return (a.date + a.cree) < (b.date + b.cree) ? -1 : 1; });
     var best = {}, recordsBattus = 0;

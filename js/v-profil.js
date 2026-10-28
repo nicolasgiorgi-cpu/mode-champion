@@ -58,13 +58,13 @@
       '<div class="between"><span class="hud" style="color:var(--cyan)">' + esc(g.nom) + (g.next ? ' → ' + esc(g.next.nom) : '') + '</span><span class="hud" style="color:var(--dim)">' + ui.fmtNum(st.xp) + (g.next ? ' / ' + ui.fmtNum(g.next.xp) : '') + ' XP</span></div><div class="xpbar" style="height:10px"><i style="width:' + g.pct + '%"></i></div>' +
       (g.next ? '<span class="small">Plus que ' + ui.fmtNum(g.next.xp - st.xp) + ' XP pour le prochain grade.</span>' : '') + '</div>';
     var nMis = MC.missions ? MC.missions.nbFaites(me) : 0, nSk = MC.SK ? MC.SK.total(me) : 0;
-    var tiles = '<div class="grid3">' + [
-      [st.maison, 'séances', 'var(--cyan)', '#/semaine'], [nMis, 'missions faites', 'var(--pink)', '#/missions?vue=faites'], [nSk, 'étoiles rugby', 'var(--gold)', '#/skills']
-    ].map(function (t) { return '<a class="tile" href="' + t[3] + '" style="text-decoration:none;color:inherit"><span class="v" style="color:' + t[2] + '">' + t[0] + '</span><span class="l" style="text-transform:none;font-family:var(--f-body);letter-spacing:0;font-size:12px;color:var(--soft)">' + t[1] + '</span></a>'; }).join('') + '</div>';
+    var tl = [[st.maison, 'séances', 'var(--cyan)', '#/semaine'], [nMis, nMis > 1 ? 'missions faites' : 'mission faite', 'var(--pink)', '#/missions?vue=faites']];
+    if (MC.ouvert('skills')) tl.push([nSk, 'étoiles rugby', 'var(--gold)', '#/skills']);   // V1 (28/10) : pas encore de Skills pour les enfants
+    var tiles = '<div class="grid' + tl.length + '">' + tl.map(function (t) { return '<a class="tile" href="' + t[3] + '" style="text-decoration:none;color:inherit"><span class="v" style="color:' + t[2] + '">' + t[0] + '</span><span class="l" style="text-transform:none;font-family:var(--f-body);letter-spacing:0;font-size:12px;color:var(--soft)">' + t[1] + '</span></a>'; }).join('') + '</div>';
     function row(href, ic, col, t1, t2) { return '<a class="li" href="' + href + '">' + icon(ic, 22, 'style="color:' + col + ';flex:none"') + '<span class="grow"><span class="t1">' + t1 + '</span><span class="t2">' + t2 + '</span></span>' + icon('right', 16) + '</a>'; }
     var links = '<div class="sec" style="gap:6px">' +
       (e10 && e10.postes.length ? row('#/mission/postes', 'ball', 'var(--cyan)', 'Mes postes', e10.postes.map(function (id) { return MC.missions.poste(id).nom; }).join(' · ')) : '') +
-      (e10 && e10.copainsFait ? row('#/mission/copains', 'group', 'var(--green)', 'Mes copains', 'Secret : vus par tes éducs seulement') : '') +
+      (e10 && e10.copainsFait && MC.ouvert('copains') ? row('#/mission/copains', 'group', 'var(--green)', 'Mes copains', 'Secret : vus par tes éducs seulement') : '') +
       row('#/trophees', 'trophy', 'var(--gold)', 'Trophées', st.nbBadges + ' / ' + C.BADGES.length + ' badges · grades et coffres') +
       row('#/aide', 'info', 'var(--cyan)', 'Aide et nouveautés', 'Comment ça marche, revoir la visite') +
       row('#/reglages', 'settings', 'var(--soft)', 'Réglages', 'Le son, mon code, changer de joueur') + '</div>';
@@ -81,7 +81,7 @@
       function lk(href, t1, t2) { return '<a class="switch" href="' + href + '" style="text-decoration:none"><span><span class="t1" style="display:block">' + t1 + '</span><span class="t2" style="display:block">' + t2 + '</span></span>' + icon('right', 18) + '</a>'; }
       return '<main class="screen">' + MC.kidSubBar('#/profil', 'Moi', 'Aide et nouveautés') +
         '<div class="head"><span class="kicker">' + esc(me.joueur.prenom) + '</span><h1 class="big md">Aide</h1></div><div class="sec">' +
-        lk('#/guide?pour=joueur&de=aide', 'Comment ça marche ?', 'Étoiles, niveaux, badges, bilan, missions, Skills') +
+        lk('#/guide?pour=joueur&de=aide', 'Comment ça marche ?', 'Étoiles, niveaux, badges, bilan, missions' + (MC.ouvert('skills') ? ', Skills' : '')) +
         lk('#/nouveautes', 'Les nouveautés', 'Ce qui a changé dans l\'appli') +
         lk('#/bienvenue?revoir=1', 'Revoir la visite', 'Les écrans du début') + '</div></main>';
     });

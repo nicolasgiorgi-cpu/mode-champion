@@ -31,5 +31,21 @@ MC.CONFIG = {
   ],
 
   // Une ligue avec moins de joueurs que ça est fusionnée avec la ligue voisine.
-  LIGUE_MIN: 5
+  LIGUE_MIN: 5,
+
+  // Ce que voient les ENFANTS et les PARENTS. V1 envoyée aux familles le 28/10/2026 : la prépa physique
+  // et la mission « Choisis ton poste », rien d'autre. Côté éducs, tout reste ouvert (on prépare les Skills en avance).
+  // Pour ouvrir une partie aux enfants et aux parents : la passer à true (et augmenter ?v= dans index.html).
+  ENFANTS: {
+    skills: false,          // l'onglet Skills, la mission principale, le booster, les XP des étoiles
+    copains: false,         // la mission « Avec qui tu aimes jouer » et son badge « Esprit d'équipe »
+    missionsEducs: false    // les missions vidéo et QCM des éducs, les +1 et les mots des éducs
+  }
+};
+
+// une partie de l'appli est-elle ouverte aux enfants et aux parents ? (window.__MC_TOUT : tout ouvert, pour les tests)
+MC.ouvert = function (k) {
+  if (window.__MC_TOUT) return true;
+  var e = MC.CONFIG.ENFANTS;
+  return !e || e[k] !== false;
 };

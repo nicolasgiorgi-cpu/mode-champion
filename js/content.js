@@ -381,7 +381,10 @@ window.MC = window.MC || {};
     { id: 'legende', famille: 'regularite', nom: 'Légende', cond: '56 étoiles sur un cycle de 8 semaines', icon: 'trophy', color: '#FFC23D' },
     { id: 'jeu10', famille: 'missions', nom: 'Prêt pour le jeu à 10', cond: 'Mission « Choisis ton poste » accomplie', mission: 'poste', lien: '#/mission/postes', icon: 'ball', color: '#38E8FF' },
     { id: 'copains', famille: 'missions', nom: 'Esprit d\'équipe', cond: 'Mission « Avec qui tu aimes jouer » accomplie', mission: 'copains', lien: '#/mission/copains', icon: 'group', color: '#3DFFB0' }
-  ];
+  ].filter(function (b) {
+    // V1 (28/10) : la mission des copains n'est pas ouverte aux enfants, son badge non plus (voir MC.CONFIG.ENFANTS)
+    return b.mission !== 'copains' || !MC.ouvert || MC.ouvert('copains');
+  });
   // Défi « Meafou » : un test qui n'est pas dans le bilan
   var DEFI_TESTS = {
     squats_affilee: { id: 'squats_affilee', nom: 'Squats parfaits d\'affilée', court: 'Squats d\'affilée', unite: '' }

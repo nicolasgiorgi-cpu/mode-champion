@@ -4,6 +4,8 @@
    L'appli fait le reste : fenêtre « Quoi de neuf ? » à l'ouverture (3 au plus, une seule fois, selon le profil)
    et historique (joueur : Moi › Aide et nouveautés ; parent : Plus ; éduc : l'engrenage).
    pour : 'k' joueur, 'f' parent, 'e' éduc. titre / texte / lien : un texte, ou { k:…, f:…, e:… } selon le profil.
+   si : 'skills', 'copains' ou 'missionsEducs' = pas montrée aux enfants ni aux parents tant que cette partie
+   n'est pas ouverte (MC.CONFIG.ENFANTS, V1 du 28/10) ; les éducs la voient toujours.
    ========================================================= */
 window.MC = window.MC || {};
 
@@ -12,7 +14,7 @@ MC.NEWS = [
     titre: 'Son espace, sans son code',
     texte: { f: 'Touchez ▶ son prénom en haut à droite : l\'espace de votre enfant s\'ouvre directement, sans son code. Pour revenir : « Rendre le téléphone », puis votre code.', e: 'Votre enfant (engrenage › Mon enfant) : touchez ▶ son prénom en haut à droite, son espace s\'ouvre sans son code.' } },
   // (visuels v2, 25/10) la mission principale, puis les nouvelles cartes et le booster
-  { id: '2026-11-mission-principale', date: '2026-10-25', pour: ['k', 'f', 'e'],
+  { id: '2026-11-mission-principale', date: '2026-10-25', pour: ['k', 'f', 'e'], si: 'skills',
     titre: { k: 'Ta mission principale', f: 'La mission principale', e: 'La mission principale, à plusieurs enfants d\'un coup' },
     texte: {
       k: 'Tes éducs te donnent 1 à 3 étoiles à décrocher, jusqu\'aux prochaines vacances. Elle est en haut de tes Missions, avec tes encouragements.',
@@ -20,7 +22,7 @@ MC.NEWS = [
       e: 'Progrès › Missions › + Mission principale : plusieurs enfants, une carte, 1 à 3 étoiles, une date de fin, un récapitulatif par enfant.'
     },
     lien: { k: '#/missions', f: '#/parent/missions', e: '#/educ/missions/nouvelle?type=perso' } },
-  { id: '2026-11-skills-v2', date: '2026-10-25', pour: ['k', 'f', 'e'],
+  { id: '2026-11-skills-v2', date: '2026-10-25', pour: ['k', 'f', 'e'], si: 'skills',
     titre: { k: '8 cartes Skills et le booster', f: 'Skills : 8 cartes et des étoiles qui brillent', e: 'Skills v2 : 8 cartes, un seul écran Évaluer' },
     texte: {
       k: 'Nouvelles cartes : Maul, Défense, Porteur et Soutien. Quand une étoile arrive, l\'onglet Skills s\'allume en doré : ouvre ton booster ! Une étoile vue au plateau brille (+' + 50 + ' XP).',
@@ -31,7 +33,7 @@ MC.NEWS = [
   { id: '2026-10-retour-adulte', date: '2026-10-24', pour: ['f', 'e'],
     titre: 'Revenir à votre espace en un geste',
     texte: 'Côté enfant, le bouton 🔒 Parent (ou Éduc) est en haut à droite, à la place du ▶ : votre code est redemandé.' },
-  { id: '2026-10-2missions', date: '2026-10-24', pour: ['k', 'f', 'e'],
+  { id: '2026-10-2missions', date: '2026-10-24', pour: ['k', 'f', 'e'], si: 'copains',
     titre: { k: 'Le jeu à 10 : 2 missions pour toi', f: 'Le jeu à 10 : 2 missions', e: 'Le jeu à 10 : 2 missions séparées' },
     texte: {
       k: '« Choisis ton poste » puis « Avec qui tu aimes jouer » : chacune rapporte +200 XP et son badge.',
@@ -46,14 +48,14 @@ MC.NEWS = [
     titre: 'Votre code à 4 chiffres',
     texte: { f: 'Pour vous connecter : Adultes › Je suis parent › le prénom de votre enfant, puis votre code. Vous pouvez le changer dans Plus.', e: 'Pour vous connecter : Adultes › Je suis éduc › votre nom, puis votre code. Vous pouvez le changer dans l\'engrenage.' },
     lien: { f: '#/adultes/code', e: '#/adultes/code' } },
-  { id: '2026-10-nav4', date: '2026-10-24', pour: ['k', 'f', 'e'],
+  { id: '2026-10-nav4', date: '2026-10-24', pour: ['k', 'f', 'e'], si: 'skills',
     titre: { k: 'Ton appli en 4 onglets', f: 'Votre espace en 4 onglets', e: 'Votre espace en 4 onglets' },
     texte: {
       k: 'Prépa (ta séance, tes bilans, l\'arène), Missions (ce que demandent tes éducs), Skills (ton carnet rugby) et Moi.',
       f: 'Prépa (les résultats à confirmer en premier, sa semaine, ses bilans, son classement), Missions, Skills et Plus. Changer d\'enfant : son prénom, en haut à gauche.',
       e: 'Entraîn., Plateaux, Progrès et Enfants : un onglet par usage. La gestion (mon enfant, codes, Spond) est derrière l\'engrenage, en haut à droite.'
     } },
-  { id: '2026-10-skills-plus1', date: '2026-10-24', pour: ['k', 'f', 'e'],
+  { id: '2026-10-skills-plus1', date: '2026-10-24', pour: ['k', 'f', 'e'], si: 'skills',
     titre: { k: 'Tes Skills et tes +1', f: 'Ses Skills, ses missions et les +1 des éducs', e: 'Skills, missions et +1' },
     texte: {
       k: 'Ton carnet : 4 cartes de 5 étoiles validées par tes éducs (+100 XP chacune). Ta mission perso : une étoile à décrocher, et des +1 quand tu es sur la bonne voie.',
@@ -65,7 +67,7 @@ MC.NEWS = [
     titre: 'Les compos des plateaux et des entraînements, dans l\'appli',
     texte: 'Onglets Entraîn. et Plateaux : les présents, les groupes d\'ateliers puis les matchs, la compo d\'un plateau proposée en un geste ou composée à la main (avants puis arrières), 2 versions côte à côte à soumettre au vote des éducs, les postes du plateau ; la fiche terrain et l\'historique de chaque enfant.',
     lien: '#/educ/plateaux' },
-  { id: '2026-10-13-mission-jeu10', date: '2026-10-13', pour: ['k', 'f', 'e'],
+  { id: '2026-10-13-mission-jeu10', date: '2026-10-13', pour: ['k', 'f', 'e'], si: 'copains',
     titre: { k: 'Mission spéciale : prépare le jeu à 10', f: 'Mission spéciale : le jeu à 10', e: 'Les postes et les copains, dans l\'appli' },
     texte: {
       k: 'Choisis ton poste avec les cartes et le test, puis dis-nous avec qui tu aimes jouer (c\'est secret). +200 XP et un badge !',
@@ -118,7 +120,7 @@ MC.news = (function () {
   function seen(role, id) { var l = all()[role + ':' + id]; return Array.isArray(l) ? l : []; }
   function pick(v, role) { return v && typeof v === 'object' ? v[role] : v; }
   function forRole(role) {
-    return MC.NEWS.filter(function (n) { return n.pour.indexOf(role) >= 0 && pick(n.titre, role); })
+    return MC.NEWS.filter(function (n) { return n.pour.indexOf(role) >= 0 && pick(n.titre, role) && (role === 'e' || !n.si || MC.ouvert(n.si)); })
       .sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; });
   }
   // jamais ouvert sur cet appareil (aucune nouveauté vue ni écartée)

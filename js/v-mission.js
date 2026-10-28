@@ -340,6 +340,8 @@
     return fresh;
   }
   app.route('/mission/copains', function () {
+    // V1 (28/10) : la mission des copains n'est pas ouverte aux enfants (MC.CONFIG.ENFANTS)
+    if (!MC.ouvert('copains')) { setTimeout(function () { app.go('#/missions', true); }, 0); return null; }
     return app.loadMe().then(function (me) { return roster().then(function (list) { return paintCopains(me, list); }); });
   }, { kid: true, nav: 'missions', bg: '#12333A' });
   function copainsDispo(me, list) {
@@ -404,7 +406,7 @@
   // ----- mission accomplie -----
   app.route('/mission/bravo', function (p, q) {
     return app.loadMe().then(function (me) {
-      var id = q.m === 'copains' ? 'copains' : 'poste', D = M.def(id), e = M.etat(me, id), bd = badgeDe(D), suite = prochaine(me);
+      var id = q.m === 'copains' && MC.ouvert('copains') ? 'copains' : 'poste', D = M.def(id), e = M.etat(me, id), bd = badgeDe(D), suite = prochaine(me);
       if (!e.faite) { setTimeout(function () { app.go(D.lien, true); }, 0); return null; }
       var detail = id === 'poste' ? '<span class="hud" style="color:var(--dim)">Ton top</span>' + ptags(e.postes, true) + '<span class="small">Tu peux le changer quand tu veux (Moi › Mes postes).</span>' :
         '<span class="small">' + e.copains.length + ' copain' + (e.copains.length > 1 ? 's' : '') + ' choisi' + (e.copains.length > 1 ? 's' : '') + ', en secret. Tu peux les changer quand tu veux (Moi › Mes copains).</span>';
@@ -423,12 +425,12 @@
   // CÔTÉ PARENT : où en est son enfant (pas les copains : c'est secret)
   // ======================================================================
   MC.missionParent = function (d) {
-    var D1 = M.def('poste'), D2 = M.def('copains');
+    var D1 = M.def('poste'), D2 = MC.ouvert('copains') ? M.def('copains') : null;   // V1 : sans les copains
     if (!D1 || L.today() < D1.debut) return '';
     var e1 = M.etat(d, 'poste'), e2 = M.etat(d, 'copains'), k = d.joueur;
     var l1 = e1.faite ? '<div class="note green">' + icon('check', 20) + '<span><b>Mission « ' + esc(D1.titre) + ' » accomplie.</b> Ses postes : ' + e1.postes.map(function (id, i) { return (i + 1) + '. ' + esc(M.poste(id).nom); }).join(' · ') + '.</span></div>' :
       '<div class="note gold">' + icon('star', 20) + '<span><b>Mission à faire : « ' + esc(D1.titre) + ' ».</b> ' + esc(k.prenom) + ' choisit son poste pour le jeu à 10, dans son onglet « Missions »' + (L.today() <= D1.fin ? ', jusqu\'au ' + esc(fmtJour(D1.fin)) : '') + '.</span></div>';
-    var l2 = e2.faite ? '<div class="note green">' + icon('check', 20) + '<span><b>Mission « ' + esc(D2.titre) + ' » accomplie.</b> Ses copains restent secrets.</span></div>' :
+    var l2 = !D2 ? '' : e2.faite ? '<div class="note green">' + icon('check', 20) + '<span><b>Mission « ' + esc(D2.titre) + ' » accomplie.</b> Ses copains restent secrets.</span></div>' :
       '<div class="note gold">' + icon(e2.bloquee ? 'lock' : 'star', 20) + '<span><b>Mission à faire : « ' + esc(D2.titre) + ' ».</b> ' + esc(k.prenom) + ' dit aux éducs avec qui il aime jouer (c\'est secret)' + (e2.bloquee ? ' ; elle se débloque une fois son poste choisi' : '') + '.</span></div>';
     return l1 + l2;
   };

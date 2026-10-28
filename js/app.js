@@ -151,7 +151,7 @@ MC.app = (function () {
   }
 
   // ---------- Onglets du bas (les mêmes règles pour les enfants, les parents et les éducs) ----------
-  // Enfant : Prépa · Missions · Skills · Moi. Parent : Prépa · Missions · Skills · Plus.
+  // Enfant : Prépa · Missions · Skills · Moi. Parent : Prépa · Missions · Skills · Plus (sans Skills en V1 : 3 onglets).
   // Éduc : Entraîn. · Plateaux · Progrès · Enfants ; la gestion est derrière l'engrenage (aucun onglet allumé).
   // Chaque onglet a 2 ou 3 sous-onglets ; le dernier choisi est gardé (l'onglet du bas y ramène).
   var NAVS = {
@@ -186,7 +186,8 @@ MC.app = (function () {
     active = NAV_ALIAS[active] || active;
     navActive = active;
     var set = /^p:/.test(active) ? 'p' : /^e:/.test(active) ? 'e' : 'k';
-    var items = NAVS[set];
+    // V1 (28/10) : pas d'onglet Skills pour les enfants ni les parents tant qu'il n'est pas ouvert (MC.CONFIG.ENFANTS)
+    var items = NAVS[set].filter(function (it) { return (it[0] !== 'skills' && it[0] !== 'p:skills') || MC.ouvert('skills'); });
     navEl.style.setProperty('--n', items.length);
     navEl.setAttribute('aria-label', set === 'k' ? 'Navigation principale' : set === 'p' ? 'Navigation de l\'espace parent' : 'Navigation de l\'espace éduc');
     navEl.innerHTML = '<span class="brand" aria-hidden="true">' + ui.avatar('M', '#38E8FF', 48).replace('>M<', '>M12<') + '</span>' + items.map(function (it) {
