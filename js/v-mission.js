@@ -429,7 +429,7 @@
     if (!D1 || L.today() < D1.debut) return '';
     var e1 = M.etat(d, 'poste'), e2 = M.etat(d, 'copains'), k = d.joueur;
     var l1 = e1.faite ? '<div class="note green">' + icon('check', 20) + '<span><b>Mission « ' + esc(D1.titre) + ' » accomplie.</b> Ses postes : ' + e1.postes.map(function (id, i) { return (i + 1) + '. ' + esc(M.poste(id).nom); }).join(' · ') + '.</span></div>' :
-      '<div class="note gold">' + icon('star', 20) + '<span><b>Mission à faire : « ' + esc(D1.titre) + ' ».</b> ' + esc(k.prenom) + ' choisit son poste pour le jeu à 10, dans son onglet « Missions »' + (L.today() <= D1.fin ? ', jusqu\'au ' + esc(fmtJour(D1.fin)) : '') + '.</span></div>';
+      '<div class="note gold">' + icon('star', 20) + '<span><b>Mission à faire : « ' + esc(D1.titre) + ' ».</b> ' + esc(k.prenom) + ' choisit son poste pour le jeu à 10, dans son onglet « Missions »' + (L.today() <= D1.fin ? ', jusqu\'au ' + esc(fmtJour(D1.fin)).replace(/\.$/, '') : '') + '.</span></div>';
     var l2 = !D2 ? '' : e2.faite ? '<div class="note green">' + icon('check', 20) + '<span><b>Mission « ' + esc(D2.titre) + ' » accomplie.</b> Ses copains restent secrets.</span></div>' :
       '<div class="note gold">' + icon(e2.bloquee ? 'lock' : 'star', 20) + '<span><b>Mission à faire : « ' + esc(D2.titre) + ' ».</b> ' + esc(k.prenom) + ' dit aux éducs avec qui il aime jouer (c\'est secret)' + (e2.bloquee ? ' ; elle se débloque une fois son poste choisi' : '') + '.</span></div>';
     return l1 + l2;

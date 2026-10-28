@@ -99,6 +99,8 @@ self.addEventListener('fetch', function (e) {
     if (url.pathname.indexOf(BASE_PATH) !== 0) return;
     if (req.mode === 'navigate') {
       if (/[?&]reset=/.test(url.search)) return;         // « Réparer l'appli » : toujours le réseau
+      // une autre page du site (ex. guide-parents/) : le réseau, jamais la copie de l'appli
+      if (url.pathname !== BASE_PATH && url.pathname !== BASE_PATH + 'index.html') return;
       e.respondWith(page(e));
       return;
     }
