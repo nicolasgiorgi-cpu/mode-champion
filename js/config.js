@@ -30,6 +30,9 @@ MC.CONFIG = {
     { n: 5, date: '2027-06-26', nom: 'Bilan 5', quand: 'fin juin' }
   ],
 
+  // « Un mot pour les éducs » dans « Choisis ton poste » (côté enfant) : il faut le serveur en version 12 (29/10/2026)
+  MOT_EDUCS: true,
+
   // Une ligue avec moins de joueurs que ça est fusionnée avec la ligue voisine.
   LIGUE_MIN: 5,
 

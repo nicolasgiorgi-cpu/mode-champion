@@ -173,10 +173,10 @@
       enTete(me, 'poste', 'Choisis<br>ton poste', 'Après les vacances, on passe au jeu à 10 : chacun aura un poste. Touche une carte pour découvrir le poste, puis mets-le dans ton top. 1 à 3 choix, dans l\'ordre : un seul, c\'est déjà très bien.') +
       (e.source === 'formulaire' ? '<div class="note cyan">' + icon('info', 20) + '<span>Tes postes viennent du site « Choisis ton poste » : vérifie-les et change-les si tu veux.</span></div>' : '') +
       '<div class="cp-grid">' + quiz + M.POSTES.map(function (p) { return cardHtml(p, d.postes.indexOf(p.id)); }).join('') + '</div>' +
-      // comme sur l'ancien site : un mot libre pour les éducs (facultatif), envoyé avec le top
-      '<section class="sec" style="gap:8px"><label class="h2" for="msn-mot" style="font-size:18px">Un mot pour les éducs <span class="small" style="text-transform:none;letter-spacing:0;font-family:var(--f-body)">(facultatif)</span></label>' +
+      // comme sur l'ancien site : un mot libre pour les éducs (facultatif), envoyé avec le top (serveur version 12 et plus)
+      (MC.CONFIG.MOT_EDUCS === false ? '' : '<section class="sec" style="gap:8px"><label class="h2" for="msn-mot" style="font-size:18px">Un mot pour les éducs <span class="small" style="text-transform:none;letter-spacing:0;font-family:var(--f-body)">(facultatif)</span></label>' +
       '<textarea id="msn-mot" class="txt" rows="3" maxlength="600" data-msnmot placeholder="Pourquoi ces postes ? Un poste que tu ne veux pas ?">' + esc(d.message || '') + '</textarea>' +
-      '<span class="small">Il part avec ton top quand tu touches « Valider ». Seuls les éducs le lisent.</span></section>' +
+      '<span class="small">Il part avec ton top quand tu touches « Valider ». Seuls les éducs le lisent.</span></section>') +
       barHtml(d) + '</main>';
   }
   MC.act.msnSavePostes = function (b) {
@@ -185,7 +185,8 @@
     if (!d.postes.length) { ui.toast('Choisis au moins un poste.', true); return; }
     var mot = document.getElementById('msn-mot');
     if (mot) { d.message = mot.value; }
-    var p = { mission: MID, postes: d.postes, message: String(d.message || '').slice(0, 600) };
+    var p = { mission: MID, postes: d.postes };
+    if (mot) p.message = String(d.message || '').slice(0, 600);
     if (quizFini(d)) { p.quiz = { ans: d.quiz.ans }; p.quizTop = M.quizResults(d.quiz.ans).map(function (x) { return { id: x.p.id, pct: x.pct }; }); }
     var was = M.etat(me, 'poste').faite;
     b.disabled = true;

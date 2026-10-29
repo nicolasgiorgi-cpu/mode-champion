@@ -464,7 +464,7 @@ MC.app = (function () {
     PT.track = false; PT.on = false;
     if (PT.busy || !e.touches || e.touches.length !== 1 || (window.scrollY || 0) > 0 || !pullable()) return;
     var t = e.target;
-    if (!t || !t.closest || t.closest('input, textarea, select, .modal, .np, [data-noptr]') || document.querySelector('.modal') || document.body.classList.contains('np-open')) return;
+    if (!t || !t.closest || t.closest('input, textarea, select, .modal, .numpad, .bk, [data-noptr]') || document.querySelector('.modal, .bk') || document.body.classList.contains('np-open')) return;
     if (scrolledInside(t)) return;
     PT.track = true; PT.y0 = e.touches[0].clientY; PT.x0 = e.touches[0].clientX; PT.d = 0;
   }
@@ -473,9 +473,11 @@ MC.app = (function () {
     var dy = e.touches[0].clientY - PT.y0, dx = e.touches[0].clientX - PT.x0;
     if (!PT.on) {
       if (dy <= 0 || Math.abs(dx) > dy || (window.scrollY || 0) > 0) { if (dy < 0 || Math.abs(dx) > 12) PT.track = false; return; }
+      if (e.cancelable) e.preventDefault();   // dès le 1er mouvement vers le bas : pas de rebond ni de rechargement natif
+      if (dy < 8) return;                     // un simple toucher qui glisse un peu ne déclenche rien
       PT.on = true; root.classList.add('ptr-pull');
     }
-    if (e.cancelable) e.preventDefault();   // pas de rebond ni de rechargement natif pendant qu'on tire
+    if (e.cancelable) e.preventDefault();
     PT.d = Math.max(0, Math.min(PULL_MAX, Math.round(dy * 0.55)));
     ptrShow(PT.d, PT.d >= PULL_GO ? 'go' : 'pull');
   }

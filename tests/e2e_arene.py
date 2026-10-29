@@ -13,8 +13,9 @@ with sync_playwright() as p:
     pg.goto(BASE+'#/adultes'); pg.wait_for_timeout(600); pg.evaluate("localStorage.clear()"); pg.reload(); pg.wait_for_timeout(800)
     pg.click('[data-act="adultWho"][data-w="f"]'); pg.wait_for_timeout(200); pick(pg, 'Tom'); pin(pg,'1357'); pg.wait_for_timeout(1200)
     pg.goto(BASE+'#/parent/classement'); pg.wait_for_timeout(1200); pg.screenshot(path=OUT+'ar-parent.png', full_page=True)
-    print('parent', pg.inner_text('main section.row')[:90].replace('\n',' '), '| lignes', pg.eval_on_selector_all('ol.list li','e=>e.length'))
-    pg.click('[data-act="arTest"][data-v="pompes"]'); pg.wait_for_timeout(300); print('pompes lignes', pg.eval_on_selector_all('ol.list li','e=>e.length'))
+    # (29/10) parent : toutes les épreuves d'abord, une carte par épreuve ; toucher une épreuve = elle seule
+    print('parent', pg.inner_text('main section.rkset')[:90].replace('\n',' '), '| cartes', pg.eval_on_selector_all('.rkcard','e=>e.length'))
+    pg.click('[data-act="prTest"][data-v="pompes"]'); pg.wait_for_timeout(300); print('pompes : cartes', pg.eval_on_selector_all('.rkcard','e=>e.length'), 'lignes', pg.eval_on_selector_all('.rkcard ol.list li','e=>e.length'))
     pg.evaluate("localStorage.clear()"); pg.goto(BASE+'#/adultes'); pg.reload(); pg.wait_for_timeout(800)
     pg.click('[data-act="adultWho"][data-w="e"]'); pg.wait_for_timeout(200); pick(pg, 'Coach Nico'); pin(pg,'2468'); pg.wait_for_timeout(1500)
     pg.goto(BASE+'#/educ/classement'); pg.wait_for_timeout(1200); pg.screenshot(path=OUT+'ar-educ.png', full_page=True)
