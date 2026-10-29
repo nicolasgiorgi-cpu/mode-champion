@@ -47,7 +47,8 @@ MC.missions = (function () {
     var o = {
       m: m, ligneFaite: !!(m && m.faite),
       postes: (r.postes || []).filter(poste), copains: r.copains || [], copainsFait: !!r.copainsFait,
-      quiz: r.quiz || null, quizTop: r.quizTop || null, quizResume: r.quizResume || '', source: (m && m.source) || ''
+      quiz: r.quiz || null, quizTop: r.quizTop || null, quizResume: r.quizResume || '', source: (m && m.source) || '',
+      message: typeof r.message === 'string' ? r.message : ''
     };
     o.posteFait = o.postes.length > 0;
     o.faite = id === 'poste' ? o.posteFait : id === 'copains' ? o.copainsFait : o.ligneFaite;

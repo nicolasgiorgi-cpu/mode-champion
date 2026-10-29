@@ -213,6 +213,19 @@
     }).then(function (r) { app.S.cache.family = r; return r; });
   }
   MC.loadFamily = loadFamily;
+  // tirer pour actualiser (espaces parent et éduc) : la famille ou le groupe, redemandés au serveur
+  app.onRefresh(function (o) {
+    var A = app.S.adult;
+    if (!A || !o.adult || o.adult !== A.role) return null;
+    var c = app.S.cache, tok = A.token;
+    return MC.api.call(A.role === 'e' ? 'group' : 'family', { token: tok }, { silent: true }).then(function (r) {
+      if (!app.S.adult || app.S.adult.token !== tok) return;
+      c.league = null; c.kid = null;
+      if (A.role === 'e') { c.group = r; app.lsSet('mc-group', { tok: tok, data: r }); }
+      else { c.family = r; app.lsSet('mc-fam', { tok: tok, data: r }); }
+      app.refreshNav();
+    });
+  });
   function famKid(fam) {
     var kids = fam.enfants;
     if (!parentSel || !kids.some(function (k) { return k.joueur.id === parentSel; })) parentSel = kids[0].joueur.id;
@@ -573,10 +586,11 @@
   function areneHead() {
     return '<div class="head"><span class="kicker" style="color:var(--pink)">Classement · M12</span><h1 class="big">L\'arène</h1></div>';
   }
+  // (29/10) les épreuves reviennent à la ligne (plus de bande qui défile de côté) ; côté éduc, une épreuve à la fois (tout le groupe)
   function areneChips() {
-    return '<div class="sec" style="gap:8px"><span class="lab">Épreuve</span><div class="row chipsx" style="overflow-x:auto;gap:8px;padding-bottom:4px;-webkit-overflow-scrolling:touch">' + C.TESTS.map(function (tt) {
+    return '<div class="sec" style="gap:8px"><span class="lab">Épreuve</span><div class="rkchips" role="group" aria-label="Épreuve">' + C.TESTS.map(function (tt) {
       var on = tt.id === arene.test;
-      return '<button type="button" class="opt' + (on ? ' on' : '') + '" style="--oc:var(--pink);flex:none;min-height:44px;padding:0 12px" aria-pressed="' + on + '" data-act="arTest" data-v="' + tt.id + '">' + esc(tt.court) + '</button>';
+      return '<button type="button" class="opt' + (on ? ' on' : '') + '" style="--oc:var(--pink)" aria-pressed="' + on + '" data-act="arTest" data-v="' + tt.id + '">' + esc(tt.court) + '</button>';
     }).join('') + '</div></div>' +
       '<div class="grid2"><button type="button" class="opt' + (arene.mode === 'best' ? ' on' : '') + '" aria-pressed="' + (arene.mode === 'best') + '" data-act="arMode" data-v="best">Meilleur score</button>' +
       '<button type="button" class="opt' + (arene.mode === 'prog' ? ' on' : '') + '" style="--oc:var(--green)" aria-pressed="' + (arene.mode === 'prog') + '" data-act="arMode" data-v="prog">Plus gros progrès</button></div>';
@@ -592,25 +606,27 @@
         '<span style="font:700 18px/1 var(--f-hud);color:' + (arene.mode === 'prog' ? 'var(--green)' : mine ? 'var(--cyan)' : 'var(--ink)') + '">' + v + '</span></li>';
     }).join('') + '</ol>';
   }
+  // parent : comme l'enfant, toutes les épreuves d'abord (sa ligue sur chacune), puis on choisit celles à garder
+  var pRank = { sel: [], mode: 'best' };
   app.route('/parent/classement', function () {
     return Promise.all([loadFamily(), loadLeague()]).then(function (res) {
       app.refreshNav();
       var fam = res[0], Lg = res[1];
       if (!fam.enfants.length) return noKid(fam);
       var d = famKid(fam), k = d.joueur;
-      var lg = L.league(Lg, k.id, arene.test, arene.mode), t = lg.test;
-      var lname = lg.lo === lg.hi ? 'Ligue N' + lg.lo : 'Ligue N' + lg.lo + '-N' + lg.hi, lc = C.NIVEAUX[lg.myLv].color;
-      var inIt = lg.rows.some(function (r) { return r.p.id === k.id; });
+      var R = MC.rankCards(Lg, { id: k.id, prenom: k.prenom, toi: false }, pRank.sel, pRank.mode);
       return '<main class="screen">' + parentBar(fam, d, 'Prépa') + parentPrepaTabs('classement') + areneHead() +
-        '<section class="row" style="padding:12px 14px;background:' + ui.rgba(lc, 0.1) + ';border:1.5px solid ' + lc + ';align-items:center">' + ui.lvl(lg.myLv, lname.toUpperCase()) +
-        '<span style="font-size:13px;line-height:1.35;color:var(--soft)">' + esc(k.prenom) + ' se mesure aux joueurs de son niveau sur cette épreuve' + (lg.sm ? ' (version mini matériel)' : '') + '.' + (k.visible ? '' : ' Il est masqué : les autres ne le voient pas.') + '</span></section>' +
-        areneChips() + '<div class="between"><h2 class="h2">' + esc(t.nom) + '</h2><span class="small">' + lg.rows.length + ' joueur' + (lg.rows.length > 1 ? 's' : '') + '</span></div>' +
-        (!inIt && lg.rows.length ? '<div class="note">' + icon('info', 20) + '<span>' + esc(k.prenom) + ' n\'apparaît pas encore : il faut un résultat de bilan ou de défi confirmé.</span></div>' : '') +
-        areneRows(lg.rows, t, [k.id], lg.lo !== lg.hi) +
+        '<section class="rkset"><p class="small" style="margin:0;color:var(--soft)">Sur chaque épreuve, ' + esc(k.prenom) + ' se mesure aux joueurs de son niveau (sa ligue).' + (k.visible ? '' : ' Il est masqué : les autres ne le voient pas.') + '</p>' +
+        '<div class="sec" style="gap:8px"><span class="lab">Épreuves' + (pRank.sel.length ? ' · ' + pRank.sel.length + ' choisie' + (pRank.sel.length > 1 ? 's' : '') : ' · toutes') + '</span>' + MC.rankChips(pRank.sel, 'prTest') + '</div>' +
+        '<div class="sec" style="gap:8px"><span class="lab">Classer par</span>' + MC.rankModeBtns(pRank.mode, 'prMode') + '</div></section>' +
+        (!R.seen ? '<div class="note">' + icon('info', 20) + '<span>' + esc(k.prenom) + ' n\'apparaît pas encore : il faut un résultat de bilan ou de défi confirmé.</span></div>' : '') +
+        R.html +
         '<button type="button" class="switch" role="switch" aria-checked="' + !!k.visible + '" data-act="kidVisible" data-id="' + esc(k.id) + '"><span><span class="t1" style="display:block">' + esc(k.prenom) + ' apparaît dans le classement des autres</span><span class="t2" style="display:block">' + (k.visible ? 'Son prénom apparaît dans sa ligue' : 'Il voit son rang, les autres ne le voient pas') + '</span></span><span class="k"></span></button>' +
         '<p class="small" style="margin:0">Seule la prépa physique compte ici (bilans et défis confirmés). Les missions et les Skills ne sont jamais classés.</p></main>';
     });
   }, { adult: 'f', nav: 'p:prepa', bg: '#2A1640' });
+  MC.act.prTest = function (b) { pRank.sel = MC.rankToggle(pRank.sel, b.getAttribute('data-v')); app.rerender(); };
+  MC.act.prMode = function (b) { pRank.mode = b.getAttribute('data-v'); app.rerender(); };
   app.route('/educ/classement', function () {
     return Promise.all([loadGroup(), loadLeague()]).then(function (res) {
       app.refreshNav();

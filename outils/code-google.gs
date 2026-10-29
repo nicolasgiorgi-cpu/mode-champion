@@ -190,13 +190,14 @@ function lireFormulairePostes_() {
     var lc = sh.getLastColumn(), lr = sh.getLastRow();
     if (lc < 3) continue;
     var head = sh.getRange(1, 1, 1, lc).getDisplayValues()[0].map(n);
-    var col = { prenom: -1, nom: -1, c1: -1, c2: -1, c3: -1, test: -1 };
+    var col = { prenom: -1, nom: -1, c1: -1, c2: -1, c3: -1, test: -1, message: -1 };
     head.forEach(function (h, j) {
       if (/^prenom/.test(h)) col.prenom = j;
       else if (/^nom\b/.test(h)) col.nom = j;
       else if (/^choix\s*1/.test(h)) col.c1 = j;
       else if (/^choix\s*2/.test(h)) col.c2 = j;
       else if (/^choix\s*3/.test(h)) col.c3 = j;
+      else if (/^message|mot pour/.test(h)) col.message = j;   // « Un mot pour les éducs »
       else if (/aide-moi|test/.test(h)) col.test = j;
     });
     if (col.prenom < 0 || col.c1 < 0) continue;
@@ -206,7 +207,8 @@ function lireFormulairePostes_() {
       return {
         prenom: r[col.prenom], nom: col.nom >= 0 ? r[col.nom] : '',
         choix: [r[col.c1], col.c2 >= 0 ? r[col.c2] : '', col.c3 >= 0 ? r[col.c3] : ''],
-        test: col.test >= 0 ? r[col.test] : ''
+        test: col.test >= 0 ? r[col.test] : '',
+        message: col.message >= 0 ? r[col.message] : ''
       };
     });
   }
@@ -220,7 +222,7 @@ function reprendreChoixDePostes() {
   if (!rows) { Logger.log('Onglet des réponses introuvable : dans Google Forms, Réponses › Associer à Sheets › cette feuille.'); return; }
   var info = Core.importPostesDepuis(db, env_(), rows);
   db.flush_();
-  Logger.log('Réponses lues : ' + info.reponses + ' · enfants reconnus : ' + info.enfants + ' · repris : ' + info.importes +
+  Logger.log('Réponses lues : ' + info.reponses + ' · enfants reconnus : ' + info.enfants + ' · repris : ' + info.importes + ' · mots pour les éducs : ' + (info.mots || 0) +
     (info.gardes.length ? ' · déjà choisi dans l\'appli : ' + info.gardes.join(', ') : '') +
     (info.inconnus.length ? ' · pas trouvés : ' + info.inconnus.join(', ') : '') +
     (info.ambigus.length ? ' · homonymes à vérifier : ' + info.ambigus.join(', ') : ''));

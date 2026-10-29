@@ -95,6 +95,7 @@
     if (!d || typeof d !== 'object' || d.kid !== me.joueur.id) d = { kid: me.joueur.id };
     if (!d.dirtyP || !Array.isArray(d.postes)) { d.postes = e.postes.slice(0, 3); d.dirtyP = false; }
     if (!d.dirtyC || !Array.isArray(d.copains)) { d.copains = e.copains.slice(); d.dirtyC = false; }
+    if (!d.dirtyM || typeof d.message !== 'string') { d.message = e.message || ''; d.dirtyM = false; }
     if (!d.quiz || !Array.isArray(d.quiz.ans)) {
       var a = e.quiz && Array.isArray(e.quiz.ans) ? e.quiz.ans : [];
       d.quiz = { ans: a, step: a.length === M.QUIZ.length ? M.QUIZ.length : 0 };
@@ -172,23 +173,35 @@
       enTete(me, 'poste', 'Choisis<br>ton poste', 'Après les vacances, on passe au jeu à 10 : chacun aura un poste. Touche une carte pour découvrir le poste, puis mets-le dans ton top. 1 à 3 choix, dans l\'ordre : un seul, c\'est déjà très bien.') +
       (e.source === 'formulaire' ? '<div class="note cyan">' + icon('info', 20) + '<span>Tes postes viennent du site « Choisis ton poste » : vérifie-les et change-les si tu veux.</span></div>' : '') +
       '<div class="cp-grid">' + quiz + M.POSTES.map(function (p) { return cardHtml(p, d.postes.indexOf(p.id)); }).join('') + '</div>' +
+      // comme sur l'ancien site : un mot libre pour les éducs (facultatif), envoyé avec le top
+      '<section class="sec" style="gap:8px"><label class="h2" for="msn-mot" style="font-size:18px">Un mot pour les éducs <span class="small" style="text-transform:none;letter-spacing:0;font-family:var(--f-body)">(facultatif)</span></label>' +
+      '<textarea id="msn-mot" class="txt" rows="3" maxlength="600" data-msnmot placeholder="Pourquoi ces postes ? Un poste que tu ne veux pas ?">' + esc(d.message || '') + '</textarea>' +
+      '<span class="small">Il part avec ton top quand tu touches « Valider ». Seuls les éducs le lisent.</span></section>' +
       barHtml(d) + '</main>';
   }
   MC.act.msnSavePostes = function (b) {
     var me = app.S.me; if (!me) return;
     var d = brouillon(me);
     if (!d.postes.length) { ui.toast('Choisis au moins un poste.', true); return; }
-    var p = { mission: MID, postes: d.postes };
+    var mot = document.getElementById('msn-mot');
+    if (mot) { d.message = mot.value; }
+    var p = { mission: MID, postes: d.postes, message: String(d.message || '').slice(0, 600) };
     if (quizFini(d)) { p.quiz = { ans: d.quiz.ans }; p.quizTop = M.quizResults(d.quiz.ans).map(function (x) { return { id: x.p.id, pct: x.pct }; }); }
     var was = M.etat(me, 'poste').faite;
     b.disabled = true;
     app.kidCall('mission', p).then(function (res) {
       app.setMe(res);
-      d.dirtyP = false; garder(d);
+      d.dirtyP = false; d.dirtyM = false; garder(d);
       if (was) { ui.toast('Ton top est enregistré !'); app.go('#/missions'); }
       else app.go('#/mission/bravo?m=poste');
     }).catch(function (e) { b.disabled = false; ui.toast(e.message, true); });
   };
+
+  document.addEventListener('input', function (e) {
+    var t = e.target;
+    if (!t || !t.hasAttribute || !t.hasAttribute('data-msnmot') || !app.S.me) return;
+    var d = brouillon(app.S.me); d.message = t.value; d.dirtyM = true; garder(d);
+  });
 
   // ----- la fiche d'un poste -----
   app.route('/mission/poste/:id', function (p, q, cur) {
@@ -466,6 +479,7 @@
     return '<section class="sec"><div class="between"><h2 class="h2">Choisis ton poste</h2>' + pastille(e.posteFait) + '</div>' +
       '<div class="box" style="display:flex;flex-direction:column;gap:10px">' +
       '<div><span class="mlab">Ses postes, dans l\'ordre</span>' + (e.postes.length ? ptags(e.postes, true) : '<span class="small">Pas encore choisis.</span>') + '</div>' +
+      (e.message ? '<div><span class="mlab">Son mot pour les éducs</span><p class="mmot">' + esc(e.message) + '</p></div>' : '') +
       (test.length ? '<details><summary class="small" style="cursor:pointer;color:var(--cyan)">Son test « Aide-moi à choisir »</summary><ul class="small" style="margin:6px 0 0;padding-left:18px;line-height:1.5">' + test.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul></details>' : '') +
       '</div></section>' +
       '<section class="sec"><div class="between"><h2 class="h2">Avec qui tu aimes jouer</h2>' + pastille(e.copainsFait) + '</div>' +
@@ -486,7 +500,6 @@
   function joueursMission(g) {
     return g.joueurs.filter(function (p) { return p.joueur.actif && !/^test$/i.test(p.joueur.prenom); }).sort(function (a, b) { return a.joueur.prenom.localeCompare(b.joueur.prenom, 'fr'); });
   }
-  function pastilleFaite(ok) { return '<span class="pill" style="background:' + (ok ? 'var(--green)' : 'var(--orange)') + '">' + (ok ? 'Faite' : 'À faire') + '</span>'; }
   var LAB = 'style="text-transform:none;font-family:var(--f-body);letter-spacing:0;font-size:12px"';
   function tuilesMission(n, tot, quoi) {
     return '<div class="grid2"><div class="tile"><span class="v" style="color:var(--green)">' + n + '</span><span class="l" ' + LAB + '>' + quoi + '</span></div>' +
@@ -496,9 +509,34 @@
     return '<div class="grid2"><button type="button" class="opt' + (edMsn.filtre === 'all' ? ' on' : '') + '" aria-pressed="' + (edMsn.filtre === 'all') + '" data-act="msnFiltre" data-v="all">Tous · ' + tot + '</button>' +
       '<button type="button" class="opt' + (edMsn.filtre === 'todo' ? ' on' : '') + '" style="--oc:var(--orange)" aria-pressed="' + (edMsn.filtre === 'todo') + '" data-act="msnFiltre" data-v="todo">Pas encore · ' + todo + '</button></div>';
   }
-  function ligneJoueur(p, ok, contenu) {
-    return '<li><a class="li" href="#/educ/joueur/' + esc(p.joueur.id) + '?t=terrain" style="align-items:flex-start">' + ui.hexa(p.joueur.prenom, p.joueur.couleur) +
-      '<span class="grow" style="display:flex;flex-direction:column;gap:6px"><span class="between"><span class="t1">' + esc(p.joueur.prenom.toUpperCase()) + '</span>' + pastilleFaite(ok) + '</span>' + contenu + '</span></a></li>';
+  // (29/10) une ligne par enfant, sans bouclier ni étiquette « Faite / À faire » : le prénom, une coche verte quand
+  // c'est fait, puis ses réponses sur la même ligne. Toucher la ligne déplie le détail (son mot, son test, sa fiche).
+  function coche(ok) { return ok ? '<span class="mok" role="img" aria-label="Mission faite">' + icon('check', 16) + '</span>' : ''; }
+  function ligneMission(p, ok, cellules, detail, indice) {
+    return '<li><details class="mrow"><summary><span class="mrow-n"><span class="nm">' + esc(p.joueur.prenom) + '</span>' + coche(ok) + '</span>' + cellules +
+      '<span class="mrow-x' + (indice ? ' on' : '') + '" aria-hidden="true">' + icon(indice ? 'chat' : 'chevd', 16) + '</span></summary>' +
+      '<div class="mrow-d">' + detail + '<a class="btn2 sm grey" href="#/educ/joueur/' + esc(p.joueur.id) + '?t=terrain">' + icon('user', 16) + ' Sa fiche</a></div></details></li>';
+  }
+  function motHtml(e) {
+    return '<div><span class="mlab">Son mot pour les éducs</span>' + (e.message ? '<p class="mmot">' + esc(e.message) + '</p>' : '<span class="small">Pas de mot.</span>') + '</div>';
+  }
+  function testHtml(e) {
+    var test = resumeTest(e);
+    return test.length ? '<div><span class="mlab">Son test « Aide-moi à choisir »</span><ul class="small mtest">' + test.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul></div>' : '';
+  }
+  // les noms courts des postes, pour tenir à 3 sur une ligne (le nom complet est dans le détail et en info-bulle)
+  var COURT = { 'demi-de-melee': 'Demi mêlée', ouvreur: 'Ouvreur', 'troisieme-ligne': '3e ligne' };
+  function lignePoste(p) {
+    var e = etatDe(p), cells = '';
+    if (e.postes.length) {
+      for (var i = 0; i < 3; i++) {
+        var P = M.poste(e.postes[i]);
+        cells += P ? '<span class="mpc" style="--c:' + P.color + '" title="' + esc((i + 1) + '. ' + P.nom) + '">' + esc(COURT[P.id] || P.nom) + '</span>' : '<span class="mpc vide" aria-hidden="true"></span>';
+      }
+      cells = '<span class="mrow-c" aria-label="Ses postes : ' + esc(e.postes.map(function (id, k) { return (k + 1) + '. ' + M.poste(id).nom; }).join(', ')) + '">' + cells + '</span>';
+    } else cells = '<span class="mrow-c none">Pas encore choisi</span>';
+    var detail = '<div><span class="mlab">Ses postes, dans l\'ordre</span>' + (e.postes.length ? ptags(e.postes, true) : '<span class="small">Pas encore choisis.</span>') + '</div>' + motHtml(e) + testHtml(e);
+    return ligneMission(p, e.posteFait, cells, detail, !!e.message);
   }
   // « Choisis ton poste » : qui l'a faite, les postes demandés
   function paintEducPoste(g) {
@@ -518,14 +556,16 @@
         '<p class="small" style="margin:6px 0 4px">' + (a || b ? (a ? '<b style="color:var(--ink)">Choix 1 :</b> ' + choix1[p.id].map(esc).join(', ') : '') + (b ? (a ? '<br>' : '') + '<b style="color:var(--ink)">Choix 2 ou 3 :</b> ' + autres[p.id].map(esc).join(', ') : '') : 'Personne pour l\'instant.') + '</p></details>';
     }).join('');
     var list = players.filter(function (p) { return edMsn.filtre === 'all' || !etatDe(p).posteFait; });
-    var rows = list.map(function (p) { var e = etatDe(p); return ligneJoueur(p, e.posteFait, e.postes.length ? ptags(e.postes, true) : '<span class="t2">Pas encore choisi</span>'); }).join('');
+    var rows = list.map(lignePoste).join('');
+    var mots = players.filter(function (p) { return etatDe(p).message; }).length;
     return '<main class="screen">' + MC.educBar(g, 'Choisis ton poste', '#/educ/missions', 'Missions') +
       '<div class="head"><span class="kicker" style="color:var(--gold)">Mission spéciale · ' + players.length + ' joueurs</span><h1 class="big md">Choisis ton poste</h1>' +
       '<p class="lead">Chaque enfant choisit 1 à 3 postes, dans l\'ordre, avec les 7 cartes ou le test « Aide-moi à choisir ». Ensuite, il peut faire « <a href="#/educ/mission/copains">Avec qui tu aimes jouer</a> ».</p></div>' +
       tuilesMission(n, players.length, 'ont choisi leur poste') +
       '<div class="cols2"><section class="sec"><h2 class="h2">Postes demandés</h2><p class="small" style="margin:0">Barre pleine = choix n°1, barre pâle = choix 2 ou 3. Touchez un poste pour voir les prénoms.</p><div class="pbars">' + bars + '</div></section>' +
       '<section class="sec"><h2 class="h2">Les joueurs</h2>' + filtresMission(players.length, players.length - n) +
-      '<ul class="list">' + (rows || '<li class="empty">Personne.</li>') + '</ul></section></div></main>';
+      '<p class="small" style="margin:0">Touchez un enfant pour voir ses choix en entier' + (mots ? ', son mot (' + icon('chat', 13, 'style="vertical-align:-2px;color:var(--cyan)"') + ' : ' + mots + ' enfant' + (mots > 1 ? 's ont' : ' a') + ' écrit un mot)' : ', son mot') + ' et son test.</p>' +
+      (rows ? '<div class="mrow-h" aria-hidden="true"><span>Prénom</span><span class="mrow-c"><span>Choix 1</span><span>Choix 2</span><span>Choix 3</span></span><span></span></div><ul class="list mrows">' + rows + '</ul>' : '<ul class="list"><li class="empty">Personne.</li></ul>') + '</section></div></main>';
   }
   // « Avec qui tu aimes jouer » : les copains de chacun (secret : seuls les éducs les voient)
   function paintEducCopains(g) {
@@ -536,8 +576,10 @@
       var e = etatDe(p), par = choisiPar(g, p.joueur.id), mutual = {};
       par.forEach(function (j) { mutual[j.id] = true; });
       var cop = e.copains.map(function (id) { return names[id] ? (mutual[id] ? '<b style="color:var(--green)">' + esc(names[id]) + ' ⇄</b>' : esc(names[id])) : ''; }).filter(Boolean);
-      return ligneJoueur(p, e.copainsFait, '<span class="t2">' + (cop.length ? 'Copains : ' + cop.join(', ') : e.copainsFait ? 'Aucun copain choisi' : (e.posteFait ? 'Pas encore choisi' : 'Pas encore choisi (son poste d\'abord)')) + '</span>' +
-        '<span class="t2">' + (par.length ? 'Choisi par ' + par.length + ' enfant' + (par.length > 1 ? 's' : '') : 'Personne ne l\'a encore choisi') + '</span>');
+      var resume = '<span class="mrow-c none">' + (cop.length ? cop.length + ' copain' + (cop.length > 1 ? 's' : '') : e.copainsFait ? 'Aucun copain' : 'Pas encore choisi') + ' · choisi par ' + par.length + '</span>';
+      var detail = '<div><span class="mlab">Ses copains (secret)</span><span class="small" style="color:var(--soft)">' + (cop.length ? cop.join(', ') : e.copainsFait ? 'Aucun copain choisi' : (e.posteFait ? 'Pas encore choisi' : 'Pas encore choisi (son poste d\'abord)')) + '</span></div>' +
+        '<div><span class="mlab">L\'ont choisi comme copain</span><span class="small" style="color:var(--soft)">' + (par.length ? par.map(function (j) { return esc(j.prenom); }).join(', ') : 'Personne pour l\'instant') + '</span></div>';
+      return ligneMission(p, e.copainsFait, resume, detail, false);
     }).join('');
     return '<main class="screen">' + MC.educBar(g, 'Avec qui tu aimes jouer', '#/educ/missions', 'Missions') +
       '<div class="head"><span class="kicker" style="color:var(--gold)">Mission spéciale · ' + players.length + ' joueurs</span><h1 class="big md">Avec qui tu aimes jouer</h1>' +
@@ -545,7 +587,7 @@
       '<div class="note">' + icon('lock', 20) + '<span><b>Secret :</b> seuls les éducs voient les copains, ni les autres enfants ni les parents. ⇄ en vert : ils se sont choisis l\'un l\'autre.</span></div>' +
       tuilesMission(n, players.length, 'ont choisi leurs copains') +
       '<section class="sec"><h2 class="h2">Les joueurs</h2>' + filtresMission(players.length, players.length - n) +
-      '<ul class="list">' + (rows || '<li class="empty">Personne.</li>') + '</ul></section></main>';
+      '<ul class="list mrows">' + (rows || '<li class="empty">Personne.</li>') + '</ul></section></main>';
   }
   MC.act.msnFiltre = function (b) { edMsn.filtre = b.getAttribute('data-v'); app.rerender(); };
 })();

@@ -15,6 +15,7 @@ MC.ui = (function () {
   var P = {
     play: '<path d="M7 4l13 8-13 8z" fill="currentColor" stroke="none"/>',
     check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+    chat: '<path d="M4 5h16v11H10l-5 4v-4H4z"/><path d="M8 9.5h8M8 12.5h5"/>',
     x: '<path d="M6 6l12 12M18 6L6 18"/>',
     left: '<path d="M15 6l-6 6 6 6"/>',
     right: '<path d="M9 6l6 6-6 6"/>',
@@ -462,12 +463,20 @@ MC.ui = (function () {
   }
 
   // ---------- Barre du haut (la même partout) ----------
-  // À gauche : le bouton Retour, qui ramène toujours au même écran (pas à « la page d'avant » du navigateur),
-  // avec au-dessus du titre le nom de cet écran. Au milieu : le titre. À droite : des actions et l'aide.
-  // o : { back, backLabel, title, kicker, left (html à la place du Retour), mid (html du milieu), right (html), help (lien, false = aucune), xp (% de la ligne d'XP) }
+  // À gauche, sur TOUS les écrans : le bouton Retour, un vrai « précédent » : il ramène à l'écran d'avant, à
+  // l'endroit où l'on était (MC.app.back). S'il n'y a rien avant, il mène à l'écran parent prévu (o.back) ou à
+  // l'accueil de l'espace ; grisé seulement quand on y est déjà. Au milieu : le titre (et au-dessus, la rubrique).
+  // À droite : des actions et l'aide.
+  // o : { back (écran parent si rien avant ; false = pas de bouton), backLabel (rubrique), title, kicker, left (html après le Retour),
+  //       mid (html du milieu), right (html), help (lien, false = aucune), xp (% de la ligne d'XP) }
   function topbar(o) {
     o = o || {};
-    var left = o.back ? '<a class="cbtn" href="' + esc(o.back) + '" aria-label="Retour : ' + esc(o.backLabel || 'écran d\'avant') + '" data-back>' + icon('left', 20) + '</a>' : (o.left || '');
+    var A = MC.app, fb = typeof o.back === 'string' ? o.back : '';
+    var can = A && A.canBack ? A.canBack(fb) : true;
+    var href = fb || (A && A.homeOf ? A.homeOf(A.spaceOf ? A.spaceOf(location.hash) : null) : '#/');
+    var backBtn = o.back === false ? '' : '<a class="cbtn tb-back' + (can ? '' : ' off') + '" href="' + esc(href) + '" data-act="navBack"' + (fb ? ' data-fb="' + esc(fb) + '"' : '') +
+      ' aria-label="Retour à l\'écran d\'avant"' + (can ? '' : ' aria-disabled="true" tabindex="-1"') + ' data-back>' + icon('left', 20) + '</a>';
+    var left = backBtn + (o.left || '');
     var kick = o.back ? (o.backLabel || '') : (o.kicker || '');
     var mid = o.mid !== undefined ? o.mid : '<span class="tb-t">' + (kick ? '<span class="tb-k">' + esc(kick) + '</span>' : '') + '<span class="tb-title">' + esc(o.title || '') + '</span></span>';
     var help = o.help === false ? '' : '<a class="cbtn grey" href="' + esc(o.help || '#/guide') + '" aria-label="Aide : comment ça marche ?"><b class="q">?</b></a>';

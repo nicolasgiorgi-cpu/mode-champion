@@ -298,6 +298,8 @@ var Core = (function () {
       copainsFait: !!r.copainsFait
     };
     if (!sansCopains) out.copains = Array.isArray(r.copains) ? r.copains : [];
+    // « Un mot pour les éducs » (Choisis ton poste) : pour l'enfant et les éducs
+    if (!sansCopains && r.message) out.message = String(r.message);
     // missions des éducs (vidéo, QCM) : vidéo vue, réponses, score
     if (r.vu) out.vu = true;
     if (Array.isArray(r.ans)) { out.ans = r.ans; out.score = Number(r.score) || 0; out.total = Number(r.total) || 0; }
@@ -560,8 +562,14 @@ var Core = (function () {
     var c = row && row.reponses ? row.reponses : {};
     return {
       postes: Array.isArray(c.postes) ? c.postes.slice() : [], quiz: c.quiz || null, quizTop: c.quizTop || null, quizResume: c.quizResume || '',
-      copains: Array.isArray(c.copains) ? c.copains.slice() : [], copainsFait: !!c.copainsFait
+      copains: Array.isArray(c.copains) ? c.copains.slice() : [], copainsFait: !!c.copainsFait,
+      message: typeof c.message === 'string' ? c.message : ''
     };
+  }
+  // un mot libre de l'enfant : une ou plusieurs lignes, sans balises, 600 caractères au plus
+  function cleanMot(s) {
+    return String(s === undefined || s === null ? '' : s).replace(/\r\n?/g, '\n').replace(/[<>\u0000-\u0009\u000b-\u001f]/g, ' ')
+      .replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim().slice(0, 600);
   }
   function saveMission(ctx, joueurId, mission, rep, source) {
     var row = missionRow(ctx, joueurId, mission), now = isoNow(ctx.now);
@@ -602,6 +610,7 @@ var Core = (function () {
           var pct = Math.round(Number(x.pct)); return { id: String(x.id), pct: pct >= 0 && pct <= 100 ? pct : 0 };
         }) : null;
       }
+      if (req.message !== undefined) rep.message = cleanMot(req.message);
       if (req.copains !== undefined) {
         if (!Array.isArray(req.copains)) fail('invalide', 'Copains invalides.');
         var all = ctx.db.rows('joueurs'), cs = [];
@@ -619,7 +628,7 @@ var Core = (function () {
   };
 
   // Reprise des réponses de l'ancien site « Choisis ton poste » (Google Form, réponses rangées dans un onglet de la feuille).
-  // rows : [{ prenom, nom, choix: [3 textes], test }] dans l'ordre d'arrivée ; la dernière réponse d'un enfant compte.
+  // rows : [{ prenom, nom, choix: [3 textes], test, message }] dans l'ordre d'arrivée ; la dernière réponse d'un enfant compte.
   // Un enfant qui a déjà choisi ses postes dans l'appli garde ses choix de l'appli.
   function sansAccents(s) {
     s = String(s === undefined || s === null ? '' : s).toLowerCase();
@@ -650,21 +659,26 @@ var Core = (function () {
       if (c.length > 1) { if (ambigus.indexOf(nom) < 0) ambigus.push(nom); return; }
       dernier[c[0].j.id] = r;
     });
-    var importes = 0, gardes = [];
+    var importes = 0, gardes = [], mots = 0;
     Object.keys(dernier).forEach(function (jid) {
       var r = dernier[jid], ps = [];
       (r.choix || []).forEach(function (t) { var p = posteDuTexte(t); if (p && ps.indexOf(p) < 0) ps.push(p); });
       if (!ps.length) return;
-      var row = missionRow(ctx, jid, 'jeu10'), rep = missionRep(row);
-      if (row && row.source === 'appli' && rep.postes.length) { gardes.push(find(ctx.db.rows('joueurs'), jid).prenom); return; }
+      var row = missionRow(ctx, jid, 'jeu10'), rep = missionRep(row), mot = cleanMot(r.message);
+      if (row && row.source === 'appli' && rep.postes.length) {
+        // il a refait son choix dans l'appli : on garde ses postes, mais son mot du formulaire est repris s'il n'en a pas écrit
+        if (mot && !rep.message) { rep.message = mot; saveMission(ctx, jid, 'jeu10', rep, 'appli'); mots++; }
+        gardes.push(find(ctx.db.rows('joueurs'), jid).prenom); return;
+      }
       var resume = String(r.test || '').replace(/[<>\u0000-\u0009\u000b-\u001f]/g, ' ').slice(0, 1500);
-      if (row && rep.postes.join() === ps.slice(0, 3).join() && rep.quizResume === resume) return;   // rien de neuf
+      if (row && rep.postes.join() === ps.slice(0, 3).join() && rep.quizResume === resume && (!mot || rep.message === mot)) return;   // rien de neuf
       rep.postes = ps.slice(0, 3);
       rep.quizResume = resume;
+      if (mot) { rep.message = mot; mots++; }
       saveMission(ctx, jid, 'jeu10', rep, 'formulaire');
       importes++;
     });
-    var info = { quand: isoNow(ctx.now), reponses: (rows || []).length, enfants: Object.keys(dernier).length, importes: importes, gardes: gardes, inconnus: inconnus, ambigus: ambigus };
+    var info = { quand: isoNow(ctx.now), reponses: (rows || []).length, enfants: Object.keys(dernier).length, importes: importes, mots: mots, gardes: gardes, inconnus: inconnus, ambigus: ambigus };
     ctx.db.setProp('importPostes', JSON.stringify(info));
     return info;
   }

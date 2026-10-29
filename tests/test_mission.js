@@ -41,6 +41,16 @@ r = g.call({ action: 'mission', token: pt, mission: 'jeu10', postes: ['ailier'] 
 assert.ok(r.missions[0].faite); assert.deepStrictEqual(r.missions[0].reponses.postes, ['ailier']);
 r = g.call({ action: 'mission', token: pt, mission: 'jeu10', postes: [] }); assert.strictEqual(r.error, 'invalide');
 r = g.call({ action: 'me', token: pt }); assert.deepStrictEqual(r.missions[0].reponses.copains, [lea.id, bapD.id], 'l\'enfant voit ses propres copains');
+// (29/10) « Un mot pour les éducs » : envoyé avec le top, nettoyé, gardé quand on change ses postes
+r = g.call({ action: 'mission', token: pt, mission: 'jeu10', postes: ['ailier'], message: '  Pas <b>pilier</b> svp\r\n\r\n\r\nmerci ' + 'x'.repeat(700) });
+assert.ok(r.ok, JSON.stringify(r));
+assert.ok(r.missions[0].reponses.message.indexOf('<') < 0 && /^Pas b pilier/.test(r.missions[0].reponses.message), 'pas de balises : ' + r.missions[0].reponses.message.slice(0, 30));
+assert.ok(r.missions[0].reponses.message.length <= 600, '600 caractères au plus');
+assert.ok(!/\n\n\n/.test(r.missions[0].reponses.message), 'pas plus d\'une ligne vide');
+r = g.call({ action: 'mission', token: pt, mission: 'jeu10', postes: ['ailier'], message: 'Pas pilier, merci !' });
+assert.strictEqual(r.missions[0].reponses.message, 'Pas pilier, merci !');
+r = g.call({ action: 'mission', token: pt, mission: 'jeu10', postes: ['ailier'] });
+assert.strictEqual(r.missions[0].reponses.message, 'Pas pilier, merci !', 'sans « message », le mot reste');
 
 // ----- le secret des copains -----
 r = g.call({ action: 'adultLogin', code: famCode }); const ft = r.token;
@@ -48,11 +58,13 @@ r = g.call({ action: 'family', token: ft });
 let mf = r.enfants[0].missions[0];
 assert.ok(mf && mf.faite && mf.reponses.postes[0] === 'ailier', 'les parents voient les postes');
 assert.ok(!('copains' in mf.reponses), 'les parents ne voient pas les copains');
+assert.ok(!('message' in mf.reponses), 'le mot est pour les éducs (pas les parents)');
 r = g.call({ action: 'kid', token: ft, joueurId: tom.id }); assert.ok(!('copains' in r.missions[0].reponses));
 r = g.call({ action: 'kid', token: et, joueurId: tom.id }); assert.deepStrictEqual(r.missions[0].reponses.copains, [lea.id, bapD.id], 'l\'éduc voit les copains');
 r = g.call({ action: 'group', token: et });
 const gt = r.joueurs.find(p => p.joueur.id === tom.id);
 assert.deepStrictEqual(gt.missions[0].reponses.copains, [lea.id, bapD.id]);
+assert.strictEqual(gt.missions[0].reponses.message, 'Pas pilier, merci !', 'l\'éduc lit le mot');
 r = g.call({ action: 'league', token: pt }); assert.ok(!JSON.stringify(r).includes('copains'), 'rien dans le classement');
 r = g.call({ action: 'roster' }); assert.ok(!JSON.stringify(r).includes('copains'));
 r = g.call({ action: 'mission', token: ft, mission: 'jeu10', postes: ['centre'] }); assert.strictEqual(r.error, 'interdit', 'un parent ne remplit pas la mission');
@@ -64,8 +76,8 @@ const rep = ss.insertSheet('Réponses au formulaire 1');
 const rows = [
   ['Horodateur', 'Prénom', 'Nom', 'Choix 1', 'Choix 2', 'Choix 3', 'Message', 'Test Aide-moi à choisir'],
   ['10/10/2026 10:00:00', 'Hugo', 'Martin', 'Pilier', '—', '—', '', 'Pas fait'],
-  ['11/10/2026 18:00:00', 'hugo ', 'MARTIN', 'Demi d’ouverture', 'Centre', '—', '', 'Postes proposés : 1. Demi d\'ouverture (90 %)\nPréfère : Taper au pied'],
-  ['11/10/2026 19:00:00', 'Tom', 'Martin', 'Pilier', '', '', '', ''],
+  ['11/10/2026 18:00:00', 'hugo ', 'MARTIN', 'Demi d’ouverture', 'Centre', '—', 'Je veux taper\nau pied !', 'Postes proposés : 1. Demi d\'ouverture (90 %)\nPréfère : Taper au pied'],
+  ['11/10/2026 19:00:00', 'Tom', 'Martin', 'Pilier', '', '', 'Mot du formulaire', ''],
   ['11/10/2026 19:30:00', 'Baptiste', 'Dupont', '3e ligne', 'Demi de mêlée', 'Ailier', '', ''],
   ['11/10/2026 19:40:00', 'Baptiste', 'Zébulon', 'Centre', '', '', '', ''],
   ['11/10/2026 20:00:00', 'Zoé', 'X', 'Ailier', '', '', '', ''],
@@ -84,6 +96,9 @@ const mh = r.joueurs.find(p => p.joueur.id === hugo.id).missions[0];
 assert.deepStrictEqual(mh.reponses.postes, ['ouvreur', 'centre'], 'la dernière réponse compte');
 assert.ok(/Taper au pied/.test(mh.reponses.quizResume) && /\n/.test(mh.reponses.quizResume), 'résumé du test gardé avec ses lignes');
 assert.strictEqual(mh.source, 'formulaire'); assert.strictEqual(mh.faite, false);
+assert.strictEqual(mh.reponses.message, 'Je veux taper\nau pied !', 'le mot du formulaire est repris (avec ses lignes)');
+assert.strictEqual(info.mots, 1, 'Tom a déjà écrit un mot dans l\'appli : on garde le sien');
+assert.strictEqual(r.joueurs.find(p => p.joueur.id === tom.id).missions[0].reponses.message, 'Pas pilier, merci !');
 assert.deepStrictEqual(r.joueurs.find(p => p.joueur.id === bapD.id).missions[0].reponses.postes, ['troisieme-ligne', 'demi-de-melee', 'ailier']);
 assert.strictEqual(r.joueurs.find(p => p.joueur.id === bapA.id).missions.length, 0);
 assert.strictEqual(r.joueurs.find(p => p.joueur.id === tom.id).missions[0].reponses.postes[0], 'ailier', 'Tom garde ses choix de l\'appli');

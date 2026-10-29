@@ -65,19 +65,144 @@ MC.app = (function () {
   function go(h, replace) {
     if (h.charAt(0) !== '#') h = '#' + h;
     if (location.hash === h) { render(); return; }
-    if (replace) { history.replaceState(null, '', h); render(); } else location.hash = h;
+    // remplacer l'écran garde l'identifiant de l'entrée d'historique (sinon la liste des écrans se décale)
+    if (replace) { setUrl(h); render(); } else location.hash = h;
   }
-  function parseHash() {
-    var h = location.hash.replace(/^#/, '') || '/';
+  // change l'adresse sans créer d'entrée d'historique (ni redessiner)
+  function setUrl(h) {
+    try { history.replaceState(history.state, '', h); } catch (e) { }
+    var en = hEntry(); if (en) { en.h = location.hash; hSave(); }
+  }
+  function parseHash(src) {
+    var h = (src === undefined ? location.hash : src).replace(/^#/, '') || '/';
     var q = {}, i = h.indexOf('?');
     if (i >= 0) {
-      h.slice(i + 1).split('&').forEach(function (p) { var kv = p.split('='); if (kv[0]) q[decodeURIComponent(kv[0])] = decodeURIComponent(kv[1] || ''); });
+      h.slice(i + 1).split('&').forEach(function (p) { var kv = p.split('='); if (kv[0]) { try { q[decodeURIComponent(kv[0])] = decodeURIComponent(kv[1] || ''); } catch (e) { } } });
       h = h.slice(0, i);
     }
     return { path: h, q: q };
   }
+  function matchRoute(path) {
+    for (var i = 0; i < routes.length; i++) { var m = path.match(routes[i].re); if (m) return { r: routes[i], m: m }; }
+    return null;
+  }
 
-  var renderSeq = 0, lastPath = null;
+  // ---------- Historique : le bouton Retour revient vraiment à l'écran d'avant ----------
+  // Chaque entrée de l'historique du navigateur reçoit un identifiant (history.state.mc). L'appli garde la liste
+  // de ces entrées sur l'appareil (sessionStorage, le temps de l'onglet), avec, pour chaque écran, l'endroit où
+  // l'on était (défilement, volets ouverts). Retour = l'écran d'avant « utilisable » : ni un écran de passage
+  // (connexion, code, bravo, séance guidée…), ni l'espace d'un autre profil, ni le même écran. S'il n'y en a pas,
+  // l'écran parent prévu par l'écran (ou l'accueil de l'espace) le remplace : jamais de boucle Retour ⇄ écran.
+  var HK = 'mc-hist', HMAX = 80, H = { list: [], cur: null }, painted = false, restoreTo = null, scrollRaf = 0;
+  var PASSAGE = /^\/(connexion|premiere|oubli|qui|adultes|adultes\/code|bravo|mission|mission\/bravo|go\/[^/]+|bilan\/go|bienvenue|parent\/bienvenue|educ\/bienvenue|educ\/mission)$/;
+  function hLoad() {
+    try {
+      var v = JSON.parse(sessionStorage.getItem(HK) || 'null');
+      if (v && Array.isArray(v.list)) H.list = v.list.filter(function (e) { return e && typeof e.id === 'string' && typeof e.h === 'string'; }).slice(-HMAX);
+    } catch (e) { H.list = []; }
+  }
+  function hSave() { try { sessionStorage.setItem(HK, JSON.stringify({ list: H.list.slice(-HMAX) })); } catch (e) { } }
+  function hIdx(id) { if (!id) return -1; for (var i = H.list.length - 1; i >= 0; i--) if (H.list[i].id === id) return i; return -1; }
+  function hEntry() { var i = hIdx(H.cur); return i >= 0 ? H.list[i] : null; }
+  function hState() { try { var s = history.state; return s && typeof s === 'object' && typeof s.mc === 'string' ? s.mc : null; } catch (e) { return null; } }
+  function newId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+  // l'écran qu'on quitte : sa position de défilement et ses volets ouverts
+  function snap() {
+    var en = hEntry();
+    if (!en || !painted || !root) return;
+    en.y = Math.max(0, Math.round(window.scrollY || 0));
+    var d = root.querySelectorAll('details');
+    en.dt = d.length ? [].map.call(d, function (x) { return x.open ? '1' : '0'; }).join('') : '';
+  }
+  // à chaque affichage : de quelle entrée d'historique s'agit-il ? (même écran, retour/avance, nouvel écran)
+  function hSync() {
+    var id = hState(), h = location.hash, en, i;
+    if (id && id === H.cur && (en = hEntry())) {
+      if (en.h !== h) { en.h = h; en.u = whoOf(spaceOf(h)); restoreTo = null; painted = false; hSave(); }   // l'écran a été remplacé (redirection)
+      return;
+    }
+    snap();
+    painted = false;
+    if (id && (i = hIdx(id)) >= 0) {                     // retour ou avance (bouton Retour, geste, rechargement)
+      H.cur = id; H.list[i].h = h; restoreTo = H.list[i]; hSave(); return;
+    }
+    // nouvel écran (lien, onglet, bouton) : il remplace les écrans « en avant »
+    var ci = hIdx(H.cur);
+    if (!id) { id = newId(); try { var st = history.state && typeof history.state === 'object' ? history.state : {}, o = {}; for (var k in st) o[k] = st[k]; o.mc = id; history.replaceState(o, '', location.href); } catch (e) { } }
+    H.list = ci >= 0 ? H.list.slice(0, ci + 1) : [];
+    H.list.push({ id: id, h: h, y: 0, dt: '', u: whoOf(spaceOf(h)) });
+    if (H.list.length > HMAX) H.list = H.list.slice(-HMAX);
+    H.cur = id; restoreTo = null; hSave();
+  }
+  function spaceOf(h) {
+    var mr = matchRoute(parseHash(h).path); if (!mr) return null;
+    var o = mr.r.opts; return o.kid ? 'k' : o.adult ? o.adult : 'n';
+  }
+  // qui est connecté dans cet espace : un écran d'un autre joueur (changement de joueur) ou d'un autre adulte n'est pas « l'écran d'avant »
+  function whoOf(sp) {
+    if (sp === 'k') return S.kid ? 'k:' + S.kid.joueur.id : '';
+    if (sp === 'f' || sp === 'e') return S.adult ? sp + ':' + (S.adult.nom || '') : '';
+    return '';
+  }
+  function homeOf(sp) {
+    if (sp === 'k') return '#/semaine';
+    if (sp === 'f') return '#/parent';
+    if (sp === 'e') return '#/educ/entrainements';
+    if (S.adult && adultUnlocked()) return S.adult.role === 'e' ? '#/educ/entrainements' : '#/parent';
+    return S.kid ? '#/semaine' : '#/connexion';
+  }
+  function isHome(h, sp) { var p = parseHash(h).path; return p === parseHash(homeOf(sp)).path || (sp === 'e' && p === '/educ'); }
+  function usable(en, here, sp) {
+    var h = en && en.h;
+    if (!h || h === here) return false;
+    var p = parseHash(h).path;
+    if (PASSAGE.test(p) || !matchRoute(p)) return false;
+    var s2 = spaceOf(h);
+    if (s2 === 'k' && !S.kid) return false;
+    if ((s2 === 'f' || s2 === 'e') && (!S.adult || S.adult.role !== s2)) return false;
+    if (s2 !== 'n' && sp && sp !== 'n' && s2 !== sp) return false;   // pas de retour dans l'espace d'un autre profil
+    if (s2 !== 'n' && en.u && en.u !== whoOf(s2)) return false;     // ni dans celui d'un autre joueur (changement de joueur)
+    return true;
+  }
+  function prevIndex() {
+    var cur = hIdx(H.cur), here = location.hash, sp = spaceOf(here);
+    if (cur < 0) return -1;
+    for (var i = cur - 1; i >= 0; i--) if (usable(H.list[i], here, sp)) return i;
+    return -1;
+  }
+  // le bouton Retour est-il utile ici ? (sinon il est grisé : rien avant, et on est déjà à l'accueil de l'espace)
+  function canBack(fb) {
+    if (prevIndex() >= 0) return true;
+    var here = location.hash, sp = spaceOf(here), f = fb || homeOf(sp);
+    return !!f && f !== here && !(!fb && isHome(here, sp));
+  }
+  function back(fb) {
+    var cur = hIdx(H.cur), j = prevIndex(), here = location.hash, sp = spaceOf(here), from = hState();
+    function fallback() {
+      var f = fb || homeOf(sp);
+      if (f && f !== here && !(!fb && isHome(here, sp))) go(f, true);
+    }
+    if (j >= 0 && cur >= 0) {
+      try { history.go(j - cur); } catch (e) { fallback(); return; }
+      // garde-fou : si le navigateur n'a pas bougé (historique coupé), on prend l'écran parent
+      setTimeout(function () { if (hState() === from && location.hash === here) fallback(); }, 1200);
+      return;
+    }
+    fallback();
+  }
+  // après l'affichage d'un écran retrouvé : ses volets ouverts, puis l'endroit où l'on était
+  function restore(en) {
+    if (en.dt) {
+      var d = root.querySelectorAll('details');
+      if (d.length === en.dt.length) [].forEach.call(d, function (x, k) { x.open = en.dt.charAt(k) === '1'; });
+    }
+    var y = en.y || 0;
+    window.scrollTo(0, y);
+    // la page peut encore grandir (images, animations) : un 2e essai
+    if (y > 0) setTimeout(function () { if (H.cur === en.id && Math.abs(window.scrollY - y) > 2) window.scrollTo(0, y); }, 160);
+  }
+
+  var renderSeq = 0, lastPath = null, renderedHash = null;
   function render() {
     try { renderNow(); }
     catch (e) {
@@ -87,11 +212,10 @@ MC.app = (function () {
     }
   }
   function renderNow() {
-    var ph = parseHash(), r = null, params = {};
-    for (var i = 0; i < routes.length; i++) {
-      var m = ph.path.match(routes[i].re);
-      if (m) { r = routes[i]; r.keys.forEach(function (k, j) { params[k] = decodeURIComponent(m[j + 1]); }); break; }
-    }
+    hSync();
+    renderedHash = location.hash;
+    var ph = parseHash(), r = null, params = {}, mr = matchRoute(ph.path);
+    if (mr) { r = mr.r; r.keys.forEach(function (k, j) { try { params[k] = decodeURIComponent(mr.m[j + 1]); } catch (e) { params[k] = mr.m[j + 1]; } }); }
     if (!r) { go(S.kid ? '#/semaine' : '#/connexion', true); return; }
     var o = r.opts;
     if (o.kid && !S.kid) { go('#/connexion', true); return; }
@@ -111,7 +235,8 @@ MC.app = (function () {
     var same = lastPath === ph.path;
     lastPath = ph.path;
     if (!same && ui.numpadClose) ui.numpadClose();
-    var po = { keep: same };
+    if (!same) painted = false;
+    var po = { keep: same, entry: H.cur };
     document.body.classList.toggle('has-nav', !!o.nav);
     navEl.hidden = !o.nav;
     if (o.nav) paintNav(typeof o.nav === 'function' ? o.nav(params, ph.q) : o.nav);
@@ -128,11 +253,12 @@ MC.app = (function () {
     var y = window.scrollY;
     root.innerHTML = html;
     ui.mountAnims(root);
-    if (!o.keep) window.scrollTo(0, 0); else window.scrollTo(0, y);
+    var en = restoreTo && restoreTo.id === o.entry && H.cur === o.entry ? restoreTo : null;
+    if (en) { restoreTo = null; restore(en); }
+    else if (!o.keep) window.scrollTo(0, 0); else window.scrollTo(0, y);
+    if (H.cur === o.entry) painted = true;
     var h = root.querySelector('h1');
     if (h) { h.setAttribute('tabindex', '-1'); }
-    // une rangée de choix qui défile : le choix actif reste visible
-    [].forEach.call(root.querySelectorAll('.chipsx'), function (r) { var on = r.querySelector('.on'); if (!on) return; var a = r.getBoundingClientRect(), b = on.getBoundingClientRect(); if (b.left < a.left || b.right > a.right) r.scrollLeft += b.left - a.left - 16; });
     if (current && current.after) { try { current.after(root); } catch (e) { console.error(e); } }
   }
   function rerender() { render(); }
@@ -274,6 +400,109 @@ MC.app = (function () {
     });
   }
 
+  // ---------- Tirer pour actualiser ----------
+  // En haut d'un écran qui montre des données du serveur : tirer vers le bas puis lâcher redemande tout au serveur.
+  // Un repère apparaît au-dessus de l'écran qui descend avec le doigt : la flèche tourne, devient pleine quand on a
+  // tiré assez (« Lâche pour actualiser »), puis tourne pendant le chargement. Pas sur les formulaires, la connexion,
+  // les séances et bilans guidés (rien à perdre en cours de saisie).
+  var refreshers = [];
+  function onRefresh(fn) { refreshers.push(fn); }
+  var NOPULL = /^\/(connexion|premiere|oubli|qui|adultes|adultes\/code|go\/[^/]+|bilan|bilan\/go|noter|echauffement|calme|guide|aide|reglages|bienvenue|bravo|mission\/bravo|mission\/quiz|mission\/copains|parent\/bienvenue|parent\/plus|educ\/(bienvenue|evt-nouveau|missions\/nouvelle|encourager\/[^/]+|ajouter|compo\/[^/]+|avis\/[^/]+|terrain|skills\/journee|evt\/[^/]+\/presents|spond|reglages|outils|familles|educs))$/;
+  function pullable() {
+    if (!current || !current.route || !painted) return false;
+    var o = current.route.opts;
+    if (!(o.kid || o.adult) || o.busy || o.first) return false;
+    if (o.kid && !S.kid) return false;
+    if (o.adult && !S.adult) return false;
+    return !NOPULL.test(parseHash().path);
+  }
+  function pullRefresh() {
+    var o = current.route.opts, jobs = [];
+    if (o.kid && S.kid) {
+      var who = S.kid.joueur.id;
+      S.league = null;
+      jobs.push(api.call('me', { token: S.kid.token }, { silent: true }).then(function (res) { if (S.kid && S.kid.joueur.id === who) setMe(res); }));
+    }
+    refreshers.forEach(function (fn) { try { var p = fn(o); if (p && typeof p.then === 'function') jobs.push(p); } catch (e) { } });
+    return Promise.all(jobs).then(function () { render(); });
+  }
+  var PT = { track: false, on: false, busy: false, y0: 0, x0: 0, d: 0, el: null }, PULL_GO = 70, PULL_MAX = 116;
+  function ptrEl() {
+    if (!PT.el) {
+      PT.el = document.createElement('div');
+      PT.el.className = 'ptr'; PT.el.setAttribute('role', 'status'); PT.el.setAttribute('aria-live', 'polite');
+      PT.el.innerHTML = '<span class="ptr-i">' + ui.icon('refresh', 18) + '</span><span class="ptr-t"></span>';
+      document.body.appendChild(PT.el);
+    }
+    return PT.el;
+  }
+  function ptrText(k) {
+    var kid = current && current.route.opts.kid;
+    return k === 'go' ? (kid ? 'Lâche pour actualiser' : 'Relâchez pour actualiser') : k === 'load' ? 'Actualisation…' : k === 'ok' ? 'À jour' : k === 'err' ? 'Pas de réseau' : (kid ? 'Tire pour actualiser' : 'Tirez pour actualiser');
+  }
+  function ptrShow(d, state) {
+    var el = ptrEl();
+    el.className = 'ptr on' + (state === 'go' ? ' go' : state === 'load' ? ' go spin' : state === 'ok' ? ' go done' : state === 'err' ? ' err' : '');
+    el.style.setProperty('--d', d + 'px');
+    el.style.setProperty('--rot', state === 'pull' ? Math.round(d / PULL_GO * 300) + 'deg' : '0deg');
+    el.style.opacity = Math.min(1, d / 34);
+    el.querySelector('.ptr-t').textContent = ptrText(state);
+    root.style.transform = d ? 'translateY(' + d + 'px)' : '';
+  }
+  function ptrHide() {
+    root.classList.add('ptr-back'); if (PT.el) PT.el.classList.add('ptr-back');
+    ptrShow(0, 'pull');
+    setTimeout(function () { root.classList.remove('ptr-back'); if (PT.el) { PT.el.classList.remove('ptr-back'); PT.el.className = 'ptr'; } root.style.transform = ''; }, 260);
+  }
+  function scrolledInside(t) {
+    for (var el = t; el && el !== document.body && el !== document.documentElement; el = el.parentElement) {
+      if (el.scrollTop > 0) return true;
+    }
+    return false;
+  }
+  function onTouchStart(e) {
+    PT.track = false; PT.on = false;
+    if (PT.busy || !e.touches || e.touches.length !== 1 || (window.scrollY || 0) > 0 || !pullable()) return;
+    var t = e.target;
+    if (!t || !t.closest || t.closest('input, textarea, select, .modal, .np, [data-noptr]') || document.querySelector('.modal') || document.body.classList.contains('np-open')) return;
+    if (scrolledInside(t)) return;
+    PT.track = true; PT.y0 = e.touches[0].clientY; PT.x0 = e.touches[0].clientX; PT.d = 0;
+  }
+  function onTouchMove(e) {
+    if (!PT.track || !e.touches || e.touches.length !== 1) return;
+    var dy = e.touches[0].clientY - PT.y0, dx = e.touches[0].clientX - PT.x0;
+    if (!PT.on) {
+      if (dy <= 0 || Math.abs(dx) > dy || (window.scrollY || 0) > 0) { if (dy < 0 || Math.abs(dx) > 12) PT.track = false; return; }
+      PT.on = true; root.classList.add('ptr-pull');
+    }
+    if (e.cancelable) e.preventDefault();   // pas de rebond ni de rechargement natif pendant qu'on tire
+    PT.d = Math.max(0, Math.min(PULL_MAX, Math.round(dy * 0.55)));
+    ptrShow(PT.d, PT.d >= PULL_GO ? 'go' : 'pull');
+  }
+  function onTouchEnd() {
+    if (!PT.track) return;
+    PT.track = false;
+    if (!PT.on) return;
+    PT.on = false; root.classList.remove('ptr-pull');
+    if (PT.d < PULL_GO) { ptrHide(); return; }
+    PT.busy = true;
+    root.classList.add('ptr-back'); ptrShow(56, 'load');
+    var t0 = Date.now();
+    pullRefresh().then(function () {
+      setTimeout(function () { ptrShow(56, 'ok'); setTimeout(function () { PT.busy = false; ptrHide(); }, 450); }, Math.max(0, 500 - (Date.now() - t0)));
+    }, function (err) {
+      if (err && err.code === 'session') { PT.busy = false; ptrHide(); return; }
+      ptrShow(56, 'err');
+      setTimeout(function () { PT.busy = false; ptrHide(); ui.toast(err && err.message ? err.message : 'Pas de réseau : réessaie dans un instant.', true); }, 700);
+    });
+  }
+  function bindPull() {
+    document.addEventListener('touchstart', onTouchStart, { passive: true });
+    document.addEventListener('touchmove', onTouchMove, { passive: false });
+    document.addEventListener('touchend', onTouchEnd, { passive: true });
+    document.addEventListener('touchcancel', function () { if (PT.on) { PT.on = false; PT.track = false; root.classList.remove('ptr-pull'); ptrHide(); } else PT.track = false; }, { passive: true });
+  }
+
   // ---------- Événements ----------
   function onClick(e) {
     var t = e.target.closest('[data-act]');
@@ -282,7 +511,9 @@ MC.app = (function () {
     if (fn) { e.preventDefault(); fn(t, e); }
   }
   MC.act.reload = function () { render(); };
-  MC.act.back = function () { if (history.length > 1) history.back(); else go('#/semaine'); };
+  // le bouton Retour en haut à gauche (data-fb : l'écran parent prévu, s'il n'y a rien avant)
+  MC.act.navBack = function (b) { if (b.getAttribute('aria-disabled') === 'true') return; back(b.getAttribute('data-fb') || ''); };
+  MC.act.back = MC.act.navBack;
   MC.act.demoMode = function (b) {
     var fig = b.closest('.demo');
     var mode = b.getAttribute('data-mode');
@@ -309,6 +540,16 @@ MC.app = (function () {
     S.adult = lsGet('mc-adult');
     if (S.adult && !validAdult(S.adult)) { S.adult = null; lsSet('mc-adult', null); }
     document.addEventListener('click', onClick);
+    // un lien vers le même écran (seul un réglage change : onglet de la fiche, filtre, partie…) remplace l'écran
+    // au lieu d'en empiler un de plus : Retour ramène à l'écran d'avant, pas à l'onglet d'avant
+    document.addEventListener('click', function (e) {
+      if (e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      var a = e.target && e.target.closest ? e.target.closest('a[href^="#/"]') : null;
+      if (!a || a.target || a.hasAttribute('data-act')) return;
+      var h = a.getAttribute('href');
+      if (h === location.hash) return;
+      if (parseHash(h).path === parseHash().path) { e.preventDefault(); go(h, true); }
+    });
     document.addEventListener('click', function () { if (S.kid && current && current.route.opts.kid) touchKid(); if (current && current.route.opts.adult) touchAdult(); }, true);
     window.addEventListener('unhandledrejection', function (e) {
       var r = e.reason;
@@ -316,11 +557,22 @@ MC.app = (function () {
       if (r && r.message) ui.toast(r.message, true);
     });
     window.addEventListener('hashchange', render);
+    // retour/avance vers une entrée qui a la même adresse : pas de « hashchange », on redessine quand même
+    window.addEventListener('popstate', function () { if (location.hash === renderedHash && hState() !== H.cur) render(); });
+    try { if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; } catch (e) { }
+    window.addEventListener('scroll', function () {
+      if (!painted || scrollRaf) return;
+      scrollRaf = (window.requestAnimationFrame || setTimeout)(function () { scrollRaf = 0; var en = hEntry(); if (en && painted) en.y = Math.max(0, Math.round(window.scrollY || 0)); });
+    }, { passive: true });
+    window.addEventListener('pagehide', function () { snap(); hSave(); });
+    bindPull();
+    document.addEventListener('visibilitychange', function () { if (document.hidden) { snap(); hSave(); } });
     window.addEventListener('online', function () { var o = document.getElementById('offline'); if (o) o.hidden = true; });
     window.addEventListener('offline', function () { var o = document.getElementById('offline'); if (o) o.hidden = false; });
     if (navigator.onLine === false) { var off = document.getElementById('offline'); if (off) off.hidden = false; }
+    hLoad();
     if (!location.hash || location.hash === '#' || location.hash === '#/') {
-      history.replaceState(null, '', S.kid ? '#/semaine' : '#/connexion');
+      try { history.replaceState(history.state, '', S.kid ? '#/semaine' : '#/connexion'); } catch (e) { }
     }
     render();
     window.__mcStarted = true;
@@ -341,6 +593,7 @@ MC.app = (function () {
     S: S, route: route, go: go, render: render, rerender: rerender, start: start,
     setKid: setKid, setAdult: setAdult, loadMe: loadMe, setMe: setMe, swr: swr, kidCall: kidCall, adultCall: adultCall,
     lsGet: lsGet, lsSet: lsSet, current: function () { return current; },
+    back: back, canBack: canBack, homeOf: homeOf, setUrl: setUrl, spaceOf: spaceOf, onRefresh: onRefresh, pullRefresh: pullRefresh, pullable: pullable,
     refreshNav: refreshNav, setNav: setNav, rememberTab: rememberTab,
     sharedDevice: sharedDevice, setShared: setShared, adultUnlocked: adultUnlocked, touchAdult: touchAdult, lockAdult: lockAdult,
     touchKid: touchKid, takeTarget: takeTarget, recents: recents

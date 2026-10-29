@@ -10,6 +10,26 @@
 window.MC = window.MC || {};
 
 MC.NEWS = [
+  // (29/10) le Retour = un vrai « précédent », tirer pour actualiser, l'arène en entier, la mission côté éduc, le mot pour les éducs
+  { id: '2026-10-29-retour', date: '2026-10-29', pour: ['k', 'f', 'e'],
+    titre: { k: 'Retour et actualiser', f: 'Retour et actualiser', e: 'Retour et actualiser' },
+    texte: {
+      k: 'La flèche en haut à gauche te ramène à l\'écran d\'avant, là où tu étais. Pour voir les dernières nouvelles : tire l\'écran vers le bas, puis lâche.',
+      f: 'La flèche en haut à gauche, sur tous les écrans, ramène à l\'écran d\'avant, là où vous étiez. Pour actualiser : tirez l\'écran vers le bas depuis le haut, puis relâchez.',
+      e: 'La flèche en haut à gauche, sur tous les écrans, ramène à l\'écran d\'avant, là où vous étiez. Pour actualiser : tirez l\'écran vers le bas depuis le haut, puis relâchez.'
+    } },
+  { id: '2026-10-29-mot', date: '2026-10-29', pour: ['k'],
+    titre: 'Un mot pour les éducs',
+    texte: 'Dans « Choisis ton poste », tu peux écrire un mot aux éducs : pourquoi ces postes, un poste que tu ne veux pas… Il part quand tu touches « Valider ».',
+    lien: '#/mission/postes' },
+  { id: '2026-10-29-arene', date: '2026-10-29', pour: ['k', 'f'],
+    titre: 'L\'arène : toutes les épreuves',
+    texte: { k: 'Le classement montre toutes les épreuves d\'un coup. Touche celles que tu veux garder, « Toutes » pour tout revoir.', f: 'Le classement montre toutes les épreuves d\'un coup. Touchez celles à garder, « Toutes » pour tout revoir.' },
+    lien: { k: '#/classement', f: '#/parent/classement' } },
+  { id: '2026-10-29-mission-educ', date: '2026-10-29', pour: ['e'],
+    titre: 'Choisis ton poste : tout le groupe d\'un coup d\'œil',
+    texte: 'Une ligne par enfant : son prénom, une coche verte quand c\'est fait, ses 3 choix. Touchez-le pour lire son mot (💬) et son test. Les postes ont maintenant un dégradé de couleurs, du pilier à l\'ailier.',
+    lien: '#/educ/mission/poste' },
   { id: '2026-10-25-sans-code', date: '2026-10-25', pour: ['f', 'e'],
     titre: 'Son espace, sans son code',
     texte: { f: 'Touchez ▶ son prénom en haut à droite : l\'espace de votre enfant s\'ouvre directement, sans son code. Pour revenir : « Rendre le téléphone », puis votre code.', e: 'Votre enfant (engrenage › Mon enfant) : touchez ▶ son prénom en haut à droite, son espace s\'ouvre sans son code.' } },

@@ -516,7 +516,7 @@ window.MC = window.MC || {};
       return '<main class="screen">' + MC.educBar(gr, 'Passeport du groupe', '#/educ/skills', 'Skills') +
         '<div class="head"><span class="kicker" style="color:var(--gold)">' + kids.length + ' enfants · ' + ceMois + ' étoile' + (ceMois > 1 ? 's' : '') + ' validée' + (ceMois > 1 ? 's' : '') + ' ce mois-ci</span><h1 class="big sm">Le passeport</h1>' +
         '<p class="small" style="margin:0">Le nombre d\'étoiles de chaque carte (' + SK.DOMAINES.map(function (D) { return ABR[D.id] + ' ' + D.etoiles.length; }).join(', ') + '). Touchez un prénom pour sa fiche. Jamais montré aux enfants comme un classement.</p></div>' +
-        '<div class="sktable-w"><table class="sktable"><thead><tr><th></th>' + SK.DOMAINES.map(function (D) { return '<th scope="col" style="color:' + D.color + '" title="' + esc(D.nom) + '">' + esc(ABR[D.id] || D.nom) + '</th>'; }).join('') + '<th>Tout</th></tr></thead><tbody>' + rows + '</tbody>' +
+        '<div class="sktable-w"><table class="sktable"><colgroup><col class="n">' + SK.DOMAINES.map(function () { return '<col>'; }).join('') + '<col></colgroup><thead><tr><th></th>' + SK.DOMAINES.map(function (D) { return '<th scope="col" style="color:' + D.color + '" title="' + esc(D.nom) + '">' + esc(ABR[D.id] || D.nom) + '</th>'; }).join('') + '<th>Tout</th></tr></thead><tbody>' + rows + '</tbody>' +
         '<tfoot><tr><th>Total</th>' + SK.DOMAINES.map(function (D) { return '<td>' + tot[D.id] + '</td>'; }).join('') + '<td></td></tr></tfoot></table></div></main>';
     });
   }, { adult: 'e', nav: 'e:progres', bg: '#2E2612' });

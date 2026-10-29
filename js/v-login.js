@@ -57,7 +57,7 @@
     if (q && q.k) {
       var kid = q.k;
       cur.after = function () {
-        try { history.replaceState(null, '', '#/connexion'); } catch (e) { }
+        app.setUrl('#/connexion');
         var k = (app.S.roster || []).filter(function (x) { return x.id === kid; })[0];
         if (k && !document.querySelector('.modal')) pinSheet(k, true);
       };
@@ -88,8 +88,10 @@
     var q = rosterQuery.toLowerCase();
     var shown = list.filter(function (k) { return !q || k.prenom.toLowerCase().indexOf(q) >= 0; });
     var demo = api.DEMO ? '<div class="demo-banner"><b>MODE DÉMO</b> · joueurs fictifs, rien n\'est envoyé. Code des enfants : <b>' + MC.demo.CODES.enfant + '</b> · Rose (1re connexion) : <b>' + MC.demo.CODES.nouveau + '</b> · Parent de Tom : <b>' + MC.demo.CODES.parent + '</b> · Éduc : <b>' + MC.demo.CODES.educ + '</b> <button type="button" class="btn2 sm grey" style="margin-top:8px" data-act="resetDemo">Remettre la démo à zéro</button></div>' : '';
+    // le Retour (vrai « précédent ») quand on arrive d'un autre écran : changer de joueur, espace adulte…
+    var bk = app.canBack && app.canBack('') ? '<a class="cbtn tb-back" href="' + esc(app.homeOf(null)) + '" data-act="navBack" aria-label="Retour à l\'écran d\'avant" data-back>' + ui.icon('left', 20) + '</a>' : '';
     return '<main class="screen nonav">' +
-      '<div class="between" style="align-items:center"><span class="kicker">' + esc(MC.CONFIG.CLUB) + '</span>' +
+      '<div class="between" style="align-items:center;gap:10px">' + (bk ? '<span class="row" style="gap:10px;align-items:center;min-width:0">' + bk : '') + '<span class="kicker">' + esc(MC.CONFIG.CLUB) + '</span>' + (bk ? '</span>' : '') +
       '<span class="row" style="gap:6px"><a class="tag" href="#/guide" style="min-height:40px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--soft)">' + ui.icon('info', 14) + 'Aide</a>' +
       '<a class="tag" href="#/adultes" style="min-height:40px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--soft)">' + ui.icon('lock', 14) + 'Adultes</a></span></div>' +
       '<div class="head"><h1 class="big">Mode<br>champion</h1><p class="lead">Touche ton avatar, puis tape ton code secret pour entrer dans l\'arène.</p></div>' +

@@ -141,7 +141,7 @@ with sync_playwright() as p:
     check('records : le bouton du bilan dit où on en est', bool(re.search(r'Saisir mon|Compléter mon|envoyé|fait', pg.inner_text('a[href="#/bilan"]'), re.I)), pg.inner_text('a[href="#/bilan"]'))
     go(pg, '#/classement', 1000)
     check('arène : réglages groupés au-dessus de la liste', pg.locator('.rkset [data-act="rkTest"]').count() > 5 and pg.locator('.rkset [data-act="rkMode"]').count() == 2)
-    check('arène : « Toi »', pg.locator('.li.me .rk-toi').count() == 1)
+    check('arène : « Toi » (une fois par épreuve où il est classé)', pg.locator('.li.me .rk-toi').count() >= 1)
     pg.click('[data-act="rkMode"][data-v="prog"]'); pg.wait_for_timeout(300)
     go(pg, '#/semaine', 500); go(pg, '#/classement', 900)
     check('arène : le choix est gardé', 'on' in (pg.get_attribute('[data-act="rkMode"][data-v="prog"]', 'class') or ''))

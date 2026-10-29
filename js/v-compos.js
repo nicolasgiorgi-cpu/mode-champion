@@ -36,6 +36,16 @@ window.MC = window.MC || {};
     }).then(set);
   }
   MC.loadCompos = loadCompos;
+  // tirer pour actualiser (éducs) : les compos et les événements aussi (pas pendant une modification en cours)
+  app.onRefresh(function (o) {
+    var A = app.S.adult;
+    if (!A || A.role !== 'e' || o.adult !== 'e' || busy()) return null;
+    var tok = A.token;
+    return MC.api.call('compos', { token: tok }, { silent: true }).then(function (r) {
+      if (!app.S.adult || app.S.adult.token !== tok) return;
+      app.S.cache.compos = r; lu = Date.now(); app.lsSet('mc-compos', { tok: tok, data: r });
+    });
+  });
   function both() { return Promise.all([MC.loadGroup(), loadCompos()]); }
   function ctxOf(g, cd) {
     var F = K.fiches(g), evts = {};

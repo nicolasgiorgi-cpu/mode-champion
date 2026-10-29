@@ -1,4 +1,4 @@
-# La barre du haut sur tous les écrans : présente, avec le bouton Retour (sauf les onglets du bas et leurs sous-onglets),
+# La barre du haut sur tous les écrans : présente, avec le bouton Retour (partout depuis le 29/10, onglets du bas compris),
 # et toujours visible après avoir fait défiler la page jusqu'en bas.
 # Lancer : sh tests/mkdemo.sh puis python3 tests/e2e_barre.py [largeur hauteur]
 import sys
@@ -24,8 +24,7 @@ def audit(pg, hashes):
         if not hdr:
             check('barre du haut : ' + h, False, pg.url); continue
         back = hdr.query_selector('[data-back]')
-        if h not in RACINES:
-            check('bouton Retour : ' + h, back is not None, pg.inner_text('header.topbar')[:60])
+        check('bouton Retour : ' + h, back is not None, pg.inner_text('header.topbar')[:60])
         pg.evaluate('window.scrollTo(0, document.scrollingElement.scrollHeight)'); pg.wait_for_timeout(250)
         top = pg.evaluate("(() => { const r = document.querySelector('header.topbar').getBoundingClientRect(); return [Math.round(r.top), Math.round(r.bottom)]; })()")
         # visible en haut de l'écran, et pas recouverte par autre chose

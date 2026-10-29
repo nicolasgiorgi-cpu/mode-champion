@@ -93,7 +93,7 @@ MC.accueil = (function () {
     // la barre du haut, comme partout : Retour (l'écran d'avant de la présentation, ou la quitter) et Passer
     var left = i > 0 ? '<button type="button" class="cbtn" data-act="obPrev" data-r="' + role + '" data-back aria-label="Retour : écran d\'avant">' + icon('left', 20) + '</button>'
       : '<button type="button" class="cbtn" data-act="obSkip" data-r="' + role + '" data-back aria-label="Quitter la présentation">' + icon('x', 20) + '</button>';
-    var bar = ui.topbar({ left: left, kicker: 'Présentation · ' + (i + 1) + ' / ' + n, title: 'Bienvenue', help: false,
+    var bar = ui.topbar({ back: false, left: left, kicker: 'Présentation · ' + (i + 1) + ' / ' + n, title: 'Bienvenue', help: false,
       right: i < n - 1 ? '<button type="button" class="lnk" data-act="obSkip" data-r="' + role + '" style="color:var(--soft);min-height:44px;padding:0 6px">Passer</button>' : '' });
     return '<main class="screen nonav obscreen">' + bar +
       '<div class="between" style="align-items:center">' + dots(n, i) + '<span></span></div>' +

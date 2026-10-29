@@ -279,9 +279,72 @@
   };
 
   // ---------- CLASSEMENT ----------
-  var rank = { test: C.TESTS[0].id, mode: 'best' };   // la 1re épreuve affichée
-  // (retouche UI-10) le dernier choix (épreuve, mode) est gardé sur le téléphone
-  (function () { var r = app.lsGet('mc-rank'); if (r && C.TESTS.some(function (t) { return t.id === r.test; })) rank.test = r.test; if (r && (r.mode === 'best' || r.mode === 'prog')) rank.mode = r.mode; })();
+  // (29/10) Toutes les épreuves s'affichent d'abord ; on touche une ou plusieurs épreuves pour ne garder qu'elles,
+  // « Toutes » pour tout revoir. Les choix reviennent à la ligne (pas de bande qui défile de côté).
+  var rank = { sel: [], mode: 'best' }, rankFull = {};   // rankFull : les épreuves dépliées (classement complet)
+  (function () {
+    var r = app.lsGet('mc-rank');
+    if (r && Array.isArray(r.sel)) rank.sel = r.sel.filter(function (id) { return C.TESTS.some(function (t) { return t.id === id; }); });
+    if (r && (r.mode === 'best' || r.mode === 'prog')) rank.mode = r.mode;
+  })();
+  // les choix d'épreuves (plusieurs à la fois) ; sel vide = toutes
+  function rankChips(sel, act, color) {
+    var all = !sel.length, c = color || 'var(--pink)';
+    return '<div class="rkchips" role="group" aria-label="Épreuves à afficher">' +
+      '<button type="button" class="opt rkc-all' + (all ? ' on' : '') + '" style="--oc:' + c + '" aria-pressed="' + all + '" data-act="' + act + '" data-v="*">' + (all ? icon('check', 14) : '') + 'Toutes</button>' +
+      C.TESTS.map(function (tt) {
+        var on = sel.indexOf(tt.id) >= 0;
+        return '<button type="button" class="opt' + (on ? ' on' : '') + '" style="--oc:' + c + '" aria-pressed="' + on + '" data-act="' + act + '" data-v="' + tt.id + '">' + (on ? icon('check', 14) : '') + esc(tt.court) + '</button>';
+      }).join('') + '</div>';
+  }
+  MC.rankChips = rankChips;
+  // toucher une épreuve : depuis « Toutes », on ne garde qu'elle ; ensuite, on en ajoute ou on en retire
+  function toggleSel(sel, v) {
+    if (v === '*') return [];
+    var i = sel.indexOf(v), out = sel.slice();
+    if (i >= 0) out.splice(i, 1); else out.push(v);
+    // dans l'ordre des épreuves ; tout coché = « Toutes »
+    out = C.TESTS.map(function (t) { return t.id; }).filter(function (id) { return out.indexOf(id) >= 0; });
+    return out.length === C.TESTS.length ? [] : out;
+  }
+  MC.rankToggle = toggleSel;
+  // une carte par épreuve : sa ligue, le rang de l'enfant, la liste ; les épreuves sans résultat sont regroupées en bas
+  // (sauf si on les a choisies). who : { id, prenom, toi (vrai côté enfant) }
+  function rankCards(Lg, who, sel, mode) {
+    var ids = sel.length ? sel : C.TESTS.map(function (t) { return t.id; });
+    var medal = ['#FFC23D', '#C7CEDF', '#E39A5B'], vides = [], seen = false;
+    var cards = ids.map(function (tid) {
+      var lg = L.league(Lg, who.id, tid, mode), t = lg.test;
+      var mine = null; lg.rows.forEach(function (r) { if (r.p.id === who.id) mine = r; });
+      if (mine) seen = true;
+      if (!lg.rows.length && !sel.length) { vides.push(t.court); return ''; }
+      var lname = lg.lo === lg.hi ? 'Ligue N' + lg.lo : 'Ligue N' + lg.lo + '-N' + lg.hi, lc = C.NIVEAUX[lg.myLv].color;
+      // beaucoup d'épreuves à l'écran : le podium et la place de l'enfant (avec celui juste devant) ; « Voir les N » déplie
+      var mi = mine ? lg.rows.indexOf(mine) : -1, keep = {};
+      var compact = lg.rows.length > 5 && ids.length > 2 && !rankFull[tid];
+      [0, 1, 2, mi - 1, mi].forEach(function (k) { if (k >= 0) keep[k] = 1; });
+      var rows = lg.rows.map(function (r, k) {
+        var me = r.p.id === who.id, hide = compact && !keep[k];
+        var v = mode === 'prog' ? (r.prog > 0 ? '+' : '') + ui.fmtVal(r.prog, t.unite, t.decimales) : ui.fmtVal(r.best, t.unite, t.decimales);
+        var gap = compact && !hide && k > 0 && !keep[k - 1] ? '<li class="rkgap" aria-hidden="true">⋯</li>' : '';
+        return hide ? '' : gap + '<li class="li rkl' + (me ? ' me' : '') + '"><span class="rank" style="--rc:' + (r.rank <= 3 ? medal[r.rank - 1] : 'var(--dim)') + '">' + r.rank + '</span>' +
+          '<span class="grow"><span class="t1">' + (me && who.toi ? '<b class="rk-toi">Toi</b>' : '') + esc(r.p.prenom.toUpperCase()) + '</span>' + (lg.lo !== lg.hi ? '<span class="t2">N' + r.lv + '</span>' : '') + '</span>' +
+          '<span class="rkv" style="color:' + (mode === 'prog' ? 'var(--green)' : me ? 'var(--cyan)' : 'var(--ink)') + '">' + v + '</span></li>';
+      }).join('');
+      var more = lg.rows.length > 5 && ids.length > 2 ? '<button type="button" class="btn2 grey sm rkmore" data-act="rkFull" data-v="' + tid + '">' + (compact ? icon('chevd', 16) + ' Voir les ' + lg.rows.length + ' joueurs' : icon('chevd', 16, 'style="transform:rotate(180deg)"') + ' Réduire') + '</button>' : '';
+      var place = mine ? (who.toi ? 'Toi : ' : esc(who.prenom) + ' : ') + mine.rank + (mine.rank === 1 ? 'er' : 'e') + ' / ' + lg.rows.length : lg.rows.length + ' joueur' + (lg.rows.length > 1 ? 's' : '');
+      return '<section class="rkcard" style="--lc:' + lc + '"><div class="rkcard-h"><h2 class="h2">' + esc(t.nom) + '</h2><span class="rkcard-p' + (mine ? ' me' : '') + '">' + place + '</span></div>' +
+        '<span class="rkcard-l">' + esc(lname) + (lg.sm ? ' · mini matériel' : '') + '</span>' +
+        (rows ? '<ol class="list">' + rows + '</ol>' + more : '<div class="empty">' + (mode === 'prog' ? 'Pas encore de progrès à comparer : il faut au moins 2 résultats confirmés.' : 'Personne n\'a encore de résultat confirmé sur cette épreuve dans ' + (who.toi ? 'ta' : 'sa') + ' ligue.') + '</div>') + '</section>';
+    }).join('');
+    return { html: (cards ? '<div class="rkcards">' + cards + '</div>' : '') + (vides.length ? '<p class="small rkvides"><b>Pas encore de ' + (mode === 'prog' ? 'progrès' : 'résultat') + ' confirmé' + (who.toi ? ' dans ta ligue' : '') + ' :</b> ' + esc(vides.join(', ')) + '.</p>' : ''), seen: seen };
+  }
+  MC.rankCards = rankCards;
+  function modeBtns(mode, act) {
+    return '<div class="grid2"><button type="button" class="opt' + (mode === 'best' ? ' on' : '') + '" aria-pressed="' + (mode === 'best') + '" data-act="' + act + '" data-v="best">Meilleur score</button>' +
+      '<button type="button" class="opt' + (mode === 'prog' ? ' on' : '') + '" style="--oc:var(--green)" aria-pressed="' + (mode === 'prog') + '" data-act="' + act + '" data-v="prog">Plus gros progrès</button></div>';
+  }
+  MC.rankModeBtns = modeBtns;
   app.route('/classement', function () {
     return Promise.all([app.loadMe(), app.kidCall('league')]).then(function (res) {
       app.S.league = res[1];
@@ -291,42 +354,23 @@
   }, { kid: true, nav: 'prepa', bg: '#2A1640' });
 
   function paintRank(me, Lg) {
-    var lg = L.league(Lg, me.joueur.id, rank.test, rank.mode), t = lg.test;
-    var chips = C.TESTS.map(function (tt) {
-      var on = tt.id === rank.test;
-      return '<button type="button" class="opt' + (on ? ' on' : '') + '" style="--oc:var(--pink);flex:none;min-height:44px;padding:0 12px" aria-pressed="' + on + '" data-act="rkTest" data-v="' + tt.id + '">' + esc(tt.court) + '</button>';
-    }).join('');
-    var lname = lg.lo === lg.hi ? 'Ligue N' + lg.lo : 'Ligue N' + lg.lo + '-N' + lg.hi;
-    var lc = C.NIVEAUX[lg.myLv].color;
-    var medal = ['#FFC23D', '#C7CEDF', '#E39A5B'];
-    var rows = lg.rows.map(function (r) {
-      var mine = r.p.id === me.joueur.id;
-      var v = rank.mode === 'prog' ? (r.prog > 0 ? '+' : '') + ui.fmtVal(r.prog, t.unite, t.decimales) : ui.fmtVal(r.best, t.unite, t.decimales);
-      return '<li class="li' + (mine ? ' me' : '') + '"><span class="rank" style="--rc:' + (r.rank <= 3 ? medal[r.rank - 1] : 'var(--dim)') + '">' + r.rank + '</span>' + ui.hexa(r.p.prenom, r.p.couleur) +
-        '<span class="grow"><span class="t1">' + (mine ? '<b class="rk-toi">Toi</b>' : '') + esc(r.p.prenom.toUpperCase()) + '</span>' + (lg.lo !== lg.hi ? '<span class="t2">N' + r.lv + '</span>' : '') + '</span>' +
-        '<span style="font:700 18px/1 var(--f-hud);color:' + (rank.mode === 'prog' ? 'var(--green)' : mine ? 'var(--cyan)' : 'var(--ink)') + '">' + v + '</span></li>';
-    }).join('');
-    var inIt = lg.rows.some(function (r) { return r.p.id === me.joueur.id; });
-    var empty = !lg.rows.length ? '<div class="empty">' + (rank.mode === 'prog' ? 'Pas encore de progrès à comparer : il faut au moins 2 résultats confirmés (bilan + défi ou bilan suivant).' : 'Personne n\'a encore de résultat confirmé sur cette épreuve dans ta ligue.') + '</div>' : '';
-    var meNote = !inIt && lg.rows.length ? '<div class="note">' + icon('info', 20) + '<span>Tu n\'apparais pas encore : saisis ton bilan (ou un défi) et fais-le confirmer par un adulte.</span></div>' : '';
+    var R = rankCards(Lg, { id: me.joueur.id, prenom: me.joueur.prenom, toi: true }, rank.sel, rank.mode);
+    var meNote = !R.seen ? '<div class="note">' + icon('info', 20) + '<span>Tu n\'apparais pas encore : saisis ton bilan (ou un défi) et fais-le confirmer par un adulte.</span></div>' : '';
     return '<main class="screen">' + MC.kidBar(me, app.S.stats) + MC.prepaTabs('classement') + '<div class="head"><span class="kicker" style="color:var(--pink)">Classement · M12</span><h1 class="big">L\'arène</h1></div>' +
-      // (retouche UI-10) tous les réglages ensemble, au-dessus de la liste
-      '<section class="rkset"><div class="row" style="gap:10px;align-items:center">' + ui.lvl(lg.myLv, lname.toUpperCase()) +
-      '<span style="font-size:13px;line-height:1.35;color:var(--soft)">Tu te mesures aux joueurs de ton niveau' + (lg.sm ? ' (version mini matériel)' : '') + '.</span></div>' +
-      '<div class="sec" style="gap:8px"><span class="lab">Épreuve</span><div class="row chipsx" style="overflow-x:auto;gap:8px;padding-bottom:4px;-webkit-overflow-scrolling:touch">' + chips + '</div></div>' +
-      '<div class="sec" style="gap:8px"><span class="lab">Classer par</span><div class="grid2"><button type="button" class="opt' + (rank.mode === 'best' ? ' on' : '') + '" aria-pressed="' + (rank.mode === 'best') + '" data-act="rkMode" data-v="best">Meilleur score</button>' +
-      '<button type="button" class="opt' + (rank.mode === 'prog' ? ' on' : '') + '" style="--oc:var(--green)" aria-pressed="' + (rank.mode === 'prog') + '" data-act="rkMode" data-v="prog">Plus gros progrès</button></div></div></section>' +
-      '<div class="between"><h2 class="h2">' + esc(t.nom) + '</h2><span class="small">' + lg.rows.length + ' joueur' + (lg.rows.length > 1 ? 's' : '') + '</span></div>' +
-      meNote + empty + '<ol class="list">' + rows + '</ol>' +
+      '<section class="rkset"><p class="small" style="margin:0;color:var(--soft)">Sur chaque épreuve, tu te mesures aux joueurs de ton niveau (ta ligue).</p>' +
+      '<div class="sec" style="gap:8px"><span class="lab">Épreuves' + (rank.sel.length ? ' · ' + rank.sel.length + ' choisie' + (rank.sel.length > 1 ? 's' : '') : ' · toutes') + '</span>' + rankChips(rank.sel, 'rkTest') + '</div>' +
+      '<div class="sec" style="gap:8px"><span class="lab">Classer par</span>' + modeBtns(rank.mode, 'rkMode') + '</div></section>' +
+      meNote + R.html +
       '<p class="small" style="text-align:center;margin:0">' + (rank.mode === 'prog' ? 'Progrès depuis ton 1er résultat : tout le monde peut être 1er.' : 'Records des bilans et des défis, confirmés par un adulte.') + '</p></main>';
   }
-  MC.act.rkTest = function (b) { rank.test = b.getAttribute('data-v'); app.lsSet('mc-rank', rank); paintAgain(); };
+  MC.act.rkTest = function (b) { rank.sel = toggleSel(rank.sel, b.getAttribute('data-v')); app.lsSet('mc-rank', rank); paintAgain(); };
   MC.act.rkMode = function (b) { rank.mode = b.getAttribute('data-v'); app.lsSet('mc-rank', rank); paintAgain(); };
+  // déplier / replier le classement complet d'une épreuve (enfant et parent)
+  MC.act.rkFull = function (b) { var v = b.getAttribute('data-v'); rankFull[v] = !rankFull[v]; if (/^#\/classement/.test(location.hash)) paintAgain(); else app.rerender(); };
   function paintAgain() {
     var host = document.getElementById('app'), y = window.scrollY;
-    var sc = host.querySelector('[style*="overflow-x:auto"]'), x = sc ? sc.scrollLeft : 0;
+    if (!app.S.me || !app.S.league) { app.rerender(); return; }
     host.innerHTML = paintRank(app.S.me, app.S.league);
-    var sc2 = host.querySelector('[style*="overflow-x:auto"]'); if (sc2) sc2.scrollLeft = x;
     window.scrollTo(0, y);
   }
 

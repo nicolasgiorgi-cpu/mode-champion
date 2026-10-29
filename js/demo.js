@@ -124,7 +124,8 @@ MC.demo = (function () {
     ].forEach(function (m) {
       var d = L.addDays(today, -ri(1, 6));
       db.insert('missions', { id: id(), joueurId: ids[m[0]], mission: 'jeu10', faite: m[3], date: m[3] ? d : '', source: m[4], cree: d + 'T18:30:00.000Z', maj: d + 'T18:30:00.000Z',
-        reponses: { postes: m[1], copains: m[2].map(function (n) { return ids[n]; }), copainsFait: m[3], quiz: null, quizTop: null, quizResume: m[4] === 'formulaire' ? 'Postes proposés : 1. 3e ligne (82 %) · 2. Pilier (74 %) · 3. Talonneur (61 %)\nPréfère : Plaquer et récupérer le ballon' : '' } });
+        reponses: { postes: m[1], copains: m[2].map(function (n) { return ids[n]; }), copainsFait: m[3], quiz: null, quizTop: null, quizResume: m[4] === 'formulaire' ? 'Postes proposés : 1. 3e ligne (82 %) · 2. Pilier (74 %) · 3. Talonneur (61 %)\nPréfère : Plaquer et récupérer le ballon' : '',
+          message: m[0] === 'Léo' ? 'J\'aime trop plaquer ! Mais pas talonneur, je n\'aime pas lancer en touche.' : m[0] === 'Enzo' ? 'Pilier comme mon grand frère.' : '' } });
     });
     seedCompos(db, ids, autres, COULS, id, ri, today, nowIso, sec);
   }

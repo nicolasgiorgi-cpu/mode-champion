@@ -62,7 +62,8 @@
           SKON && MEON ? '<b>Missions</b> : ce que demandent tes éducs. En haut, ta <b>mission principale</b> et ses encouragements ; puis les missions ponctuelles (choisir ton poste, une vidéo, un QCM), et tous les mots de tes éducs. Une pastille rose = du nouveau.'
             : '<b>Missions</b> : ce que demandent tes éducs, comme choisir ton poste pour le jeu à 10. Une pastille rose = une mission à faire.',
           SKON ? '<b>Skills</b> : ton carnet de compétences rugby, 8 cartes d\'étoiles validées par tes éducs.' : '',
-          '<b>Moi</b> : ton grade, tes XP, ' + (COPON ? 'tes postes et tes copains' : 'tes postes') + ', tes trophées, l\'aide et les réglages.'
+          '<b>Moi</b> : ton grade, tes XP, ' + (COPON ? 'tes postes et tes copains' : 'tes postes') + ', tes trophées, l\'aide et les réglages.',
+          'La <b>flèche en haut à gauche</b> te ramène à l\'écran d\'avant, là où tu étais. Tout en haut d\'un écran, <b>tire vers le bas</b> puis lâche pour l\'actualiser.'
         ].filter(Boolean)), true) +
       card('semaine', 'star', '#FFC23D', 'Ta semaine et les étoiles', '1 étoile par jour, 6 par semaine, +1 bonus',
         weekRow() + ul([
@@ -137,7 +138,7 @@
         ])) +
       card('classement', 'podium', '#4D9BFF', 'Le classement et les ligues', 'Tu te compares aux joueurs de ton niveau',
         ul([
-          'Prépa › <b>Classement</b> : il y a un classement <b>par test du bilan</b> (planche, navette, pompes…). Seule la prépa physique compte : ' + (SKON ? 'tes missions et tes Skills ne sont jamais classés.' : 'tes missions ne sont jamais classées.') + '',
+          'Prépa › <b>Classement</b> : il y a un classement <b>par test du bilan</b> (planche, navette, pompes…), tous affichés d\'un coup ; touche les épreuves que tu veux garder, « Toutes » pour tout revoir. Seule la prépa physique compte : ' + (SKON ? 'tes missions et tes Skills ne sont jamais classés.' : 'tes missions ne sont jamais classées.') + '',
           'Tu es dans la <b>ligue</b> des joueurs qui ont <b>le même niveau</b> que toi sur ce test. S\'il y a moins de ' + MC.CONFIG.LIGUE_MIN + ' joueurs, la ligue s\'ouvre aux niveaux voisins.',
           '2 façons de classer : <b>meilleur score</b>, ou <b>plus gros progrès</b> depuis ton premier bilan. Même si tu n\'es pas le plus fort, tu peux être celui qui progresse le plus !',
           'Seuls les résultats <b>confirmés par un adulte</b> comptent. On n\'y voit que les prénoms. Tes parents peuvent choisir de ne pas t\'afficher.'
@@ -166,6 +167,7 @@
         ul([
           'Bouton <b>Adultes</b> (en haut de l\'écran d\'accueil) › <b>Je suis parent</b> › le <b>prénom de votre enfant</b> › votre <b>code famille</b> à 4 chiffres. La 1re fois, c\'est le code provisoire donné par l\'éducateur : vous choisissez ensuite le vôtre.',
           'Votre espace a ' + (SKON ? 4 : 3) + ' onglets en bas, comme celui de votre enfant : <b>Prépa</b> (les résultats à confirmer en premier, sa semaine et ses séances, ses <b>Bilans</b> et son <b>Classement</b>), ' + (SKON ? '<b>Missions</b> (ce que demandent les éducs, ses +1 et leurs mots), <b>Skills</b> (son carnet de compétences)' : '<b>Missions</b> (ce que demandent les éducs, comme choisir son poste pour le jeu à 10)') + ' et <b>Plus</b> (codes, appareil, aide). Plusieurs enfants ? Touchez son prénom en haut à gauche : vous restez sur le même onglet.',
+          'La <b>flèche en haut à gauche</b>, sur tous les écrans, ramène à l\'écran d\'avant, là où vous étiez. Tout en haut d\'un écran, <b>tirez vers le bas</b> puis relâchez pour l\'actualiser.',
           'Un seul code pour la famille : les deux parents peuvent l\'utiliser, et il donne accès à tous vos enfants inscrits.',
           'Vous restez connecté sur l\'appareil. Pour changer de code : Plus › Changer mon code parent. Code perdu : l\'éducateur vous en crée un provisoire. Après 5 codes faux, l\'accès se bloque 10 minutes.'
         ]), true) +
@@ -242,6 +244,7 @@
           '<b>Plateaux</b> : à venir et joués. Un plateau : les présents, puis la compo (jeu à 5 ou à 10, 2 versions, vote, contre-propositions), et le +1 pendant et après. Pastille rose = un vote ou une contre-proposition attend.',
           '<b>Progrès</b> : <b>Prépa physique</b> (les résultats de votre enfant à confirmer, ça bouge, le classement, les progrès aux bilans), <b>Skills</b> (évaluer, le passeport du groupe, la journée d\'évaluation) et <b>Missions</b> (pour le groupe, individuelles).',
           '<b>Enfants</b> : <b>Tous</b>, <b>À relancer</b> (rien noté depuis 7 jours) et <b>Niveaux et postes</b> (la fiche terrain du groupe). Toucher un prénom ouvre sa fiche, partout dans l\'appli.',
+          'La <b>flèche en haut à gauche</b>, sur tous les écrans, ramène à l\'écran d\'avant, là où vous étiez. Tout en haut d\'un écran, <b>tirez vers le bas</b> puis relâchez pour l\'actualiser (résultats, présents, compos).',
           'L\'<b>engrenage</b>, en haut à droite : mon enfant, mon code, les éducs (admin), les familles et leurs codes, Spond (admin), cet appareil, l\'aide et les nouveautés.',
           '<b>Mon enfant</b> : vous êtes aussi parent d\'un joueur ? Choisissez-le dans l\'engrenage : ses résultats à confirmer arrivent dans Progrès › Prépa physique, et il est en tête de la liste des enfants.',
           'Progrès › Prépa physique › <b>Le classement</b> : tout le groupe ou une ligue à la fois, avec la liste des joueurs pas encore classés. <b>Progrès aux bilans</b> : test par test, les joueurs classés selon leur progrès depuis le bilan d\'avant.',
@@ -310,7 +313,7 @@
       '<div class="gtabs" role="tablist" aria-label="Guide pour">' + tabs + '</div>' +
       '<div class="sec" style="gap:10px">' + body + '</div>' +
       (MC.accueil && MC.accueil.tourLink(pour) ? '<a class="btn2" href="' + MC.accueil.tourLink(pour) + '">' + icon('play', 16) + ' Revoir la visite du début</a>' : '') +
-      '<a class="btn2 grey" href="' + back + '">' + icon('left', 16) + ' Retour</a></main>';
+      '<a class="btn2 grey" href="' + esc(back) + '" data-act="navBack" data-fb="' + esc(back) + '">' + icon('left', 16) + ' Retour</a></main>';
   }, { bg: '#16223F', neutral: true });
 
   MC.act.guideTab = function (b) {
