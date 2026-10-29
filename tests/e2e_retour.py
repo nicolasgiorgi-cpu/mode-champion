@@ -75,6 +75,15 @@ with sync_playwright() as p:
     check('Retour : les détails ouverts le restent', pg.locator('.mrow[open]').count() == 2, pg.locator('.mrow[open]').count())
     pg.go_back(); pg.wait_for_timeout(1000)
     check('le Retour du navigateur marche aussi', h(pg) in ('#/educ', '#/educ/entrainements', '#/educ/joueurs'), h(pg))
+    # une ancienne adresse qui redirige (journée d'évaluation → Skills) : Retour ne tourne pas en rond
+    push(pg, '#/educ/progres'); push(pg, '#/educ/skills/journee', 1200)
+    check('ancienne adresse : remplacée par Skills', h(pg) == '#/educ/skills', h(pg))
+    back(pg)
+    check('ancienne adresse : Retour revient à l\'écran d\'avant (pas de boucle)', h(pg) == '#/educ/progres', h(pg))
+    # plusieurs touchers rapides sur Retour : un seul écran en arrière
+    push(pg, '#/educ/joueurs'); push(pg, '#/educ/classement'); push(pg, '#/educ/mission/poste')
+    pg.evaluate("(() => { const b = document.querySelector('header.topbar [data-act=\"navBack\"]'); b.click(); b.click(); b.click(); })()"); pg.wait_for_timeout(1300)
+    check('3 touchers rapides sur Retour = un seul écran en arrière', h(pg) == '#/educ/classement', h(pg))
     # un écran ouvert directement (aucun historique) : Retour = l'écran parent, sans boucle
     pg.evaluate('sessionStorage.clear()'); pg.goto('about:blank'); pg.goto(BASE + '#/educ/classement'); pg.wait_for_timeout(1300); nomodal(pg)
     check('classement éduc : épreuves qui reviennent à la ligne', pg.evaluate(HSCROLL) == [], pg.evaluate(HSCROLL))
@@ -89,6 +98,19 @@ with sync_playwright() as p:
     check('éduc : tirer fort en haut = « Relâchez pour actualiser »', 'Relâchez' in st, st)
     check('éduc : le groupe est redemandé au serveur', 'group' in pg.evaluate('window.__calls'), pg.evaluate('window.__calls'))
     check('écran remis en place après', pg.evaluate("document.getElementById('app').style.transform") in ('', 'none'))
+    # un 2e doigt pendant qu'on tire : tout se remet en place
+    touch('touchStart', W // 2, 230)
+    for k in range(1, 8): touch('touchMove', W // 2, 230 + 20 * k); pg.wait_for_timeout(16)
+    cdp.send('Input.dispatchTouchEvent', {'type': 'touchStart', 'touchPoints': [{'x': W // 2, 'y': 370, 'id': 0}, {'x': W // 2 + 60, 'y': 300, 'id': 1}]})
+    cdp.send('Input.dispatchTouchEvent', {'type': 'touchEnd', 'touchPoints': []}); pg.wait_for_timeout(500)
+    check('2e doigt pendant le tirer : l\'écran revient en place', pg.evaluate("document.getElementById('app').style.transform") in ('', 'none'), pg.evaluate("document.getElementById('app').style.transform"))
+    # tirer un peu puis remonter : le tirer s'annule et la page défile normalement
+    pg.evaluate('window.scrollTo(0,0)')
+    touch('touchStart', W // 2, 400)
+    for k in range(1, 6): touch('touchMove', W // 2, 400 + 8 * k); pg.wait_for_timeout(16)
+    for k in range(1, 16): touch('touchMove', W // 2, 440 - 22 * k); pg.wait_for_timeout(16)
+    touch('touchEnd', 0, 0); pg.wait_for_timeout(500)
+    check('tirer puis remonter : la page défile', pg.evaluate('scrollY') > 50 and pg.evaluate("document.getElementById('app').style.transform") in ('', 'none'), (pg.evaluate('scrollY'), pg.evaluate("document.getElementById('app').style.transform")))
     # écrans sans bande qui défile de côté
     for hh in ['#/educ/skills/passeport', '#/educ/classement', '#/educ/mission/poste']:
         push(pg, hh); check('pas de défilement de côté : ' + hh, pg.evaluate(HSCROLL) == [], pg.evaluate(HSCROLL))
@@ -100,6 +122,14 @@ with sync_playwright() as p:
     check('parent : pas de défilement de côté', pg.evaluate(HSCROLL) == [], pg.evaluate(HSCROLL))
     back(pg)
     check('parent : Retour revient à l\'écran d\'avant', h(pg) == '#/parent', h(pg))
+
+    # le parent passe le téléphone à Tom après qu'il a écrit un mot : Tom le retrouve (et ne l'efface pas en validant)
+    pg.evaluate("MC.api.call('roster',{}).then(r=>{const k=r.joueurs.find(x=>x.prenom==='Tom'); return MC.api.call('login',{joueurId:k.id,pin:MC.demo.CODES.enfant});}).then(res=>MC.api.call('mission',{token:res.token,mission:'jeu10',postes:['ailier'],message:'Mot de Tom'}))"); pg.wait_for_timeout(600)
+    pg.evaluate("MC.app.setKid(null)")
+    push(pg, '#/parent'); pg.click('[data-act="passTo"], .tb-pass'); pg.wait_for_timeout(1600); nomodal(pg)
+    push(pg, '#/mission/postes', 1200)
+    check('téléphone passé par le parent : l\'enfant retrouve son mot', pg.query_selector('#msn-mot') is not None and pg.input_value('#msn-mot') == 'Mot de Tom', pg.input_value('#msn-mot') if pg.query_selector('#msn-mot') else None)
+    pg.evaluate("MC.app.setKid(null)")
 
     # ======================== ENFANT ========================
     pg.evaluate("MC.app.setAdult(null)"); pg.evaluate(KID % '#/semaine'); pg.wait_for_timeout(1500); nomodal(pg)

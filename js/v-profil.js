@@ -274,7 +274,7 @@
       return app.loadMe(true);
     }).then(function () {
       ui.toast('Envoyé ! Un adulte doit confirmer.');
-      app.go('#/trophees');
+      app.go('#/trophees', true);   // le formulaire envoyé est remplacé : Retour ne le rouvre pas
     }).catch(function (e) { btn.disabled = false; ui.toast(e.message, true); });
   };
 
@@ -573,7 +573,7 @@
       var body = '<p class="lead">' + vals.length + ' test' + (vals.length > 1 ? 's' : '') + ' envoyé' + (vals.length > 1 ? 's' : '') + '. Un parent ou ton éduc doit les confirmer.</p>' +
         (changes.length ? '<ul class="list">' + changes.map(function (k) { return '<li class="li"><span class="grow t1">' + esc(C.CLES[k].nom) + '</span>' + ui.lvl(old[k] || 1) + icon('right', 16) + ui.lvl(newLv[k]) + '</li>'; }).join('') + '</ul>' : '<p class="small">Tes niveaux ne changent pas.</p>');
       return ui.modal({ title: 'Bilan envoyé !', body: body, actions: [{ label: 'Voir mes bilans', value: 1, cls: 'btn' }] });
-    }).then(function () { bil = null; saveBil(); app.go('#/bilans'); return true; })
+    }).then(function () { bil = null; saveBil(); app.go('#/bilans', true); return true; })
       .catch(function (e) { if (btn) btn.disabled = false; ui.toast(e.message, true); return false; });
   }
   // utilisé par le bilan guidé (v-bilan.js)

@@ -113,6 +113,12 @@ MC.app = (function () {
     en.y = Math.max(0, Math.round(window.scrollY || 0));
     var d = root.querySelectorAll('details');
     en.dt = d.length ? [].map.call(d, function (x) { return x.open ? '1' : '0'; }).join('') : '';
+    en.op = [].filter.call(d, function (x) { return x.open; }).map(detKey);
+  }
+  // un volet se reconnaît à son titre (le prénom d'un enfant, le nom d'un poste…), son rang sinon
+  function detKey(x, k) {
+    var sm = x.querySelector('summary'), t = sm ? (sm.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 80) : '';
+    return t || '#' + [].indexOf.call(root.querySelectorAll('details'), x);
   }
   // à chaque affichage : de quelle entrée d'historique s'agit-il ? (même écran, retour/avance, nouvel écran)
   function hSync() {
@@ -124,10 +130,17 @@ MC.app = (function () {
     snap();
     painted = false;
     if (id && (i = hIdx(id)) >= 0) {                     // retour ou avance (bouton Retour, geste, rechargement)
+      backBusy = 0;
       H.cur = id; H.list[i].h = h; restoreTo = H.list[i]; hSave(); return;
     }
     // nouvel écran (lien, onglet, bouton) : il remplace les écrans « en avant »
     var ci = hIdx(H.cur);
+    backBusy = 0;
+    // même adresse, état perdu (certains navigateurs, lien vers l'écran déjà ouvert) : c'est le même écran, pas un nouveau
+    if (!id && ci >= 0 && H.list[ci].h === h) {
+      try { history.replaceState({ mc: H.cur }, '', location.href); } catch (e) { }
+      painted = true; return;
+    }
     if (!id) { id = newId(); try { var st = history.state && typeof history.state === 'object' ? history.state : {}, o = {}; for (var k in st) o[k] = st[k]; o.mc = id; history.replaceState(o, '', location.href); } catch (e) { } }
     H.list = ci >= 0 ? H.list.slice(0, ci + 1) : [];
     H.list.push({ id: id, h: h, y: 0, dt: '', u: whoOf(spaceOf(h)) });
@@ -176,26 +189,31 @@ MC.app = (function () {
     var here = location.hash, sp = spaceOf(here), f = fb || homeOf(sp);
     return !!f && f !== here && !(!fb && isHome(here, sp));
   }
+  var backBusy = 0;
   function back(fb) {
+    // un Retour déjà en route (l'écran d'avant se charge) : les touchers suivants n'empilent rien
+    if (backBusy && Date.now() - backBusy < 4000) return;
     var cur = hIdx(H.cur), j = prevIndex(), here = location.hash, sp = spaceOf(here), from = hState();
     function fallback() {
       var f = fb || homeOf(sp);
       if (f && f !== here && !(!fb && isHome(here, sp))) go(f, true);
     }
-    if (j >= 0 && cur >= 0) {
-      try { history.go(j - cur); } catch (e) { fallback(); return; }
+    if (j >= 0 && cur > j && from === H.cur) {
+      backBusy = Date.now();
+      try { history.go(j - cur); } catch (e) { backBusy = 0; fallback(); return; }
       // garde-fou : si le navigateur n'a pas bougé (historique coupé), on prend l'écran parent
-      setTimeout(function () { if (hState() === from && location.hash === here) fallback(); }, 1200);
+      setTimeout(function () { if (backBusy && hState() === from && location.hash === here) { backBusy = 0; fallback(); } }, 2500);
       return;
     }
     fallback();
   }
   // après l'affichage d'un écran retrouvé : ses volets ouverts, puis l'endroit où l'on était
   function restore(en) {
-    if (en.dt) {
-      var d = root.querySelectorAll('details');
-      if (d.length === en.dt.length) [].forEach.call(d, function (x, k) { x.open = en.dt.charAt(k) === '1'; });
-    }
+    var d = root.querySelectorAll('details');
+    if (Array.isArray(en.op) && d.length) {
+      var keys = {}; en.op.forEach(function (k) { keys[k] = 1; });
+      [].forEach.call(d, function (x) { x.open = !!keys[detKey(x)]; });
+    } else if (en.dt && d.length === en.dt.length) [].forEach.call(d, function (x, k) { x.open = en.dt.charAt(k) === '1'; });
     var y = en.y || 0;
     window.scrollTo(0, y);
     // la page peut encore grandir (images, animations) : un 2e essai
@@ -461,7 +479,8 @@ MC.app = (function () {
     return false;
   }
   function onTouchStart(e) {
-    PT.track = false; PT.on = false;
+    if (PT.on) { PT.on = false; root.classList.remove('ptr-pull'); ptrHide(); }   // un 2e doigt pendant qu'on tire : on lâche tout
+    PT.track = false;
     if (PT.busy || !e.touches || e.touches.length !== 1 || (window.scrollY || 0) > 0 || !pullable()) return;
     var t = e.target;
     if (!t || !t.closest || t.closest('input, textarea, select, .modal, .numpad, .bk, [data-noptr]') || document.querySelector('.modal, .bk') || document.body.classList.contains('np-open')) return;
@@ -473,11 +492,12 @@ MC.app = (function () {
     var dy = e.touches[0].clientY - PT.y0, dx = e.touches[0].clientX - PT.x0;
     if (!PT.on) {
       if (dy <= 0 || Math.abs(dx) > dy || (window.scrollY || 0) > 0) { if (dy < 0 || Math.abs(dx) > 12) PT.track = false; return; }
-      if (e.cancelable) e.preventDefault();   // dès le 1er mouvement vers le bas : pas de rebond ni de rechargement natif
-      if (dy < 8) return;                     // un simple toucher qui glisse un peu ne déclenche rien
+      if (dy < 10) return;                    // un simple toucher qui glisse un peu ne déclenche rien
       PT.on = true; root.classList.add('ptr-pull');
+    } else if (dy <= 4 || (window.scrollY || 0) > 0) {
+      // on remonte (ou la page défile) : on lâche, le défilement normal reprend
+      PT.on = false; PT.track = false; root.classList.remove('ptr-pull'); ptrHide(); return;
     }
-    if (e.cancelable) e.preventDefault();
     PT.d = Math.max(0, Math.min(PULL_MAX, Math.round(dy * 0.55)));
     ptrShow(PT.d, PT.d >= PULL_GO ? 'go' : 'pull');
   }
@@ -493,14 +513,19 @@ MC.app = (function () {
     pullRefresh().then(function () {
       setTimeout(function () { ptrShow(56, 'ok'); setTimeout(function () { PT.busy = false; ptrHide(); }, 450); }, Math.max(0, 500 - (Date.now() - t0)));
     }, function (err) {
-      if (err && err.code === 'session') { PT.busy = false; ptrHide(); return; }
+      if (err && err.code === 'session') {
+        PT.busy = false; ptrHide();
+        if (current && current.route.opts.adult) { setAdult(null); go('#/adultes', true); ui.toast('Reconnectez-vous.', true); }
+        else { setKid(null); go('#/connexion', true); ui.toast('Reconnecte-toi avec ton code.', true); }
+        return;
+      }
       ptrShow(56, 'err');
       setTimeout(function () { PT.busy = false; ptrHide(); ui.toast(err && err.message ? err.message : 'Pas de réseau : réessaie dans un instant.', true); }, 700);
     });
   }
   function bindPull() {
     document.addEventListener('touchstart', onTouchStart, { passive: true });
-    document.addEventListener('touchmove', onTouchMove, { passive: false });
+    document.addEventListener('touchmove', onTouchMove, { passive: true });   // jamais bloquant : le défilement n'est jamais empêché
     document.addEventListener('touchend', onTouchEnd, { passive: true });
     document.addEventListener('touchcancel', function () { if (PT.on) { PT.on = false; PT.track = false; root.classList.remove('ptr-pull'); ptrHide(); } else PT.track = false; }, { passive: true });
   }
@@ -549,8 +574,11 @@ MC.app = (function () {
       var a = e.target && e.target.closest ? e.target.closest('a[href^="#/"]') : null;
       if (!a || a.target || a.hasAttribute('data-act')) return;
       var h = a.getAttribute('href');
-      if (h === location.hash) return;
-      if (parseHash(h).path === parseHash().path) { e.preventDefault(); go(h, true); }
+      if (h === location.hash) { e.preventDefault(); return; }
+      if (parseHash(h).path === parseHash().path) {
+        e.preventDefault(); go(h, true);
+        try { window.dispatchEvent(new HashChangeEvent('hashchange')); } catch (x) { }   // fenêtres, pavé, brouillons : comme un vrai changement d'écran
+      }
     });
     document.addEventListener('click', function () { if (S.kid && current && current.route.opts.kid) touchKid(); if (current && current.route.opts.adult) touchAdult(); }, true);
     window.addEventListener('unhandledrejection', function (e) {
@@ -558,7 +586,7 @@ MC.app = (function () {
       if (r && r.code === 'session') return;
       if (r && r.message) ui.toast(r.message, true);
     });
-    window.addEventListener('hashchange', render);
+    window.addEventListener('hashchange', function () { if (location.hash === renderedHash && hState() === H.cur && H.cur) return; render(); });
     // retour/avance vers une entrée qui a la même adresse : pas de « hashchange », on redessine quand même
     window.addEventListener('popstate', function () { if (location.hash === renderedHash && hState() !== H.cur) render(); });
     try { if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; } catch (e) { }

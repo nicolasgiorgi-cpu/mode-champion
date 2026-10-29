@@ -186,15 +186,15 @@
     var mot = document.getElementById('msn-mot');
     if (mot) { d.message = mot.value; }
     var p = { mission: MID, postes: d.postes };
-    if (mot) p.message = String(d.message || '').slice(0, 600);
+    if (mot && d.dirtyM) p.message = String(d.message || '').slice(0, 600);   // seulement s'il l'a touché : jamais d'effacement par erreur
     if (quizFini(d)) { p.quiz = { ans: d.quiz.ans }; p.quizTop = M.quizResults(d.quiz.ans).map(function (x) { return { id: x.p.id, pct: x.pct }; }); }
     var was = M.etat(me, 'poste').faite;
     b.disabled = true;
     app.kidCall('mission', p).then(function (res) {
       app.setMe(res);
       d.dirtyP = false; d.dirtyM = false; garder(d);
-      if (was) { ui.toast('Ton top est enregistré !'); app.go('#/missions'); }
-      else app.go('#/mission/bravo?m=poste');
+      if (was) { ui.toast('Ton top est enregistré !'); app.go('#/missions', true); }
+      else app.go('#/mission/bravo?m=poste', true);
     }).catch(function (e) { b.disabled = false; ui.toast(e.message, true); });
   };
 
@@ -342,7 +342,7 @@
     d.postes = M.quizResults(d.quiz.ans).map(function (x) { return x.p.id; });
     d.dirtyP = true; garder(d);
     ui.toast('C\'est noté ! Vérifie l\'ordre, puis valide ton top.');
-    app.go('#/mission/postes');
+    app.go('#/mission/postes', true);
   };
 
   // ----- les copains (secret) -----
@@ -412,8 +412,8 @@
     app.kidCall('mission', p).then(function (res) {
       app.setMe(res);
       d.dirtyC = false; if (p.postes) d.dirtyP = false; garder(d);
-      if (was) { ui.toast('Tes copains sont enregistrés'); app.go('#/missions'); }
-      else app.go('#/mission/bravo?m=copains');
+      if (was) { ui.toast('Tes copains sont enregistrés'); app.go('#/missions', true); }
+      else app.go('#/mission/bravo?m=copains', true);
     }).catch(function (e) { b.disabled = false; ui.toast(e.message, true); if (/poste/.test(e.message)) app.go('#/mission/postes'); });
   };
 

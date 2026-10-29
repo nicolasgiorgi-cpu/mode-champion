@@ -44,7 +44,7 @@ r = g.call({ action: 'me', token: pt }); assert.deepStrictEqual(r.missions[0].re
 // (29/10) « Un mot pour les éducs » : envoyé avec le top, nettoyé, gardé quand on change ses postes
 r = g.call({ action: 'mission', token: pt, mission: 'jeu10', postes: ['ailier'], message: '  Pas <b>pilier</b> svp\r\n\r\n\r\nmerci ' + 'x'.repeat(700) });
 assert.ok(r.ok, JSON.stringify(r));
-assert.ok(r.missions[0].reponses.message.indexOf('<') < 0 && /^Pas b pilier/.test(r.missions[0].reponses.message), 'pas de balises : ' + r.missions[0].reponses.message.slice(0, 30));
+assert.ok(!/[<>]/.test(r.missions[0].reponses.message) && /^Pas ‹b›pilier/.test(r.missions[0].reponses.message), 'pas de balises : ' + r.missions[0].reponses.message.slice(0, 30));
 assert.ok(r.missions[0].reponses.message.length <= 600, '600 caractères au plus');
 assert.ok(!/\n\n\n/.test(r.missions[0].reponses.message), 'pas plus d\'une ligne vide');
 r = g.call({ action: 'mission', token: pt, mission: 'jeu10', postes: ['ailier'], message: 'Pas pilier, merci !' });
@@ -59,6 +59,11 @@ let mf = r.enfants[0].missions[0];
 assert.ok(mf && mf.faite && mf.reponses.postes[0] === 'ailier', 'les parents voient les postes');
 assert.ok(!('copains' in mf.reponses), 'les parents ne voient pas les copains');
 assert.ok(!('message' in mf.reponses), 'le mot est pour les éducs (pas les parents)');
+// le parent passe le téléphone à son enfant (sans son code) : l'enfant retrouve son mot (sinon il l'effacerait en enregistrant)
+r = g.call({ action: 'ouvrirEnfant', token: ft, joueurId: tom.id });
+assert.ok(r.ok && r.me, JSON.stringify(r).slice(0, 200));
+assert.strictEqual(r.me.missions[0].reponses.message, 'Pas pilier, merci !', 'ouvrirEnfant : le dossier vu par l\'enfant');
+assert.deepStrictEqual(r.me.missions[0].reponses.copains, [lea.id, bapD.id]);
 r = g.call({ action: 'kid', token: ft, joueurId: tom.id }); assert.ok(!('copains' in r.missions[0].reponses));
 r = g.call({ action: 'kid', token: et, joueurId: tom.id }); assert.deepStrictEqual(r.missions[0].reponses.copains, [lea.id, bapD.id], 'l\'éduc voit les copains');
 r = g.call({ action: 'group', token: et });
@@ -105,6 +110,11 @@ assert.strictEqual(r.joueurs.find(p => p.joueur.id === tom.id).missions[0].repon
 assert.strictEqual(r.importPostes.importes, 2, 'dernière reprise visible par les éducs');
 // une 2e reprise sans nouvelle réponse ne change rien
 r = g.call({ action: 'importPostes', token: et }); assert.strictEqual(r.info.importes, 0);
+// Tom efface son mot dans l'appli : une nouvelle reprise du formulaire ne le remet pas
+r = g.call({ action: 'mission', token: pt, mission: 'jeu10', postes: ['ailier'], message: '' }); assert.strictEqual(r.missions[0].reponses.message, undefined);
+r = g.call({ action: 'importPostes', token: et }); assert.strictEqual(r.info.mots, 0);
+r = g.call({ action: 'kid', token: et, joueurId: tom.id }); assert.ok(!r.missions[0].reponses.message, 'le mot effacé reste effacé');
+r = g.call({ action: 'mission', token: pt, mission: 'jeu10', postes: ['ailier'], message: 'Je t\'aime <3' }); assert.strictEqual(r.missions[0].reponses.message, 'Je t\'aime ‹3');
 // Hugo retrouve ses postes dans l'appli et termine sa mission
 r = g.call({ action: 'login', joueurId: hugo.id, pin: hugoTemp }); let ph = r.token;
 r = g.call({ action: 'setPin', token: ph, pin: '8152' }); ph = r.token;

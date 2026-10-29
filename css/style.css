@@ -18,7 +18,9 @@
    (on perd un peu de hauteur, le texte reste net). Sans encoche ni barre d'état (Android, ordinateur) : 0, rien ne change. */
 @media (display-mode: standalone){:root{--safe-t:calc(env(safe-area-inset-top,0px) * 1.35)}}
 *{box-sizing:border-box}
-html{-webkit-text-size-adjust:100%;background:var(--bg)}
+html{-webkit-text-size-adjust:100%;background:var(--bg);overscroll-behavior-y:none}
+/* (29/10) pas de rebond ni de rechargement natif quand on tire en haut : l'appli a son « tirer pour actualiser » */
+body{overscroll-behavior-y:none}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.45;min-height:100vh;-webkit-font-smoothing:antialiased;overflow-x:hidden}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}

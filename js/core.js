@@ -458,7 +458,10 @@ var Core = (function () {
       if (!j || !j.actif) fail('introuvable', 'Joueur introuvable.');
       var ok = ctx.auth.r === 'f' ? j.familleId === ctx.auth.id : (mesEnfantsEduc(ctx) || []).indexOf(j.id) >= 0;
       if (!ok) fail('interdit', ctx.auth.r === 'f' ? 'Ce joueur n\'est pas dans votre famille.' : 'Ce n\'est pas votre enfant (engrenage › Mon enfant).');
-      return { token: makeToken(ctx.secret, 'p', j.id, Number(j.pinV || 0), ctx.now + TOKEN_JOUEUR), joueur: pubJoueur(j), me: j.mustChange ? null : dossier(ctx, j, true) };
+      // (29/10) le dossier tel que l'enfant le voit (son mot pour les éducs, ses copains) : sinon, en enregistrant, il les effacerait
+      var kctx = {}; for (var k in ctx) kctx[k] = ctx[k];
+      kctx.auth = { r: 'p', id: j.id, row: j };
+      return { token: makeToken(ctx.secret, 'p', j.id, Number(j.pinV || 0), ctx.now + TOKEN_JOUEUR), joueur: pubJoueur(j), me: j.mustChange ? null : dossier(kctx, j, true) };
     }
   };
   A.setPin = {
@@ -563,12 +566,12 @@ var Core = (function () {
     return {
       postes: Array.isArray(c.postes) ? c.postes.slice() : [], quiz: c.quiz || null, quizTop: c.quizTop || null, quizResume: c.quizResume || '',
       copains: Array.isArray(c.copains) ? c.copains.slice() : [], copainsFait: !!c.copainsFait,
-      message: typeof c.message === 'string' ? c.message : ''
+      message: typeof c.message === 'string' ? c.message : undefined   // undefined : jamais écrit (pas enregistré)
     };
   }
   // un mot libre de l'enfant : une ou plusieurs lignes, sans balises, 600 caractères au plus
   function cleanMot(s) {
-    return String(s === undefined || s === null ? '' : s).replace(/\r\n?/g, '\n').replace(/[<>\u0000-\u0009\u000b-\u001f]/g, ' ')
+    return String(s === undefined || s === null ? '' : s).replace(/\r\n?/g, '\n').replace(/</g, '‹').replace(/>/g, '›').replace(/[\u0000-\u0009\u000b-\u001f]/g, ' ')
       .replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim().slice(0, 600);
   }
   function saveMission(ctx, joueurId, mission, rep, source) {
@@ -666,8 +669,9 @@ var Core = (function () {
       if (!ps.length) return;
       var row = missionRow(ctx, jid, 'jeu10'), rep = missionRep(row), mot = cleanMot(r.message);
       if (row && row.source === 'appli' && rep.postes.length) {
-        // il a refait son choix dans l'appli : on garde ses postes, mais son mot du formulaire est repris s'il n'en a pas écrit
-        if (mot && !rep.message) { rep.message = mot; saveMission(ctx, jid, 'jeu10', rep, 'appli'); mots++; }
+        // il a refait son choix dans l'appli : on garde ses postes, mais son mot du formulaire est repris s'il n'a jamais
+        // écrit (ni effacé) de mot dans l'appli
+        if (mot && rep.message === undefined) { rep.message = mot; saveMission(ctx, jid, 'jeu10', rep, 'appli'); mots++; }
         gardes.push(find(ctx.db.rows('joueurs'), jid).prenom); return;
       }
       var resume = String(r.test || '').replace(/[<>\u0000-\u0009\u000b-\u001f]/g, ' ').slice(0, 1500);

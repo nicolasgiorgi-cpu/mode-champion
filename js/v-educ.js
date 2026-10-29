@@ -247,7 +247,7 @@ window.MC = window.MC || {};
     var mid = ENC.quoi === 'autre' ? '' : ENC.quoi, mot = ENC.mot.trim();
     if (!mid && !mot) { ui.toast('Écrivez un mot (ou choisissez sa mission).', true); return; }
     var retour = ENC.retour;
-    envoyerPlus1(ENC.jid, mid, ENC.ev, mot, b).then(function (r) { ENC = null; app.go(retour); }).catch(function () { });
+    envoyerPlus1(ENC.jid, mid, ENC.ev, mot, b).then(function (r) { ENC = null; app.go(retour, true); }).catch(function () { });
   };
   // (hashchange arrive sur window, pas sur document)
   window.addEventListener('hashchange', function () {
@@ -330,7 +330,7 @@ window.MC = window.MC || {};
     });
   }, { adult: 'e', nav: 'e:progres', bg: '#2E2612' });
   // l'ancienne journée d'évaluation : le même écran
-  app.route('/educ/skills/journee', function () { app.go('#/educ/skills'); return Promise.resolve('<main class="screen"></main>'); }, { adult: 'e', nav: 'e:progres', bg: '#2E2612' });
+  app.route('/educ/skills/journee', function () { app.go('#/educ/skills', true); return Promise.resolve('<main class="screen"></main>'); }, { adult: 'e', nav: 'e:progres', bg: '#2E2612' });
 
   function paintEval(gr, st) {
     if (Array.isArray(st.repris) && st.repris.length) { var q0 = queue(st, ''); st.repris.forEach(function (k) { if (q0.indexOf(k) < 0) q0.push(k); }); st.repris = null; saveEv(); }
@@ -728,7 +728,7 @@ window.MC = window.MC || {};
       NM = null;
       ui.toast((n === 1 ? 'Mission donnée à ' + nomDe(gr, r.missions[0].joueurId) + ' : elle la voit dans son appli' : 'Mission donnée à ' + n + ' enfants : ils la voient dans leur appli') +
         (ig.length ? '. Pas changé : ' + ig.join(', ') + '.' : ''), !!ig.length);
-      app.go(back);
+      app.go(back, true);   // le formulaire envoyé est remplacé : Retour ne le rouvre pas
     }).catch(function (e) { b.disabled = false; ui.toast(e.message, true); });
   };
   function paintNouvelleGroupe(gr, st) {
