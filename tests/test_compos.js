@@ -312,7 +312,9 @@ assert.ok(Math.abs(ste[0].n - ste[1].n) <= 1 && Math.abs(ste[2].av - ste[3].av) 
 // matchs équilibrés : chaque match mélange tout le monde
 pe = K.proposerEnt(idsE, FE, {}, { partie: 'matchs', mode: 'equilibre', nbMatchs: 2 }, '2026-10-21');
 [pe.equipes.slice(0, 2), pe.equipes.slice(2)].forEach(m => { const c = lvE({ equipes: m }).join(''); assert.ok(/A/.test(c) && /C/.test(c), c); });
-assert.deepStrictEqual(J(K.alertesEnt(pe, FE, idsE)), []);
+// (v35) rien à regarder, sauf les enfants sans aucun poste (matchs avec postes : il faut leur en donner un)
+assert.deepStrictEqual(J(K.alertesEnt(pe, FE, idsE).filter(a => a.k !== 'sansposte')), []);
+assert.deepStrictEqual(J(K.alertesEnt(pe, FE, idsE).find(a => a.k === 'sansposte').ids.sort()), idsE.filter(id => !K.postesDe(FE[id]).length).sort());
 // un seul match avec tout le monde
 assert.strictEqual(K.proposerEnt(idsE, FE, {}, { partie: 'matchs', nbMatchs: 1 }, '2026-10-21').equipes.length, 2);
 // (v35) les matchs se jouent avec des postes, comme les plateaux à 10 ; les ateliers, non
@@ -330,33 +332,39 @@ pe.equipes.forEach(t => {
 // les deux équipes couvrent autant de postes (le poste compte dans l'équilibre)
 const manq = pe.equipes.map(t => K.apparier(t.joueurs.map(j => j.id), FE).manquants.length);
 assert.ok(Math.abs(manq[0] - manq[1]) <= 1, JSON.stringify(manq));
-// 2 matchs (équipes de 7 ou 8) : tout le monde joue, avec un poste (les places vides vont à ceux qui restent)
+// 2 matchs (équipes de 7 ou 8) : tout le monde joue, avec un poste (les places vides vont à ceux qui restent) ;
+// sauf un enfant sans AUCUN poste (ni fiche, ni vœux) : il reste « sans poste », pour qu'on lui en donne un (Nicolas, 31/10)
 pe = K.proposerEnt(idsE, FE, {}, { partie: 'matchs', mode: 'niveau', nbMatchs: 2 }, '2026-10-21');
-pe.equipes.forEach(t => assert.ok(t.joueurs.every(j => j.poste), 'moins de 10 joueurs : chacun a un poste (' + t.id + ')'));
-pe.equipes.forEach(t => { const l = t.joueurs.map(j => j.poste); assert.strictEqual(new Set(l).size + l.filter((p, i) => l.indexOf(p) !== i && K.POSTES10.find(x => x[0] === p)[1] === 2).length, l.length, 'pas plus de joueurs que de places à un poste'); });
+pe.equipes.forEach(t => assert.ok(t.joueurs.every(j => K.postesDe(FE[j.id]).length ? !!j.poste : j.poste === ''), 'moins de 10 joueurs : chacun a un poste, sauf les sans-poste (' + t.id + ')'));
+const nSansP = pe.equipes.map(t => t.joueurs.filter(j => !K.postesDe(FE[j.id]).length).length).reduce((a, b) => a + b, 0);
+assert.ok(nSansP > 0, 'il y a bien des enfants sans poste dans l\'essai');
+pe.equipes.forEach(t => { const sc = K.sections(t, FE, 10); assert.ok(sc.sans.every(j => !K.postesDe(FE[j.id]).length) && sc.rempl.every(j => K.postesDe(FE[j.id]).length), 'sections : « sans poste » à part des remplaçants'); });
+assert.ok(K.alertesEnt(pe, FE, idsE).some(a => a.k === 'sansposte'), 'à regarder : les enfants sans poste');
+pe.equipes.forEach(t => { const l = t.joueurs.map(j => j.poste).filter(Boolean); assert.strictEqual(new Set(l).size + l.filter((p, i) => l.indexOf(p) !== i && K.POSTES10.find(x => x[0] === p)[1] === 2).length, l.length, 'pas plus de joueurs que de places à un poste'); });
 // sans poste sur la fiche : une place vide, du bon côté s'il en a un
 const FV = { x1: { id: 'x1', prenom: 'X1', niveau: 'B', plaquage: 2, voeux: [], postesOk: ['pilier'], copains: [] }, x2: { id: 'x2', prenom: 'X2', niveau: 'B', plaquage: 2, voeux: [], postesOk: ['pilier'], copains: [] },
   x3: { id: 'x3', prenom: 'X3', niveau: 'B', plaquage: 2, voeux: [], postesOk: ['pilier'], copains: [] }, x4: { id: 'x4', prenom: 'X4', niveau: 'B', plaquage: 2, voeux: [], postesOk: [], copains: [] } };
 let apv = K.apparier(['x1', 'x2', 'x3', 'x4'], FV, true).poste;
 assert.ok(['talonneur', 'troisieme-ligne'].indexOf(apv.x3) >= 0, '3e pilier : une place d\'avant libre (' + apv.x3 + ')');
-assert.strictEqual(apv.x4, 'ailier', 'sans poste : une place libre, d\'abord à l\'aile (pas d\'office en première ligne)');
+assert.strictEqual(apv.x4, '', 'sans aucun poste : pas de place d\'office (on voit qu\'il faut lui en donner un)');
 // arriver dans une équipe au jeu à 10 : son poste de fiche s'il est libre ; match : sinon une place de son côté ; plateau : remplaçant
 const tq = { joueurs: [{ id: 'x1', poste: 'pilier' }, { id: 'x2', poste: 'pilier' }, { id: 'x3', poste: '' }] };
 assert.strictEqual(K.placeLibre(tq, 'x3', FV, false), '', 'plateau : piliers pris → remplaçant (comme avant)');
 assert.ok(['talonneur', 'troisieme-ligne'].indexOf(K.placeLibre(tq, 'x3', FV, true)) >= 0, 'match : une place d\'avant libre');
 assert.strictEqual(K.placeLibre({ joueurs: [{ id: 'x1', poste: 'pilier' }] }, 'x2', FV, false), 'pilier', 'son poste de fiche, encore libre');
-assert.strictEqual(K.placeLibre({ joueurs: [] }, 'x4', FV, true), 'ailier', 'sans poste : l\'aile');
+assert.strictEqual(K.placeLibre({ joueurs: [] }, 'x4', FV, true), '', 'sans aucun poste : pas de place d\'office');
 assert.strictEqual(K.apparier(['x1', 'x2', 'x3'], FV).poste.x3, '', 'aux plateaux, sans « remplir » : rien ne change (remplaçant)');
 // reprendre des matchs d'avant la v35 (sans postes) : ils passent avec postes
 const vieux = { reglages: { partie: 'matchs', mode: 'niveau', nbMatchs: 1, format: 5 }, equipes: [{ id: 'E1', nom: 'Équipe 1', bloc: 'm1', joueurs: ['A0', 'B1', 'C2'].map(id => ({ id, poste: '', n: '' })) }, { id: 'E2', nom: 'Équipe 2', bloc: 'm1', joueurs: ['A2', 'B3'].map(id => ({ id, poste: '', n: '' })) }], banc: [] };
 const rv = K.reprendre(vieux, ['A0', 'B1', 'C2', 'A2', 'B3'], FE);
 assert.strictEqual(rv.reglages.format, 10);
-assert.ok(rv.equipes.every(t => t.joueurs.every(j => j.poste)), JSON.stringify(rv.equipes));
+assert.ok(rv.equipes.every(t => t.joueurs.every(j => j.poste || !K.postesDe(FE[j.id]).length)), JSON.stringify(rv.equipes));   // sauf les sans-poste
 // reprendre des matchs déjà avec postes : chacun garde le sien, les remplaçants prennent les places des absents
 const v10 = { reglages: { partie: 'matchs', mode: 'niveau', nbMatchs: 1, format: 10 }, equipes: [{ id: 'E1', nom: 'Équipe 1', bloc: 'm1', joueurs: [{ id: 'A0', poste: 'pilier', n: 'A' }, { id: 'B1', poste: 'ailier', n: 'B' }, { id: 'C2', poste: '', n: 'C' }] }], banc: [] };
 const r10 = K.reprendre(v10, ['A0', 'C2'], FE);
 assert.strictEqual(r10.equipes[0].joueurs.find(j => j.id === 'A0').poste, 'pilier', 'son poste gardé');
 assert.ok(r10.equipes[0].joueurs.find(j => j.id === 'C2').poste, 'le remplaçant prend une place libre');
+assert.strictEqual(K.reprendre({ reglages: v10.reglages, equipes: [{ id: 'E1', nom: 'Équipe 1', bloc: 'm1', joueurs: [{ id: 'A8', poste: '', n: 'A' }] }], banc: [] }, ['A8'], Object.assign({}, FE, { A8: { id: 'A8', prenom: 'A8', niveau: 'A', plaquage: 3, voeux: [], postesOk: [], copains: [] } })).equipes[0].joueurs[0].poste, '', 'reprendre : un sans-poste le reste');
 // la répartition des postes RÉGLÉS sur les fiches (pas les vœux) : principal, peut aussi jouer, sans poste
 const FR = { r1: { prenom: 'R1', postesOk: ['pilier', 'talonneur'], voeux: [] }, r2: { prenom: 'R2', postesOk: ['talonneur'], voeux: [] }, r3: { prenom: 'R3', postesOk: [], voeux: ['ailier'] }, r4: { prenom: 'R4', postesOk: ['inconnu', 'centre', 'centre'], voeux: [] } };
 const rep = K.repartition(['r1', 'r2', 'r3', 'r4'], FR), byP = {};

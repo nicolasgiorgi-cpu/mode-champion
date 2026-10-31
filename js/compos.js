@@ -152,7 +152,8 @@ MC.compos = (function () {
   // Les 10 places du jeu à 10, chaque joueur au plus une, en préférant les vœux (rang le plus bas).
   // renvoie { poste par joueur ('' = remplaçant ou pas de place), manquants: [places non tenues] }
   // remplir (v35, matchs d'entraînement) : les places encore vides sont données à ceux qui restent (tout le monde joue),
-  // d'abord du même côté (avant / arrière) que leur poste principal
+  // d'abord du même côté (avant / arrière) que leur poste principal. Un enfant SANS AUCUN poste (ni fiche, ni vœux) n'est
+  // jamais placé d'office (décision de Nicolas, 31/10) : il reste « sans poste », pour qu'on voie qu'il faut lui en donner un.
   function apparier(ids, F, remplir) {
     var slots = SLOTS10, slotOf = {}, playerOf = {};
     var rk = {};
@@ -169,7 +170,7 @@ MC.compos = (function () {
       ids.forEach(function (pid) { if (slotOf[pid] === undefined) tryAssign(pid, maxR, {}); });
     });
     if (remplir) ids.forEach(function (pid) {
-      if (slotOf[pid] !== undefined) return;
+      if (slotOf[pid] !== undefined || !postesDe(F[pid]).length) return;
       var libres = [];
       slots.forEach(function (p, s) { if (playerOf[s] === undefined) libres.push(p); });
       var p = choixLibre(libres, F[pid]);
@@ -183,14 +184,12 @@ MC.compos = (function () {
   }
 
   // (v35) une place libre pour quelqu'un dont les postes de fiche sont pris : de son côté (avant / arrière) ;
-  // sans poste du tout, d'abord les arrières en partant de l'aile (pas d'office en première ligne)
+  // sans poste du tout : aucune (il reste « sans poste », à régler par les éducs)
   function choixLibre(libres, f) {
-    if (!libres.length) return '';
     var ty = typePoste(posteDefaut(f));
-    if (ty) { var meme = libres.filter(function (p) { return typePoste(p) === ty; }); return meme[0] || libres[0]; }
-    var ordre = ORDRE.slice().reverse();
-    for (var i = 0; i < ordre.length; i++) if (libres.indexOf(ordre[i]) >= 0) return ordre[i];
-    return libres[0];
+    if (!libres.length || !ty) return '';
+    var meme = libres.filter(function (p) { return typePoste(p) === ty; });
+    return meme[0] || libres[0];
   }
   // la place d'un joueur qui arrive dans une équipe au jeu à 10 : son poste de fiche s'il est libre ; dans un match
   // d'entraînement (remplir : tout le monde joue), sinon une place libre de son côté ; sinon '' (remplaçant)
@@ -376,7 +375,8 @@ MC.compos = (function () {
     (t.joueurs || []).forEach(function (j, i) {
       var p = format === 10 ? j.poste : posteDefaut(F[j.id]), ty = typePoste(p);
       k[j.id] = rangOrdre(p || posteDefaut(F[j.id])) * 1000 + i;
-      if (ty) o[ty].push(j); else if (format === 10) o.rempl.push(j); else o.sans.push(j);
+      // (v35) au jeu à 10, sans poste du match : remplaçant s'il a des postes sur sa fiche, sinon « sans poste » (à régler)
+      if (ty) o[ty].push(j); else if (format === 10 && postesDe(F[j.id]).length) o.rempl.push(j); else o.sans.push(j);
     });
     function tri(a, b) { return k[a.id] - k[b.id]; }
     o.av.sort(tri); o.ar.sort(tri); o.rempl.sort(tri); o.sans.sort(tri);
@@ -411,6 +411,14 @@ MC.compos = (function () {
     return o;
   }
 
+  // (v35) jeu à 10 : les enfants placés qui n'ont aucun poste (ni fiche, ni vœux), sans poste du match
+  function sansPosteAlerte(c, F, placed, out) {
+    if (fmt(c.reglages) !== 10) return;
+    var l = [];
+    (c.equipes || []).forEach(function (t) { (t.joueurs || []).forEach(function (j) { if (!j.poste && F[j.id] && !postesDe(F[j.id]).length) l.push(j.id); }); });
+    if (l.length) out.push({ k: 'sansposte', niveau: 'warn', texte: 'Sans poste : ' + noms(l, F) + '. Touchez un enfant pour lui donner un poste pour ce match, et réglez ses postes sur sa fiche.', ids: l });
+  }
+
   // ---------- Alertes (et la correction proposée quand il y en a une) ----------
   // c : { reglages, equipes, banc } ; presents : ids attendus ; renvoie [{ k, niveau: 'warn'|'info', texte, fix }]
   function alertes(c, F, H, presents) {
@@ -422,6 +430,7 @@ MC.compos = (function () {
     if (oublis.length) out.push({ k: 'oubli', niveau: 'warn', texte: oublis.length + ' présent' + (oublis.length > 1 ? 's' : '') + ' pas encore placé' + (oublis.length > 1 ? 's' : '') + ' : ' + noms(oublis, F) + ' (colonne « Pas placés »).', ids: oublis });
     var sansNiv = Object.keys(placed).filter(function (id) { return placed[id] !== 'banc' && F[id] && !F[id].niveau; });
     if (sansNiv.length) out.push({ k: 'niveau', niveau: 'info', texte: 'Niveau à renseigner : ' + noms(sansNiv, F) + '.', ids: sansNiv });
+    sansPosteAlerte(c, F, placed, out);
     NIV.forEach(function (n) {
       var ts = eqs.filter(function (t) { return t.niveau === n; });
       var st = ts.map(function (t) { return stats(t, F, format); });
@@ -744,6 +753,7 @@ MC.compos = (function () {
     if (oublis.length) out.push({ k: 'oubli', niveau: 'warn', texte: oublis.length + ' présent' + (oublis.length > 1 ? 's' : '') + ' pas encore placé' + (oublis.length > 1 ? 's' : '') + ' : ' + noms(oublis, F) + ' (« Pas placés »).', ids: oublis });
     var sansNiv = Object.keys(placed).filter(function (id) { return placed[id] !== 'banc' && F[id] && !F[id].niveau; });
     if (sansNiv.length) out.push({ k: 'niveau', niveau: 'info', texte: 'Niveau à renseigner : ' + noms(sansNiv, F) + '.', ids: sansNiv });
+    sansPosteAlerte(c, F, placed, out);
     blocsDe(c).forEach(function (k) {
       var ts = eqs.filter(function (t) { return blocDe(t) === k; }), st = ts.map(function (t) { return stats(t, F, fmt(c.reglages)); });   // (v35) comme l'en-tête de l'équipe
       var ou = match ? nomBloc(k) + ' : ' : '';

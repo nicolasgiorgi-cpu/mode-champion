@@ -837,15 +837,17 @@ window.MC = window.MC || {};
     var st = K.stats(t, C.F, d.reglages.format), fmt10 = d.reglages.format === 10;
     // (v35) un match d'entraînement à moins de 10 : chacun a son poste, mais pas de « 5/5 » en rouge ni de places vides partout
     var petit = fmt10 && d.reglages.partie === 'matchs' && st.n < 10, places = !petit || st.n >= 8;
+    var sansP = fmt10 && st.inconnus ? ' · <b class="csp">Sans poste ' + st.inconnus + '</b>' : '';   // (v35) à régler
     var sel = B && B.sel && B.sel.v === v ? B.sel.id : null, w = sel ? K.where(d, sel) : null;
     var dest = !!sel && ed && (!w || w.t < 0 || d.equipes[w.t].id !== t.id);
-    var avtq = petit ? '<span class="cavtq" title="Avants et arrières (postes du match)">Av ' + st.av + ' · Ar ' + st.ar + (st.rempl ? ' · Remp. ' + st.rempl : '') + '</span>'
-      : fmt10 ? '<span class="cavtq' + (st.av < 5 || st.ar < 5 ? ' bad' : '') + '" title="Avants et arrières (postes du plateau)' + (st.rempl ? ' · remplaçants : ' + remplTxt(st.remplTypes) : '') + '">Av ' + st.av + '/5 · Ar ' + st.ar + '/5' + (st.rempl ? ' · Remp. ' + st.rempl : '') + '</span>'
+    var avtq = petit ? '<span class="cavtq" title="Avants et arrières (postes du match)">Av ' + st.av + ' · Ar ' + st.ar + (st.rempl ? ' · Remp. ' + st.rempl : '') + sansP + '</span>'
+      : fmt10 ? '<span class="cavtq' + (st.av < 5 || st.ar < 5 ? ' bad' : '') + '" title="Avants et arrières (postes du plateau)' + (st.rempl ? ' · remplaçants : ' + remplTxt(st.remplTypes) : '') + '">Av ' + st.av + '/5 · Ar ' + st.ar + '/5' + (st.rempl ? ' · Remp. ' + st.rempl : '') + sansP + '</span>'
       : '<span class="cavtq" title="D\'après le poste principal de la fiche ; ⇄ = peuvent jouer avant et arrière ; ? = pas encore de poste">Av ' + st.av + ' · Ar ' + st.ar + (st.les2 ? ' · ⇄' + st.les2 : '') + (st.inconnus ? ' · ?' + st.inconnus : '') + '</span>';
     var sc = K.sections(t, C.F, d.reglages.format), miss = ed && fmt10 && places ? st.manquants : [];
     var corps = fmt10
       ? secHtml(C, t, v, d, moved, 'Avants', sc.av, { compte: petit ? st.av : st.av + '/5', bad: !petit && st.av !== 5, slots: miss.filter(function (p) { return K.typePoste(p) === 'av'; }) }) +
         secHtml(C, t, v, d, moved, 'Arrières', sc.ar, { compte: petit ? st.ar : st.ar + '/5', bad: !petit && st.ar !== 5, slots: miss.filter(function (p) { return K.typePoste(p) === 'ar'; }) }) +
+        secHtml(C, t, v, d, moved, 'Sans poste', sc.sans, { bad: true }) +
         secHtml(C, t, v, d, moved, 'Remplaçants', sc.rempl, { plus: ed ? (petit && st.manquants.length ? slotHtml(v, t, st.manquants[0], '+ Ajouter un joueur', false) : slotHtml(v, t, '', '+ Remplaçant', false)) : '' })
       : t.bloc === 'av' || t.bloc === 'ar'
         // un groupe d'avants ou d'arrières : une seule liste, rangée par poste
@@ -869,7 +871,7 @@ window.MC = window.MC || {};
     var lv = t && t.niveau && f.niveau && f.niveau !== t.niveau ? '<span class="cfl cpas" title="Joue hors de son niveau (' + f.niveau + ')">' + (K.NIV.indexOf(t.niveau) < K.NIV.indexOf(f.niveau) ? '↑' : '↓') + f.niveau + '</span>' : '';
     var warn = t && (!f.niveau || (!d.reglages.partie && (f.plaquage || 0) < (K.SEUIL[t.niveau] || 0)));
     var ty = K.typeDe(f), tag;
-    if (t && d.reglages.format === 10) tag = '<span class="cpo' + (j.poste ? '' : ' none') + '">' + (j.poste ? COURT[j.poste] : 'Remp.') + '</span>';
+    if (t && d.reglages.format === 10) tag = j.poste ? '<span class="cpo">' + COURT[j.poste] + '</span>' : !K.postesDe(f).length ? '<span class="cpo csp" title="Aucun poste sur sa fiche : à régler">Sans poste</span>' : '<span class="cpo none">Remp.</span>';
     else if (t) { var pp = K.posteDefaut(f); tag = pp ? '<span class="cpo ty" title="Poste principal (fiche)' + (ty === 'les2' ? ', joue aussi ' + (K.typePoste(pp) === 'av' ? 'arrière' : 'avant') : '') + '">' + (ty === 'les2' ? '⇄ ' : '') + COURT[pp] + '</span>' : ''; }
     else tag = ty ? '<span class="cpo ty">' + (ty === 'av' ? 'Av' : ty === 'ar' ? 'Ar' : 'Av·Ar') + '</span>' : '';
     var on = B && B.sel && B.sel.v === v && B.sel.id === j.id;

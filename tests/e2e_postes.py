@@ -10,7 +10,7 @@ errs = []; res = []
 def check(n, c, i=''): res.append((n, c)); print(('OK  ' if c else 'BAD ') + n, '' if c else i)
 def pin(pg, code, sel='#adultzone'):
     for c in code: pg.click(sel + ' [data-k="%s"]' % c); pg.wait_for_timeout(50)
-def ev(pg, js): return pg.evaluate(js)
+def ev(pg, js, arg=None): return pg.evaluate(js) if arg is None else pg.evaluate(js, arg)
 def sans_debord(pg): return pg.evaluate('document.documentElement.scrollWidth <= innerWidth + 1')
 def une_ligne(pg, sel): return pg.evaluate("(s => { const l = [...document.querySelectorAll(s)].map(b => Math.round(b.getBoundingClientRect().top)); return l.length > 1 && new Set(l).size === 1; })('%s')" % sel)
 def barres(pg, cle):
@@ -81,7 +81,8 @@ with sync_playwright() as p:
     d0 = ev(pg, "(() => { const k = Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0 && k.endsWith(':matchs')); return JSON.parse(localStorage.getItem(k)).vs[0]; })()")
     check('matchs proposés au jeu à 10', d0['reglages']['format'] == 10, d0['reglages'])
     pl = [[j['poste'] for j in t['joueurs']] for t in d0['equipes']]
-    check('chaque équipe : ses 10 places prises (les autres remplaçants)', all(len([x for x in l if x]) == min(10, len(l)) for l in pl), pl)
+    avec = ev(pg, "(() => { const F = MC.compos.fiches(MC.app.S.cache.group), k = Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0 && k.endsWith(':matchs')); return JSON.parse(localStorage.getItem(k)).vs[0].equipes.map(t => t.joueurs.filter(j => MC.compos.postesDe(F[j.id]).length).length); })()")
+    check('chaque équipe : ses places prises par ceux qui ont un poste (10 au plus)', all(len([x for x in l if x]) == min(10, n) for l, n in zip(pl, avec)), (pl, avec))
     check('le tableau : « Av …/5 · Ar …/5 » et les postes sur les joueurs', '/5' in pg.inner_text('.cboard2') and len(pg.query_selector_all('.ccol .cpj .cpo')) >= 10)
     check('matchs : pas de défilement de côté', sans_debord(pg))
     # changer le poste d'un enfant, juste pour ce match (même un poste qui n'est pas sur sa fiche)
@@ -102,9 +103,28 @@ with sync_playwright() as p:
     check('plateau après des matchs au jeu à 10 : toujours « Jeu à 5 » (le dernier plateau)', ev(pg, "document.querySelector('[data-act=cFmt][data-v=\"5\"]').classList.contains('on')"))
     # ----- 7. (relecture) matchs « partir de zéro » : « + Ajouter un joueur » le met à une place, pas remplaçant -----
     # un entraînement à venir, sans matchs encore : créé pour l'essai
-    eid = ev(pg, """MC.api.call('setEvenement', { token: MC.app.S.adult.token, titre: 'Entraînement - Essai', debut: MC.logic.addDays(MC.logic.today(), 9), presents: MC.app.S.cache.group.joueurs.filter(p => p.joueur.actif).slice(0, 14).map(p => p.joueur.id) }).then(r => r.evenement.id)""")
+    # 13 enfants qui ont un poste (fiche ou vœux) et un qui n'en a aucun
+    sp = ev(pg, "(() => { const F = MC.compos.fiches(MC.app.S.cache.group); return Object.keys(F).filter(id => F[id].actif && !MC.compos.postesDe(F[id]).length)[0] || null; })()")
+    eid = ev(pg, """sp => { const F = MC.compos.fiches(MC.app.S.cache.group), avec = Object.keys(F).filter(id => F[id].actif && MC.compos.postesDe(F[id]).length).slice(0, 13);
+      return MC.api.call('setEvenement', { token: MC.app.S.adult.token, titre: 'Entraînement - Essai', debut: MC.logic.addDays(MC.logic.today(), 9), presents: avec.concat(sp ? [sp] : []) }).then(r => r.evenement.id); }""", sp)
     pg.evaluate("MC.loadCompos && MC.loadCompos(true)"); pg.wait_for_timeout(800)
     pg.goto(BASE + '#/educ/compo/' + eid + '?p=matchs'); pg.wait_for_timeout(1300)
+    # (Nicolas, 31/10) un enfant sans aucun poste n'est pas placé d'office : il est montré « Sans poste »
+    check('(démo : un enfant sans aucun poste)', sp is not None)
+    pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(1500)
+    dsp = ev(pg, "(() => { const k = Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0 && k.indexOf('%s:matchs') > 0); return JSON.parse(localStorage.getItem(k)).vs[0]; })()" % eid)
+    psp = [x['poste'] for t in dsp['equipes'] for x in t['joueurs'] if x['id'] == sp]
+    check('enfant sans aucun poste : pas de poste donné d\'office', psp == [''], psp)
+    chip = pg.query_selector('.ccol .cpj[data-id="%s"]' % sp)
+    check('… sa pastille dit « Sans poste »', chip is not None and 'Sans poste' in chip.inner_text(), chip.inner_text() if chip else '')
+    check('… une partie « Sans poste » dans son équipe, et le compte en haut', 'SANS POSTE' in pg.inner_text('.cboard2').upper() and pg.query_selector('.ccol .cavtq .csp') is not None)
+    check('… « À regarder » le signale', 'Sans poste :' in pg.inner_text('main'))
+    pg.click('.ccol .cpj[data-id="%s"]' % sp); pg.wait_for_timeout(400)
+    pg.click('[data-act="cPoste"][data-p="centre"]'); pg.wait_for_timeout(500)
+    dsp = ev(pg, "(() => { const k = Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0 && k.indexOf('%s:matchs') > 0); return JSON.parse(localStorage.getItem(k)).vs[0]; })()" % eid)
+    check('… on lui donne un poste pour ce match d\'un toucher', [x['poste'] for t in dsp['equipes'] for x in t['joueurs'] if x['id'] == sp] == ['centre'])
+    pg.click('[data-act="cDiscard"]'); pg.wait_for_timeout(300)
+    if pg.query_selector('.modal'): pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(700)
     pg.click('[data-act="cZero"]'); pg.wait_for_timeout(900)
     sl = ev(pg, "[...document.querySelectorAll('.ccol')[0].querySelectorAll('.cslot')].map(x => x.textContent).join('|')")
     check('équipe vide de match : « + Ajouter un joueur » (pas « + Remplaçant »)', '+ Ajouter un joueur' in sl and 'Remplaçant' not in sl, sl)
@@ -114,7 +134,7 @@ with sync_playwright() as p:
     po = ev(pg, "[...document.querySelectorAll('.ccol')[0].querySelectorAll('.cpj .cpo')].map(x => x.textContent).join(',')")
     check('… le joueur ajouté a un poste du match', po != '' and 'Remp' not in po, po)
     # déplacer un enfant de « Pas placés » vers l'équipe : une place, pas remplaçant (tout le monde joue)
-    pid = ev(pg, "(() => { const k = Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0 && k.indexOf('%s:matchs') > 0); return JSON.parse(localStorage.getItem(k)).vs[0].banc[0]; })()" % eid)
+    pid = ev(pg, "(() => { const F = MC.compos.fiches(MC.app.S.cache.group), k = Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0 && k.indexOf('%s:matchs') > 0); return JSON.parse(localStorage.getItem(k)).vs[0].banc.filter(id => MC.compos.postesDe(F[id]).length)[0]; })()" % eid)
     pg.locator('.cpj[data-id="%s"]' % pid).first.evaluate('e => e.click()'); pg.wait_for_timeout(300)
     pg.click('[data-act="cMove"][data-t="E1"]'); pg.wait_for_timeout(500)
     d2 = ev(pg, "(() => { const k = Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0 && k.indexOf('%s:matchs') > 0); return JSON.parse(localStorage.getItem(k)).vs[0]; })()" % eid)

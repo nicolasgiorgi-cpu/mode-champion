@@ -13,7 +13,7 @@ MC.NEWS = [
   // (31/10, v35) la répartition des postes et les postes aux matchs d'entraînement (éducs)
   { id: '2026-10-31-postes', date: '2026-10-31', pour: ['e'],
     titre: 'Les postes du groupe, et aux matchs',
-    texte: 'Enfants › Niveaux et postes : « Répartition des postes » montre combien d\'enfants ont chaque poste, pour tous ou pour les A, les B, les C. Les matchs d\'entraînement se jouent maintenant avec des postes, comme les plateaux à 10 : touchez un joueur pour lui donner un autre poste, juste pour ce match.',
+    texte: 'Enfants › Niveaux et postes : « Répartition des postes » montre combien d\'enfants ont chaque poste, pour tous ou pour les A, les B, les C. Les matchs d\'entraînement se jouent maintenant avec des postes, comme les plateaux à 10 : touchez un joueur pour lui donner un autre poste, juste pour ce match. Un enfant sans poste apparaît « Sans poste » en orange.',
     lien: '#/educ/terrain' },
   // (31/10, v34) les alertes sur l'écran du téléphone, même appli fermée (iPhone : l'appli sur l'écran d'accueil)
   { id: '2026-10-31-alertes', date: '2026-10-31', pour: ['k', 'f', 'e'],
