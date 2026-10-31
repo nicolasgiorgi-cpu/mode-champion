@@ -32,8 +32,8 @@ with sync_playwright() as p:
     check('de l\'enfant vers l\'éduc : code redemandé', pg.query_selector('#adultzone [data-k="1"]') is not None, pg.url)
     pin(pg, codes['educ']); pg.wait_for_timeout(1500)
     check('code retapé : espace éduc', '#/educ' in pg.url and pg.query_selector('#adultzone') is None, pg.url)
-    # plus de verrou au bout de 10 min (ancienne valeur : heure d'expiration dépassée)
-    pg.evaluate("localStorage.setItem('mc-adult-open', JSON.stringify(Date.now()-60000))")
+    # plus de verrou au bout de 10 min : l'espace reste ouvert (« true », sans heure d'expiration)
+    check('plus d\'heure d\'expiration : l\'espace reste ouvert', pg.evaluate("localStorage.getItem('mc-adult-open')") == 'true')
     pg.goto(BASE + '#/educ/progres'); pg.wait_for_timeout(900)
     check('plus de verrou au bout de 10 min', '#/educ/progres' in pg.url and pg.query_selector('#adultzone') is None, pg.url)
     rouvrir(pg)
@@ -45,6 +45,11 @@ with sync_playwright() as p:
     pg.evaluate("localStorage.removeItem('mc-last'); localStorage.setItem('mc-kid-seen', JSON.stringify(Date.now()-1000)); localStorage.setItem('mc-adult-open', JSON.stringify(Date.now()-3600000))")
     rouvrir(pg)
     check('reprise d\'une appli d\'avant : enfant plus récent → sa semaine', '#/semaine' in pg.url, pg.url)
+    check('… et l\'ancienne heure d\'expiration devient « verrouillé »', pg.evaluate("localStorage.getItem('mc-adult-open')") is None)
+    # v32, enfant le dernier, heure d'expiration dépassée, et l'appli rechargée sur une adresse adulte : le code est demandé
+    pg.evaluate("localStorage.removeItem('mc-last'); localStorage.setItem('mc-kid-seen', JSON.stringify(Date.now()-1000)); localStorage.setItem('mc-adult-open', JSON.stringify(Date.now()-3600000))")
+    pg.goto(BASE + '#/educ/progres'); pg.reload(); pg.wait_for_timeout(1300)
+    check('v32 → v33 sur une adresse adulte, enfant le dernier : code demandé', pg.query_selector('#adultzone [data-k="1"]') is not None, pg.url)
     # ----- 4. un enfant seul -----
     pg.evaluate("MC.app.setAdult(null)"); rouvrir(pg)
     check('enfant seul : sa semaine', '#/semaine' in pg.url, pg.url)
@@ -91,7 +96,7 @@ with sync_playwright() as p:
     check('Réparer l\'appli : dernier profil et notifications gardés', kept[0] == '"f"' and kept[1] == '1', kept)
     pg.goto(BASE + '?reset=2'); pg.wait_for_timeout(3500)
     kept = pg.evaluate("[localStorage.getItem('mc-last'), localStorage.getItem('mc-notif:test')]")
-    check('Repartir de zéro : tout est effacé', kept[1] is None and kept[0] in (None, '"k"'), kept)
+    check('Repartir de zéro : tout est effacé (côté joueurs)', kept[1] is None and kept[0] in (None, '"j"'), kept)
     b.close()
 bad = [n for n, c in res if not c]
 print('ERREURS JS :', errs[:4] if errs else 'aucune')
