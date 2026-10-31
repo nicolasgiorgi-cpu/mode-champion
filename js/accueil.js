@@ -284,7 +284,7 @@ MC.accueil = (function () {
   function installSheet(role) {
     var kid = role === 'k', android = !estIos();
     var etapes = estIos() ?
-      '<li><span class="num" style="--sc:var(--cyan)">1</span><span class="tx">' + (kid ? 'Touche' : 'Touchez') + ' <b>Partager</b> (le carré avec une flèche vers le haut) : en bas de Safari sur iPhone, ou dans le menu <b>⋯</b> ; en haut sur iPad.</span></li>' +
+      '<li><span class="num" style="--sc:var(--cyan)">1</span><span class="tx">' + (kid ? 'Touche' : 'Touchez') + ' <b>Partager</b> (le carré avec une flèche) en bas de Safari. Pas là ? ' + (kid ? 'Touche' : 'Touchez') + ' d\'abord <b>⋯</b>. Sur iPad, c\'est en haut.</span></li>' +
       '<li><span class="num" style="--sc:var(--cyan)">2</span><span class="tx">' + (kid ? 'Choisis' : 'Choisissez') + ' <b>Sur l\'écran d\'accueil</b> (plus bas dans la liste si besoin).</span></li>' +
       // (v39) iOS 26 : sans « Ouvrir comme web app », l'icône ouvre Safari, avec sa barre en bas
       '<li><span class="num" style="--sc:var(--cyan)">3</span><span class="tx">' + (kid ? 'Laisse' : 'Laissez') + ' <b>Ouvrir comme web app</b> activé s\'il est là, puis ' + (kid ? 'touche' : 'touchez') + ' <b>Ajouter</b>.</span></li>' :

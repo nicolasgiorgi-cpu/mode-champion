@@ -171,7 +171,7 @@
       cloche('notifs', 'k', true) +
       card('astuces', 'info', '#C7CEDF', 'Astuces', 'Pour que ce soit encore plus pratique',
         ul([
-          'Mets le site sur ton écran d\'accueil : menu <b>Partager › Sur l\'écran d\'accueil</b>, en laissant <b>Ouvrir comme web app</b> activé. Il s\'ouvre alors comme une appli (il faudra te connecter une fois depuis l\'icône).',
+          'Mets le site sur ton écran d\'accueil : <b>Partager</b> (en bas de Safari, ou dans le menu <b>⋯</b>) › <b>Sur l\'écran d\'accueil</b>, en laissant <b>Ouvrir comme web app</b> activé s\'il est là. Il s\'ouvre alors comme une appli (il faudra te connecter une fois depuis l\'icône).',
           'Sur iPad, tourne l\'écran <b>en paysage</b> pendant une séance ou un bilan.',
           'Pour noter un chiffre, touche la case : un <b>pavé numérique</b> s\'ouvre en bas. <b>Suivant</b> passe à la case d\'après.',
           'Les bips se coupent avec le bouton haut-parleur pendant la séance, ou dans Réglages.'
@@ -223,7 +223,7 @@
         ])) +
       card('p-partage', 'phone', '#38E8FF', 'Il utilise votre téléphone', 'Pas de téléphone ou d\'iPad à lui ? Aucun problème',
         ul([
-          'Ouvrez le site sur votre téléphone (Partager › « Sur l\'écran d\'accueil », en laissant « Ouvrir comme web app » activé, pour l\'avoir comme une appli).',
+          'Ouvrez le site sur votre téléphone (Partager › « Sur l\'écran d\'accueil », en laissant « Ouvrir comme web app » activé s\'il est proposé, pour l\'avoir comme une appli).',
           '<b>Lui passer le téléphone</b> : touchez <b>▶ son prénom</b>, en haut à droite de votre espace. Son espace s\'ouvre directement, sans son code (vous êtes déjà entré avec le code de la famille). Pour revenir dans votre espace : « Rendre le téléphone », puis votre code.',
           '<b>Le récupérer</b> : le bouton <b>🔒 Parent</b>, en haut à droite de son côté (à la place du ▶), ou « J\'ai fini : je rends le téléphone » à la fin de sa séance. Vous tapez votre code et vous voilà dans votre espace.',
           'Frères et sœurs sur le même téléphone : chacun a son profil. « Pas Tom ? Changer de joueur » en haut de la semaine, ou « J\'ai fini » à la fin de la séance. S\'il n\'a pas servi depuis 30 min, le site demande « C\'est bien toi ? » avant de commencer.',

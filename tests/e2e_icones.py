@@ -45,6 +45,7 @@ try:
         pg.evaluate(texte, 'manifest.webmanifest')
         open(manif, 'w', encoding='utf-8').write(orig_manif.replace('"short_name": "Champion"', '"short_name": "Champion2"'))
         check('nouveau manifeste : servi tout de suite', '"Champion2"' in pg.evaluate(texte, 'manifest.webmanifest'))
+        pg.wait_for_timeout(300)   # la copie gardée s'écrit en arrière-plan
         # sans réseau : les copies gardées
         ctx.set_offline(True)
         a = pg.evaluate(taille, 'icons/icon-192.png')
