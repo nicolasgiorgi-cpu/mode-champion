@@ -33,6 +33,12 @@ MC.CONFIG = {
   // « Un mot pour les éducs » dans « Choisis ton poste » (côté enfant) : il faut le serveur en version 12 (29/10/2026)
   MOT_EDUCS: true,
 
+  // « Quoi de neuf ? » qui s'ouvre tout seul à l'ouverture de l'appli, par profil (k enfant, f parent, e éduc).
+  // 31/10/2026, décision de Nicolas : coupé pour les enfants et les parents tant qu'on itère beaucoup (« ça va les perdre ») ;
+  // les nouveautés de cette période sont marquées vues sans s'afficher (pas d'avalanche le jour où on le rallume).
+  // La liste reste dans Réglages (enfant) et Plus (parent).
+  NOUVEAUTES_AUTO: { k: false, f: false, e: true },
+
   // Une ligue avec moins de joueurs que ça est fusionnée avec la ligue voisine.
   LIGUE_MIN: 5,
 

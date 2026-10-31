@@ -143,7 +143,7 @@ MC.notifs = (function () {
         if (m.mission === 'jeu10') {
           if (!(r.postes && r.postes.length) && !r.copainsFait) return;
           var quoi = (r.postes && r.postes.length ? '« Choisis ton poste »' : '') + (r.copainsFait ? (r.postes && r.postes.length ? ' et ' : '') + '« Avec qui tu aimes jouer »' : '');
-          out.push({ id: 'm:' + m.id + ':' + (m.maj || ''), cat: 'mission', t: t, txt: who + ' a répondu à ' + quoi + '.' + mot, href: '#/educ/mission/' + (r.postes && r.postes.length ? 'poste' : 'copains') + '?c=j-' + j.id });
+          out.push({ id: 'm:' + m.id + ':' + (m.maj || ''), cat: 'mission', t: t, txt: who + ' a répondu à ' + quoi + '.' + mot, href: '#/educ/mission/' + (r.copainsFait ? 'copains' : 'poste') + '?c=j-' + j.id });
           return;
         }
         if (!m.faite && !r.vu && !r.ans) return;
@@ -371,8 +371,13 @@ MC.notifs = (function () {
     st = stor(st);
     var k = key(role, id), s = load(st, k), n = 0;
     if (!s || !lien) return 0;
-    (evs || []).forEach(function (ev) { if (ev.href === lien && !s.lus[ev.id] && (s.vus[ev.id] || 0) > s.lu) { s.lus[ev.id] = 1; n++; } });
-    if (n) save(st, k, s);
+    // seulement la plus récente des lignes qui mènent là (une demande d'étoile ne rend pas lues celles des autres enfants)
+    var best = null;
+    (evs || []).forEach(function (ev) {
+      if (ev.href !== lien || s.lus[ev.id] || (s.vus[ev.id] || 0) <= s.lu) return;
+      if (!best || (ev.t || ev.t0 || 0) > (best.t || best.t0 || 0)) best = ev;
+    });
+    if (best) { s.lus[best.id] = 1; n = 1; save(st, k, s); }
     return n;
   }
   // réglages : allumer ou éteindre une catégorie

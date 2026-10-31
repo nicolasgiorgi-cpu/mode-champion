@@ -309,13 +309,22 @@ MC.app = (function () {
   }
   // (v37) arriver d'une alerte du téléphone ou d'une ligne de la cloche : « c » dans l'adresse (#/…?c=j-abc) désigne
   // l'élément [data-cible="j-abc"] à montrer : ses volets ouverts (et le sien), au milieu de l'écran, avec un éclair.
-  // Pendant 6 s, chaque nouveau dessin (les données fraîches arrivent après la copie gardée) le rouvre et le recentre.
-  var CIB = { hash: '', t: 0, vu: false };
+  // Tant que la personne ne touche ni ne fait défiler l'écran (30 s au plus), chaque nouveau dessin le rouvre et le
+  // recentre : les données fraîches du serveur arrivent souvent après la copie gardée (parfois plus de 6 s).
+  // Une fois par arrivée (entrée d'historique + adresse) : revenir par Retour sur cet écran ne force rien.
+  var CIB = null, CIB_FAITS = {};
+  function cibleStop() { if (CIB) CIB.fin = true; }
+  ['touchstart', 'wheel', 'keydown', 'mousedown'].forEach(function (t) { document.addEventListener(t, cibleStop, { passive: true, capture: true }); });
+  function cibleRearmer(lien) { if (lien && location.hash === lien) { CIB = null; delete CIB_FAITS[H.cur + '|' + location.hash]; } }
   function cible(root) {
-    var c = parseHash().q.c;
-    if (!c || !/^[A-Za-z0-9_-]{1,80}$/.test(c)) return;
-    if (CIB.hash !== location.hash) CIB = { hash: location.hash, t: Date.now(), vu: false };
-    if (Date.now() - CIB.t > 6000) return;
+    var c = parseHash().q.c, key = H.cur + '|' + location.hash;
+    if (!c || !/^[A-Za-z0-9_-]{1,80}$/.test(c)) { CIB = null; return; }
+    if (!CIB || CIB.key !== key) {
+      if (CIB_FAITS[key]) return;
+      CIB = { key: key, t: Date.now(), vu: false, fin: false };
+      CIB_FAITS[key] = 1;
+    }
+    if (CIB.fin || Date.now() - CIB.t > 30000) return;
     var el = root.querySelector('[data-cible="' + c + '"]');
     if (!el) return;
     for (var p = el; p && p !== root; p = p.parentElement) if (p.tagName === 'DETAILS') p.open = true;
@@ -810,7 +819,7 @@ MC.app = (function () {
     setKid: setKid, setAdult: setAdult, loadMe: loadMe, setMe: setMe, swr: swr, kidCall: kidCall, adultCall: adultCall,
     lsGet: lsGet, lsSet: lsSet, current: function () { return current; },
     back: back, canBack: canBack, homeOf: homeOf, setUrl: setUrl, spaceOf: spaceOf, onRefresh: onRefresh, pullRefresh: pullRefresh, pullable: pullable,
-    refreshNav: refreshNav, setNav: setNav, rememberTab: rememberTab,
+    refreshNav: refreshNav, setNav: setNav, rememberTab: rememberTab, cibleRearmer: cibleRearmer,
     sharedDevice: sharedDevice, setShared: setShared, adultUnlocked: adultUnlocked, touchAdult: touchAdult, lockAdult: lockAdult,
     touchKid: touchKid, takeTarget: takeTarget, recents: recents, lastProfile: lastProfile
   };

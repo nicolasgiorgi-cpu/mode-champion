@@ -20,6 +20,7 @@ r = g.call({ action: 'setAdultPin', token: r.token, pin: '2468' }); const et = r
 r = g.call({ action: 'addEduc', token: et, nom: 'Cyril' }); const cyril = r.educ.id, cc = r.code;
 r = g.call({ action: 'adultLogin', role: 'e', educId: cyril, code: cc }); r = g.call({ action: 'setAdultPin', token: r.token, pin: '1111' }); const ct = r.token;
 r = g.call({ action: 'addPlayer', token: et, prenom: 'Tom', familleNom: 'Famille T' }); const tom = r.joueur.id, tc = r.code, fcode = r.familleCode;
+r = g.call({ action: 'addPlayer', token: et, prenom: 'Léa', familleNom: 'Famille L' }); const lea = r.joueur.id;
 r = g.call({ action: 'login', joueurId: tom, pin: tc }); r = g.call({ action: 'setPin', token: r.token, pin: '2580' }); const kt = r.token;
 r = g.call({ action: 'adultLogin', role: 'f', joueurId: tom, code: fcode }); r = g.call({ action: 'setAdultPin', token: r.token, pin: '0000' }); const ft = r.token;
 g._props.FCM_CLE = JSON.stringify({ type: 'service_account', project_id: 'p', client_email: 'e@p.iam.gserviceaccount.com', private_key: privateKey.export({ type: 'pkcs8', format: 'pem' }) });
@@ -51,9 +52,18 @@ L.posteE = liens(J.admin)[0]; L.posteF = liens(J.parent)[0];
 assert.strictEqual(L.posteE, '#/educ/mission/poste?c=j-' + tom, '« Choisis ton poste » (éduc) : sa ligne dépliée');
 assert.strictEqual(L.posteF, '#/parent/missions/jeu10?k=' + tom, '« Choisis ton poste » (famille)');
 vider();
-g.call({ action: 'mission', token: kt, mission: 'jeu10', fin: true, copains: [] });
+r = g.call({ action: 'mission', token: kt, mission: 'jeu10', fin: true, copains: [lea] });
+assert.ok(r.ok, r.message);
 L.copainsE = liens(J.admin)[0];
-assert.ok(!L.copainsE || L.copainsE === '#/educ/mission/copains?c=j-' + tom, 'copains (éduc) : sa ligne dans la mission des copains');
+assert.strictEqual(L.copainsE, '#/educ/mission/copains?c=j-' + tom, 'copains (éduc) : sa ligne dans la mission des copains');
+vider();
+g.call({ action: 'demanderEtoile', token: kt, domaine: 'plaquage', etoile: 'epaule' });
+L.etoileE = liens(J.admin)[0];
+assert.strictEqual(L.etoileE, '#/educ/skills?c=demandes', 'demande d\'étoile (éduc) : les demandes');
+vider();
+g.call({ action: 'updateMe', token: kt, niveaux: { gainage: 2 }, journal: [{ type: 'niveau', data: { cle: 'gainage', de: 1, a: 2 } }] });
+L.niveauMoiE = liens(J.admin)[0];
+assert.ok(!L.niveauMoiE || L.niveauMoiE === '#/educ/joueur/' + tom + '?t=prepa&c=niveaux', 'niveau changé par l\'enfant (éduc) : ses niveaux');
 vider();
 const recs = g.call({ action: 'family', token: ft }).enfants[0].records.filter(x => x.statut === 'attente');
 g.call({ action: 'confirm', token: ft, decisions: recs.map(x => ({ id: x.id, statut: 'ok' })) });
@@ -84,7 +94,7 @@ const ge = N.events('e', { group: g.call({ action: 'group', token: et }), compos
 const fe = N.events('f', { family: g.call({ action: 'family', token: ft }) });
 const ke = N.events('k', { me: g.call({ action: 'me', token: kt }) });
 const href = l => l.map(e => e.href);
-[['seanceE', ge], ['bilanE', ge], ['posteE', ge], ['niveauE', ge], ['seanceF', fe], ['confirmerF', fe], ['posteF', fe], ['niveauF', fe], ['bravoF', fe], ['resultatK', ke], ['niveauK', ke], ['bravoK', ke]].forEach(([k, evs]) => {
+[['seanceE', ge], ['bilanE', ge], ['copainsE', ge], ['etoileE', ge], ['niveauE', ge], ['seanceF', fe], ['confirmerF', fe], ['posteF', fe], ['niveauF', fe], ['bravoF', fe], ['resultatK', ke], ['niveauK', ke], ['bravoK', ke]].forEach(([k, evs]) => {
   assert.ok(href(evs).indexOf(L[k]) >= 0, 'la cloche a une ligne avec le même lien que l\'alerte « ' + k + ' » : ' + L[k] + ' — liens de la cloche : ' + JSON.stringify(href(evs)));
 });
 
@@ -98,9 +108,11 @@ const nAvant = E.n;
 assert.ok(nAvant >= 3, 'plusieurs nouveautés : ' + nAvant);
 assert.strictEqual(N.lireLien('f', 'fam', L.bravoF, evs, st) >= 1, true, 'arrivé par l\'alerte du bravo : sa ligne est lue');
 E = N.etat('f', 'fam', evs, t0 + 1000, st);
-const lues = evs.filter(e => e.href === L.bravoF).length;
-assert.strictEqual(E.n, nAvant - lues, 'les autres restent « nouvelles »');
-assert.ok(!E.list.find(e => e.href === L.bravoF).nouveau);
+assert.strictEqual(E.n, nAvant - 1, 'une seule ligne lue (la plus récente qui mène là) ; les autres restent « nouvelles »');
+assert.strictEqual(evs.filter(e => e.href === L.bravoF).length, 2, 'ici, la séance et son bravo mènent au même endroit');
+assert.strictEqual(E.list.filter(e => e.href === L.bravoF && e.nouveau).length, 1, '… une des deux reste nouvelle');
+assert.strictEqual(N.lireLien('f', 'fam', L.bravoF, evs, st), 1, '2e alerte vers le même endroit : l\'autre ligne');
+assert.strictEqual(N.etat('f', 'fam', evs, t0 + 1500, st).n, nAvant - 2);
 assert.strictEqual(N.lireLien('f', 'fam', '#/rien', evs, st), 0, 'un lien sans ligne : rien');
 N.marquerLu('f', 'fam', t0 + 2000, st);
 assert.deepStrictEqual(JSON.parse(st._m['mc-notif:f:fam']).lus, {}, 'la cloche ouverte : tout est lu, plus besoin du détail');

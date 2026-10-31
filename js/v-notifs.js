@@ -33,16 +33,21 @@
   }
   // (v37) arrivé par une alerte du téléphone : la ligne de la cloche qui mène au même endroit sera lue dès que les
   // données sont là (au plus 30 s après ; js/alertes.js appelle MC.clocheLire)
-  var aLire = null;
-  MC.clocheLire = function (lien) { aLire = { lien: String(lien || ''), t: Date.now() }; };
+  var aLire = [];
+  MC.clocheLire = function (lien) { aLire.push({ lien: String(lien || ''), t: Date.now() }); aLire = aLire.slice(-5); };
   function etat(w) {
     if (!w || !w.id) return null;
     var evs = N.events(w.role, donnees(w.role));
     if (!evs) return null;
     var st = N.etat(w.role, w.id, evs, Date.now());   // d'abord : les lignes arrivées sont notées (vues)
-    if (aLire) {
-      if (Date.now() - aLire.t > 30000) aLire = null;
-      else if (N.lireLien(w.role, w.id, aLire.lien, evs)) { aLire = null; st = N.etat(w.role, w.id, evs, Date.now()); }
+    if (aLire.length) {
+      var lu = false;
+      aLire = aLire.filter(function (a) {
+        if (Date.now() - a.t > 30000) return false;
+        if (N.lireLien(w.role, w.id, a.lien, evs)) { lu = true; return false; }
+        return true;
+      });
+      if (lu) st = N.etat(w.role, w.id, evs, Date.now());
     }
     return st;
   }

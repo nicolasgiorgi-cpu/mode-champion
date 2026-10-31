@@ -743,7 +743,8 @@
     else if (tab === 'hist') body = MC.terrainKid ? MC.terrainKid(d, g, 'hist') : '';
     else if (tab === 'prepa') {
       var S = kidSummary(d, { editLevels: true });
-      body = S.pending + S.tiles +
+      // (v37) un bilan ou un défi noté : les résultats à confirmer (ou « N attendent sa famille ») d'abord (c=bilans)
+      body = (S.pending ? '<div class="sec" data-cible="bilans">' + S.pending + '</div>' : '') + S.tiles +
         '<div class="cols2"><div class="sec" style="gap:20px"><section class="sec"><div class="between"><h2 class="h2">Cette semaine</h2><span class="hud" style="color:var(--gold)">' + S.st.week.stars + ' / 6</span></div>' + S.week + '</section>' +
         '<section class="sec"><h2 class="h2">Séances</h2>' + (d.seances && d.seances.length && !d.seances.some(function (x) { return x.details; }) ? '<p class="small" style="margin:0">Chargement du détail…</p>' : '') +
         (MC.bravo ? MC.suivi.seances(d.seances, MC.bravo.opts(g, k.id)) : S.hist) + '</section></div>' +

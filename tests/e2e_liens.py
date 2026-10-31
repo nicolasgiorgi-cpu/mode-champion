@@ -37,7 +37,8 @@ with sync_playwright() as p:
     pg.goto(BASE + '#/educ/joueur/%s?t=prepa&c=niveaux' % tom['id']); pg.wait_for_timeout(1800)
     check('fiche : « ses niveaux » à l\'écran', visible(pg, '[data-cible="niveaux"]') is True)
     pg.goto(BASE + '#/educ/joueur/%s?t=prepa&c=bilans' % tom['id']); pg.wait_for_timeout(1500)
-    check('fiche : « progression aux bilans » à l\'écran', visible(pg, '[data-cible="bilans"]') is True)
+    check('fiche : « bilans » à l\'écran', visible(pg, '[data-cible="bilans"]') is True)
+    check('fiche : les résultats à confirmer montrés d\'abord (avant la progression)', pg.evaluate("(function(){var e=document.querySelector('[data-cible=bilans]');return e?e.tagName+'|'+/confirmer/i.test(e.innerText):null;})()") == 'DIV|true', pg.evaluate("(function(){var e=document.querySelector('[data-cible=bilans]');return e?e.tagName:null;})()"))
     # ----- la mission « Choisis ton poste » : la ligne de l'enfant dépliée, même avec « Pas encore » -----
     kid = [x for x in g if x['poste'] and x['nom'] != 'Tom']
     if kid:
@@ -50,6 +51,14 @@ with sync_playwright() as p:
         check('mission : arrivé par le lien, la ligne de ' + k['nom'] + ' est là (filtre remis à Tous)', pg.query_selector(s2) is not None)
         check('mission : sa ligne est dépliée (son détail)', ouvert(pg, s2) is True)
         check('mission : à l\'écran', visible(pg, s2) is True)
+        pg.click('[data-act="msnFiltre"][data-v="todo"]'); pg.wait_for_timeout(500)
+        check('mission : après une arrivée par lien, le filtre « Pas encore » marche', pg.get_attribute('[data-act="msnFiltre"][data-v="todo"]', 'aria-pressed') == 'true' and 'c=' not in pg.url, pg.url)
+        pg.click('[data-act="msnFiltre"][data-v="all"]'); pg.wait_for_timeout(300)
+    # un bilan ou un défi d'un enfant dont l'éduc n'est pas le parent : « N attendent sa famille » d'abord
+    autre = pg.evaluate("(function(){var g=MC.app.S.cache.group;var p=g.joueurs.filter(function(x){return x.enAttente>0&&(g.moi.enfants||[]).indexOf(x.joueur.id)<0;})[0];return p?p.joueur.id:null;})()")
+    if autre:
+        pg.goto(BASE + '#/educ/joueur/%s?t=prepa&c=bilans' % autre); pg.wait_for_timeout(2000)
+        check('bilan d\'un autre enfant : la note « … attendent sa famille » montrée d\'abord', pg.evaluate("(function(){var e=document.querySelector('[data-cible=bilans]');return e?e.tagName+'|'+/attend/.test(e.innerText):null;})()") == 'DIV|true')
     # ----- la cloche : une ligne mène à l'endroit précis ; arriver par l'alerte rend SA ligne lue -----
     pg.goto(BASE + '#/educ/entrainements'); pg.wait_for_timeout(900)
     pg.click('.tb-pass'); pg.wait_for_timeout(1800)
@@ -72,6 +81,33 @@ with sync_playwright() as p:
     pg.goto(BASE + '#/educ/notifs'); pg.wait_for_timeout(1500)
     pg.click('.ntl a.nt[href*="c=s-%s"]' % r1['seance']['id']); pg.wait_for_timeout(1800)
     check('cloche : toucher la ligne mène à la séance', ('c=s-' + r1['seance']['id']) in pg.url and visible(pg, 'li[data-cible="s-%s"]' % r1['seance']['id']) is True, pg.url)
+    # le même lien une 2e fois (une autre alerte vers le même endroit) : on remontre
+    pg.goto(BASE + '#/educ/joueurs'); pg.wait_for_timeout(900)
+    pg.evaluate("MC.alertes.aller('%s'); 0" % lien1); pg.wait_for_timeout(1800)
+    pg.evaluate("window.scrollTo(0, 0); 0"); pg.goto(BASE + '#/educ/joueurs'); pg.wait_for_timeout(900)
+    pg.evaluate("MC.alertes.aller('%s'); 0" % lien1); pg.wait_for_timeout(1800)
+    check('le même lien une 2e fois : la séance est remontrée', visible(pg, 'li[data-cible="s-%s"]' % r1['seance']['id']) is True and pg.evaluate('scrollY') > 0, pg.evaluate('scrollY'))
+    # Retour vers un écran atteint par un lien : le défilement de la personne est gardé (pas de nouveau saut)
+    pg.mouse.wheel(0, -5000); pg.wait_for_timeout(600)
+    y0 = pg.evaluate('scrollY')
+    pg.goto(BASE + '#/educ/progres'); pg.wait_for_timeout(1200)
+    pg.go_back(); pg.wait_for_timeout(1800)
+    check('Retour : pas de nouveau saut vers la cible (défilement gardé)', abs(pg.evaluate('scrollY') - y0) < 60, (y0, pg.evaluate('scrollY')))
+    # appli déjà ouverte, données en mémoire d'avant l'alerte : l'alerte les relit
+    pg.goto(BASE + '#/educ/mission/poste'); pg.wait_for_timeout(1300)
+    pg.evaluate("MC.app.kidCall('mission', { mission: 'jeu10', postes: ['talonneur'] }); 0"); pg.wait_for_timeout(700)
+    pg.evaluate("MC.alertes.aller('#/educ/mission/poste?c=j-%s'); 0" % tom['id']); pg.wait_for_timeout(2500)
+    tl = pg.evaluate("(function(){var e=document.querySelector('li[data-cible=\"j-%s\"]');return e?e.innerText:'';})()" % tom['id'])
+    check('appli ouverte : la ligne de Tom montre sa réponse toute fraîche (Talonneur)', 'alonneur' in tl, tl[:200])
+    check('… dépliée', ouvert(pg, 'li[data-cible="j-%s"]' % tom['id']) is True)
+    # un serveur lent (réponse après 8 s) : la séance est montrée quand elle arrive
+    pg.goto(BASE + '#/educ/joueurs'); pg.wait_for_timeout(900)
+    r3 = pg.evaluate("MC.app.kidCall('logSession', { type: 'dupont', date: MC.logic.today(), mode: 'rapide' })"); pg.wait_for_timeout(500)
+    pg.evaluate("window.__call = MC.api.call; MC.api.call = function (a, p, o) { var r = window.__call(a, p, o); return a === 'group' || a === 'kid' ? new Promise(function (ok, ko) { setTimeout(function () { r.then(ok, ko); }, 8000); }) : r; }; 0")
+    lien3 = '#/educ/joueur/%s?t=prepa&c=s-%s' % (tom['id'], r3['seance']['id'])
+    pg.evaluate("MC.alertes.aller('%s'); 0" % lien3); pg.wait_for_timeout(11000)
+    check('serveur lent (8 s) : la séance est montrée quand elle arrive', visible(pg, 'li[data-cible="s-%s"]' % r3['seance']['id']) is True)
+    pg.evaluate("MC.api.call = window.__call; 0")
     # ----- le parent de Tom -----
     pg.evaluate("MC.app.setAdult(null)"); pg.goto(BASE + '#/adultes'); pg.wait_for_timeout(700)
     pg.click('[data-act="adultWho"][data-w="f"]'); pg.wait_for_timeout(300)

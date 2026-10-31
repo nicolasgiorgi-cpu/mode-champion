@@ -24,6 +24,7 @@ def pick(pg, nom):
 with sync_playwright() as p:
     b = p.chromium.launch(); ctx = b.new_context(viewport={'width': W, 'height': H}, is_mobile=W < 700, has_touch=True); pg = ctx.new_page()
     pg.on('pageerror', lambda e: errs.append(str(e)))
+    pg.add_init_script('window.__MC_NEWS_AUTO=1')   # (31/10) « Quoi de neuf ? » coupé pour les enfants : on vérifie ici son contenu
     pg.goto(BASE); pg.evaluate('localStorage.clear()'); pg.reload(); pg.wait_for_timeout(700)
     pg.click('.kidbtn:has-text("TOM")'); pg.wait_for_timeout(300); pin(pg, '2580'); pg.wait_for_timeout(1200)
     # 1re ouverture sur cet appareil : le message de bienvenue, pas les mises à jour

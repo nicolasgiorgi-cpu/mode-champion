@@ -275,7 +275,13 @@ MC.alertes = (function () {
   var LIEN_OK = /^#\/[A-Za-z0-9\/_-]*(\?[a-z]+=[A-Za-z0-9_-]+(&[a-z]+=[A-Za-z0-9_-]+)*)?$/;
   function aller(lien) {
     if (!LIEN_OK.test(String(lien || ''))) return false;
+    // les données en mémoire datent d'avant ce que l'alerte annonce : on les relit (la copie gardée s'affiche d'abord,
+    // puis l'écran se redessine avec les données fraîches, et la cible est montrée)
+    var S = app.S;
+    if (S.cache) { S.cache.group = null; S.cache.family = null; S.cache.kid = null; S.cache.compos = null; }
+    if (S.kid) S.me = null;
     if (MC.clocheLire) MC.clocheLire(lien);
+    if (app.cibleRearmer) app.cibleRearmer(lien);   // le même lien une 2e fois : on remontre
     app.go(lien);
     return true;
   }

@@ -41,7 +41,7 @@ sh tests/mkdemo.sh                      # copie de démo (API_URL vide) servie s
 python3 tests/e2e_retour.py 390 844     # parcours navigateur (Playwright) ; 3 tailles : 390 844 · 1180 820 · 820 1180
 ```
 
-Scénarios navigateur utiles : `e2e_nav16` (navigation), `e2e_notifs` (la cloche), `e2e_alertes` (alertes du téléphone), `e2e_postes` (répartition des postes, matchs avec postes), `e2e_reouvrir` (rouvrir sur le dernier profil), `e2e_rebond` (rebond), `e2e_retour` (Retour, actualiser), `e2e_barre` (barre du haut sur tous les écrans), `e2e_mission`, `e2e_compos`, `e2e_visuels`, `e2e_eval`, `e2e_codes`, `e2e_passer`, `e2e_install`, `e2e_attente`, `e2e_confirm`, `e2e_v14`, et `e2e_v1` (réglages V1, site de démo sur :8898). Après une modif d'écran, lancer au moins `e2e_barre` et `e2e_nav16`, et vérifier aux 3 tailles : téléphone d'abord, iPad ensuite.
+Scénarios navigateur utiles : `e2e_nav16` (navigation), `e2e_notifs` (la cloche), `e2e_alertes` (alertes du téléphone), `e2e_liens` (une alerte ou une ligne de la cloche mène à l'endroit précis, `?c=` et `data-cible`), `e2e_bravos` (« 👏 Bravo »), `e2e_nouveautes` (« Quoi de neuf ? » coupé pour les familles), `e2e_postes` (répartition des postes, matchs avec postes), `e2e_reouvrir` (rouvrir sur le dernier profil), `e2e_rebond` (rebond), `e2e_retour` (Retour, actualiser), `e2e_barre` (barre du haut sur tous les écrans), `e2e_mission`, `e2e_compos`, `e2e_visuels`, `e2e_eval`, `e2e_codes`, `e2e_passer`, `e2e_install`, `e2e_attente`, `e2e_confirm`, `e2e_v14`, et `e2e_v1` (réglages V1, site de démo sur :8898). Après une modif d'écran, lancer au moins `e2e_barre` et `e2e_nav16`, et vérifier aux 3 tailles : téléphone d'abord, iPad ensuite.
 
 Toute nouvelle fonction ou tout nouveau bug corrigé doit venir avec un test (unitaire pour la logique, navigateur pour l'écran). Si un test échoue, le dire clairement : ne pas l'assouplir pour le faire passer.
 
@@ -69,7 +69,7 @@ Le site est servi par GitHub Pages depuis `main`, racine du dépôt. Le serveur 
 - Ne pas complexifier l'interface : elle porte déjà beaucoup de concepts. Passer le téléphone d'un adulte à l'enfant doit rester simple.
 - Les éducateurs sont bénévoles et débordés : toute saisie ou validation doit très peu les solliciter, se faire après la séance, en 15 minutes maximum. Les enfants ne voient pas les étoiles Skills avant la fin de l'entraînement.
 - Textes pour les enfants : courts, simples, valorisants ; jamais de formulation qui prête à erreur (ex. hors-jeu au ruck : ne jamais parler du pied).
-- « Quoi de neuf ? » (`MC.NEWS`, `js/nouveautes.js`) : **plus aucune nouvelle entrée sans demande explicite du propriétaire** (décision du 31/10/2026 : trop d'annonces perdent les familles). Mettre à jour l'aide « ? » (`js/v-guide.js`) quand le comportement change.
+- « Quoi de neuf ? » (`MC.NEWS`, `js/nouveautes.js`) : **plus aucune nouvelle entrée sans demande explicite du propriétaire**, et la fenêtre ne s'ouvre plus toute seule pour les enfants et les parents (`MC.CONFIG.NOUVEAUTES_AUTO`, décisions du 31/10/2026 : « on itère beaucoup, ça va les perdre »). Mettre à jour l'aide « ? » (`js/v-guide.js`) quand le comportement change.
 
 ## Contexte produit et suivi (hors dépôt)
 

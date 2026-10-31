@@ -198,6 +198,9 @@ MC.news = (function () {
     if (ri) { showing = true; ri.then(function () { showing = false; }); return; }
     var list = unseen(role, id);
     if (!list.length) return;
+    // (31/10) coupé pour ce profil : marqué vu, sans s'afficher (MC.CONFIG.NOUVEAUTES_AUTO)
+    var auto = MC.CONFIG && MC.CONFIG.NOUVEAUTES_AUTO;
+    if (auto && auto[role] === false && !window.__MC_NEWS_AUTO) { markAll(role, id); return; }
     showing = true;
     var kid = role === 'k', more = list.length - 3;
     ui.modal({

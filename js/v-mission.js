@@ -591,5 +591,10 @@
       '<section class="sec"><h2 class="h2">Les joueurs</h2>' + filtresMission(players.length, players.length - n) +
       '<ul class="list mrows">' + (rows || '<li class="empty">Personne.</li>') + '</ul></section></main>';
   }
-  MC.act.msnFiltre = function (b) { edMsn.filtre = b.getAttribute('data-v'); app.rerender(); };
+  MC.act.msnFiltre = function (b) {
+    edMsn.filtre = b.getAttribute('data-v');
+    // (v37) arrivé par un lien (?c=) : le filtre choisi à la main l'emporte désormais
+    if (/[?&]c=/.test(location.hash)) app.setUrl(location.hash.replace(/([?&])c=[^&]*(&|$)/, function (_, a, z) { return z ? a : ''; }).replace(/\?$/, ''));
+    app.rerender();
+  };
 })();
