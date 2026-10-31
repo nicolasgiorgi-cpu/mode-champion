@@ -54,7 +54,7 @@ Le site est servi par GitHub Pages depuis `main`, racine du dépôt. Le serveur 
 3. **Puis le site** : augmenter `?v=N` dans `index.html` (tous les fichiers, sans en oublier), commit, push sur `main`. Le service worker redemande la page au réseau, mais garde les fichiers `?v=N` : sans nouveau `?v=`, les appareils gardent l'ancienne version.
 4. Après une modification manuelle de la feuille : lancer `viderCache` dans l'éditeur Apps Script (le serveur garde la feuille 20 min en mémoire).
 5. Un onglet de la feuille manquant est recréé tout seul à la première écriture. Ne jamais renommer les onglets ni les colonnes.
-6. Toute modif de l'appli en production se fait sur une branche, relue, puis fusionnée dans `main`. Pas de push direct sur `main` pour une modif de l'appli sans accord du propriétaire. Commits au nom de `nicolasgiorgi-cpu`.
+6. Toute modif de l'appli en production se fait sur une branche, testée et relue, puis fusionnée dans `main`. **Accord permanent du propriétaire (31/10/2026) : une version prête (tests au vert, relue par un 2e agent) est mise en ligne directement, serveur d'abord, sans attendre son « go ».** Commits au nom de `nicolasgiorgi-cpu`.
 
 ## Limites de l'environnement cloud
 
