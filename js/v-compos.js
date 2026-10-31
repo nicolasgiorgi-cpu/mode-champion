@@ -835,14 +835,17 @@ window.MC = window.MC || {};
   // rangés en sections : les avants en haut (piliers, talonneur, 3es lignes), les arrières dessous (9, 10, centres, ailiers)
   function team(C, t, v, d, moved, ed) {
     var st = K.stats(t, C.F, d.reglages.format), fmt10 = d.reglages.format === 10;
+    // (v35) un match d'entraînement à moins de 10 : chacun a son poste, mais pas de « 5/5 » en rouge ni de places vides partout
+    var petit = fmt10 && d.reglages.partie === 'matchs' && st.n < 10, places = !petit || st.n >= 8;
     var sel = B && B.sel && B.sel.v === v ? B.sel.id : null, w = sel ? K.where(d, sel) : null;
     var dest = !!sel && ed && (!w || w.t < 0 || d.equipes[w.t].id !== t.id);
-    var avtq = fmt10 ? '<span class="cavtq' + (st.av < 5 || st.ar < 5 ? ' bad' : '') + '" title="Avants et arrières (postes du plateau)' + (st.rempl ? ' · remplaçants : ' + remplTxt(st.remplTypes) : '') + '">Av ' + st.av + '/5 · Ar ' + st.ar + '/5' + (st.rempl ? ' · Remp. ' + st.rempl : '') + '</span>'
+    var avtq = petit ? '<span class="cavtq" title="Avants et arrières (postes du match)">Av ' + st.av + ' · Ar ' + st.ar + (st.rempl ? ' · Remp. ' + st.rempl : '') + '</span>'
+      : fmt10 ? '<span class="cavtq' + (st.av < 5 || st.ar < 5 ? ' bad' : '') + '" title="Avants et arrières (postes du plateau)' + (st.rempl ? ' · remplaçants : ' + remplTxt(st.remplTypes) : '') + '">Av ' + st.av + '/5 · Ar ' + st.ar + '/5' + (st.rempl ? ' · Remp. ' + st.rempl : '') + '</span>'
       : '<span class="cavtq" title="D\'après le poste principal de la fiche ; ⇄ = peuvent jouer avant et arrière ; ? = pas encore de poste">Av ' + st.av + ' · Ar ' + st.ar + (st.les2 ? ' · ⇄' + st.les2 : '') + (st.inconnus ? ' · ?' + st.inconnus : '') + '</span>';
-    var sc = K.sections(t, C.F, d.reglages.format), miss = ed && fmt10 ? st.manquants : [];
+    var sc = K.sections(t, C.F, d.reglages.format), miss = ed && fmt10 && places ? st.manquants : [];
     var corps = fmt10
-      ? secHtml(C, t, v, d, moved, 'Avants', sc.av, { compte: st.av + '/5', bad: st.av !== 5, slots: miss.filter(function (p) { return K.typePoste(p) === 'av'; }) }) +
-        secHtml(C, t, v, d, moved, 'Arrières', sc.ar, { compte: st.ar + '/5', bad: st.ar !== 5, slots: miss.filter(function (p) { return K.typePoste(p) === 'ar'; }) }) +
+      ? secHtml(C, t, v, d, moved, 'Avants', sc.av, { compte: petit ? st.av : st.av + '/5', bad: !petit && st.av !== 5, slots: miss.filter(function (p) { return K.typePoste(p) === 'av'; }) }) +
+        secHtml(C, t, v, d, moved, 'Arrières', sc.ar, { compte: petit ? st.ar : st.ar + '/5', bad: !petit && st.ar !== 5, slots: miss.filter(function (p) { return K.typePoste(p) === 'ar'; }) }) +
         secHtml(C, t, v, d, moved, 'Remplaçants', sc.rempl, { plus: ed ? slotHtml(v, t, '', '+ Remplaçant', false) : '' })
       : t.bloc === 'av' || t.bloc === 'ar'
         // un groupe d'avants ou d'arrières : une seule liste, rangée par poste
@@ -855,7 +858,7 @@ window.MC = window.MC || {};
       '<span class="row" style="justify-content:space-between;width:100%"><b class="ctid' + (nomT.length > 4 ? ' long' : '') + '">' + esc(nomT) + '</b><span class="cn">' + st.n + '</span></span>' +
       '<span class="cind"><span title="Plaquage moyen">' + icon('star', 12) + ' ' + virg(st.plaq) + '</span><span title="Bons plaqueurs (3 étoiles et plus)">' + icon('shield', 12) + ' ' + st.bons + '</span>' +
       (st.ontCopains ? '<span title="Avec au moins un copain">' + icon('heart', 12) + ' ' + st.avecCopain + '/' + st.ontCopains + '</span>' : '') + (st.passerelles ? '<span title="Hors de leur niveau (passerelles)">⇅ ' + st.passerelles + '</span>' : '') + '</span>' +
-      avtq + (fmt10 && !ed && st.manquants.length ? '<span class="cmiss">Manque : ' + st.manquants.map(function (p) { return COURT[p]; }).join(', ') + '</span>' : '') +
+      avtq + (fmt10 && !petit && !ed && st.manquants.length ? '<span class="cmiss">Manque : ' + st.manquants.map(function (p) { return COURT[p]; }).join(', ') + '</span>' : '') +
       (dest ? '<span class="cdest">' + icon('down', 12) + ' Ici</span>' : '') + '</button>' +
       corps + '</section>';
   }
