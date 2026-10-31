@@ -30,6 +30,8 @@ with sync_playwright() as p:
         for k in range(2, 7):
             ouvrir(pg); vus.append(k if fenetre(pg) else 0)
             if fenetre(pg) and nom == 'iPhone' and k == 2: check('iPhone : Partager › Sur l\'écran d\'accueil', 'Partager' in pg.inner_text('.modal') and 'Sur l\'écran d\'accueil' in pg.inner_text('.modal'))
+            # (v39) iOS 26 : sans « Ouvrir comme web app », l'icône ouvre Safari avec sa barre en bas
+            if fenetre(pg) and nom == 'iPhone' and k == 2: check('iPhone : laisser « Ouvrir comme web app » activé', 'ouvrir comme web app' in pg.inner_text('.modal').lower(), pg.inner_text('.modal'))
             if fenetre(pg) and nom == 'Android' and k == 2: check('Android : menu ⋮ de Chrome', '⋮' in pg.inner_text('.modal'))
             fermer(pg)
         attendu = [2, 0, 4, 0, 0] if ua else [0, 0, 0, 0, 0]

@@ -90,11 +90,11 @@ Lecture seule : événements de J-30 à J+60 et réponses (oui, non, sans répon
 
 Le site n'est pas référencé par les moteurs de recherche (`noindex`). Pour les mises à jour : modifiez les fichiers, **Commit** puis **Push** dans GitHub Desktop.
 
-Sur iPad et téléphone : **Partager › Sur l'écran d'accueil** pour l'ouvrir en plein écran comme une appli. Sur ces écrans tactiles, les champs chiffrés ouvrent le pavé numérique du site (pas le clavier du système).
+Sur iPad et téléphone : **Partager › Sur l'écran d'accueil** pour l'ouvrir en plein écran comme une appli (iOS 26 : laisser **Ouvrir comme web app** activé, sinon l'icône ouvre Safari avec sa barre en bas). Sur ces écrans tactiles, les champs chiffrés ouvrent le pavé numérique du site (pas le clavier du système).
 
 **Réseau capricieux.** L'appli garde une copie d'elle-même sur l'appareil (`sw.js`) : elle s'ouvre même hors ligne ou quand le réseau traîne (après 3,5 s on prend la copie). Le serveur Google a 15 s pour répondre (une relance automatique pour les lectures et les connexions), sinon un message « Le serveur ne répond pas » et un bouton Réessayer. À l'ouverture, si rien ne démarre au bout de 9 s, l'écran le dit (au lieu d'un écran noir) avec **Réessayer** et **Réparer l'appli**.
 
-**Réparer l'appli** sur un appareil : ouvrir l'adresse du site suivie de `?reset=1` (vide la copie gardée, on reste connecté) ou `?reset=2` (repart de zéro sur cet appareil : il faudra retaper les codes). Si l'icône de l'écran d'accueil reste noire : forcer la fermeture, rouvrir ; sinon supprimer l'icône et la remettre depuis Safari.
+**Réparer l'appli** sur un appareil : ouvrir l'adresse du site suivie de `?reset=1` (vide la copie gardée, on reste connecté) ou `?reset=2` (repart de zéro sur cet appareil : il faudra retaper les codes). Si l'icône de l'écran d'accueil reste noire : forcer la fermeture, rouvrir ; sinon supprimer l'icône et la remettre depuis Safari. Une nouvelle icône d'appli n'arrive sur iPhone qu'en retirant l'appli de l'écran d'accueil pour la remettre (iOS fige l'icône à l'ajout) ; depuis la v39, la nouvelle icône arrive dès le premier ajout (elle suit le `?v=` du site).
 
 **À chaque mise à jour du site**, augmenter le numéro `?v=` dans `index.html` (tous les fichiers) : c'est lui qui dit aux appareils de prendre la nouvelle version.
 

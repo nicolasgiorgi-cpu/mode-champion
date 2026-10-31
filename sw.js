@@ -2,8 +2,11 @@
    Mode champion · M12 — service worker
    Garde une copie de l'appli sur l'appareil pour qu'elle s'ouvre même quand le réseau traîne.
    - la page (index.html) : réseau d'abord ; sans réponse en 3,5 s, la copie gardée
-   - les fichiers versionnés (?v=N) : la copie gardée d'abord (ils ne changent jamais pour un même N)
-   - icônes, polices Google : la copie, mise à jour en arrière-plan
+   - les fichiers versionnés (?v=N) : la copie gardée d'abord (ils ne changent jamais pour un même N) ;
+     (v39) l'icône de l'écran d'accueil iPhone et celle de l'onglet en font partie
+   - (v39) les icônes du manifeste et le manifeste : le réseau d'abord, la copie gardée seulement sans réseau
+     (avant : la copie d'abord, et « Sur l'écran d'accueil » recevait encore l'ancienne icône juste après un changement)
+   - polices Google : la copie, mise à jour en arrière-plan
    - le serveur Google (les données) : jamais intercepté
    - (v34) les alertes sur l'écran du téléphone (Firebase Cloud Messaging) : affichées ici, voir en bas du fichier ;
      (v35) la pastille (chiffre) sur l'icône de l'appli
@@ -74,6 +77,31 @@ function staleWhileRevalidate(e, name) {
   return cached(req, name).then(function (hit) { return hit || net; });
 }
 
+// (v39) le réseau d'abord, revalidé auprès du site (pas la copie du navigateur) ; la copie gardée sans réseau,
+// ou si le réseau traîne plus de NAV_WAIT
+function reseauDabord(e, name) {
+  var req = e.request;
+  var net = fetch(req, { cache: 'no-cache' });
+  e.waitUntil(net.then(function (r) {
+    if (r && r.ok) { var copy = r.clone(); return caches.open(name).then(function (c) { return c.put(req, copy); }); }
+  }).catch(function () { }));
+  return new Promise(function (resolve) {
+    var done = false;
+    function give(r) { if (!done && r) { done = true; resolve(r); } }
+    function fromCache(orNet) {
+      cached(req, name).then(function (hit) {
+        if (hit) give(hit);
+        else if (orNet) give(orNet);
+      }, function () { if (orNet) give(orNet); });
+    }
+    var tm = setTimeout(function () { fromCache(null); }, NAV_WAIT);
+    net.then(function (r) {
+      clearTimeout(tm);
+      if (r && r.ok) give(r); else fromCache(r || Response.error());
+    }, function () { clearTimeout(tm); fromCache(Response.error()); });
+  });
+}
+
 function page(e) {
   // toujours demander au serveur s'il y a une nouvelle page (réponse « pas changé » très légère sinon),
   // pour qu'une correction arrive dès la prochaine ouverture
@@ -108,7 +136,7 @@ self.addEventListener('fetch', function (e) {
     }
     if (/sw\.js$/.test(url.pathname)) return;
     if (/[?&]v=\d+/.test(url.search)) { e.respondWith(cacheFirst(req)); return; }
-    if (/\/icons\/|manifest\.webmanifest$/.test(url.pathname)) { e.respondWith(staleWhileRevalidate(e, SHELL)); return; }
+    if (/\/icons\/|manifest\.webmanifest$/.test(url.pathname)) { e.respondWith(reseauDabord(e, SHELL)); return; }
     return;
   }
   if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') { e.respondWith(staleWhileRevalidate(e, FONTS)); return; }
