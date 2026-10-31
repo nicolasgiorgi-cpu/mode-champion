@@ -170,14 +170,36 @@ MC.compos = (function () {
     });
     if (remplir) ids.forEach(function (pid) {
       if (slotOf[pid] !== undefined) return;
-      var ty = typePoste(posteDefaut(F[pid])), libre = -1;
-      slots.forEach(function (p, s) { if (playerOf[s] === undefined && (libre < 0 || (ty && typePoste(slots[libre]) !== ty && typePoste(p) === ty))) libre = s; });
-      if (libre >= 0) { playerOf[libre] = pid; slotOf[pid] = libre; }
+      var libres = [];
+      slots.forEach(function (p, s) { if (playerOf[s] === undefined) libres.push(p); });
+      var p = choixLibre(libres, F[pid]);
+      if (!p) return;
+      for (var s = 0; s < slots.length; s++) if (playerOf[s] === undefined && slots[s] === p) { playerOf[s] = pid; slotOf[pid] = s; return; }
     });
     var poste = {}, manquants = [];
     ids.forEach(function (pid) { poste[pid] = slotOf[pid] !== undefined ? slots[slotOf[pid]] : ''; });
     slots.forEach(function (p, s) { if (playerOf[s] === undefined) manquants.push(p); });
     return { poste: poste, manquants: manquants };
+  }
+
+  // (v35) une place libre pour quelqu'un dont les postes de fiche sont pris : de son côté (avant / arrière) ;
+  // sans poste du tout, d'abord les arrières en partant de l'aile (pas d'office en première ligne)
+  function choixLibre(libres, f) {
+    if (!libres.length) return '';
+    var ty = typePoste(posteDefaut(f));
+    if (ty) { var meme = libres.filter(function (p) { return typePoste(p) === ty; }); return meme[0] || libres[0]; }
+    var ordre = ORDRE.slice().reverse();
+    for (var i = 0; i < ordre.length; i++) if (libres.indexOf(ordre[i]) >= 0) return ordre[i];
+    return libres[0];
+  }
+  // la place d'un joueur qui arrive dans une équipe au jeu à 10 : son poste de fiche s'il est libre ; dans un match
+  // d'entraînement (remplir : tout le monde joue), sinon une place libre de son côté ; sinon '' (remplaçant)
+  function placeLibre(t, id, F, remplir) {
+    var pris = {}, libres = [];
+    (t.joueurs || []).forEach(function (j) { if (j.id !== id && j.poste) pris[j.poste] = (pris[j.poste] || 0) + 1; });
+    SLOTS10.forEach(function (p) { if (pris[p]) pris[p]--; else libres.push(p); });
+    var p = postesDe(F[id]).filter(function (x) { return libres.indexOf(x) >= 0; })[0];
+    return p || (remplir ? choixLibre(libres, F[id]) : '');
   }
 
   // ---------- Score d'une répartition dans un niveau (plus petit = mieux) ----------
@@ -707,6 +729,9 @@ MC.compos = (function () {
     if (o.reglages && o.reglages.partie === 'matchs' && o.reglages.format !== 10) {
       o.reglages.format = 10;
       o.equipes.forEach(function (t) { var po = apparier(t.joueurs.map(function (j) { return j.id; }), F, true).poste; t.joueurs.forEach(function (j) { j.poste = po[j.id] || ''; }); });
+    } else if (o.reglages && o.reglages.partie === 'matchs') {
+      // déjà avec postes : chacun garde le sien, les places laissées par les absents vont aux remplaçants
+      o.equipes.forEach(function (t) { t.joueurs.forEach(function (j) { if (!j.poste) j.poste = placeLibre(t, j.id, F, true); }); });
     }
     return o;
   }
@@ -720,7 +745,7 @@ MC.compos = (function () {
     var sansNiv = Object.keys(placed).filter(function (id) { return placed[id] !== 'banc' && F[id] && !F[id].niveau; });
     if (sansNiv.length) out.push({ k: 'niveau', niveau: 'info', texte: 'Niveau à renseigner : ' + noms(sansNiv, F) + '.', ids: sansNiv });
     blocsDe(c).forEach(function (k) {
-      var ts = eqs.filter(function (t) { return blocDe(t) === k; }), st = ts.map(function (t) { return stats(t, F, 5); });
+      var ts = eqs.filter(function (t) { return blocDe(t) === k; }), st = ts.map(function (t) { return stats(t, F, fmt(c.reglages)); });   // (v35) comme l'en-tête de l'équipe
       var ou = match ? nomBloc(k) + ' : ' : '';
       ts.forEach(function (t, i) { if (!st[i].n) out.push({ k: 'vide', niveau: 'warn', texte: ou + nomEq(t) + ', personne pour l\'instant.' }); });
       if (ts.length < 2) return;
@@ -790,7 +815,7 @@ MC.compos = (function () {
     proposer: proposer, vide: vide, stats: stats, alertes: alertes, apparier: apparier, scoreNiveau: scoreNiveau,
     moveTo: moveTo, swap: swap, setPoste: setPoste, where: where, diff: diff, presents: presents, attente: attente, retirer: retirer, sorteDuTitre: sorteDuTitre,
     nomPoste: nomPoste, frDate: frDate,
-    STYLES: STYLES, AVANTS: AVANTS, postesDe: postesDe, posteDefaut: posteDefaut, repartition: repartition, typePoste: typePoste, typeDe: typeDe, sections: sections, ORDRE: ORDRE,
+    STYLES: STYLES, AVANTS: AVANTS, postesDe: postesDe, posteDefaut: posteDefaut, repartition: repartition, placeLibre: placeLibre, typePoste: typePoste, typeDe: typeDe, sections: sections, ORDRE: ORDRE,
     PARTIES: PARTIES, regEnt: regEnt, proposerEnt: proposerEnt, videEnt: videEnt, reprendre: reprendre, alertesEnt: alertesEnt,
     blocDe: blocDe, blocsDe: blocsDe, nomBloc: nomBloc, nomEq: nomEq
   };

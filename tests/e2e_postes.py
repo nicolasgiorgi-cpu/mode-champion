@@ -97,6 +97,30 @@ with sync_playwright() as p:
     if pg.query_selector('.modal'): pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(1300)
     cm = ev(pg, "MC.app.S.cache.compos.compos.find(c => c.evenementId === 'sp-demo-e1' && c.partie === 'matchs')")
     check('matchs publiés avec leurs postes', cm is not None and cm['reglages']['format'] == 10 and [x['poste'] for t in cm['equipes'] for x in t['joueurs'] if x['id'] == j] == ['ailier'], cm and cm['reglages'])
+    # ----- 6. (relecture) le plateau suivant garde le format des plateaux (pas celui des matchs d'entraînement) -----
+    pg.goto(BASE + '#/educ/compo/sp-demo-p3'); pg.wait_for_timeout(1300)
+    check('plateau après des matchs au jeu à 10 : toujours « Jeu à 5 » (le dernier plateau)', ev(pg, "document.querySelector('[data-act=cFmt][data-v=\"5\"]').classList.contains('on')"))
+    # ----- 7. (relecture) matchs « partir de zéro » : « + Ajouter un joueur » le met à une place, pas remplaçant -----
+    # un entraînement à venir, sans matchs encore : créé pour l'essai
+    eid = ev(pg, """MC.api.call('setEvenement', { token: MC.app.S.adult.token, titre: 'Entraînement - Essai', debut: MC.logic.addDays(MC.logic.today(), 9), presents: MC.app.S.cache.group.joueurs.filter(p => p.joueur.actif).slice(0, 14).map(p => p.joueur.id) }).then(r => r.evenement.id)""")
+    pg.evaluate("MC.loadCompos && MC.loadCompos(true)"); pg.wait_for_timeout(800)
+    pg.goto(BASE + '#/educ/compo/' + eid + '?p=matchs'); pg.wait_for_timeout(1300)
+    pg.click('[data-act="cZero"]'); pg.wait_for_timeout(900)
+    sl = ev(pg, "[...document.querySelectorAll('.ccol')[0].querySelectorAll('.cslot')].map(x => x.textContent).join('|')")
+    check('équipe vide de match : « + Ajouter un joueur » (pas « + Remplaçant »)', '+ Ajouter un joueur' in sl and 'Remplaçant' not in sl, sl)
+    pg.locator('.ccol >> nth=0 >> .cslot:has-text("Ajouter un joueur")').evaluate('e => e.click()'); pg.wait_for_timeout(500)
+    pg.click('.modal .cprow >> nth=0'); pg.wait_for_timeout(400)
+    if pg.query_selector('.modal button:has-text("Terminé")'): pg.click('.modal button:has-text("Terminé")'); pg.wait_for_timeout(500)
+    po = ev(pg, "[...document.querySelectorAll('.ccol')[0].querySelectorAll('.cpj .cpo')].map(x => x.textContent).join(',')")
+    check('… le joueur ajouté a un poste du match', po != '' and 'Remp' not in po, po)
+    # déplacer un enfant de « Pas placés » vers l'équipe : une place, pas remplaçant (tout le monde joue)
+    pid = ev(pg, "(() => { const k = Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0 && k.indexOf('%s:matchs') > 0); return JSON.parse(localStorage.getItem(k)).vs[0].banc[0]; })()" % eid)
+    pg.locator('.cpj[data-id="%s"]' % pid).first.evaluate('e => e.click()'); pg.wait_for_timeout(300)
+    pg.click('[data-act="cMove"][data-t="E1"]'); pg.wait_for_timeout(500)
+    d2 = ev(pg, "(() => { const k = Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0 && k.indexOf('%s:matchs') > 0); return JSON.parse(localStorage.getItem(k)).vs[0]; })()" % eid)
+    pp = [x['poste'] for t in d2['equipes'] for x in t['joueurs'] if x['id'] == pid]
+    check('déplacé dans une petite équipe de match : un poste, pas remplaçant', pp and pp[0] != '', pp)
+    check('matchs à la main : pas de défilement de côté', sans_debord(pg))
     b.close()
 bad = [n for n, c in res if not c]
 print('ERREURS JS :', errs[:4] if errs else 'aucune')

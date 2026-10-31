@@ -339,13 +339,24 @@ const FV = { x1: { id: 'x1', prenom: 'X1', niveau: 'B', plaquage: 2, voeux: [], 
   x3: { id: 'x3', prenom: 'X3', niveau: 'B', plaquage: 2, voeux: [], postesOk: ['pilier'], copains: [] }, x4: { id: 'x4', prenom: 'X4', niveau: 'B', plaquage: 2, voeux: [], postesOk: [], copains: [] } };
 let apv = K.apparier(['x1', 'x2', 'x3', 'x4'], FV, true).poste;
 assert.ok(['talonneur', 'troisieme-ligne'].indexOf(apv.x3) >= 0, '3e pilier : une place d\'avant libre (' + apv.x3 + ')');
-assert.ok(apv.x4, 'sans poste : une place libre quand même');
+assert.strictEqual(apv.x4, 'ailier', 'sans poste : une place libre, d\'abord à l\'aile (pas d\'office en première ligne)');
+// arriver dans une équipe au jeu à 10 : son poste de fiche s'il est libre ; match : sinon une place de son côté ; plateau : remplaçant
+const tq = { joueurs: [{ id: 'x1', poste: 'pilier' }, { id: 'x2', poste: 'pilier' }, { id: 'x3', poste: '' }] };
+assert.strictEqual(K.placeLibre(tq, 'x3', FV, false), '', 'plateau : piliers pris → remplaçant (comme avant)');
+assert.ok(['talonneur', 'troisieme-ligne'].indexOf(K.placeLibre(tq, 'x3', FV, true)) >= 0, 'match : une place d\'avant libre');
+assert.strictEqual(K.placeLibre({ joueurs: [{ id: 'x1', poste: 'pilier' }] }, 'x2', FV, false), 'pilier', 'son poste de fiche, encore libre');
+assert.strictEqual(K.placeLibre({ joueurs: [] }, 'x4', FV, true), 'ailier', 'sans poste : l\'aile');
 assert.strictEqual(K.apparier(['x1', 'x2', 'x3'], FV).poste.x3, '', 'aux plateaux, sans « remplir » : rien ne change (remplaçant)');
 // reprendre des matchs d'avant la v35 (sans postes) : ils passent avec postes
 const vieux = { reglages: { partie: 'matchs', mode: 'niveau', nbMatchs: 1, format: 5 }, equipes: [{ id: 'E1', nom: 'Équipe 1', bloc: 'm1', joueurs: ['A0', 'B1', 'C2'].map(id => ({ id, poste: '', n: '' })) }, { id: 'E2', nom: 'Équipe 2', bloc: 'm1', joueurs: ['A2', 'B3'].map(id => ({ id, poste: '', n: '' })) }], banc: [] };
 const rv = K.reprendre(vieux, ['A0', 'B1', 'C2', 'A2', 'B3'], FE);
 assert.strictEqual(rv.reglages.format, 10);
 assert.ok(rv.equipes.every(t => t.joueurs.every(j => j.poste)), JSON.stringify(rv.equipes));
+// reprendre des matchs déjà avec postes : chacun garde le sien, les remplaçants prennent les places des absents
+const v10 = { reglages: { partie: 'matchs', mode: 'niveau', nbMatchs: 1, format: 10 }, equipes: [{ id: 'E1', nom: 'Équipe 1', bloc: 'm1', joueurs: [{ id: 'A0', poste: 'pilier', n: 'A' }, { id: 'B1', poste: 'ailier', n: 'B' }, { id: 'C2', poste: '', n: 'C' }] }], banc: [] };
+const r10 = K.reprendre(v10, ['A0', 'C2'], FE);
+assert.strictEqual(r10.equipes[0].joueurs.find(j => j.id === 'A0').poste, 'pilier', 'son poste gardé');
+assert.ok(r10.equipes[0].joueurs.find(j => j.id === 'C2').poste, 'le remplaçant prend une place libre');
 // la répartition des postes RÉGLÉS sur les fiches (pas les vœux) : principal, peut aussi jouer, sans poste
 const FR = { r1: { prenom: 'R1', postesOk: ['pilier', 'talonneur'], voeux: [] }, r2: { prenom: 'R2', postesOk: ['talonneur'], voeux: [] }, r3: { prenom: 'R3', postesOk: [], voeux: ['ailier'] }, r4: { prenom: 'R4', postesOk: ['inconnu', 'centre', 'centre'], voeux: [] } };
 const rep = K.repartition(['r1', 'r2', 'r3', 'r4'], FR), byP = {};

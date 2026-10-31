@@ -207,7 +207,7 @@ r = g.call(Object.assign({ action: 'saveCompo', token: cyril }, matchs, { compoI
 assert.ok(r.ok, JSON.stringify(r));
 assert.strictEqual(r.compo.reglages.format, 10, 'matchs avec postes');
 assert.deepStrictEqual(r.compo.equipes.map(t => t.joueurs.map(j => j.poste)), [['talonneur', 'ailier'], ['pilier', 'ouvreur', '', '']], 'postes gardés ; un poste inconnu est vidé');
-r = g.call(Object.assign({ action: 'saveCompo', token: cyril }, ateliers, { compoId: ca.id, version: ca.version, reglages: Object.assign({}, ateliers.reglages, { format: 10 }) }));
+r = g.call(Object.assign({ action: 'saveCompo', token: nico }, ateliers, { compoId: ca.id, version: ca.version, reglages: Object.assign({}, ateliers.reglages, { format: 10 }) }));
 assert.ok(r.ok && r.compo.reglages.format === 5, 'les ateliers restent sans postes');
 // 2 versions au vote, pour les ateliers d'un autre entraînement
 r = g.call({ action: 'setEvenement', token: nico, titre: 'Entraînement - Saint-Sulpice', debut: '2026-11-07', presents: [P.Tom, P.Hugo, P.Zoé, P.Malo] });

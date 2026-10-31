@@ -617,7 +617,7 @@ window.MC = window.MC || {};
     }
     var ids = presentsOf(C, e), format = jour(e) >= '2026-12-01' ? 10 : 5;
     // reprendre le format du dernier plateau
-    var last = C.cd.compos.filter(function (c) { return c.statut === 'publiee'; }).sort(function (a, b) { return a.maj < b.maj ? 1 : -1; })[0];
+    var last = C.cd.compos.filter(function (c) { return c.statut === 'publiee' && !c.partie; }).sort(function (a, b) { return a.maj < b.maj ? 1 : -1; })[0];   // (v35) pas un match d'entraînement
     if (last && last.reglages && last.reglages.format) format = last.reglages.format;
     B.reg = { format: format, nb: K.suggestNb(ids, C.F, format), style: 'equilibre' };
     return B.reg;
@@ -846,7 +846,7 @@ window.MC = window.MC || {};
     var corps = fmt10
       ? secHtml(C, t, v, d, moved, 'Avants', sc.av, { compte: petit ? st.av : st.av + '/5', bad: !petit && st.av !== 5, slots: miss.filter(function (p) { return K.typePoste(p) === 'av'; }) }) +
         secHtml(C, t, v, d, moved, 'Arrières', sc.ar, { compte: petit ? st.ar : st.ar + '/5', bad: !petit && st.ar !== 5, slots: miss.filter(function (p) { return K.typePoste(p) === 'ar'; }) }) +
-        secHtml(C, t, v, d, moved, 'Remplaçants', sc.rempl, { plus: ed ? slotHtml(v, t, '', '+ Remplaçant', false) : '' })
+        secHtml(C, t, v, d, moved, 'Remplaçants', sc.rempl, { plus: ed ? (petit && st.manquants.length ? slotHtml(v, t, st.manquants[0], '+ Ajouter un joueur', false) : slotHtml(v, t, '', '+ Remplaçant', false)) : '' })
       : t.bloc === 'av' || t.bloc === 'ar'
         // un groupe d'avants ou d'arrières : une seule liste, rangée par poste
         ? (sc.av.length + sc.ar.length + sc.sans.length ? '<div class="csec"><ul class="cpl">' + sc.av.concat(sc.ar, sc.sans).map(function (j) { return chip(C, t, j, v, d, moved[j.id]); }).join('') + '</ul></div>' : '') + (ed ? slotHtml(v, t, '*', '+ Ajouter des joueurs', false) : '')
@@ -1111,15 +1111,19 @@ window.MC = window.MC || {};
     var id = B.sel.id, v = B.sel.v, F = K.fiches(app.S.cache.group);
     B.sel = null;
     change(function () {
-      var d = K.moveTo(B.vs[v], id, dest, F);
-      // jeu à 10 : il prend son poste de la fiche (le 1er libre dans l'équipe), sinon il est remplaçant
-      if (d.reglages.format === 10 && dest !== 'banc') {
-        var t = d.equipes.filter(function (x) { return x.id === dest; })[0], st = K.stats(t, F, 10);
-        var p = K.postesDe(F[id]).filter(function (x) { return st.manquants.indexOf(x) >= 0; })[0];
-        if (p) d = K.setPoste(d, id, p);
-      }
-      B.vs[v] = d;
+      B.vs[v] = placerDans(B.vs[v], id, dest, F);
     });
+  }
+  // jeu à 10 : il prend son poste de la fiche (le 1er libre dans l'équipe), sinon il est remplaçant ;
+  // (v35) dans un match d'entraînement, tout le monde joue : sinon une place libre de son côté
+  function placerDans(d, id, dest, F) {
+    d = K.moveTo(d, id, dest, F);
+    if (d.reglages.format === 10 && dest !== 'banc') {
+      var t = d.equipes.filter(function (x) { return x.id === dest; })[0];
+      var p = t ? K.placeLibre(t, id, F, d.reglages.partie === 'matchs') : '';
+      if (p) d = K.setPoste(d, id, p);
+    }
+    return d;
   }
   MC.act.cMove = function (b) { moveSel(b.getAttribute('data-t')); };
   MC.act.cTeam = function (b) {
@@ -1187,7 +1191,7 @@ window.MC = window.MC || {};
     ids.forEach(function (id) { var n = (C.F[id] || {}).niveau; if (cnt[n] !== undefined) cnt[n]++; });
     var l = nv === 'all' ? ids : ids.filter(function (id) { return (C.F[id] || {}).niveau === nv; });
     var filtre = '<div class="tfil rpf">' + [['all', 'Tous', ids.length]].concat(K.NIV.map(function (n) { return [n, n, cnt[n]]; })).map(function (x) {
-      return '<button type="button" class="opt' + (nv === x[0] ? ' on' : '') + '"' + (K.COUL_NIV[x[0]] ? ' style="--oc:' + K.COUL_NIV[x[0]] + '"' : '') + ' aria-pressed="' + (nv === x[0]) + '" data-act="rpNiv" data-k="' + cle + '" data-v="' + x[0] + '">' + x[1] + ' · ' + x[2] + '</button>';
+      return '<button type="button" class="opt' + (x[0] === 'all' ? ' tf-w' : '') + (nv === x[0] ? ' on' : '') + '"' + (K.COUL_NIV[x[0]] ? ' style="--oc:' + K.COUL_NIV[x[0]] + '"' : '') + ' aria-pressed="' + (nv === x[0]) + '" data-act="rpNiv" data-k="' + cle + '" data-v="' + x[0] + '"><span>' + x[1] + '</span><small>' + x[2] + '</small></button>';
     }).join('') + '</div>';
     return graphePostes(C.F, l, { cle: cle, resume: (nv === 'all' ? 'Les ' + ids.length + ' présents' : 'Niveau ' + nv + ' · ' + l.length), niv: nv === 'all', filtre: filtre });
   }
@@ -1318,7 +1322,7 @@ window.MC = window.MC || {};
       var a = al[Number(b.getAttribute('data-i'))];
       if (!a || !a.fix) return;
       var fx = a.fix;
-      change(function () { B.vs[v] = fx.t === 'out' ? K.retirer(d, fx.ids) : fx.t === 'swap' ? K.swap(d, fx.a, fx.b, C.F) : K.moveTo(d, fx.id, fx.vers, C.F); });
+      change(function () { B.vs[v] = fx.t === 'out' ? K.retirer(d, fx.ids) : fx.t === 'swap' ? K.swap(d, fx.a, fx.b, C.F) : placerDans(d, fx.id, fx.vers, C.F); });
       ui.toast(fx.texte);
     });
   };
@@ -1327,7 +1331,7 @@ window.MC = window.MC || {};
       change(function () {
         B.vs.forEach(function (d) {
           d.equipes.forEach(function (t) {
-            var po = K.apparier(t.joueurs.map(function (j) { return j.id; }), C.F).poste;
+            var po = K.apparier(t.joueurs.map(function (j) { return j.id; }), C.F, d.reglages.partie === 'matchs').poste;
             t.joueurs.forEach(function (j) { j.poste = po[j.id] || ''; });
           });
         });
