@@ -70,9 +70,9 @@ Le site est servi par GitHub Pages depuis `main`, racine du dépôt. Le serveur 
 
 ## Contexte produit et suivi (hors dépôt)
 
-Les décisions produit, l'historique des versions et le suivi vivent dans le dépôt **privé** `nicolasgiorgi-cpu/rugby-m12`, dossier `mode-champion/`, avec `mode-champion/mise-en-ligne.md` comme point d'entrée (état à jour et points en attente en tête). L'attacher à la session avec l'accès en écriture et lire ce point d'entrée avant de toucher au produit. Rien de `rugby-m12` ne vient dans ce dépôt-ci, qui est public. Sans accès à `rugby-m12`, ce fichier et le README suffisent pour la technique : ne pas inventer de décision produit, la demander. (Les anciens docs `claude/mode-champion-*` du Projet « Rugby » de claude.ai sont une copie figée au 31/10/2026.)
+Les décisions produit, l'historique des versions et le suivi vivent dans le Projet « Rugby » de claude.ai (docs `claude/mode-champion-*`, dont `claude/mode-champion-mise-en-ligne.md` comme point d'entrée) et dans la mémoire de l'utilisateur. Si ta session y a accès (`project_read`), les lire avant de toucher au produit. Sinon, ce fichier et le README suffisent pour la technique : ne pas inventer de décision produit, la demander.
 
 ## En fin de session
 
 - Dire quelle version du site (`?v=`) est en ligne, si le serveur a changé (et sa version de déploiement), et ce qui reste en attente.
-- Dans `rugby-m12` : mettre à jour `mode-champion/mise-en-ligne.md` (version du site, version du serveur, décisions prises, points en attente) et, pour une nouvelle version, ajouter un doc court `mode-champion/vNN-….md`. Commits directs sur `main` de `rugby-m12`.
+- Si la session a accès au Projet : mettre à jour `claude/mode-champion-mise-en-ligne.md` (version du site, version du serveur, décisions prises, points en attente) et, pour une nouvelle version, ajouter un doc court `claude/mode-champion-vNN-….md`. Écrire le doc complet avec `project_write`, sans rien supprimer d'autre.
