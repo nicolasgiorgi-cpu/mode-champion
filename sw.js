@@ -111,3 +111,35 @@ self.addEventListener('fetch', function (e) {
   }
   if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') { e.respondWith(staleWhileRevalidate(e, FONTS)); return; }
 });
+
+// ---------- (v34) Alertes sur le téléphone ----------
+// Firebase Cloud Messaging apporte un message « données » (titre, texte, lien, tag) : c'est ici qu'il devient une alerte,
+// TOUJOURS (sur iPhone, un message reçu sans alerte affichée fait couper l'abonnement au bout de quelques fois).
+// Pas de code Firebase ici : rien à charger, rien qui puisse empêcher l'affichage.
+function alerteDe(ev) {
+  var d = {};
+  try { var j = ev.data ? ev.data.json() : {}; d = (j && (j.data || j.notification)) || j || {}; }
+  catch (x) { try { d = { texte: ev.data.text() }; } catch (y) { d = {}; } }
+  return { titre: String(d.titre || d.title || 'Mode champion'), texte: String(d.texte || d.body || 'Une nouveauté à voir dans l\'appli.'),
+    lien: /^#\/[a-z/]*$/.test(String(d.lien || '')) ? String(d.lien) : '', tag: String(d.tag || '') };
+}
+self.addEventListener('push', function (e) {
+  var a = alerteDe(e), o = { body: a.texte, icon: BASE + 'icons/icon-192.png', badge: BASE + 'icons/icon-192.png', data: { lien: a.lien } };
+  if (a.tag) { o.tag = a.tag; o.renotify = true; }   // une alerte par sorte : la nouvelle remplace l'ancienne
+  e.waitUntil(self.registration.showNotification(a.titre, o));
+});
+// toucher l'alerte : l'appli s'ouvre (ou revient au premier plan) sur la cloche du bon profil
+self.addEventListener('notificationclick', function (e) {
+  e.notification.close();
+  var lien = (e.notification.data && e.notification.data.lien) || '';
+  if (!/^#\/[a-z/]*$/.test(lien)) lien = '';
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (ws) {
+    for (var i = 0; i < ws.length; i++) {
+      if (ws[i].url.indexOf(BASE) === 0) {
+        try { if (lien) ws[i].postMessage({ mc: 'aller', lien: lien }); } catch (x) { }
+        return ws[i].focus ? ws[i].focus() : null;
+      }
+    }
+    return self.clients.openWindow ? self.clients.openWindow(BASE + lien) : null;
+  }));
+});

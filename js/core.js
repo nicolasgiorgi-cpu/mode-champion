@@ -143,7 +143,10 @@ var Core = (function () {
     defmissions: [['id', 's'], ['sorte', 's'], ['titre', 's'], ['texte', 's'], ['video', 's'], ['questions', 'j'], ['joueurId', 's'], ['domaine', 's'],
       ['etoile', 's'], ['xp', 'n'], ['debut', 's'], ['fin', 's'], ['statut', 's'], ['parQui', 's'], ['parNom', 's'], ['faiteLe', 's'], ['cree', 's'], ['maj', 's'],
       // (25/10, mission principale) 1 à 3 étoiles d'une même carte ; vide = l'ancienne mission d'une étoile (colonne etoile)
-      ['etoiles', 'j']]
+      ['etoiles', 'j']],
+    // (v34) alertes sur le téléphone : un appareil abonné pour un profil (role p, f ou e ; qui = son id), les sortes qu'il veut recevoir.
+    // jeton = l'adresse Firebase Cloud Messaging de l'appareil (jamais renvoyée au site)
+    push: [['id', 's'], ['role', 's'], ['qui', 's'], ['jeton', 's'], ['cats', 'j'], ['appareil', 's'], ['cree', 's'], ['vu', 's'], ['actif', 'b']]
   };
 
   // Valeur brute (texte de la feuille) -> valeur typée
@@ -1974,6 +1977,170 @@ var Core = (function () {
   };
 
   // ---------------------------------------------------------
+  // Alertes sur le téléphone (v34, 31/10/2026)
+  // L'appli abonne l'appareil (pushAbonner) avec les sortes choisies dans ses réglages (les mêmes que la cloche).
+  // Après une action qui intéresse quelqu'un (séance, bilan, mission, niveau, résultat confirmé, compo…), Core prépare
+  // les alertes (ALERTES ci-dessous) et la partie Google les envoie par Firebase Cloud Messaging (env.envoyerPush).
+  // Le texte s'affiche sur l'écran verrouillé : le prénom de l'enfant (choix de Nicolas, 31/10), jamais un résultat chiffré,
+  // ni le mot d'un enfant, ni ses copains. En mode démo (pas d'env.envoyerPush), rien n'est envoyé.
+  // ---------------------------------------------------------
+  var PUSH_CATS = { p: ['resultat', 'nouvelle', 'niveau', 'etoile', 'mots', 'demande'], f: ['seance', 'confirmer', 'mission', 'niveau', 'skills', 'mots', 'nouvelle'],
+    e: ['seance', 'bilan', 'mission', 'etoile', 'niveau', 'compo'] };
+  var PUSH_LIENS = { p: '#/notifs', f: '#/parent/notifs', e: '#/educ/notifs' };
+  var SEANCES_NOMS = { cros: 'la séance de Cros', capuozzo: 'la séance de Capuozzo', dupont: 'la séance de Dupont', meafou: 'la séance de Meafou', club: 'l\'entraînement au club', recup: 'la récup' };
+  function cleanCats(role, l) {
+    var ok = PUSH_CATS[role] || [], out = [];
+    (Array.isArray(l) ? l : []).slice(0, 20).forEach(function (c) { c = String(c); if (ok.indexOf(c) >= 0 && out.indexOf(c) < 0) out.push(c); });
+    return out;
+  }
+  function jetonPush(req) {
+    var j = String(req.jeton || '');
+    if (!/^[A-Za-z0-9_:.\-]{20,4096}$/.test(j)) fail('invalide', 'Appareil invalide.');
+    return j;
+  }
+  // la configuration publique de Firebase (propriété du script FCM_WEB) : null tant qu'elle n'est pas là (ou en mode démo)
+  A.pushConfig = {
+    auth: ['p', 'f', 'e'],
+    run: function (req, ctx) {
+      var w = null;
+      try { w = JSON.parse(ctx.db.getProp('FCM_WEB') || 'null'); } catch (e) { w = null; }
+      if (!w || typeof w !== 'object' || !w.apiKey || !w.vapidKey || !w.projectId || !w.messagingSenderId || !w.appId) return { web: null };
+      var o = {};
+      ['apiKey', 'authDomain', 'projectId', 'messagingSenderId', 'appId', 'vapidKey'].forEach(function (k) { if (w[k]) o[k] = String(w[k]); });
+      return { web: o };
+    }
+  };
+  A.pushAbonner = {
+    auth: ['p', 'f', 'e'],
+    run: function (req, ctx) {
+      var jeton = jetonPush(req), r = ctx.auth.r, qui = ctx.auth.id, cats = cleanCats(r, req.cats), now = isoNow(ctx.now), app = cleanText(req.appareil || '', 60);
+      var rows = ctx.db.rows('push'), row = null;
+      rows.forEach(function (x) { if (x.jeton === jeton && x.role === r && x.qui === qui) row = x; });
+      if (row) ctx.db.update('push', row.id, { cats: cats, appareil: app || row.appareil || '', vu: now, actif: true });
+      else {
+        // 10 appareils au plus par profil : le plus ancien laisse sa place
+        var miens = rows.filter(function (x) { return x.role === r && x.qui === qui && x.actif; }).sort(function (a, b) { return String(a.vu) < String(b.vu) ? -1 : 1; });
+        while (miens.length >= 10) ctx.db.update('push', miens.shift().id, { actif: false });
+        ctx.db.insert('push', { id: genId(ctx.env), role: r, qui: qui, jeton: jeton, cats: cats, appareil: app, cree: now, vu: now, actif: true });
+      }
+      return { abonne: true, cats: cats };
+    }
+  };
+  A.pushDesabonner = {
+    auth: ['p', 'f', 'e'],
+    run: function (req, ctx) {
+      var jeton = jetonPush(req);
+      ctx.db.rows('push').forEach(function (x) { if (x.jeton === jeton && x.role === ctx.auth.r && x.qui === ctx.auth.id && x.actif) ctx.db.update('push', x.id, { actif: false, vu: isoNow(ctx.now) }); });
+      return { abonne: false };
+    }
+  };
+  // une alerte d'essai, sur les appareils de celui qui la demande
+  A.pushEssai = {
+    auth: ['p', 'f', 'e'],
+    run: function (req, ctx) {
+      var n = ctx.db.rows('push').filter(function (x) { return x.actif && x.role === ctx.auth.r && x.qui === ctx.auth.id; }).length;
+      alerter(ctx, { r: ctx.auth.r, qui: ctx.auth.id, soi: true }, '_essai', ctx.auth.r === 'p' ? 'Les alertes marchent sur ce téléphone 👍' : 'Les alertes Mode champion marchent sur cet appareil 👍');
+      return { appareils: n, envoi: !!ctx.env.envoyerPush };
+    }
+  };
+  // dest : { r: 'p' | 'f' | 'e', qui: l'id du profil (sinon tous ceux de ce rôle), sauf: un id à ne pas prévenir, soi: aussi l'auteur }
+  function alerter(ctx, dest, cat, texte) {
+    (ctx.alertes = ctx.alertes || []).push({ r: dest.r, qui: dest.qui || '', sauf: dest.sauf || '', soi: !!dest.soi, cat: cat, texte: String(texte).slice(0, 180), lien: PUSH_LIENS[dest.r] || '' });
+  }
+  function titreEvt(ctx, compo) {
+    var e = compo ? find(ctx.db.rows('evenements'), compo.evenementId) : null;
+    return e && e.titre ? ' (« ' + cleanText(e.titre, 40) + ' »)' : '';
+  }
+  // ce qui part après chaque action (le résultat res de l'action est déjà là)
+  var ALERTES = {
+    logSession: function (req, ctx, res) {
+      var j = ctx.auth.row, s = res.seance;
+      if (!s) return;
+      var t = j.prenom + ' a fait ' + (SEANCES_NOMS[s.type] || 'une séance') + '.';
+      alerter(ctx, { r: 'e' }, 'seance', t);
+      alerter(ctx, { r: 'f', qui: j.familleId }, 'seance', t);
+    },
+    submitRecords: function (req, ctx, res) {
+      var j = ctx.auth.row, n = (res.records || []).filter(function (r) { return r.statut === 'attente'; }).length;
+      if (!n) return;
+      var b = String(req.bilan), t = b === 'defi' ? j.prenom + ' a relevé un défi.' : j.prenom + ' a noté son Bilan ' + b + ' (' + n + ' résultat' + (n > 1 ? 's' : '') + ').';
+      alerter(ctx, { r: 'f', qui: j.familleId }, 'confirmer', t + ' À confirmer.');
+      alerter(ctx, { r: 'e' }, 'bilan', t);
+    },
+    mission: function (req, ctx) {
+      var j = ctx.auth.row, t = req.fin ? ' a répondu à « Avec qui tu aimes jouer ».' : req.postes !== undefined ? ' a répondu à « Choisis ton poste ».' : req.message !== undefined ? ' a écrit un mot pour les éducs.' : '';
+      if (!t) return;
+      alerter(ctx, { r: 'e' }, 'mission', j.prenom + t);
+      if (req.postes !== undefined) alerter(ctx, { r: 'f', qui: j.familleId }, 'mission', j.prenom + ' a fait la mission « Choisis ton poste ».');
+    },
+    repondreMission: function (req, ctx) {
+      var def = find(ctx.db.rows('defmissions'), String(req.missionId || ''));
+      alerter(ctx, { r: 'e' }, 'mission', ctx.auth.row.prenom + ' a répondu à la mission « ' + cleanText(def && def.titre || 'Mission', 50) + ' ».');
+    },
+    demanderEtoile: function (req, ctx) { alerter(ctx, { r: 'e' }, 'etoile', ctx.auth.row.prenom + ' demande une étoile Skills.'); },
+    updateMe: function (req, ctx) {
+      var j = ctx.auth.row, n = (Array.isArray(req.journal) ? req.journal : []).filter(function (e) { return e && e.type === 'niveau'; }).length;
+      if (n) alerter(ctx, { r: 'e' }, 'niveau', j.prenom + ' a changé ' + (n > 1 ? 'des niveaux' : 'un niveau') + ' de sa prépa.');
+    },
+    setNiveaux: function (req, ctx, res) {
+      var j = res.joueur, educ = ctx.auth.r === 'e', qui = educ ? ctx.auth.row.nom : 'sa famille';
+      if (!j) return;
+      alerter(ctx, { r: 'p', qui: j.id }, 'niveau', 'Tes niveaux de prépa ont changé (' + (educ ? ctx.auth.row.nom : 'ta famille') + ').');
+      if (educ) alerter(ctx, { r: 'f', qui: j.familleId }, 'niveau', 'Niveaux de ' + j.prenom + ' changés par ' + qui + '.');
+      alerter(ctx, { r: 'e', sauf: educ ? ctx.auth.id : '' }, 'niveau', 'Niveaux de ' + j.prenom + ' changés par ' + qui + '.');
+    },
+    confirm: function (req, ctx, res) {
+      var par = {}, qui = ctx.auth.r === 'e' ? ctx.auth.row.nom : 'ta famille';
+      (res.records || []).forEach(function (r) { var o = par[r.joueurId] = par[r.joueurId] || { ok: 0, no: 0 }; if (r.statut === 'ok') o.ok++; else o.no++; });
+      Object.keys(par).forEach(function (id) {
+        var o = par[id], t = (o.ok ? o.ok + ' résultat' + (o.ok > 1 ? 's' : '') + ' confirmé' + (o.ok > 1 ? 's' : '') : '') + (o.ok && o.no ? ', ' : '') + (o.no ? o.no + ' refusé' + (o.no > 1 ? 's' : '') : '');
+        alerter(ctx, { r: 'p', qui: id }, 'resultat', 'Tes résultats : ' + t + ' par ' + qui + '.');
+      });
+    },
+    saveCompo: function (req, ctx, res) {
+      var c = res.compo;
+      if (!c || c.statut !== 'vote' || !Array.isArray(req.versions)) return;
+      alerter(ctx, { r: 'e', sauf: ctx.auth.id }, 'compo', ctx.auth.row.nom + ' demande votre vote sur une compo' + titreEvt(ctx, c) + '.');
+    },
+    voteCompo: function (req, ctx, res) {
+      var c = res.compo;
+      if (!c || c.auteur === ctx.auth.id) return;
+      alerter(ctx, { r: 'e', qui: c.auteur }, 'compo', ctx.auth.row.nom + ' a voté sur votre compo' + titreEvt(ctx, c) + '.');
+    },
+    contreProposition: function (req, ctx, res) {
+      var a = res.avis, c = a ? find(ctx.db.rows('compos'), a.compoId) : null;
+      if (!c || c.auteur === ctx.auth.id) return;
+      alerter(ctx, { r: 'e', qui: c.auteur }, 'compo', ctx.auth.row.nom + ' propose de modifier votre compo' + titreEvt(ctx, c) + '.');
+    },
+    repondreAvis: function (req, ctx, res) {
+      var a = res.avis;
+      if (!a || (a.statut !== 'acceptee' && a.statut !== 'refusee') || a.auteur === ctx.auth.id) return;
+      alerter(ctx, { r: 'e', qui: a.auteur }, 'compo', ctx.auth.row.nom + (a.statut === 'acceptee' ? ' a accepté' : ' a refusé') + ' votre contre-proposition' + titreEvt(ctx, find(ctx.db.rows('compos'), a.compoId)) + '.');
+    }
+  };
+  // les destinataires : les appareils abonnés au bon profil, qui veulent cette sorte ; jamais l'auteur lui-même (sauf l'essai)
+  function envoyerAlertes(ctx) {
+    if (!ctx.alertes || !ctx.alertes.length || !ctx.env.envoyerPush) return;
+    var rows = ctx.db.rows('push').filter(function (x) { return x.actif && x.jeton; });
+    if (!rows.length) return;
+    var auteur = ctx.auth ? ctx.auth.r + ':' + ctx.auth.id : '', vus = {}, msgs = [];
+    ctx.alertes.forEach(function (a) {
+      rows.forEach(function (x) {
+        if (x.role !== a.r || (a.qui && x.qui !== a.qui) || (a.sauf && x.qui === a.sauf)) return;
+        if (!a.soi && x.role + ':' + x.qui === auteur) return;
+        if (a.cat.charAt(0) !== '_' && (!Array.isArray(x.cats) || x.cats.indexOf(a.cat) < 0)) return;
+        var k = x.jeton + '|' + a.texte;
+        if (vus[k]) return;
+        vus[k] = 1;
+        msgs.push({ id: x.id, jeton: x.jeton, cat: a.cat, titre: 'Mode champion', texte: a.texte, lien: a.lien });
+      });
+    });
+    if (!msgs.length) return;
+    var morts = ctx.env.envoyerPush(msgs) || [];
+    morts.forEach(function (id) { try { ctx.db.update('push', id, { actif: false }); } catch (e) { /* tant pis */ } });
+  }
+
+  // ---------------------------------------------------------
   // Point d'entrée
   // ---------------------------------------------------------
   function handle(req, db, env) {
@@ -1989,6 +2156,8 @@ var Core = (function () {
         if (action.auth.indexOf(ctx.auth.r) < 0) fail('interdit', 'Accès refusé.');
       }
       var res = action.run(req, ctx) || {};
+      // (v34) les alertes sur le téléphone : une erreur ici ne fait jamais échouer l'action
+      try { if (ALERTES[req.action]) ALERTES[req.action](req, ctx, res); envoyerAlertes(ctx); } catch (e) { /* l'alerte est perdue, pas l'action */ }
       res.ok = true;
       return res;
     } catch (e) {

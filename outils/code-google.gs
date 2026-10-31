@@ -5,7 +5,7 @@
    Voir README.md, partie « Google Sheets ».
    ========================================================= */
 
-var TABLES = ['joueurs', 'familles', 'educs', 'seances', 'records', 'journal', 'missions', 'terrain', 'evenements', 'compos', 'avis', 'etoiles', 'encouragements', 'defmissions', 'demandes'];
+var TABLES = ['joueurs', 'familles', 'educs', 'seances', 'records', 'journal', 'missions', 'terrain', 'evenements', 'compos', 'avis', 'etoiles', 'encouragements', 'defmissions', 'demandes', 'push'];
 
 /*
  * Cache des onglets (CacheService). Lire un onglet de la feuille coûte 0,2 à 0,5 s ;
@@ -171,8 +171,86 @@ function env_() {
     // branché depuis l'appli par un éduc admin (e-mail et mot de passe gardés dans les propriétés du script)
     spondConnecter: typeof spondConnecter_ === 'function' ? spondConnecter_ : null,
     spondChoisir: typeof spondChoisir_ === 'function' ? spondChoisir_ : null,
-    spondDebrancher: typeof spondDebrancher_ === 'function' ? spondDebrancher_ : null
+    spondDebrancher: typeof spondDebrancher_ === 'function' ? spondDebrancher_ : null,
+    // (v34) alertes sur le téléphone : seulement quand la clé Firebase (propriété FCM_CLE) est là
+    envoyerPush: fcmCle_() ? envoyerPush_ : null
   };
+}
+
+/*
+ * (v34) Alertes sur le téléphone, par Firebase Cloud Messaging (API HTTP v1).
+ * Propriétés du script (Paramètres du projet › Propriétés du script), collées par Nicolas, jamais dans le dépôt :
+ *   FCM_CLE : le fichier .json de la clé privée du compte de service Firebase (secret : ne le mettre nulle part ailleurs) ;
+ *   FCM_WEB : la configuration Web de Firebase et la clé Web Push publique (pas secrète, l'appli l'envoie aux téléphones).
+ * Le serveur signe un jeton (RS256) avec la clé, l'échange contre un jeton d'accès Google (gardé 50 min), puis envoie.
+ * Une alerte de la même sorte au plus toutes les 10 minutes par appareil (le détail est dans la cloche de l'appli).
+ * Un appareil qui n'existe plus (désinstallé, permission retirée) est désabonné tout seul.
+ */
+var FCM_PORTEE = 'https://www.googleapis.com/auth/firebase.messaging';
+var FCM_PAUSE = 600;   // secondes entre deux alertes de la même sorte sur un appareil
+function fcmCle_() {
+  try {
+    var c = JSON.parse(PropertiesService.getScriptProperties().getProperty('FCM_CLE') || 'null');
+    return c && c.client_email && c.private_key && c.project_id ? c : null;
+  } catch (e) { return null; }
+}
+function b64url_(x) { return Utilities.base64EncodeWebSafe(x).replace(/=+$/, ''); }
+function fcmAcces_(cle) {
+  var cs = CacheService.getScriptCache(), t = cs.get('fcm:acces');
+  if (t) return t;
+  var now = Math.floor(Date.now() / 1000);
+  var tete = b64url_(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+  var corps = b64url_(JSON.stringify({ iss: cle.client_email, scope: FCM_PORTEE, aud: 'https://oauth2.googleapis.com/token', iat: now, exp: now + 3600 }));
+  var sig = b64url_(Utilities.computeRsaSha256Signature(tete + '.' + corps, cle.private_key));
+  var r = UrlFetchApp.fetch('https://oauth2.googleapis.com/token', {
+    method: 'post', muteHttpExceptions: true,
+    payload: { grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: tete + '.' + corps + '.' + sig }
+  });
+  if (r.getResponseCode() !== 200) throw new Error('Firebase : accès refusé (' + r.getResponseCode() + ')');
+  t = JSON.parse(r.getContentText()).access_token;
+  cs.put('fcm:acces', t, 3000);
+  return t;
+}
+function cleFcm_(m) {
+  return 'fcm:v:' + b64url_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, m.jeton + '|' + m.cat, Utilities.Charset.UTF_8)).slice(0, 43);
+}
+/** msgs : [{ id, jeton, cat, titre, texte, lien }] (préparés par Core). Renvoie les id des abonnements morts. */
+function envoyerPush_(msgs) {
+  var cle = fcmCle_();
+  if (!cle || !msgs || !msgs.length) return [];
+  var cs = CacheService.getScriptCache(), cles = msgs.map(cleFcm_), deja = cs.getAll(cles), garde = [];
+  msgs.forEach(function (m, i) { if (m.cat.charAt(0) === '_' || !deja[cles[i]]) garde.push(i); });   // l'essai passe toujours
+  if (!garde.length) return [];
+  var acces = fcmAcces_(cle), url = 'https://fcm.googleapis.com/v1/projects/' + cle.project_id + '/messages:send';
+  var reqs = garde.map(function (i) {
+    var m = msgs[i];
+    return {
+      url: url, method: 'post', contentType: 'application/json', muteHttpExceptions: true, headers: { Authorization: 'Bearer ' + acces },
+      // uniquement des données : c'est sw.js qui affiche l'alerte (toujours, sinon iOS coupe l'abonnement)
+      payload: JSON.stringify({ message: { token: m.jeton, data: { titre: m.titre, texte: m.texte, lien: m.lien, tag: m.cat }, webpush: { headers: { Urgency: 'high', TTL: '86400' } } } })
+    };
+  });
+  var reps = UrlFetchApp.fetchAll(reqs), morts = [], pose = {};
+  reps.forEach(function (r, j) {
+    var i = garde[j], code = r.getResponseCode();
+    if (code === 200) { if (msgs[i].cat.charAt(0) !== '_') pose[cles[i]] = '1'; }
+    else if (code === 404 || /UNREGISTERED/.test(r.getContentText())) morts.push(msgs[i].id);
+    else if (code === 401) cs.remove('fcm:acces');
+  });
+  if (Object.keys(pose).length) cs.putAll(pose, FCM_PAUSE);
+  return morts;
+}
+
+/** À lancer depuis l'éditeur après avoir collé FCM_CLE et FCM_WEB : vérifie que Firebase accepte la clé (rien n'est envoyé). */
+function verifierAlertes() {
+  var cle = fcmCle_();
+  if (!cle) { Logger.log('❌ Propriété FCM_CLE absente ou illisible : collez tout le contenu du fichier .json de la clé privée.'); return; }
+  var web = null;
+  try { web = JSON.parse(PropertiesService.getScriptProperties().getProperty('FCM_WEB') || 'null'); } catch (e) { web = null; }
+  if (!web || !web.vapidKey || !web.apiKey) Logger.log('❌ Propriété FCM_WEB absente ou incomplète.');
+  CacheService.getScriptCache().remove('fcm:acces');
+  try { fcmAcces_(cle); Logger.log('✅ Firebase accepte la clé du projet « ' + cle.project_id + ' ».' + (web && web.vapidKey ? ' FCM_WEB est là.' : '')); }
+  catch (e) { Logger.log('❌ ' + e.message); }
 }
 
 /**

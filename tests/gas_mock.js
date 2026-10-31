@@ -49,9 +49,24 @@ function makeEnv(opts) {
     console, Date, Math, JSON
   };
   // Spond (fichier spond.gs) : appels HTTP simulés par opts.spond(url, params) → { code, body }
+  // (v34) Firebase : appels simulés par opts.fcm(url, params) → { code, body } (jeton d'accès et envois)
   const triggers = [];
+  const rep = r => ({ getResponseCode: () => r.code, getContentText: () => (typeof r.body === 'string' ? r.body : JSON.stringify(r.body)) });
+  const route = (url, params) => {
+    if (/googleapis\.com/.test(url) && opts.fcm) return rep(opts.fcm(url, params || {}));
+    if (opts.spond) return rep(opts.spond(url, params || {}));
+    throw new Error('appel réseau inattendu : ' + url);
+  };
+  if (opts.spond || opts.fcm) ctx.UrlFetchApp = { fetch: route, fetchAll: reqs => reqs.map(q => route(q.url, q)) };
+  const signes = b => Array.from(b).map(x => (x > 127 ? x - 256 : x));
+  const octets = x => Buffer.from(typeof x === 'string' ? x : Array.from(x).map(b => b & 255));
+  ctx.Utilities = {
+    base64EncodeWebSafe: x => octets(x).toString('base64').replace(/\+/g, '-').replace(/\//g, '_'),
+    computeRsaSha256Signature: (v, key) => signes(crypto.sign('sha256', Buffer.from(v, 'utf8'), key)),
+    computeDigest: (alg, v) => signes(crypto.createHash('sha256').update(String(v), 'utf8').digest()),
+    DigestAlgorithm: { SHA_256: 'sha256' }, Charset: { UTF_8: 'utf8' }
+  };
   if (opts.spond) {
-    ctx.UrlFetchApp = { fetch: (url, params) => { const r = opts.spond(url, params || {}); return { getResponseCode: () => r.code, getContentText: () => (typeof r.body === 'string' ? r.body : JSON.stringify(r.body)) }; } };
     // opts.sansDeclencheur : le propriétaire n'a pas encore autorisé les déclencheurs
     const pasAutorise = () => { if (opts.sansDeclencheur) throw new Error('You do not have permission to call ScriptApp.getProjectTriggers'); };
     ctx.ScriptApp = {
