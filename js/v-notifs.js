@@ -156,6 +156,7 @@
       '<button type="button" class="btn2 grey" data-act="howInstall" data-r="' + role + '">' + icon('phone', 18) + ' Comment faire</button>');
     if (s === 'ios-maj') return note('Pour les alertes sur l\'écran, il faut iOS 16.4 ou plus : Réglages › Général › Mise à jour logicielle.');
     if (s === 'non') return note('Ce navigateur n\'affiche pas les alertes sur l\'écran.' + (p.android ? (tu ? ' Ouvre l\'appli dans Chrome.' : ' Ouvrez l\'appli dans Chrome.') : ''));
+    if (!on) A.prechauffer(role);   // la configuration et Firebase prêts avant le toucher
     if (s === 'bloque') return note((tu ? 'Les alertes sont bloquées pour l\'appli. Pour les rouvrir : ' : 'Les alertes sont bloquées pour l\'appli. Pour les rouvrir : ') +
       (p.ios ? 'Réglages de l\'iPhone › Notifications › Champion' : p.android ? 'Paramètres › Applis › Chrome (ou l\'appli) › Notifications' : 'le cadenas à gauche de l\'adresse › Notifications') + (tu ? ', puis reviens ici.' : ', puis revenez ici.'));
     return '<div class="sec"><button type="button" class="switch" role="switch" aria-checked="' + on + '" data-act="alerteToggle"><span class="row">' +
@@ -188,7 +189,7 @@
   MC.act.alerteEssai = function (b) {
     var w = qui(); if (!w || !MC.alertes) return;
     b.disabled = true;
-    MC.alertes.essai(w.role).then(function (r) {
+    MC.alertes.essai(w.role, w.id).then(function (r) {
       ui.toast(r && r.envoi ? 'Alerte envoyée : elle arrive dans quelques secondes.' : 'Le serveur n\'envoie pas encore les alertes.', !(r && r.envoi));
     }, function (e) { ui.toast(MC.alertes.message(e, w.role === 'k'), true); }).then(function () { b.disabled = false; });
   };

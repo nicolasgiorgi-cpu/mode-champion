@@ -8,7 +8,11 @@
      le garde (onglet push) avec les sortes allumées dans la cloche. Éteindre une sorte dans la cloche l'éteint ici aussi.
    - Le serveur envoie l'alerte après une action (js/core.js, ALERTES) ; sw.js l'affiche, et la toucher ouvre la cloche.
    - La configuration Firebase vient du serveur (action pushConfig) : rien d'identifiant dans ce dépôt public.
-   - Sur l'appareil : mc-notif-push:<rôle>:<id> = { on, jeton, t } (gardé par « Réparer l'appli », comme la cloche).
+   - Sur l'appareil : mc-notif-push:<rôle>:<id> = { on, jeton, t } (gardé par « Réparer l'appli », comme la cloche) ;
+     mc-push-jeton = le jeton de l'appareil (envoyé avec chaque action : cet appareil ne sonne pas pour ce qu'on vient
+     d'y faire ; et tous les profils de l'appareil suivent quand il change) ; mc-push-retirer = les désabonnements pas
+     encore confirmés par le serveur (réessayés à l'ouverture : éteindre ne doit jamais rester à moitié fait).
+   - Les appels faits en arrière-plan (vérifier, sortes) passent directement par MC.api, sans rouvrir l'espace adulte.
    - Se déconnecter (parent, éduc) éteint les alertes de ce profil sur l'appareil. « Changer de joueur » non : sur la
      tablette de la famille, chaque enfant garde les siennes (il les éteint dans ses réglages).
    - Tests : window.__MC_PUSH_FAKE = un faux jeton (pas de Firebase, pas de réseau).
@@ -25,6 +29,16 @@ MC.alertes = (function () {
   function lire(role, id) { var o = id ? app.lsGet(cle(role, id)) : null; return o && typeof o === 'object' ? o : null; }
   function ecrire(role, id, o) { app.lsSet(cle(role, id), o); }
   function appel(role, action, params) { return role === 'k' ? app.kidCall(action, params || {}) : app.adultCall(action, params || {}); }
+  // en arrière-plan : pas de barre d'activité, pas de « Reconnectez-vous », et surtout pas de touchAdult (sur un appareil
+  // partagé, l'espace adulte refermé quand l'enfant a pris le téléphone doit le rester)
+  function tokenDe(role) { var S = app.S; return role === 'k' ? S.kid && S.kid.token : S.adult && S.adult.role === role ? S.adult.token : null; }
+  function fond(role, action, params) {
+    var tok = tokenDe(role), p = { token: tok };
+    if (!tok) return Promise.reject({ code: 'session' });
+    for (var k in (params || {})) p[k] = params[k];
+    return MC.api.call(action, p, { silent: true });
+  }
+  function jetonAppareil(t) { if (t) app.lsSet('mc-push-jeton', t); return app.lsGet('mc-push-jeton'); }
   // les sortes allumées dans la cloche (les mêmes clés que le serveur)
   function catsOn(role, id) { var off = (N && N.reglages(role, id)) || {}; return N ? N.cats(role).filter(function (c) { return !off[c.id]; }).map(function (c) { return c.id; }) : []; }
 
@@ -64,7 +78,7 @@ MC.alertes = (function () {
   var cfgP = null, fbP = null;
   function config(role) {
     if (!cfgP) {
-      cfgP = appel(role, 'pushConfig').then(function (r) { return r && r.web ? r.web : null; });
+      cfgP = fond(role, 'pushConfig').then(function (r) { return r && r.web ? r.web : null; });
       cfgP.then(function (w) { if (!w) cfgP = null; }, function () { cfgP = null; });
     }
     return cfgP;
@@ -92,10 +106,15 @@ MC.alertes = (function () {
     return navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(function () { return navigator.serviceWorker.ready; });
   }
   function jeton(web) {
-    if (window.__MC_PUSH_FAKE) return Promise.resolve(String(window.__MC_PUSH_FAKE));
-    return Promise.all([firebase(web), travailleur()]).then(function (x) {
+    var p = window.__MC_PUSH_FAKE ? Promise.resolve(String(window.__MC_PUSH_FAKE)) : Promise.all([firebase(web), travailleur()]).then(function (x) {
       return x[0].M.getToken(x[0].msg, { vapidKey: web.vapidKey, serviceWorkerRegistration: x[1] });
-    }).then(function (t) { if (!t) throw { code: 'jeton' }; return t; });
+    });
+    return p.then(function (t) { if (!t) throw { code: 'jeton' }; jetonAppareil(t); return t; });
+  }
+  // à l'affichage des réglages : la configuration et Firebase déjà là quand on touche l'interrupteur (moins d'attente)
+  function prechauffer(role) {
+    if (support() !== 'ok' || window.__MC_PUSH_FAKE) return;
+    config(role).then(function (web) { if (web) return firebase(web); }).catch(noop);
   }
   function nouveauJeton(role) {
     return config(role).then(function (web) {
@@ -114,17 +133,23 @@ MC.alertes = (function () {
       if (p !== 'granted') throw { code: p === 'denied' ? 'bloque' : 'annule' };
       return nouveauJeton(role);
     }).then(function (t) {
+      // si la réponse se perd, le serveur a peut-être abonné l'appareil : on le saura à retirer (l'interrupteur dit « éteint »)
+      ecrire(role, id, { on: false, jeton: t, retirer: true });
       return appel(role, 'pushAbonner', { jeton: t, cats: catsOn(role, id), appareil: appareil() }).then(function () {
         ecrire(role, id, { on: true, jeton: t, t: Date.now() });
         return true;
       });
     });
   }
-  function desactiver(role, id) {
+  // éteindre : l'interrupteur s'éteint tout de suite ; tant que le serveur n'a pas confirmé, on garde de quoi réessayer
+  function desactiver(role, id, enFond) {
     var s = lire(role, id);
-    ecrire(role, id, { on: false });
-    if (s && s.jeton) return appel(role, 'pushDesabonner', { jeton: s.jeton }).catch(noop);
-    return Promise.resolve();
+    if (!s || !s.jeton) { ecrire(role, id, { on: false }); return Promise.resolve(); }
+    ecrire(role, id, { on: false, jeton: s.jeton, retirer: true });
+    return (enFond ? fond : appel)(role, 'pushDesabonner', { jeton: s.jeton }).then(function () {
+      var x = lire(role, id);
+      if (x && !x.on) ecrire(role, id, { on: false });
+    }, noop);
   }
   function actif(role, id) { var s = lire(role, id); return !!(s && s.on && s.jeton); }
 
@@ -136,7 +161,8 @@ MC.alertes = (function () {
     minuteur[role + id] = setTimeout(function () {
       var s = lire(role, id);
       if (!s || !s.on || !s.jeton) return;
-      appel(role, 'pushAbonner', { jeton: s.jeton, cats: catsOn(role, id), appareil: appareil() }).then(function () { s.t = Date.now(); ecrire(role, id, s); }, noop);
+      fond(role, 'pushAbonner', { jeton: s.jeton, cats: catsOn(role, id), appareil: appareil() }).then(function () { s.t = Date.now(); ecrire(role, id, s); },
+        function () { s.t = 0; ecrire(role, id, s); });   // raté : réessayé à la prochaine ouverture
     }, 1200);
   }
 
@@ -144,26 +170,32 @@ MC.alertes = (function () {
   // « Réparer l'appli » efface le service worker) : on le redemande au plus une fois par jour, ou tout de suite s'il est perdu.
   var vu = {};
   function verifier(w) {
-    if (!w || !w.id || !actif(w.role, w.id)) return;
-    var k = w.role + ':' + w.id, now = Date.now();
+    if (!w || !w.id) return;
+    var k = w.role + ':' + w.id, now = Date.now(), s = lire(w.role, w.id);
+    if (!s || (!s.on && !s.retirer) || !s.jeton) return;
     if (vu[k] && now - vu[k] < PAUSE) return;
     vu[k] = now;
-    var s = lire(w.role, w.id);
+    retirerEnAttente();
+    if (s.retirer && !s.on) { desactiver(w.role, w.id, true); return; }   // un « éteindre » pas encore confirmé : on réessaie
     if (support() !== 'ok' || permission() !== 'granted') {   // l'alerte a été coupée dans les réglages du téléphone
-      if (support() !== 'ios-ecran') desactiver(w.role, w.id);
+      if (support() !== 'ios-ecran') desactiver(w.role, w.id, true);
       return;
     }
+    function reabonner(t) {
+      var avant = s.jeton;
+      return fond(w.role, 'pushAbonner', { jeton: t, cats: catsOn(w.role, w.id), appareil: appareil() }).then(function () {
+        ecrire(w.role, w.id, { on: true, jeton: t, t: Date.now() });
+        if (avant && avant !== t) fond(w.role, 'pushDesabonner', { jeton: avant }).catch(noop);
+      });
+    }
+    // le jeton de l'appareil a changé (renouvelé en ouvrant un autre profil) : ce profil suit tout de suite
+    var dev = jetonAppareil();
+    if (dev && dev !== s.jeton) { reabonner(dev).catch(noop); return; }
     var perdu = window.__MC_PUSH_FAKE ? Promise.resolve(false) :
       navigator.serviceWorker.getRegistration().then(function (r) { return r ? r.pushManager.getSubscription().then(function (x) { return !x; }) : true; }).catch(function () { return false; });
     perdu.then(function (p) {
       if (!p && now - (s.t || 0) < JOUR) return;
-      return nouveauJeton(w.role).then(function (t) {
-        var avant = s.jeton;
-        return appel(w.role, 'pushAbonner', { jeton: t, cats: catsOn(w.role, w.id), appareil: appareil() }).then(function () {
-          ecrire(w.role, w.id, { on: true, jeton: t, t: Date.now() });
-          if (avant && avant !== t) appel(w.role, 'pushDesabonner', { jeton: avant }).catch(noop);
-        });
-      });
+      return nouveauJeton(w.role).then(reabonner);
     }).catch(noop);
   }
 
@@ -177,18 +209,44 @@ MC.alertes = (function () {
       var gr = S.cache.group || g('mc-group'); return gr && gr.moi ? gr.moi.id : null;
     } catch (e) { return null; }
   }
+  // les désabonnements de profils déconnectés, pas encore confirmés : { tok (la session, encore valable côté serveur), jeton, exp }
+  var RET = 'mc-push-retirer';
+  function retirerEnAttente() {
+    var l = app.lsGet(RET), now = Date.now();
+    if (!Array.isArray(l) || !l.length) return;
+    l.filter(function (x) { return x && x.tok && x.jeton && x.exp > now; }).forEach(function (x) { essayerRetrait(x); });
+  }
+  function essayerRetrait(x) {
+    MC.api.call('pushDesabonner', { token: x.tok, jeton: x.jeton }, { silent: true }).then(fini, function (e) { if (e && (e.code === 'session' || e.code === 'invalide')) fini(); });
+    function fini() {
+      var l = app.lsGet(RET);
+      l = (Array.isArray(l) ? l : []).filter(function (y) { return y && !(y.tok === x.tok && y.jeton === x.jeton) && y.exp > Date.now(); });
+      app.lsSet(RET, l.length ? l : null);
+    }
+  }
   function oublier(role) {
-    var id = idDe(role), cles = [], S = app.S, tok = role === 'k' ? S.kid && S.kid.token : S.adult && S.adult.token;
+    var id = idDe(role), cles = [], tok = tokenDe(role);
     try { Object.keys(localStorage).forEach(function (k) { if (k.indexOf('mc-notif-push:' + role + ':') === 0 && (!id || k === cle(role, id))) cles.push(k); }); } catch (e) { }
     cles.forEach(function (k) {
       var s = app.lsGet(k);
-      // directement (pas adultCall : la session se ferme, rien à rouvrir ni à rediriger)
-      if (s && s.on && s.jeton && tok) MC.api.call('pushDesabonner', { token: tok, jeton: s.jeton }).catch(noop);
+      // directement (pas adultCall : la session se ferme, rien à rouvrir ni à rediriger) ; gardé jusqu'à confirmation (7 jours au plus)
+      if (s && s.jeton && (s.on || s.retirer) && tok) {
+        var x = { tok: tok, jeton: s.jeton, exp: Date.now() + 7 * JOUR }, l = app.lsGet(RET);
+        app.lsSet(RET, (Array.isArray(l) ? l : []).concat([x]).slice(-20));
+        essayerRetrait(x);
+      }
       app.lsSet(k, null);
     });
   }
+  // au démarrage : les désabonnements restés en attente (réseau coupé au moment de se déconnecter…)
+  setTimeout(function () { try { retirerEnAttente(); } catch (e) { } }, 5000);
 
-  function essai(role) { return appel(role, 'pushEssai'); }
+  // l'essai : seulement sur CET appareil (pas sur le téléphone de l'autre parent)
+  function essai(role, id) {
+    var s = lire(role, id);
+    if (!s || !s.jeton) return Promise.reject({ code: 'jeton' });
+    return appel(role, 'pushEssai', { jeton: s.jeton, cats: catsOn(role, id), appareil: appareil() });
+  }
 
   // toucher une alerte quand l'appli est déjà ouverte : sw.js demande d'aller sur la cloche
   try {
@@ -210,5 +268,5 @@ MC.alertes = (function () {
   }
 
   return { support: support, plateforme: plateforme, activer: activer, desactiver: desactiver, actif: actif, majCats: majCats,
-    verifier: verifier, oublier: oublier, essai: essai, message: message, catsOn: catsOn, cle: cle };
+    verifier: verifier, oublier: oublier, essai: essai, message: message, catsOn: catsOn, cle: cle, prechauffer: prechauffer };
 })();

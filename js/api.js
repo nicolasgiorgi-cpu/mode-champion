@@ -93,6 +93,8 @@ MC.api = (function () {
     var req = {};
     for (var k in (params || {})) req[k] = params[k];
     req.action = action;
+    // (v34) l'appareil d'où vient l'action (son jeton d'alertes, s'il en a un) : il ne sonnera pas pour ce qu'on vient d'y faire
+    if (req.pj === undefined) { try { var pj = JSON.parse(localStorage.getItem('mc-push-jeton') || 'null'); if (pj) req.pj = pj; } catch (e) { } }
     if (DEMO) {
       return new Promise(function (resolve) { setTimeout(resolve, 120); }).then(function () {
         var db = localDb();

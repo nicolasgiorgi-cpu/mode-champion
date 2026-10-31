@@ -172,8 +172,9 @@ function env_() {
     spondConnecter: typeof spondConnecter_ === 'function' ? spondConnecter_ : null,
     spondChoisir: typeof spondChoisir_ === 'function' ? spondChoisir_ : null,
     spondDebrancher: typeof spondDebrancher_ === 'function' ? spondDebrancher_ : null,
-    // (v34) alertes sur le téléphone : seulement quand la clé Firebase (propriété FCM_CLE) est là
-    envoyerPush: fcmCle_() ? envoyerPush_ : null
+    // (v34) alertes sur le téléphone : seulement quand la clé Firebase (propriété FCM_CLE) est là. Core les prépare ;
+    // elles partent APRÈS la réponse préparée et le verrou relâché (doPost) : Firebase ne fait jamais attendre les autres.
+    envoyerPush: fcmCle_() ? function (msgs) { PUSH_FILE_ = PUSH_FILE_.concat(msgs); return []; } : null
   };
 }
 
@@ -194,6 +195,7 @@ function fcmCle_() {
     return c && c.client_email && c.private_key && c.project_id ? c : null;
   } catch (e) { return null; }
 }
+var PUSH_FILE_ = [];   // les alertes de la requête en cours, envoyées par doPost une fois le verrou relâché
 function b64url_(x) { return Utilities.base64EncodeWebSafe(x).replace(/=+$/, ''); }
 function fcmAcces_(cle) {
   var cs = CacheService.getScriptCache(), t = cs.get('fcm:acces');
@@ -211,8 +213,9 @@ function fcmAcces_(cle) {
   cs.put('fcm:acces', t, 3000);
   return t;
 }
+// la pause de 10 min : par appareil, profil, sorte et enfant (m.tag) ; le « À confirmer » de Lou n'attend pas celui de Tom
 function cleFcm_(m) {
-  return 'fcm:v:' + b64url_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, m.jeton + '|' + m.cat, Utilities.Charset.UTF_8)).slice(0, 43);
+  return 'fcm:v:' + b64url_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, m.jeton + '|' + (m.tag || m.cat), Utilities.Charset.UTF_8)).slice(0, 43);
 }
 /** msgs : [{ id, jeton, cat, titre, texte, lien }] (préparés par Core). Renvoie les id des abonnements morts. */
 function envoyerPush_(msgs) {
@@ -221,20 +224,25 @@ function envoyerPush_(msgs) {
   var cs = CacheService.getScriptCache(), cles = msgs.map(cleFcm_), deja = cs.getAll(cles), garde = [];
   msgs.forEach(function (m, i) { if (m.cat.charAt(0) === '_' || !deja[cles[i]]) garde.push(i); });   // l'essai passe toujours
   if (!garde.length) return [];
-  var acces = fcmAcces_(cle), url = 'https://fcm.googleapis.com/v1/projects/' + cle.project_id + '/messages:send';
+  // Firebase en panne (accès refusé, trop lent) : on n'insiste pas pendant 10 min (la cloche, elle, marche toujours)
+  if (cs.get('fcm:panne') && !msgs.some(function (m) { return m.cat.charAt(0) === '_'; })) return [];
+  var acces, url = 'https://fcm.googleapis.com/v1/projects/' + cle.project_id + '/messages:send';
+  try { acces = fcmAcces_(cle); } catch (e) { cs.put('fcm:panne', '1', 600); throw e; }
   var reqs = garde.map(function (i) {
     var m = msgs[i];
     return {
       url: url, method: 'post', contentType: 'application/json', muteHttpExceptions: true, headers: { Authorization: 'Bearer ' + acces },
       // uniquement des données : c'est sw.js qui affiche l'alerte (toujours, sinon iOS coupe l'abonnement)
-      payload: JSON.stringify({ message: { token: m.jeton, data: { titre: m.titre, texte: m.texte, lien: m.lien, tag: m.cat }, webpush: { headers: { Urgency: 'high', TTL: '86400' } } } })
+      payload: JSON.stringify({ message: { token: m.jeton, data: { titre: m.titre, texte: m.texte, lien: m.lien, tag: m.tag || m.cat }, webpush: { headers: { Urgency: 'high', TTL: '86400' } } } })
     };
   });
-  var reps = UrlFetchApp.fetchAll(reqs), morts = [], pose = {};
+  var reps, morts = [], pose = {};
+  try { reps = UrlFetchApp.fetchAll(reqs); } catch (e) { cs.put('fcm:panne', '1', 600); throw e; }
   reps.forEach(function (r, j) {
-    var i = garde[j], code = r.getResponseCode();
+    var i = garde[j], code = r.getResponseCode(), txt = code === 200 ? '' : r.getContentText();
     if (code === 200) { if (msgs[i].cat.charAt(0) !== '_') pose[cles[i]] = '1'; }
-    else if (code === 404 || /UNREGISTERED/.test(r.getContentText())) morts.push(msgs[i].id);
+    // appareil qui n'existe plus, jeton invalide, ou jeton d'un autre projet Firebase : désabonné
+    else if (code === 404 || /UNREGISTERED|SENDER_ID_MISMATCH/.test(txt) || (code === 400 && /registration token/i.test(txt))) morts.push(msgs[i].id);
     else if (code === 401) cs.remove('fcm:acces');
   });
   if (Object.keys(pose).length) cs.putAll(pose, FCM_PAUSE);
@@ -248,7 +256,7 @@ function verifierAlertes() {
   var web = null;
   try { web = JSON.parse(PropertiesService.getScriptProperties().getProperty('FCM_WEB') || 'null'); } catch (e) { web = null; }
   if (!web || !web.vapidKey || !web.apiKey) Logger.log('❌ Propriété FCM_WEB absente ou incomplète.');
-  CacheService.getScriptCache().remove('fcm:acces');
+  CacheService.getScriptCache().removeAll(['fcm:acces', 'fcm:panne']);
   try { fcmAcces_(cle); Logger.log('✅ Firebase accepte la clé du projet « ' + cle.project_id + ' ».' + (web && web.vapidKey ? ' FCM_WEB est là.' : '')); }
   catch (e) { Logger.log('❌ ' + e.message); }
 }
@@ -324,11 +332,30 @@ function doPost(e) {
   } catch (err) {
     return json_({ ok: false, error: 'occupe', message: 'Le serveur est occupé, réessaie dans un instant.' });
   }
-  var db = new SheetDB_();
+  var db = new SheetDB_(), out;
+  PUSH_FILE_ = [];
   try {
-    return json_(Core.handle(req, db, env_()));
+    out = Core.handle(req, db, env_());
   } finally {
     try { db.flush_(); } catch (err) { /* le cache sera relu depuis la feuille */ }
+    lock.releaseLock();
+  }
+  if (PUSH_FILE_.length) envoyerFile_();
+  return json_(out);
+}
+
+/** (v34) Les alertes préparées par Core, envoyées une fois le verrou relâché ; une panne ne touche jamais la réponse. */
+function envoyerFile_() {
+  var file = PUSH_FILE_, morts = [];
+  PUSH_FILE_ = [];
+  try { morts = envoyerPush_(file) || []; } catch (err) { return; }
+  if (!morts.length) return;
+  // les appareils morts : désabonnés (verrou court ; s'il est pris, ce sera pour le prochain envoi)
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(5000)) return;
+  var db = new SheetDB_();
+  try { Core.pushMorts(db, morts); } finally {
+    try { db.flush_(); } catch (err) { }
     lock.releaseLock();
   }
 }

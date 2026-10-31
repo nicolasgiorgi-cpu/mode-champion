@@ -98,7 +98,41 @@ with sync_playwright() as p:
     vu2 = actifs(pg, 'e')[0]['vu']
     pg.goto(BASE + '#/educ/progres'); pg.wait_for_timeout(1500)
     check('… et pas à chaque écran', actifs(pg, 'e')[0]['vu'] == vu2)
+    # ----- 5b. (relecture) l'appareil d'où vient l'action est signalé au serveur (il ne sonnera pas pour elle) -----
+    pg.evaluate("(function(){ var h = Core.handle; Core.handle = function (req) { window.__pj = req.pj; return h.apply(this, arguments); }; })()")
+    pg.evaluate("MC.app.adultCall('group', {})"); pg.wait_for_timeout(600)
+    check('chaque action dit de quel appareil elle vient (son jeton d\'alertes)', pg.evaluate('window.__pj') == JETON, pg.evaluate('window.__pj'))
+    # ----- 5c. (relecture) les appels en arrière-plan ne rouvrent pas l'espace adulte d'un appareil partagé -----
+    pg.evaluate("localStorage.setItem('mc-shared', JSON.stringify('on')); localStorage.setItem('mc-adult-open', 'true')")
+    pg.evaluate("(function(){ var k = 'mc-notif-push:e:' + MC.app.S.cache.group.moi.id, s = JSON.parse(localStorage.getItem(k)); s.t = 0; localStorage.setItem(k, JSON.stringify(s)); })()")
+    vu3 = actifs(pg, 'e')[0]['vu']
+    pg.reload(); pg.wait_for_timeout(300)
+    pg.evaluate("MC.app.lockAdult()")   # l'enfant prend le téléphone pendant que l'appli revérifie l'abonnement
+    pg.wait_for_timeout(2500)
+    check('vérification en arrière-plan : faite', actifs(pg, 'e') and actifs(pg, 'e')[0]['vu'] != vu3, (vu3, actifs(pg, 'e')))
+    check('… sans rouvrir l\'espace adulte refermé', pg.evaluate("localStorage.getItem('mc-adult-open')") is None, pg.evaluate("localStorage.getItem('mc-adult-open')"))
+    pg.evaluate("localStorage.removeItem('mc-shared'); localStorage.setItem('mc-adult-open', 'true')")
+    # ----- 5d. (relecture) le jeton de l'appareil change (ouvert depuis un autre profil) : ce profil suit -----
+    NEUF = 'nouveau-jeton:APA91b_abcdefghij0123456789'
+    pg.evaluate("j => localStorage.setItem('mc-push-jeton', JSON.stringify(j))", NEUF)
+    pg.reload(); pg.wait_for_timeout(800); pg.goto(BASE + '#/educ/joueurs'); pg.wait_for_timeout(1800)
+    a = actifs(pg, 'e')
+    check('nouveau jeton de l\'appareil : le profil se réabonne avec lui (l\'ancien est retiré)', len(a) == 1 and a[0]['jeton'] == NEUF, a)
+    pg.evaluate("j => localStorage.setItem('mc-push-jeton', JSON.stringify(j))", JETON)
+    pg.reload(); pg.wait_for_timeout(800); pg.goto(BASE + '#/educ/joueurs'); pg.wait_for_timeout(1800)
+    # ----- 5e. (relecture) éteindre sans réseau : l'appli réessaie, l'appareil ne reste jamais abonné en douce -----
+    pg.goto(BASE + '#/educ/notifs/reglages'); pg.wait_for_timeout(1000)
+    pg.evaluate("(function(){ var c = MC.api.call; MC.api.call = function (a) { if (a === 'pushDesabonner') return Promise.reject({ code: 'reseau', message: 'Pas de réseau' }); return c.apply(this, arguments); }; })()")
+    sw(pg).click(); pg.wait_for_timeout(1000)
+    loc = pg.evaluate("JSON.parse(localStorage.getItem('mc-notif-push:e:' + MC.app.S.cache.group.moi.id))")
+    check('éteint sans réseau : l\'interrupteur est éteint, le retrait reste à faire', coche(pg) == 'false' and loc.get('retirer') is True and len(actifs(pg, 'e')) == 1, (coche(pg), loc))
+    pg.reload(); pg.wait_for_timeout(800); pg.goto(BASE + '#/educ/joueurs'); pg.wait_for_timeout(1800)
+    loc = pg.evaluate("JSON.parse(localStorage.getItem('mc-notif-push:e:' + MC.app.S.cache.group.moi.id))")
+    check('… réessayé à l\'ouverture : plus abonné', not actifs(pg, 'e') and not loc.get('retirer'), (rows(pg), loc))
+    pg.goto(BASE + '#/educ/notifs/reglages'); pg.wait_for_timeout(1000); sw(pg).click(); pg.wait_for_timeout(1500)
+    check('(rallumé)', coche(pg) == 'true' and len(actifs(pg, 'e')) == 1)
     # ----- 6. toucher une alerte, appli ouverte : la cloche (et un lien abîmé ne fait rien) -----
+    pg.goto(BASE + '#/educ/progres'); pg.wait_for_timeout(1000)
     pg.evaluate("navigator.serviceWorker.dispatchEvent(new MessageEvent('message', { data: { mc: 'aller', lien: 'javascript:alert(1)' } }))"); pg.wait_for_timeout(600)
     check('lien abîmé : on reste où on est', '#/educ/progres' in pg.url, pg.url)
     pg.evaluate("navigator.serviceWorker.dispatchEvent(new MessageEvent('message', { data: { mc: 'aller', lien: '#/educ/notifs' } }))"); pg.wait_for_timeout(1200)
@@ -121,6 +155,7 @@ with sync_playwright() as p:
     if pg.query_selector('.modal'): pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(1200)
     check('déconnexion : l\'abonnement est éteint', not actifs(pg, 'e'), rows(pg))
     check('déconnexion : plus rien sur l\'appareil', pg.evaluate("Object.keys(localStorage).filter(k => k.indexOf('mc-notif-push:e:') === 0).length") == 0)
+    check('déconnexion : le retrait confirmé ne laisse pas la session sur l\'appareil', pg.evaluate("localStorage.getItem('mc-push-retirer')") is None, pg.evaluate("localStorage.getItem('mc-push-retirer')"))
     # ----- 9. le parent, puis l'enfant -----
     parent(pg, codes)
     pg.goto(BASE + '#/parent/notifs/reglages'); pg.wait_for_timeout(1000)

@@ -146,7 +146,7 @@ var Core = (function () {
       ['etoiles', 'j']],
     // (v34) alertes sur le téléphone : un appareil abonné pour un profil (role p, f ou e ; qui = son id), les sortes qu'il veut recevoir.
     // jeton = l'adresse Firebase Cloud Messaging de l'appareil (jamais renvoyée au site)
-    push: [['id', 's'], ['role', 's'], ['qui', 's'], ['jeton', 's'], ['cats', 'j'], ['appareil', 's'], ['cree', 's'], ['vu', 's'], ['actif', 'b']]
+    push: [['id', 's'], ['role', 's'], ['qui', 's'], ['jeton', 's'], ['cats', 'j'], ['appareil', 's'], ['cree', 's'], ['vu', 's'], ['actif', 'b'], ['v', 's']]
   };
 
   // Valeur brute (texte de la feuille) -> valeur typée
@@ -733,10 +733,12 @@ var Core = (function () {
           }
           ctx.db.update('records', existing.id, { valeur: n, extra: extra, statut: 'attente', parQui: '', date: date });
           saved.push(pubRecord(find(ctx.db.rows('records'), existing.id)));
+          ctx.nAttente = (ctx.nAttente || 0) + 1;   // (v34) un résultat nouveau à confirmer : il mérite une alerte
         } else {
           var row = { id: genId(ctx.env), joueurId: ctx.auth.id, bilan: bilan, test: String(v.test), valeur: n, extra: extra, statut: 'attente', parQui: '', date: date, cree: isoNow(ctx.now) };
           ctx.db.insert('records', row);
           saved.push(pubRecord(row));
+          ctx.nAttente = (ctx.nAttente || 0) + 1;
         }
       }
       // la date vaut pour tout le bilan : les tests déjà envoyés de ce bilan prennent la nouvelle date
@@ -939,6 +941,7 @@ var Core = (function () {
       var nv = cleanNiveaux(req.niveaux), cur = j.niveaux || {}, chg = {};
       for (var k in nv) { if (cur[k] !== nv[k]) chg[k] = { de: cur[k] || 1, a: nv[k] }; cur[k] = nv[k]; }
       ctx.db.update('joueurs', j.id, { niveaux: cur });
+      ctx.nChg = Object.keys(chg).length;   // (v34) pas d'alerte quand rien n'a changé
       if (Object.keys(chg).length) {
         var qui = ctx.auth.r === 'e' ? 'Éduc ' + ctx.auth.row.nom : 'Parent';
         ctx.db.insert('journal', { id: genId(ctx.env), joueurId: j.id, type: 'niveau_adulte', data: { changes: chg, par: qui }, date: isoDate(ctx.now), cree: isoNow(ctx.now) });
@@ -1421,6 +1424,7 @@ var Core = (function () {
       }
       var faite = def.sorte === 'video' ? !!r.vu && (!qs.length || Array.isArray(r.ans)) : Array.isArray(r.ans);
       if (faite && r.xp === undefined) r.xp = Number(def.xp) || 0;   // les XP gagnés restent, même si la mission est retirée ensuite
+      ctx.missionFaite = faite && !(row && row.faite);   // (v34) l'alerte part quand la mission devient faite (pas en lançant la vidéo)
       var now = isoNow(ctx.now);
       if (row) {
         var patch = { reponses: r, faite: faite || !!row.faite, maj: now };
@@ -2010,21 +2014,32 @@ var Core = (function () {
       return { web: o };
     }
   };
+  // la version du profil (code changé, éduc désactivé…) : gardée avec l'abonnement ; si elle change, les alertes s'arrêtent
+  function versionProfil(role, row) { return String(role === 'p' ? row.pinV : row.codeV); }
+  function profilOk(ctx, role, id, v, memo) {
+    var k = role + ':' + id;
+    if (memo[k] === undefined) {
+      var row = find(ctx.db.rows(role === 'p' ? 'joueurs' : role === 'f' ? 'familles' : 'educs'), id);
+      memo[k] = row && (role === 'f' || row.actif) ? versionProfil(role, row) : null;
+    }
+    return memo[k] !== null && v !== undefined && v !== null && String(v) === memo[k];
+  }
+  function abonner(req, ctx) {
+    var jeton = jetonPush(req), r = ctx.auth.r, qui = ctx.auth.id, cats = cleanCats(r, req.cats), now = isoNow(ctx.now), app = cleanText(req.appareil || '', 60);
+    var rows = ctx.db.rows('push'), row = null, v = versionProfil(r, ctx.auth.row);
+    rows.forEach(function (x) { if (x.jeton === jeton && x.role === r && x.qui === qui) row = x; });
+    if (row) ctx.db.update('push', row.id, { cats: cats, appareil: app || row.appareil || '', vu: now, actif: true, v: v });
+    else {
+      // 10 appareils au plus par profil : le plus ancien laisse sa place
+      var miens = rows.filter(function (x) { return x.role === r && x.qui === qui && x.actif; }).sort(function (a, b) { return String(a.vu) < String(b.vu) ? -1 : 1; });
+      while (miens.length >= 10) ctx.db.update('push', miens.shift().id, { actif: false });
+      ctx.db.insert('push', { id: genId(ctx.env), role: r, qui: qui, jeton: jeton, cats: cats, appareil: app, cree: now, vu: now, actif: true, v: v });
+    }
+    return { jeton: jeton, cats: cats };
+  }
   A.pushAbonner = {
     auth: ['p', 'f', 'e'],
-    run: function (req, ctx) {
-      var jeton = jetonPush(req), r = ctx.auth.r, qui = ctx.auth.id, cats = cleanCats(r, req.cats), now = isoNow(ctx.now), app = cleanText(req.appareil || '', 60);
-      var rows = ctx.db.rows('push'), row = null;
-      rows.forEach(function (x) { if (x.jeton === jeton && x.role === r && x.qui === qui) row = x; });
-      if (row) ctx.db.update('push', row.id, { cats: cats, appareil: app || row.appareil || '', vu: now, actif: true });
-      else {
-        // 10 appareils au plus par profil : le plus ancien laisse sa place
-        var miens = rows.filter(function (x) { return x.role === r && x.qui === qui && x.actif; }).sort(function (a, b) { return String(a.vu) < String(b.vu) ? -1 : 1; });
-        while (miens.length >= 10) ctx.db.update('push', miens.shift().id, { actif: false });
-        ctx.db.insert('push', { id: genId(ctx.env), role: r, qui: qui, jeton: jeton, cats: cats, appareil: app, cree: now, vu: now, actif: true });
-      }
-      return { abonne: true, cats: cats };
-    }
+    run: function (req, ctx) { return { abonne: true, cats: abonner(req, ctx).cats }; }
   };
   A.pushDesabonner = {
     auth: ['p', 'f', 'e'],
@@ -2034,18 +2049,21 @@ var Core = (function () {
       return { abonne: false };
     }
   };
-  // une alerte d'essai, sur les appareils de celui qui la demande
+  // une alerte d'essai, sur CET appareil seulement (pas sur le téléphone de l'autre parent) ; il est réabonné au passage
   A.pushEssai = {
     auth: ['p', 'f', 'e'],
     run: function (req, ctx) {
-      var n = ctx.db.rows('push').filter(function (x) { return x.actif && x.role === ctx.auth.r && x.qui === ctx.auth.id; }).length;
-      alerter(ctx, { r: ctx.auth.r, qui: ctx.auth.id, soi: true }, '_essai', ctx.auth.r === 'p' ? 'Les alertes marchent sur ce téléphone 👍' : 'Les alertes Mode champion marchent sur cet appareil 👍');
-      return { appareils: n, envoi: !!ctx.env.envoyerPush };
+      var a = abonner(req, ctx);
+      alerter(ctx, { r: ctx.auth.r, qui: ctx.auth.id, soi: true, jeton: a.jeton }, '_essai', ctx.auth.r === 'p' ? 'Les alertes marchent sur ce téléphone 👍' : 'Les alertes Mode champion marchent sur cet appareil 👍');
+      return { appareils: 1, envoi: !!ctx.env.envoyerPush };
     }
   };
-  // dest : { r: 'p' | 'f' | 'e', qui: l'id du profil (sinon tous ceux de ce rôle), sauf: un id à ne pas prévenir, soi: aussi l'auteur }
+  // dest : { r: 'p' | 'f' | 'e', qui: l'id du profil (tous les éducs si vide ; obligatoire pour un enfant ou une famille),
+  //   sauf: un id à ne pas prévenir, soi: aussi l'auteur, jeton: un seul appareil, sujet: l'enfant concerné (une alerte par enfant) }
   function alerter(ctx, dest, cat, texte) {
-    (ctx.alertes = ctx.alertes || []).push({ r: dest.r, qui: dest.qui || '', sauf: dest.sauf || '', soi: !!dest.soi, cat: cat, texte: String(texte).slice(0, 180), lien: PUSH_LIENS[dest.r] || '' });
+    if (dest.r !== 'e' && !dest.qui) return;   // jamais « toutes les familles » par erreur (enfant sans famille…)
+    (ctx.alertes = ctx.alertes || []).push({ r: dest.r, qui: dest.qui || '', sauf: dest.sauf || '', soi: !!dest.soi, jeton: dest.jeton || '', sujet: dest.sujet || '',
+      cat: cat, texte: String(texte).slice(0, 180), lien: PUSH_LIENS[dest.r] || '' });
   }
   function titreEvt(ctx, compo) {
     var e = compo ? find(ctx.db.rows('evenements'), compo.evenementId) : null;
@@ -2057,37 +2075,38 @@ var Core = (function () {
       var j = ctx.auth.row, s = res.seance;
       if (!s) return;
       var t = j.prenom + ' a fait ' + (SEANCES_NOMS[s.type] || 'une séance') + '.';
-      alerter(ctx, { r: 'e' }, 'seance', t);
-      alerter(ctx, { r: 'f', qui: j.familleId }, 'seance', t);
+      alerter(ctx, { r: 'e', sujet: j.id }, 'seance', t);
+      alerter(ctx, { r: 'f', qui: j.familleId, sujet: j.id }, 'seance', t);
     },
     submitRecords: function (req, ctx, res) {
-      var j = ctx.auth.row, n = (res.records || []).filter(function (r) { return r.statut === 'attente'; }).length;
+      var j = ctx.auth.row, n = ctx.nAttente || 0;   // seulement les résultats nouveaux ou changés (pas un bilan renvoyé tel quel)
       if (!n) return;
       var b = String(req.bilan), t = b === 'defi' ? j.prenom + ' a relevé un défi.' : j.prenom + ' a noté son Bilan ' + b + ' (' + n + ' résultat' + (n > 1 ? 's' : '') + ').';
-      alerter(ctx, { r: 'f', qui: j.familleId }, 'confirmer', t + ' À confirmer.');
-      alerter(ctx, { r: 'e' }, 'bilan', t);
+      alerter(ctx, { r: 'f', qui: j.familleId, sujet: j.id }, 'confirmer', t + ' À confirmer.');
+      alerter(ctx, { r: 'e', sujet: j.id }, 'bilan', t);
     },
     mission: function (req, ctx) {
       var j = ctx.auth.row, t = req.fin ? ' a répondu à « Avec qui tu aimes jouer ».' : req.postes !== undefined ? ' a répondu à « Choisis ton poste ».' : req.message !== undefined ? ' a écrit un mot pour les éducs.' : '';
       if (!t) return;
-      alerter(ctx, { r: 'e' }, 'mission', j.prenom + t);
-      if (req.postes !== undefined) alerter(ctx, { r: 'f', qui: j.familleId }, 'mission', j.prenom + ' a fait la mission « Choisis ton poste ».');
+      alerter(ctx, { r: 'e', sujet: j.id }, 'mission', j.prenom + t);
+      if (req.postes !== undefined) alerter(ctx, { r: 'f', qui: j.familleId, sujet: j.id }, 'mission', j.prenom + ' a fait la mission « Choisis ton poste ».');
     },
     repondreMission: function (req, ctx) {
+      if (!ctx.missionFaite) return;
       var def = find(ctx.db.rows('defmissions'), String(req.missionId || ''));
-      alerter(ctx, { r: 'e' }, 'mission', ctx.auth.row.prenom + ' a répondu à la mission « ' + cleanText(def && def.titre || 'Mission', 50) + ' ».');
+      alerter(ctx, { r: 'e', sujet: ctx.auth.id }, 'mission', ctx.auth.row.prenom + ' a répondu à la mission « ' + cleanText(def && def.titre || 'Mission', 50) + ' ».');
     },
-    demanderEtoile: function (req, ctx) { alerter(ctx, { r: 'e' }, 'etoile', ctx.auth.row.prenom + ' demande une étoile Skills.'); },
+    demanderEtoile: function (req, ctx) { alerter(ctx, { r: 'e', sujet: ctx.auth.id }, 'etoile', ctx.auth.row.prenom + ' demande une étoile Skills.'); },
     updateMe: function (req, ctx) {
       var j = ctx.auth.row, n = (Array.isArray(req.journal) ? req.journal : []).filter(function (e) { return e && e.type === 'niveau'; }).length;
-      if (n) alerter(ctx, { r: 'e' }, 'niveau', j.prenom + ' a changé ' + (n > 1 ? 'des niveaux' : 'un niveau') + ' de sa prépa.');
+      if (n) alerter(ctx, { r: 'e', sujet: j.id }, 'niveau', j.prenom + ' a changé ' + (n > 1 ? 'des niveaux' : 'un niveau') + ' de sa prépa.');
     },
     setNiveaux: function (req, ctx, res) {
       var j = res.joueur, educ = ctx.auth.r === 'e', qui = educ ? ctx.auth.row.nom : 'sa famille';
-      if (!j) return;
+      if (!j || !ctx.nChg) return;
       alerter(ctx, { r: 'p', qui: j.id }, 'niveau', 'Tes niveaux de prépa ont changé (' + (educ ? ctx.auth.row.nom : 'ta famille') + ').');
-      if (educ) alerter(ctx, { r: 'f', qui: j.familleId }, 'niveau', 'Niveaux de ' + j.prenom + ' changés par ' + qui + '.');
-      alerter(ctx, { r: 'e', sauf: educ ? ctx.auth.id : '' }, 'niveau', 'Niveaux de ' + j.prenom + ' changés par ' + qui + '.');
+      if (educ) alerter(ctx, { r: 'f', qui: j.familleId, sujet: j.id }, 'niveau', 'Niveaux de ' + j.prenom + ' changés par ' + qui + '.');
+      alerter(ctx, { r: 'e', sauf: educ ? ctx.auth.id : '', sujet: j.id }, 'niveau', 'Niveaux de ' + j.prenom + ' changés par ' + qui + '.');
     },
     confirm: function (req, ctx, res) {
       var par = {}, qui = ctx.auth.r === 'e' ? ctx.auth.row.nom : 'ta famille';
@@ -2118,26 +2137,32 @@ var Core = (function () {
       alerter(ctx, { r: 'e', qui: a.auteur }, 'compo', ctx.auth.row.nom + (a.statut === 'acceptee' ? ' a accepté' : ' a refusé') + ' votre contre-proposition' + titreEvt(ctx, find(ctx.db.rows('compos'), a.compoId)) + '.');
     }
   };
-  // les destinataires : les appareils abonnés au bon profil, qui veulent cette sorte ; jamais l'auteur lui-même (sauf l'essai)
-  function envoyerAlertes(ctx) {
+  // les destinataires : les appareils abonnés au bon profil, encore valide (éduc actif, code pas changé), qui veulent cette
+  // sorte ; jamais l'auteur lui-même, ni l'appareil d'où vient l'action (req.pj : l'enfant sur le téléphone du parent), sauf l'essai.
+  function envoyerAlertes(ctx, req) {
     if (!ctx.alertes || !ctx.alertes.length || !ctx.env.envoyerPush) return;
-    var rows = ctx.db.rows('push').filter(function (x) { return x.actif && x.jeton; });
+    var memo = {}, rows = ctx.db.rows('push').filter(function (x) { return x.actif && x.jeton && profilOk(ctx, x.role, x.qui, x.v, memo); });
     if (!rows.length) return;
-    var auteur = ctx.auth ? ctx.auth.r + ':' + ctx.auth.id : '', vus = {}, msgs = [];
+    var auteur = ctx.auth ? ctx.auth.r + ':' + ctx.auth.id : '', ici = String(req && req.pj || ''), vus = {}, msgs = [];
     ctx.alertes.forEach(function (a) {
       rows.forEach(function (x) {
-        if (x.role !== a.r || (a.qui && x.qui !== a.qui) || (a.sauf && x.qui === a.sauf)) return;
-        if (!a.soi && x.role + ':' + x.qui === auteur) return;
+        if (x.role !== a.r || (a.qui && x.qui !== a.qui) || (a.sauf && x.qui === a.sauf) || (a.jeton && x.jeton !== a.jeton)) return;
+        if (!a.soi && (x.role + ':' + x.qui === auteur || (ici && x.jeton === ici))) return;
         if (a.cat.charAt(0) !== '_' && (!Array.isArray(x.cats) || x.cats.indexOf(a.cat) < 0)) return;
         var k = x.jeton + '|' + a.texte;
         if (vus[k]) return;
         vus[k] = 1;
-        msgs.push({ id: x.id, jeton: x.jeton, cat: a.cat, titre: 'Mode champion', texte: a.texte, lien: a.lien });
+        // tag : une alerte affichée par profil, sorte et enfant (la suivante remplace la précédente, pas celle d'un autre enfant)
+        msgs.push({ id: x.id, jeton: x.jeton, cat: a.cat, tag: x.role + '-' + a.cat + (a.sujet ? '-' + a.sujet : ''), titre: 'Mode champion', texte: a.texte, lien: a.lien });
       });
     });
     if (!msgs.length) return;
     var morts = ctx.env.envoyerPush(msgs) || [];
-    morts.forEach(function (id) { try { ctx.db.update('push', id, { actif: false }); } catch (e) { /* tant pis */ } });
+    pushMorts(ctx.db, morts);
+  }
+  // les appareils qui n'existent plus (Firebase l'a dit) : désabonnés
+  function pushMorts(db, ids) {
+    (ids || []).forEach(function (id) { try { db.update('push', id, { actif: false }); } catch (e) { /* tant pis */ } });
   }
 
   // ---------------------------------------------------------
@@ -2157,7 +2182,7 @@ var Core = (function () {
       }
       var res = action.run(req, ctx) || {};
       // (v34) les alertes sur le téléphone : une erreur ici ne fait jamais échouer l'action
-      try { if (ALERTES[req.action]) ALERTES[req.action](req, ctx, res); envoyerAlertes(ctx); } catch (e) { /* l'alerte est perdue, pas l'action */ }
+      try { if (ALERTES[req.action]) ALERTES[req.action](req, ctx, res); envoyerAlertes(ctx, req); } catch (e) { /* l'alerte est perdue, pas l'action */ }
       res.ok = true;
       return res;
     } catch (e) {
@@ -2220,6 +2245,7 @@ var Core = (function () {
     SCHEMA: SCHEMA,
     SKILLS: SKILLS, MAX_PLUS1: MAX_PLUS1,
     handle: handle,
+    pushMorts: pushMorts,   // (v34) la partie Google désabonne les appareils morts, après l'envoi
     install: install,
     codesProvisoires: codesProvisoires,
     rowFromCells: rowFromCells,

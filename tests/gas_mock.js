@@ -36,13 +36,15 @@ function makeEnv(opts) {
     getAll: ks => { const o = {}; ks.forEach(k => { if (k in cache) o[k] = cache[k]; }); return o; },
     put: (k, v) => { if (Buffer.byteLength(v) > 100000) throw new Error('cache value too big'); cache[k] = v; cstats.puts++; },
     putAll: (o) => { Object.keys(o).forEach(k => cacheApi.put(k, o[k])); },
-    remove: k => { delete cache[k]; }
+    remove: k => { delete cache[k]; },
+    removeAll: ks => { ks.forEach(k => { delete cache[k]; }); }
   };
+  const verrou = { pris: false, n: 0 };   // (v34) pour vérifier que Firebase est appelé verrou relâché
   const logs = [];
   const ctx = {
     SpreadsheetApp: { getActiveSpreadsheet: () => ss },
     PropertiesService: { getScriptProperties: () => ({ getProperty: k => (k in props ? props[k] : null), setProperty: (k, v) => { props[k] = String(v); }, deleteProperty: k => { delete props[k]; } }) },
-    LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
+    LockService: { getScriptLock: () => ({ waitLock() { verrou.pris = true; verrou.n++; }, tryLock() { verrou.pris = true; verrou.n++; return true; }, releaseLock() { verrou.pris = false; } }) },
     ContentService: { MimeType: { JSON: 'json' }, createTextOutput: s => ({ s, setMimeType() { return this; }, getContent() { return s; } }) },
     Logger: { log: m => logs.push(String(m)) },
     CacheService: { getScriptCache: () => cacheApi },
@@ -93,7 +95,7 @@ function makeEnv(opts) {
     }
     return JSON.parse(ctx.doPost({ postData: { contents: JSON.stringify(req) } }).getContent());
   };
-  ctx._sheets = sheets; ctx._logs = logs; ctx._props = props; ctx._cache = cache; ctx._cstats = cstats;
+  ctx._sheets = sheets; ctx._logs = logs; ctx._props = props; ctx._cache = cache; ctx._cstats = cstats; ctx._verrou = verrou;
   return ctx;
 }
 module.exports = { makeEnv };
