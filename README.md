@@ -27,7 +27,8 @@ Site statique (HTML/CSS/JS, rien à installer) + une Google Sheet qui sert de ba
 | `js/accueil.js` | L'accueil des nouveaux : visites (joueur, parent, éduc), listes « premiers pas », astuces |
 | `js/nouveautes.js` | **Les nouveautés** : une entrée par nouvelle fonction (voir plus bas) |
 | `js/notifs.js` | **La cloche** (notifications) : les événements de chaque profil, lu / non lu, réglages ; tout est calculé sur l'appareil |
-| `js/v-notifs.js` | La cloche dans la barre du haut, la liste des notifications et ses réglages |
+| `js/v-notifs.js` | La cloche dans la barre du haut, la liste des notifications et ses réglages (dont « Alertes sur ce téléphone ») |
+| `js/alertes.js` | **Les alertes sur l'écran du téléphone** (v34) : permission, jeton Firebase, abonnement au serveur (voir plus bas) |
 | `js/missions.js` | **Les missions spéciales** (dates, textes) et le test « Aide-moi à choisir » |
 | `js/postes-data.js` | Les 7 cartes postes de la mission « Prépare le jeu à 10 » (reprises du site « Choisis ton poste ») |
 | `js/v-mission.js` | Les écrans de la mission « Prépare le jeu à 10 » (joueur), sa vue éduc et parent |
@@ -36,7 +37,7 @@ Site statique (HTML/CSS/JS, rien à installer) + une Google Sheet qui sert de ba
 | `js/v-educ.js` | Côté éduc : **+1** et mots, **valider des étoiles** (pendant une séance ou journée d'évaluation), **missions** (vidéo, QCM, mission perso) |
 | `js/compos.js` | **Les règles des compos** : fiche terrain, historique, proposition automatique, indicateurs, alertes |
 | `js/v-compos.js` | Les onglets éduc **Entraîn.** et **Plateaux** : événements et présents, tableau de compo, 2 versions et vote, contre-propositions, fiche terrain et historique |
-| `sw.js` | La copie de l'appli gardée sur l'appareil (elle s'ouvre même quand le réseau traîne) |
+| `sw.js` | La copie de l'appli gardée sur l'appareil (elle s'ouvre même quand le réseau traîne) ; affiche les alertes du téléphone |
 | `apps-script/serveur-mode-champion.gs` | **Le serveur à coller dans Google Apps Script** |
 | `apps-script/spond.gs` | La synchro Spond : 2e fichier du projet Apps Script, à ajouter seulement pour brancher Spond (voir plus bas) |
 
@@ -60,6 +61,14 @@ Pour aller plus vite, le serveur garde une copie de la feuille en mémoire (20 m
 **Code admin perdu ?** Dans l'éditeur Apps Script, exécutez la fonction `nouveauCodeAdmin` : un code provisoire (4 chiffres) s'affiche dans le journal.
 
 **Mettre à jour le serveur** (si `js/core.js` change) : relancez `outils/fabriquer-serveur.sh`, recollez `apps-script/serveur-mode-champion.gs` dans l'éditeur, puis **Déployer › Gérer les déploiements › crayon › Version : Nouvelle version › Déployer** (l'URL ne change pas).
+
+**Alertes sur l'écran du téléphone** (v34, facultatif : sans elles, la cloche marche quand même). Elles passent par **Firebase Cloud Messaging** (gratuit), qui sait joindre iPhone (iOS 16.4 ou plus, appli sur l'écran d'accueil), Android et ordinateurs. Une seule fois, **le propriétaire du script** :
+1. Sur console.firebase.google.com : un projet, une **appli Web** (sans Hosting) ; Paramètres du projet › Cloud Messaging › **Certificats Web push › Générer** (la clé « VAPID »).
+2. Paramètres du projet › Comptes de service › **Générer une nouvelle clé privée** (fichier .json).
+3. Éditeur Apps Script › Paramètres du projet › **Propriétés du script** : `FCM_CLE` = tout le contenu du fichier .json (puis supprimez le fichier) ; `FCM_WEB` = `{"apiKey":"…","authDomain":"…","projectId":"…","messagingSenderId":"…","appId":"…","vapidKey":"…"}` (la configuration de l'appli Web et la clé VAPID). Rien de tout ça dans ce dépôt public : l'appli lit `FCM_WEB` par l'action `pushConfig`.
+4. Fonction **`verifierAlertes`** › Exécuter : « ✅ Firebase accepte la clé » (rien n'est envoyé). Google peut demander l'autorisation « se connecter à un service externe ».
+
+Ensuite, chacun allume **Alertes sur ce téléphone** en haut des réglages de la cloche, sur son appareil. Le serveur garde l'appareil (onglet `push` : rôle, profil, jeton, sortes) et, après une action qui intéresse quelqu'un, envoie une alerte courte (`ALERTES` dans `js/core.js` : le prénom de l'enfant, jamais un résultat chiffré, ni le mot d'un enfant, ni ses copains) ; au plus une par appareil et par sorte toutes les 10 minutes ; un appareil qui ne répond plus est désactivé. Les sortes sont celles de la cloche : en éteindre une l'éteint aussi sur le téléphone. Se déconnecter (parent, éduc) éteint les alertes de ce profil sur l'appareil.
 
 **Brancher Spond** (facultatif : sans Spond, les éducs ajoutent les événements à la main) — le mode d'emploi complet est en tête de `apps-script/spond.gs`.
 Une seule fois, **le propriétaire du script** :
@@ -152,4 +161,7 @@ node /home/claude/tests/test_notifs.js                              # la cloche 
 python3 /home/claude/tests/e2e_notifs.py 390 844                   # la cloche : éduc, parent, enfant, réglages, liens
 python3 /home/claude/tests/e2e_reouvrir.py 390 844                 # rouvrir l'appli : le dernier profil, sans code
 python3 /home/claude/tests/e2e_rebond.py 390 844                   # le rebond en fin de défilement
+node /home/claude/tests/test_push.js                               # les alertes côté serveur : abonnements, textes, envoi Firebase simulé
+node /home/claude/tests/test_sw_alertes.js                         # sw.js : afficher l'alerte, la toucher
+python3 /home/claude/tests/e2e_alertes.py 390 844                  # « Alertes sur ce téléphone » (faux jeton, sans Firebase)
 ```

@@ -43,6 +43,7 @@
     if (!o.nav || o.cloche === false) return '';
     var w = qui();
     if (!w) return '';
+    if (MC.alertes) MC.alertes.verifier(w);   // (v34) les alertes sur le téléphone : l'abonnement est-il toujours là ?
     var st = etat(w), n = st ? st.n : 0, href = HREF[w.role];
     return '<a class="tb-bell' + (n ? ' on' : '') + '" href="' + href + '" data-cloche aria-label="' + lab(n) + '">' + icon('bell', 22) +
       (n ? '<span class="tb-nb">' + (n > 9 ? '9+' : n) + '</span>' : '') + '</a>';
@@ -52,7 +53,8 @@
   function paintBell() {
     var el = document.querySelector('.topbar [data-cloche]');
     if (!el) return;
-    var st = etat(qui()), n = st ? st.n : 0;
+    var w = qui(), st = etat(w), n = st ? st.n : 0;
+    if (MC.alertes) MC.alertes.verifier(w);   // (v34) les alertes sur le téléphone : l'abonnement est-il toujours là ?
     el.classList.toggle('on', !!n);
     el.setAttribute('aria-label', lab(n));
     var nb = el.querySelector('.tb-nb');
@@ -124,6 +126,7 @@
         return '<main class="screen">' + ui.topbar({ back: HREF[role], backLabel: 'Notifications', title: 'Ce que je reçois', help: false }) +
           '<div class="head"><h1 class="big md">' + T(role, 'Ce que<br>je reçois', 'Ce que<br>je reçois') + '</h1><p class="lead" style="margin:0">' +
           T(role, 'Allume ce que tu veux voir dans la cloche, éteins le reste.', 'Allumez ce que vous voulez voir dans la cloche, éteignez le reste.') + '</p></div>' +
+          alertes(role, w) +
           '<div class="sec">' + sw + '</div>' +
           '<p class="small" style="margin:0">' + T(role, 'Réglé sur cet appareil.', 'Réglé sur cet appareil : sur un autre téléphone (l\'autre parent, une tablette), réglez-le aussi là-bas.') + '</p></main>';
       });
@@ -135,6 +138,59 @@
     N.regler(w.role, w.id, b.getAttribute('data-c'), on);
     b.setAttribute('aria-checked', String(on));
     paintBell();
+    if (MC.alertes) MC.alertes.majCats(w.role, w.id);   // les alertes du téléphone suivent la cloche
+  };
+
+  // ---------- (v34) les alertes sur l'écran du téléphone (js/alertes.js) ----------
+  // un interrupteur en haut des réglages ; sinon une ligne qui dit quoi faire (iPhone : l'appli sur l'écran d'accueil)
+  function ou() { var p = MC.alertes.plateforme(); return p.ipad ? 'cette tablette' : p.ios || p.android ? 'ce téléphone' : 'cet appareil'; }
+  function note(txt, plus) {
+    return '<div class="sec"><div class="note">' + icon('bell', 18, 'style="color:var(--cyan);flex:none"') + '<span class="small">' + txt + '</span></div>' + (plus || '') + '</div>';
+  }
+  function alertes(role, w) {
+    var A = MC.alertes;
+    if (!A || !w || !w.id) return '';
+    var tu = role === 'k', s = A.support(), p = A.plateforme(), on = A.actif(role, w.id);
+    if (s === 'ios-ecran') return note((tu ? 'Pour recevoir des alertes sur l\'écran de l\'iPhone, même appli fermée : mets l\'appli sur l\'écran d\'accueil, ouvre-la depuis son icône, puis reviens ici.' :
+      'Pour recevoir des alertes sur l\'écran de l\'iPhone, même appli fermée : mettez l\'appli sur l\'écran d\'accueil, ouvrez-la depuis son icône, puis revenez ici.') + ' (iOS 16.4 ou plus)',
+      '<button type="button" class="btn2 grey" data-act="howInstall" data-r="' + role + '">' + icon('phone', 18) + ' Comment faire</button>');
+    if (s === 'ios-maj') return note('Pour les alertes sur l\'écran, il faut iOS 16.4 ou plus : Réglages › Général › Mise à jour logicielle.');
+    if (s === 'non') return note('Ce navigateur n\'affiche pas les alertes sur l\'écran.' + (p.android ? (tu ? ' Ouvre l\'appli dans Chrome.' : ' Ouvrez l\'appli dans Chrome.') : ''));
+    if (s === 'bloque') return note((tu ? 'Les alertes sont bloquées pour l\'appli. Pour les rouvrir : ' : 'Les alertes sont bloquées pour l\'appli. Pour les rouvrir : ') +
+      (p.ios ? 'Réglages de l\'iPhone › Notifications › Champion' : p.android ? 'Paramètres › Applis › Chrome (ou l\'appli) › Notifications' : 'le cadenas à gauche de l\'adresse › Notifications') + (tu ? ', puis reviens ici.' : ', puis revenez ici.'));
+    return '<div class="sec"><button type="button" class="switch" role="switch" aria-checked="' + on + '" data-act="alerteToggle"><span class="row">' +
+      '<span class="nt-ic" style="--nc:#38E8FF">' + icon('bell', 18) + '</span><span><span class="t1" style="display:block">Alertes sur ' + ou() + '</span>' +
+      '<span class="t2" style="display:block" data-t2>' + (on ? T(role, 'Ce que tu allumes ci-dessous s\'affiche aussi sur l\'écran, même appli fermée.', 'Ce que vous allumez ci-dessous s\'affiche aussi sur l\'écran, même appli fermée.') :
+        T(role, 'Pour être prévenu même quand l\'appli est fermée.', 'Pour être prévenu même quand l\'appli est fermée.')) + '</span></span></span><span class="k"></span></button>' +
+      (on ? '<button type="button" class="btn2 grey" data-act="alerteEssai">' + icon('bell', 18) + T(role, ' M\'envoyer une alerte d\'essai', ' M\'envoyer une alerte d\'essai') + '</button>' : '') + '</div>';
+  }
+  MC.act.alerteToggle = function (b) {
+    var w = qui(), A = MC.alertes;
+    if (!w || !w.id || !A || b.getAttribute('aria-busy') === 'true') return;
+    var tu = w.role === 'k';
+    if (b.getAttribute('aria-checked') === 'true') {
+      A.desactiver(w.role, w.id);
+      ui.toast(tu ? 'Alertes éteintes sur ce téléphone.' : 'Alertes éteintes sur cet appareil.');
+      app.rerender();
+      return;
+    }
+    b.setAttribute('aria-busy', 'true'); b.setAttribute('aria-checked', 'true');
+    var t2 = b.querySelector('[data-t2]'); if (t2) t2.textContent = 'Un instant…';
+    // tout de suite, dans le toucher : sinon l'iPhone ne pose pas la question « Autoriser les notifications ? »
+    A.activer(w.role, w.id).then(function () {
+      ui.toast(tu ? 'C\'est allumé : tu seras prévenu sur l\'écran.' : 'C\'est allumé : vous serez prévenu sur l\'écran.');
+      app.rerender();
+    }, function (e) {
+      ui.toast(A.message(e, tu), true);
+      app.rerender();
+    });
+  };
+  MC.act.alerteEssai = function (b) {
+    var w = qui(); if (!w || !MC.alertes) return;
+    b.disabled = true;
+    MC.alertes.essai(w.role).then(function (r) {
+      ui.toast(r && r.envoi ? 'Alerte envoyée : elle arrive dans quelques secondes.' : 'Le serveur n\'envoie pas encore les alertes.', !(r && r.envoi));
+    }, function (e) { ui.toast(MC.alertes.message(e, w.role === 'k'), true); }).then(function () { b.disabled = false; });
   };
 
   app.route('/notifs', liste('k'), { kid: true, nav: 'moi', bg: '#1B2552', cloche: false });

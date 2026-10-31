@@ -5,6 +5,7 @@
    - les fichiers versionnés (?v=N) : la copie gardée d'abord (ils ne changent jamais pour un même N)
    - icônes, polices Google : la copie, mise à jour en arrière-plan
    - le serveur Google (les données) : jamais intercepté
+   - (v34) les alertes sur l'écran du téléphone (Firebase Cloud Messaging) : affichées ici, voir en bas du fichier
    Réparer : ouvrir l'adresse avec ?reset=1 (voir index.html).
    ========================================================= */
 var SHELL = 'mc-shell-1', FONTS = 'mc-fonts-1', NAV_WAIT = 3500;

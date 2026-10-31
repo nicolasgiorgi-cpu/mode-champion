@@ -175,7 +175,7 @@
   MC.act.toggleShared = function () { app.setShared(!app.sharedDevice()); app.rerender(); };
   MC.act.adultLogout = function () {
     ui.modal({ title: 'Se déconnecter ?', body: '<p class="lead">Il faudra retaper le code sur cet appareil.</p>', actions: [{ label: 'Se déconnecter', value: true, cls: 'btn pink' }, { label: 'Annuler', value: false, cls: 'btn2 grey' }] }).then(function (ok) {
-      if (ok) { app.setAdult(null); app.go('#/adultes'); }
+      if (ok) { if (MC.alertes && app.S.adult) MC.alertes.oublier(app.S.adult.role); app.setAdult(null); app.go('#/adultes'); }
     });
   };
   MC.act.kidCode = function (b) {

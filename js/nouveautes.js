@@ -10,6 +10,15 @@
 window.MC = window.MC || {};
 
 MC.NEWS = [
+  // (31/10, v34) les alertes sur l'écran du téléphone, même appli fermée (iPhone : l'appli sur l'écran d'accueil)
+  { id: '2026-10-31-alertes', date: '2026-10-31', pour: ['k', 'f', 'e'],
+    titre: { k: 'Les alertes sur ton téléphone', f: 'Les alertes sur votre téléphone', e: 'Les alertes sur votre téléphone' },
+    texte: {
+      k: 'L\'appli peut te prévenir sur l\'écran du téléphone, même fermée : un résultat confirmé, un niveau changé. Allume-les dans Moi › Réglages › Mes notifications.',
+      f: 'L\'appli peut vous prévenir sur l\'écran du téléphone, même fermée : une séance faite, un résultat à confirmer, une mission. Allumez-les dans Plus › Mes notifications. Sur iPhone, l\'appli doit être sur l\'écran d\'accueil.',
+      e: 'L\'appli peut vous prévenir sur l\'écran du téléphone, même fermée : séances, bilans, réponses aux missions, demandes d\'étoiles, niveaux, compos. Allumez-les dans l\'engrenage › Mes notifications. Sur iPhone, l\'appli doit être sur l\'écran d\'accueil.'
+    },
+    lien: { k: '#/notifs/reglages', f: '#/parent/notifs/reglages', e: '#/educ/notifs/reglages' } },
   // (31/10, v33) la cloche des notifications, et l'appli qui rouvre son espace sans code
   { id: '2026-10-31-cloche', date: '2026-10-31', pour: ['k', 'f', 'e'],
     titre: { k: 'La cloche', f: 'La cloche : vos notifications', e: 'La cloche : vos notifications' },

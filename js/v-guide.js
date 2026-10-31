@@ -56,7 +56,11 @@
       ul([
         tu ? 'En haut de l\'écran, la <b>cloche</b> 🔔. Une pastille rose te dit combien de nouveautés t\'attendent.' : 'En haut des écrans, la <b>cloche</b> 🔔. Une pastille rose dit combien de nouveautés vous attendent.',
         (tu ? 'Touche-la : la liste, les nouvelles en haut. Touche une ligne pour aller au bon écran.' : 'Touchez-la : la liste des 30 derniers jours, les nouvelles en haut. Une ligne mène au bon écran.') + (sortes.length ? ' Elle signale : ' + sortes.join(', ') + '.' : ''),
-        (tu ? 'Tu choisis ce que tu reçois : ' : 'Vous choisissez ce que vous recevez : ') + '<b>' + reg + '</b> (ou la roue dentée de la liste). ' + (tu ? 'C\'est réglé sur cet appareil.' : 'C\'est réglé sur cet appareil : l\'autre parent règle le sien.')
+        (tu ? 'Tu choisis ce que tu reçois : ' : 'Vous choisissez ce que vous recevez : ') + '<b>' + reg + '</b> (ou la roue dentée de la liste). ' + (tu ? 'C\'est réglé sur cet appareil.' : 'C\'est réglé sur cet appareil : l\'autre parent règle le sien.'),
+        // (v34) les alertes sur l'écran du téléphone
+        (tu ? 'Pour être prévenu sur l\'écran du téléphone, même appli fermée : allume <b>Alertes sur ce téléphone</b>, en haut de ces réglages, puis touche « Autoriser ». ' :
+          'Pour être prévenu sur l\'écran du téléphone, même appli fermée : allumez <b>Alertes sur ce téléphone</b>, en haut de ces réglages, puis touchez « Autoriser ». ') +
+          'Sur iPhone, l\'appli doit être sur l\'écran d\'accueil (iOS 16.4 ou plus) ; sur Android, ça marche dans Chrome.'
       ]));
   }
 

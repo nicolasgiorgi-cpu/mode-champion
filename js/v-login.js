@@ -326,7 +326,7 @@
   });
   MC.act.adultWho = function (b) { adultWho = b.getAttribute('data-w'); adultPick = null; app.render(); };
   MC.act.adultPick = function (b) { var id = b.getAttribute('data-id'); adultPick = id ? { role: adultWho, id: id, nom: b.getAttribute('data-nom') || '' } : null; app.render(); };
-  MC.act.adultForget = function () { app.setAdult(null); app.lockAdult(); app.render(); };
+  MC.act.adultForget = function () { if (MC.alertes && app.S.adult) MC.alertes.oublier(app.S.adult.role); app.setAdult(null); app.lockAdult(); app.render(); };
 
   // ---------- L'adulte choisit son code (1re connexion, ou pour en changer) ----------
   var ac = { step: 'code', code: '' };

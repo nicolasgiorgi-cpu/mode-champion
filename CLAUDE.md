@@ -23,7 +23,8 @@ Ce dépôt est public et le site tourne en production auprès de vraies familles
 - Serveur : `js/core.js` (logique serveur, partagée avec le mode démo) + `outils/code-google.gs` (partie Google) → fabriqués ensemble dans `apps-script/serveur-mode-champion.gs`. Spond : `outils/spond-google.gs` → `apps-script/spond.gs`. Ne jamais éditer les `.gs` générés à la main : modifier `js/core.js` ou `outils/*.gs`, puis `sh outils/fabriquer-serveur.sh`.
 - `js/notifs.js` (sans écran, testé seul) et `js/v-notifs.js` : la cloche des notifications (v33). Tout est calculé sur l'appareil à partir des données déjà chargées (`me`, `family`, `group` + `compos`) ; lu / non lu et réglages dans `localStorage` (`mc-notif:<rôle>:<id>`), par appareil.
 - Sessions (`js/app.js`) : l'appli rouvre le dernier profil (`mc-last`) sans code ; sur un appareil partagé, le code adulte n'est redemandé qu'en revenant de l'espace joueur (`mc-adult-open`). Rebond en fin de défilement : `ebStart`/`ebMove`/`ebScroll` dans `js/app.js`.
-- `sw.js` : service worker (copie de l'appli gardée sur l'appareil, ne touche jamais au serveur Google). `guide-parents/` : page du guide pour les parents (pages statiques).
+- `js/alertes.js` (v34) : les alertes sur l'écran du téléphone (Firebase Cloud Messaging, SDK chargé à la demande depuis gstatic). La configuration Firebase vient du serveur (`pushConfig`, propriété `FCM_WEB`), la clé du compte de service est dans la propriété `FCM_CLE` : jamais dans le dépôt. Le serveur envoie après les actions (`ALERTES` dans `js/core.js`, textes avec le prénom, jamais de résultat chiffré, de mot d'enfant ni de copains) ; `sw.js` affiche toujours l'alerte (sinon iOS coupe l'abonnement). Tests : `window.__MC_PUSH_FAKE` = faux jeton.
+- `sw.js` : service worker (copie de l'appli gardée sur l'appareil, ne touche jamais au serveur Google ; affiche les alertes). `guide-parents/` : page du guide pour les parents (pages statiques).
 
 ## Ouverture des parties de l'appli (réglages V1)
 
@@ -40,7 +41,7 @@ sh tests/mkdemo.sh                      # copie de démo (API_URL vide) servie s
 python3 tests/e2e_retour.py 390 844     # parcours navigateur (Playwright) ; 3 tailles : 390 844 · 1180 820 · 820 1180
 ```
 
-Scénarios navigateur utiles : `e2e_nav16` (navigation), `e2e_notifs` (la cloche), `e2e_reouvrir` (rouvrir sur le dernier profil), `e2e_rebond` (rebond), `e2e_retour` (Retour, actualiser), `e2e_barre` (barre du haut sur tous les écrans), `e2e_mission`, `e2e_compos`, `e2e_visuels`, `e2e_eval`, `e2e_codes`, `e2e_passer`, `e2e_install`, `e2e_attente`, `e2e_confirm`, `e2e_v14`, et `e2e_v1` (réglages V1, site de démo sur :8898). Après une modif d'écran, lancer au moins `e2e_barre` et `e2e_nav16`, et vérifier aux 3 tailles : téléphone d'abord, iPad ensuite.
+Scénarios navigateur utiles : `e2e_nav16` (navigation), `e2e_notifs` (la cloche), `e2e_alertes` (alertes du téléphone), `e2e_reouvrir` (rouvrir sur le dernier profil), `e2e_rebond` (rebond), `e2e_retour` (Retour, actualiser), `e2e_barre` (barre du haut sur tous les écrans), `e2e_mission`, `e2e_compos`, `e2e_visuels`, `e2e_eval`, `e2e_codes`, `e2e_passer`, `e2e_install`, `e2e_attente`, `e2e_confirm`, `e2e_v14`, et `e2e_v1` (réglages V1, site de démo sur :8898). Après une modif d'écran, lancer au moins `e2e_barre` et `e2e_nav16`, et vérifier aux 3 tailles : téléphone d'abord, iPad ensuite.
 
 Toute nouvelle fonction ou tout nouveau bug corrigé doit venir avec un test (unitaire pour la logique, navigateur pour l'écran). Si un test échoue, le dire clairement : ne pas l'assouplir pour le faire passer.
 
