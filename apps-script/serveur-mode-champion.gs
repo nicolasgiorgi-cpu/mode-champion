@@ -1634,7 +1634,8 @@ var Core = (function () {
     var reglages = { format: Number(r.format) === 10 ? 10 : 5, nb: nb };
     if (partie) {
       var borne = function (v, a, b, d) { v = Math.floor(Number(v)); return isNaN(v) ? d : v < a ? a : v > b ? b : v; };
-      reglages = { format: 5, nb: nb, partie: partie, mode: r.mode === 'equilibre' ? 'equilibre' : 'niveau', separer: partie === 'ateliers' && !!r.separer,
+      // (v35) les matchs d'entraînement peuvent se jouer avec des postes (jeu à 10, comme les plateaux)
+      reglages = { format: partie === 'matchs' && Number(r.format) === 10 ? 10 : 5, nb: nb, partie: partie, mode: r.mode === 'equilibre' ? 'equilibre' : 'niveau', separer: partie === 'ateliers' && !!r.separer,
         n: borne(r.n, 1, 8, 3), nAv: borne(r.nAv, 1, 4, 1), nAr: borne(r.nAr, 1, 4, 1), nbMatchs: borne(r.nbMatchs, 1, 2, 2) };
     }
     return { equipes: equipes, banc: banc, reglages: reglages, raisons: raisons };
