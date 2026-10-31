@@ -649,6 +649,7 @@ window.MC = window.MC || {};
       '<section class="sec"><h2 class="h2">Équipes par niveau</h2>' + stepperHtml('A', reg, cnt, sug, 'data-act="cNb" data-n') + stepperHtml('B', reg, cnt, sug, 'data-act="cNb" data-n') + stepperHtml('C', reg, cnt, sug, 'data-act="cNb" data-n') +
       '<p class="small" style="margin:0">' + tot + ' équipe' + (tot > 1 ? 's' : '') + (tot ? ', environ ' + virg(per) + ' joueurs par équipe' : '') + '. Un niveau sans équipe joue dans le niveau voisin.</p>' +
       (noLv.length ? '<p class="small" style="margin:0;color:var(--orange)">Sans niveau (placés en B en attendant) : ' + noLv.map(function (id) { return esc(nom(C, id)); }).join(', ') + '. <a href="#/educ/terrain">Fiche terrain</a></p>' : '') + '</section>' +
+      graphePresents(C, ids, 'plateau') +
       '<section class="sec"><h2 class="h2">La proposition</h2>' + stylesHtml(reg.style, 'data-act="cStyle" data-v') + '</section>' +
       '<div class="sec"><button type="button" class="btn" data-act="cPropose"' + (tot ? '' : ' disabled') + '>' + icon('spark', 18) + ' Proposer une compo</button>' +
       '<button type="button" class="btn2" data-act="cPropose2"' + (tot ? '' : ' disabled') + '>' + icon('swap', 16) + ' Proposer 2 versions côte à côte</button>' +
@@ -691,7 +692,8 @@ window.MC = window.MC || {};
     }).join('') + '</div><p class="small" style="margin:0">' + co.av + ' avant' + (co.av > 1 ? 's' : '') + ' · ' + co.ar + ' arrière' + (co.ar > 1 ? 's' : '') + (co.les2 ? ' · dont ' + co.les2 + ' qui jouent les deux' : '') +
       (co.sans ? ' · <span style="color:var(--orange)">' + co.sans + ' sans poste</span> (placés là où il manque du monde)' : '') + ', d\'après le poste principal de leur fiche.</p></section>';
     html += '<section class="sec"><h2 class="h2">Combien ?</h2>';
-    if (!at) html += stepGen('nbMatchs', 'Matchs', (reg.nbMatchs > 1 ? '4 équipes : Équipe 1 contre Équipe 2, Équipe 3 contre Équipe 4' : '2 équipes : Équipe 1 contre Équipe 2') + ' · environ ' + par(ids.length, reg.nbMatchs * 2) + ' par équipe', reg.nbMatchs, 1, 2, A.n);
+    if (!at) html += '<p class="small" style="margin:0">Jeu à 10 : chaque joueur a son poste du match, par défaut celui de sa fiche ; touchez-le pour lui en donner un autre, juste pour ce match.</p>' +
+      stepGen('nbMatchs', 'Matchs', (reg.nbMatchs > 1 ? '4 équipes : Équipe 1 contre Équipe 2, Équipe 3 contre Équipe 4' : '2 équipes : Équipe 1 contre Équipe 2') + ' · environ ' + par(ids.length, reg.nbMatchs * 2) + ' par équipe', reg.nbMatchs, 1, 2, A.n);
     else if (!reg.separer) html += stepGen('n', 'Groupes', 'environ ' + par(ids.length, reg.n) + ' par groupe', reg.n, 1, 8, A.n);
     else {
       var nav = co.av, nar = co.ar;
@@ -710,6 +712,7 @@ window.MC = window.MC || {};
       stepsHtml(C, e, B.partie) + avant +
       (ids.length < 2 ? '<div class="empty">Cochez d\'abord les présents sur la page de l\'entraînement.</div><a class="btn2" href="#/educ/evt/' + esc(e.id) + '">Les présents</a></main>' :
       regEntHtml(C, reg, ids, { mode: 'data-act="cEMode" data-v', sep: 'data-act="cESep" data-v', n: 'data-act="cEN" data-k' }) +
+      (at ? '' : graphePresents(C, ids, 'matchs')) +
       '<div class="sec"><button type="button" class="btn" data-act="cPropose">' + icon('spark', 18) + (at ? ' Proposer les groupes' : ' Proposer les matchs') + '</button>' +
       '<button type="button" class="btn2" data-act="cPropose2">' + icon('swap', 16) + ' 2 versions côte à côte (' + MODES[B.partie][reg.mode][0].toLowerCase() + ' et ' + MODES[B.partie][autre][0].toLowerCase() + ')</button>' +
       (last ? '<button type="button" class="btn2" data-act="cReprise">' + icon('refresh', 16) + ' Reprendre ' + (at ? 'les groupes' : 'les équipes') + ' du ' + esc(ui.fmtDate(jour(le))) + '</button>' : '') +
@@ -1151,6 +1154,46 @@ window.MC = window.MC || {};
     return quitte;
   }
   var NOMP = { pilier: 'Pilier', talonneur: 'Talonneur', 'troisieme-ligne': '3e ligne', 'demi-de-melee': 'Demi de mêlée', ouvreur: 'Ouvreur', centre: 'Centre', ailier: 'Ailier' };
+
+  // ---------- (v35) la répartition des postes réglés sur les fiches : un graphique replié ----------
+  // Barre pleine = poste principal, barre pâle = peut aussi jouer (comme le graphique de la mission « Choisis ton poste ») ;
+  // toucher un poste montre les prénoms. Replié par défaut ; l'appli se souvient s'il est ouvert (RP.ouvert, par écran).
+  var RP = { ouvert: {}, niv: {} };
+  function coulPoste(p) { var P = (MC.POSTES || []).filter(function (x) { return x.id === p; })[0]; return P ? P.color : '#9AA4C0'; }
+  function pale(hex) { var n = parseInt(String(hex).slice(1), 16); return 'rgba(' + (n >> 16 & 255) + ',' + (n >> 8 & 255) + ',' + (n & 255) + ',.35)'; }
+  // F : les fiches ; ids : les enfants comptés ; o : { cle, resume, niv (le niveau à côté des prénoms), filtre (html) }
+  function graphePostes(F, ids, o) {
+    var R = K.repartition(ids, F), max = 1;
+    function noms(l) { return l.map(function (id) { var f = F[id] || {}; return esc(f.prenom || '?') + (o.niv && f.niveau ? ' <small>' + f.niveau + '</small>' : ''); }).sort().join(', '); }
+    R.postes.forEach(function (p) { max = Math.max(max, p.princ.length + p.autres.length); });
+    var bars = R.postes.map(function (p) {
+      var a = p.princ.length, b = p.autres.length, col = coulPoste(p.id);
+      return '<details class="pbarw"><summary class="pbar"><span style="color:' + col + ';font-weight:600">' + NOMP[p.id] + '</span>' +
+        '<span class="tr"><i style="width:' + (a / max * 100) + '%;background:' + col + '"></i><i style="width:' + (b / max * 100) + '%;background:' + pale(col) + '"></i></span>' +
+        '<span class="n" style="color:' + col + '">' + a + (b ? '+' + b : '') + '</span></summary>' +
+        '<p class="small" style="margin:6px 0 4px">' + (a || b ? (a ? '<b style="color:var(--ink)">Poste principal :</b> ' + noms(p.princ) : '') + (b ? (a ? '<br>' : '') + '<b style="color:var(--ink)">Peut aussi jouer :</b> ' + noms(p.autres) : '') : 'Personne.') + '</p></details>';
+    }).join('');
+    var sans = R.sans.length ? '<p class="small" style="margin:0;color:var(--orange)">Pas encore de poste réglé (' + R.sans.length + ') : ' + noms(R.sans) + '. Les postes se règlent sur la fiche de chaque joueur.</p>' : '';
+    return '<details class="rpost" data-rp="' + o.cle + '"' + (RP.ouvert[o.cle] ? ' open' : '') + '><summary class="rpost-s">' + icon('kids', 18, 'style="color:var(--cyan);flex:none"') +
+      '<span class="grow"><b>Répartition des postes</b><small>' + esc(o.resume) + '</small></span>' + icon('down', 16, 'class="rpost-i"') + '</summary>' +
+      '<div class="rpost-c">' + (o.filtre || '') + (ids.length ? '<div class="pbars">' + bars + '</div><p class="small" style="margin:0">Barre pleine = poste principal · pâle = peut aussi jouer. Touchez un poste pour voir les prénoms.</p>' + sans : '<p class="small" style="margin:0">Personne.</p>') + '</div></details>';
+  }
+  // les présents d'un plateau ou d'un match, avec Tous / A / B / C
+  function graphePresents(C, ids, cle) {
+    var nv = RP.niv[cle] || 'all', cnt = { A: 0, B: 0, C: 0 };
+    ids.forEach(function (id) { var n = (C.F[id] || {}).niveau; if (cnt[n] !== undefined) cnt[n]++; });
+    var l = nv === 'all' ? ids : ids.filter(function (id) { return (C.F[id] || {}).niveau === nv; });
+    var filtre = '<div class="tfil rpf">' + [['all', 'Tous', ids.length]].concat(K.NIV.map(function (n) { return [n, n, cnt[n]]; })).map(function (x) {
+      return '<button type="button" class="opt' + (nv === x[0] ? ' on' : '') + '"' + (K.COUL_NIV[x[0]] ? ' style="--oc:' + K.COUL_NIV[x[0]] + '"' : '') + ' aria-pressed="' + (nv === x[0]) + '" data-act="rpNiv" data-k="' + cle + '" data-v="' + x[0] + '">' + x[1] + ' · ' + x[2] + '</button>';
+    }).join('') + '</div>';
+    return graphePostes(C.F, l, { cle: cle, resume: (nv === 'all' ? 'Les ' + ids.length + ' présents' : 'Niveau ' + nv + ' · ' + l.length), niv: nv === 'all', filtre: filtre });
+  }
+  MC.act.rpNiv = function (b) { RP.niv[b.getAttribute('data-k')] = b.getAttribute('data-v'); RP.ouvert[b.getAttribute('data-k')] = true; app.rerender(); };
+  document.addEventListener('toggle', function (e) {
+    var d = e.target;
+    if (d && d.matches && d.matches('details[data-rp]')) RP.ouvert[d.getAttribute('data-rp')] = d.open;
+  }, true);
+  MC.graphePostes = graphePostes;
   // Composer une équipe : la liste des joueurs à placer, les mieux adaptés d'abord.
   // Jeu à 10 : place par place, dans l'ordre (piliers, talonneur, 3es lignes, 9, 10, centre, ailiers), puis les remplaçants.
   // Jeu à 5 : on ajoute les joueurs un par un, la liste reste ouverte.
@@ -1587,6 +1630,7 @@ window.MC = window.MC || {};
     var ids = Object.keys(F).filter(function (id) { return F[id].actif && !/^test$/i.test(F[id].prenom); }).sort(function (a, b) { return F[a].prenom.localeCompare(F[b].prenom, 'fr'); });
     var cnt = { all: ids.length, '': 0, A: 0, B: 0, C: 0 };
     ids.forEach(function (id) { cnt[tVal(F, id, 'niveau') || '']++; });
+    if (T.filtre === 'none' && !cnt[''] && !Object.keys(T.chg).length) T.filtre = 'all';   // tout le monde a son niveau
     var q = T.q.toLowerCase();
     var list = ids.filter(function (id) {
       var n = (T.chg[id] ? F[id].niveau : tVal(F, id, 'niveau')) || '';   // un joueur qu'on vient de modifier reste dans la liste filtrée
@@ -1594,12 +1638,16 @@ window.MC = window.MC || {};
       return !q || F[id].prenom.toLowerCase().indexOf(q) >= 0;
     });
     var nchg = Object.keys(T.chg).length;
-    function fb(v, label, n, col) { return '<button type="button" class="opt' + (T.filtre === v ? ' on' : '') + '"' + (col ? ' style="--oc:' + col + '"' : '') + ' aria-pressed="' + (T.filtre === v) + '" data-act="tFiltre" data-v="' + v + '">' + label + ' · ' + n + '</button>'; }
+    // (v35) sur une seule ligne ; « Sans niveau » disparaît quand tous les enfants ont le leur
+    function fb(v, label, n, col, cls) { return '<button type="button" class="opt' + (cls ? ' ' + cls : '') + (T.filtre === v ? ' on' : '') + '"' + (col ? ' style="--oc:' + col + '"' : '') + ' aria-pressed="' + (T.filtre === v) + '" data-act="tFiltre" data-v="' + v + '"><span>' + label + '</span><small>' + n + '</small></button>'; }
+    var gIds = ids.filter(function (id) { var n = tVal(F, id, 'niveau') || ''; return T.filtre === 'all' || n === (T.filtre === 'none' ? '' : T.filtre); });
+    var gNom = T.filtre === 'all' ? 'Tous' : T.filtre === 'none' ? 'Sans niveau' : 'Niveau ' + T.filtre;
     return '<main class="screen">' + MC.educBar(g, 'Enfants') + (MC.enfantsTabs ? MC.enfantsTabs('terrain', g) : '') +
       '<div class="head"><span class="kicker" style="color:var(--cyan)">Réglée par les éducs · pour les compos</span><h1 class="big sm">Fiche terrain</h1>' +
       '<p class="small" style="margin:0"><b>A</b> Confirmés · <b>B</b> Débrouillés · <b>C</b> Débutants. <b>⇅</b> passerelle : peut jouer aussi dans le niveau voisin, à tour de rôle. ' + icon('star', 11) + ' plaquage sur 5 (repères provisoires : ' + K.SEUIL.B + ' pour jouer en B, ' + K.SEUIL.A + ' en A ; l\'appli prévient, elle n\'interdit rien). Les postes compatibles se règlent sur la fiche du joueur.</p></div>' +
       '<label class="sr-only" for="tq">Chercher un joueur</label><input id="tq" class="search" type="search" placeholder="Chercher un prénom…" value="' + esc(T.q) + '">' +
-      '<div class="tfil">' + fb('all', 'Tous', cnt.all) + fb('none', 'Sans niveau', cnt[''], 'var(--orange)') + fb('A', 'A', cnt.A, K.COUL_NIV.A) + fb('B', 'B', cnt.B, K.COUL_NIV.B) + fb('C', 'C', cnt.C, K.COUL_NIV.C) + '</div>' +
+      '<div class="tfil">' + fb('all', 'Tous', cnt.all, '', 'tf-w') + (cnt[''] || T.filtre === 'none' ? fb('none', 'Sans niveau', cnt[''], 'var(--orange)', 'tf-w') : '') + fb('A', 'A', cnt.A, K.COUL_NIV.A) + fb('B', 'B', cnt.B, K.COUL_NIV.B) + fb('C', 'C', cnt.C, K.COUL_NIV.C) + '</div>' +
+      graphePostes(F, gIds, { cle: 'terrain', resume: gNom + ' · ' + gIds.length + ' enfant' + (gIds.length > 1 ? 's' : ''), niv: T.filtre === 'all' }) +
       '<div class="thead small"><span>Joueur</span><span>Niveau</span><span>Passerelle</span><span>Plaquage</span></div>' +
       '<ul class="list tlist" id="tlist">' + (list.map(function (id) { return rowTerrain(F, id); }).join('') || '<li class="empty">Personne.</li>') + '</ul>' +
       (nchg ? '<div class="cp-bar cdock"><div class="row cacts"><span class="grow small" style="color:var(--soft)">' + nchg + ' joueur' + (nchg > 1 ? 's' : '') + ' modifié' + (nchg > 1 ? 's' : '') + '</span><button type="button" class="btn2 sm grey" data-act="tCancel">Annuler</button><button type="button" class="btn sm" data-act="tSave">' + icon('check', 16) + ' Enregistrer</button></div></div>' : '') +

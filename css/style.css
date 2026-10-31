@@ -1101,8 +1101,24 @@ body:has(.cdock .cselp) .toast{top:calc(74px + var(--safe-t));bottom:auto}
 .calerts .li.warn svg{color:var(--orange)}
 .calerts .li.info svg{color:var(--cyan)}
 /* fiche terrain du groupe */
-.tfil{display:flex;flex-wrap:wrap;gap:6px}
-.tfil .opt{min-height:40px;padding:4px 10px;font-size:12px}
+.tfil{display:flex;flex-wrap:nowrap;gap:6px}
+/* (v35) les filtres de niveau tiennent sur une ligne, même sur un petit téléphone : le nombre sous le nom */
+.tfil .opt{flex:1 1 0;min-width:0;min-height:44px;padding:4px 3px;font-size:12px;letter-spacing:.02em;flex-direction:column;gap:1px;line-height:1.1;text-align:center}
+.tfil .opt.tf-w{flex-grow:1.6}
+.tfil .opt small{font:600 11px/1 var(--f-hud);color:var(--dim)}
+.tfil .opt.on small{color:inherit}
+.tfil.rpf .opt{min-height:36px;flex-direction:row;gap:4px}
+/* (v35) la répartition des postes, repliée */
+.rpost{border:1px solid var(--line);background:var(--panel)}
+.rpost-s{list-style:none;display:flex;align-items:center;gap:10px;min-height:52px;padding:8px 12px;cursor:pointer}
+.rpost-s::-webkit-details-marker{display:none}
+.rpost-s b{display:block;font:700 13px/1.2 var(--f-hud);letter-spacing:.06em;text-transform:uppercase;color:var(--ink)}
+.rpost-s small{display:block;margin-top:2px;font-size:12px;color:var(--dim)}
+.rpost .rpost-i{flex:none;color:var(--dim);transition:transform .15s}
+.rpost[open] .rpost-i{transform:rotate(180deg)}
+.rpost-c{display:flex;flex-direction:column;gap:10px;padding:2px 12px 12px}
+.rpost .pbar{grid-template-columns:104px minmax(0,1fr) 34px}
+.rpost .pbarw summary{min-height:30px;cursor:pointer}
 .thead{display:none}
 .tlist{gap:4px}
 .tfrow{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"nm seg" "pas st";align-items:center;gap:6px 10px;padding:8px 10px;background:var(--panel2);border:1px solid var(--line)}

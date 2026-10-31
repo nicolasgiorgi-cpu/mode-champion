@@ -41,7 +41,7 @@ sh tests/mkdemo.sh                      # copie de démo (API_URL vide) servie s
 python3 tests/e2e_retour.py 390 844     # parcours navigateur (Playwright) ; 3 tailles : 390 844 · 1180 820 · 820 1180
 ```
 
-Scénarios navigateur utiles : `e2e_nav16` (navigation), `e2e_notifs` (la cloche), `e2e_alertes` (alertes du téléphone), `e2e_reouvrir` (rouvrir sur le dernier profil), `e2e_rebond` (rebond), `e2e_retour` (Retour, actualiser), `e2e_barre` (barre du haut sur tous les écrans), `e2e_mission`, `e2e_compos`, `e2e_visuels`, `e2e_eval`, `e2e_codes`, `e2e_passer`, `e2e_install`, `e2e_attente`, `e2e_confirm`, `e2e_v14`, et `e2e_v1` (réglages V1, site de démo sur :8898). Après une modif d'écran, lancer au moins `e2e_barre` et `e2e_nav16`, et vérifier aux 3 tailles : téléphone d'abord, iPad ensuite.
+Scénarios navigateur utiles : `e2e_nav16` (navigation), `e2e_notifs` (la cloche), `e2e_alertes` (alertes du téléphone), `e2e_postes` (répartition des postes, matchs avec postes), `e2e_reouvrir` (rouvrir sur le dernier profil), `e2e_rebond` (rebond), `e2e_retour` (Retour, actualiser), `e2e_barre` (barre du haut sur tous les écrans), `e2e_mission`, `e2e_compos`, `e2e_visuels`, `e2e_eval`, `e2e_codes`, `e2e_passer`, `e2e_install`, `e2e_attente`, `e2e_confirm`, `e2e_v14`, et `e2e_v1` (réglages V1, site de démo sur :8898). Après une modif d'écran, lancer au moins `e2e_barre` et `e2e_nav16`, et vérifier aux 3 tailles : téléphone d'abord, iPad ensuite.
 
 Toute nouvelle fonction ou tout nouveau bug corrigé doit venir avec un test (unitaire pour la logique, navigateur pour l'écran). Si un test échoue, le dire clairement : ne pas l'assouplir pour le faire passer.
 

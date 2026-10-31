@@ -186,6 +186,8 @@ r = g.call(Object.assign({ action: 'saveCompo', token: cyril }, matchs));
 assert.ok(r.ok, JSON.stringify(r));
 const cm = r.compo;
 assert.strictEqual(cm.partie, 'matchs'); assert.strictEqual(cm.equipes[0].nom, 'Équipe 1'); assert.ok(!('cote' in cm.equipes[0]), 'plus de côté chasubles / maillots'); assert.strictEqual(cm.reglages.separer, false, 'pas d\'avants / arrières séparés pour les matchs');
+assert.strictEqual(cm.reglages.format, 5, 'des matchs envoyés sans format : sans postes (comme avant)');
+assert.strictEqual(r.compo.reglages.format, 5);
 r = g.call({ action: 'compos', token: nico });
 assert.strictEqual(r.compos.filter(x => x.evenementId === etE.id).length, 2);
 // republier les ateliers sans version : conflit (ils existent déjà) ; modifier les matchs de Cyril : contre-proposition (pas le jour J)
@@ -199,6 +201,14 @@ r = g.call({ action: 'repondreAvis', token: cyril, avisId: r.avis.id, accepte: t
 assert.ok(r.ok, JSON.stringify(r));
 assert.deepStrictEqual(r.compo.equipes[1].joueurs.map(j => j.id), [P.Zoé, P['Inès'], P.Malo, P.Hugo]);
 assert.strictEqual(r.compo.equipes[1].nom, 'Équipe 2', 'le nom de l\'équipe reste');
+// (v35) l'auteur repasse ses matchs avec des postes (jeu à 10) : gardés, même un poste qui n'est pas sur la fiche
+r = g.call(Object.assign({ action: 'saveCompo', token: cyril }, matchs, { compoId: cm.id, version: r.compo.version, reglages: { partie: 'matchs', mode: 'niveau', nbMatchs: 1, format: 10 },
+  equipes: [{ id: 'E1', nom: 'Équipe 1', bloc: 'm1', joueurs: [{ id: P.Tom, poste: 'talonneur' }, { id: P['Léa'], poste: 'ailier' }] }, { id: 'E2', nom: 'Équipe 2', bloc: 'm1', joueurs: [{ id: P.Zoé, poste: 'pilier' }, { id: P['Inès'], poste: 'ouvreur' }, { id: P.Malo, poste: 'n-importe' }, { id: P.Hugo, poste: '' }] }], banc: [] }));
+assert.ok(r.ok, JSON.stringify(r));
+assert.strictEqual(r.compo.reglages.format, 10, 'matchs avec postes');
+assert.deepStrictEqual(r.compo.equipes.map(t => t.joueurs.map(j => j.poste)), [['talonneur', 'ailier'], ['pilier', 'ouvreur', '', '']], 'postes gardés ; un poste inconnu est vidé');
+r = g.call(Object.assign({ action: 'saveCompo', token: cyril }, ateliers, { compoId: ca.id, version: ca.version, reglages: Object.assign({}, ateliers.reglages, { format: 10 }) }));
+assert.ok(r.ok && r.compo.reglages.format === 5, 'les ateliers restent sans postes');
 // 2 versions au vote, pour les ateliers d'un autre entraînement
 r = g.call({ action: 'setEvenement', token: nico, titre: 'Entraînement - Saint-Sulpice', debut: '2026-11-07', presents: [P.Tom, P.Hugo, P.Zoé, P.Malo] });
 const etE2 = r.evenement;

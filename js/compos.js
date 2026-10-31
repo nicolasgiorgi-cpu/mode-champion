@@ -43,6 +43,18 @@ MC.compos = (function () {
     return o;
   }
   function posteDefaut(f) { return postesDe(f)[0] || ''; }
+  // (v35) la répartition des postes RÉGLÉS sur les fiches (pas les vœux) : pour chaque poste, ceux qui l'ont en poste
+  // principal et ceux qui peuvent le jouer ; « sans » = pas encore de poste réglé. ids : les enfants à compter.
+  function repartition(ids, F) {
+    var o = { postes: ORDRE.map(function (p) { return { id: p, princ: [], autres: [] }; }), sans: [] }, ix = {};
+    o.postes.forEach(function (x) { ix[x.id] = x; });
+    (ids || []).forEach(function (id) {
+      var l = ((F[id] || {}).postesOk || []).filter(function (p, i, a) { return ix[p] && a.indexOf(p) === i; });
+      if (!l.length) { o.sans.push(id); return; }
+      l.forEach(function (p, i) { ix[p][i ? 'autres' : 'princ'].push(id); });
+    });
+    return o;
+  }
   // rang d'un poste pour un joueur : 0 = poste principal, 1, 2… = ses autres postes ; sinon 9
   function rang(f, poste) {
     var i = postesDe(f).indexOf(poste);
@@ -139,7 +151,9 @@ MC.compos = (function () {
   // ---------- Couverture des postes (jeu à 10) : appariement postes ↔ joueurs ----------
   // Les 10 places du jeu à 10, chaque joueur au plus une, en préférant les vœux (rang le plus bas).
   // renvoie { poste par joueur ('' = remplaçant ou pas de place), manquants: [places non tenues] }
-  function apparier(ids, F) {
+  // remplir (v35, matchs d'entraînement) : les places encore vides sont données à ceux qui restent (tout le monde joue),
+  // d'abord du même côté (avant / arrière) que leur poste principal
+  function apparier(ids, F, remplir) {
     var slots = SLOTS10, slotOf = {}, playerOf = {};
     var rk = {};
     ids.forEach(function (pid) { var o = {}; slots.forEach(function (p) { if (o[p] === undefined) o[p] = rang(F[pid], p); }); rk[pid] = o; });
@@ -153,6 +167,12 @@ MC.compos = (function () {
     }
     [0, 1, 2, 3, 4, 5, 6].forEach(function (maxR) {
       ids.forEach(function (pid) { if (slotOf[pid] === undefined) tryAssign(pid, maxR, {}); });
+    });
+    if (remplir) ids.forEach(function (pid) {
+      if (slotOf[pid] !== undefined) return;
+      var ty = typePoste(posteDefaut(F[pid])), libre = -1;
+      slots.forEach(function (p, s) { if (playerOf[s] === undefined && (libre < 0 || (ty && typePoste(slots[libre]) !== ty && typePoste(p) === ty))) libre = s; });
+      if (libre >= 0) { playerOf[libre] = pid; slotOf[pid] = libre; }
     });
     var poste = {}, manquants = [];
     ids.forEach(function (pid) { poste[pid] = slotOf[pid] !== undefined ? slots[slotOf[pid]] : ''; });
@@ -540,7 +560,8 @@ MC.compos = (function () {
     function borne(v, a, b, d) { v = Math.floor(Number(v)); return isNaN(v) ? d : v < a ? a : v > b ? b : v; }
     var parGroupe = 8;
     return {
-      partie: r.partie === 'matchs' ? 'matchs' : 'ateliers', format: 5, nb: { A: 0, B: 0, C: 0 },
+      // (v35) les matchs se jouent avec des postes, comme les plateaux à 10 (les ateliers, non)
+      partie: r.partie === 'matchs' ? 'matchs' : 'ateliers', format: r.partie === 'matchs' ? 10 : 5, nb: { A: 0, B: 0, C: 0 },
       mode: r.mode === 'equilibre' ? 'equilibre' : 'niveau', separer: r.partie !== 'matchs' && !!r.separer,
       n: borne(r.n, 1, 8, Math.max(2, Math.min(6, Math.round(n / parGroupe) || 1))),
       nAv: borne(r.nAv, 1, 4, Math.max(1, Math.round(nAv / parGroupe))), nAr: borne(r.nAr, 1, 4, Math.max(1, Math.round(nAr / parGroupe))),
@@ -568,7 +589,7 @@ MC.compos = (function () {
   }
   // poids pour des groupes mélangés (ateliers « équilibrés ») et pour les deux équipes d'un match
   var WMIX = { taille: 5, plaq: 3, bons: 1, copain: 1, seul: 0.5, poste: 0, niv: 1.5, avar: 1 };
-  var WMATCH = { taille: 5, plaq: 4, bons: 1.5, copain: 0.75, seul: 0.4, poste: 0, niv: 1.5, avar: 1.2 };
+  var WMATCH = { taille: 5, plaq: 4, bons: 1.5, copain: 0.75, seul: 0.4, poste: 1.2, niv: 1.5, avar: 1.2 };   // (v35) postes : les deux équipes en ont autant de couverts
   // des tranches successives (du plus avancé au moins avancé), coupées à la limite entre deux niveaux quand elle est proche
   // (à un quart de groupe près) : des groupes de niveau d'effectifs voisins
   function tranches(sorted, k, F) {
@@ -625,12 +646,12 @@ MC.compos = (function () {
       for (var i = 0; i < m; i++) {
         var sz = base + (i < extra ? 1 : 0), part = sorted.slice(pos, pos + sz), t2 = serpentin(part, 2);
         pos += sz;
-        ameliorer(t2, F, H, 5, WMATCH);
+        ameliorer(t2, F, H, 10, WMATCH);
         paires.push(t2);
       }
     } else {
       var all = serpentin(sorted, 2 * m);
-      ameliorer(all, F, H, 5, WMATCH);
+      ameliorer(all, F, H, 10, WMATCH);
       for (var j = 0; j < m; j++) paires.push([all[2 * j], all[2 * j + 1]]);
     }
     var equipes = [];
@@ -640,8 +661,8 @@ MC.compos = (function () {
       var niv = '';
       if (mode === 'niveau') NIV.slice().reverse().forEach(function (n) { if (pr[0].concat(pr[1]).some(function (id) { return (niveauDe(F[id]) || 'B') === n; })) niv = n; });
       [0, 1].forEach(function (s) {
-        var k = 2 * i + s + 1;
-        equipes.push({ id: 'E' + k, nom: 'Équipe ' + k, niveau: niv, bloc: 'm' + (i + 1), joueurs: pr[s].map(function (id) { return entree(id, F); }) });
+        var k = 2 * i + s + 1, po = apparier(pr[s], F, true).poste;   // (v35) chacun son poste du match : celui de sa fiche d'abord
+        equipes.push({ id: 'E' + k, nom: 'Équipe ' + k, niveau: niv, bloc: 'm' + (i + 1), joueurs: pr[s].map(function (id) { var x = entree(id, F); x.poste = po[id] || ''; return x; }) });
       });
     });
     return { equipes: equipes, raisons: {} };
@@ -682,6 +703,11 @@ MC.compos = (function () {
     });
     o.banc = ids.filter(function (id) { return !dans[id]; });
     o.raisons = {};
+    // (v35) des matchs d'avant la v35 (sans postes) : ils passent avec postes, ceux des fiches
+    if (o.reglages && o.reglages.partie === 'matchs' && o.reglages.format !== 10) {
+      o.reglages.format = 10;
+      o.equipes.forEach(function (t) { var po = apparier(t.joueurs.map(function (j) { return j.id; }), F, true).poste; t.joueurs.forEach(function (j) { j.poste = po[j.id] || ''; }); });
+    }
     return o;
   }
   // ce qu'il faut regarder dans des groupes d'entraînement
@@ -764,7 +790,7 @@ MC.compos = (function () {
     proposer: proposer, vide: vide, stats: stats, alertes: alertes, apparier: apparier, scoreNiveau: scoreNiveau,
     moveTo: moveTo, swap: swap, setPoste: setPoste, where: where, diff: diff, presents: presents, attente: attente, retirer: retirer, sorteDuTitre: sorteDuTitre,
     nomPoste: nomPoste, frDate: frDate,
-    STYLES: STYLES, AVANTS: AVANTS, postesDe: postesDe, posteDefaut: posteDefaut, typePoste: typePoste, typeDe: typeDe, sections: sections, ORDRE: ORDRE,
+    STYLES: STYLES, AVANTS: AVANTS, postesDe: postesDe, posteDefaut: posteDefaut, repartition: repartition, typePoste: typePoste, typeDe: typeDe, sections: sections, ORDRE: ORDRE,
     PARTIES: PARTIES, regEnt: regEnt, proposerEnt: proposerEnt, videEnt: videEnt, reprendre: reprendre, alertesEnt: alertesEnt,
     blocDe: blocDe, blocsDe: blocsDe, nomBloc: nomBloc, nomEq: nomEq
   };

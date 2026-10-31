@@ -1,7 +1,7 @@
 # Compos d'équipes (éducs) : onglets Plateaux et Entraîn., fiche terrain, présents, proposition, tableau, publication,
 # contre-proposition, réponse de l'auteur, fiche joueur. Site de démo (sh tests/mkdemo.sh), puis :
 # python3 tests/e2e_compos.py 390 844   (téléphone)   ·   python3 tests/e2e_compos.py 1180 820   (iPad paysage)
-import sys, os
+import sys, os, re
 from playwright.sync_api import sync_playwright
 BASE = 'http://localhost:8899/index.html'
 OUT = os.environ.get('OUT', '/tmp/compos-shots/')
@@ -43,7 +43,7 @@ with sync_playwright() as p:
     # ----- fiche terrain du groupe -----
     pg.click('#nav a >> nth=3'); pg.wait_for_timeout(700)
     pg.click('a[href="#/educ/terrain"]'); pg.wait_for_timeout(700)
-    check('fiche terrain : 28 joueurs', 'TOUS · 28' in pg.inner_text('.tfil').upper(), pg.inner_text('.tfil'))
+    check('fiche terrain : 28 joueurs', re.sub(r'\s+', ' ', pg.inner_text('[data-act="tFiltre"][data-v="all"]')).upper() == 'TOUS 28', pg.inner_text('.tfil'))   # (v35) le nombre sous le nom
     pg.click('[data-act="tFiltre"][data-v="none"]'); pg.wait_for_timeout(300)
     check('filtre sans niveau : 3', len(pg.query_selector_all('#tlist .tfrow')) == 3)
     cid = ev(pg, "MC.app.S.cache.group.joueurs.find(p=>p.joueur.prenom==='Côme').joueur.id")
