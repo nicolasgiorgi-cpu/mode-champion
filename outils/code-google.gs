@@ -262,6 +262,44 @@ function verifierAlertes() {
 }
 
 /**
+ * À lancer depuis l'éditeur : une alerte d'essai sur les appareils de l'éduc administrateur (Nicolas) — son profil éduc,
+ * et le profil famille et enfant de ses enfants — et pas ceux des autres. Le journal dit combien d'appareils sont abonnés
+ * (par profil), sans jamais afficher de jeton ni de nom.
+ */
+function essaiAlertesAdmin() {
+  if (!fcmCle_()) { Logger.log('❌ Propriété FCM_CLE absente : pas d\'alertes.'); return; }
+  var db = new SheetDB_(), moi = {}, fam = {}, kids = {}, parRole = { e: 0, f: 0, p: 0 }, msgs = [], types = [];
+  db.rows('educs').forEach(function (e) {
+    if (!e.actif || !e.admin) return;
+    moi[e.id] = true;
+    (Array.isArray(e.enfants) ? e.enfants : []).forEach(function (id) {
+      kids[id] = true;
+      var j = db.rows('joueurs').filter(function (x) { return x.id === id; })[0];
+      if (j && j.familleId) fam[j.familleId] = true;
+    });
+  });
+  var liens = { e: '#/educ/notifs', f: '#/parent/notifs', p: '#/notifs' };
+  db.rows('push').forEach(function (x) {
+    if (!x.actif) return;
+    if (parRole[x.role] !== undefined) parRole[x.role]++;
+    var mien = (x.role === 'e' && moi[x.qui]) || (x.role === 'f' && fam[x.qui]) || (x.role === 'p' && kids[x.qui]);
+    if (!mien || !x.jeton) return;
+    types.push((x.role === 'e' ? 'éduc' : x.role === 'f' ? 'parent' : 'enfant') + ' · ' + (x.appareil || 'appareil'));
+    msgs.push({ id: x.id, jeton: x.jeton, cat: '_essai', tag: x.role + '-_essai', titre: 'Mode champion', texte: 'Alerte d\'essai envoyée depuis le serveur 👍', lien: liens[x.role] });
+  });
+  Logger.log('Appareils abonnés en tout : éducs ' + parRole.e + ', parents ' + parRole.f + ', enfants ' + parRole.p + '.');
+  if (!msgs.length) { Logger.log('Aucun de vos appareils n\'est abonné : dans l\'appli (version 34), Mes notifications › « Alertes sur ce téléphone » › Autoriser.'); return; }
+  CacheService.getScriptCache().remove('fcm:panne');
+  var morts = [];
+  try { morts = envoyerPush_(msgs) || []; } catch (e) { Logger.log('❌ ' + e.message); return; }
+  Logger.log('✅ Alerte d\'essai envoyée à ' + (msgs.length - morts.length) + ' appareil(s) : ' + types.join(' ; ') + (morts.length ? '. ' + morts.length + ' ne répond plus (désabonné).' : '.'));
+  if (morts.length) {
+    var lock = LockService.getScriptLock();
+    if (lock.tryLock(10000)) { try { Core.pushMorts(db, morts); db.flush_(); } finally { lock.releaseLock(); } }
+  }
+}
+
+/**
  * Réponses de l'ancien site « Choisis ton poste » : le Google Form « M12 - 26/27 - Choix de postes » range ses réponses
  * dans un onglet de CETTE feuille (Google Forms › Réponses › Associer à Sheets › feuille existante).
  * On reconnaît l'onglet à ses colonnes « Prénom » et « Choix 1 ». Renvoie null s'il n'y est pas.

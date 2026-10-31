@@ -241,4 +241,13 @@ assert.ok(r.ok && jetonsAcces.length === avant + 1, 'puis pause : on ne redemand
 accesRefuse = false; g.verifierAlertes();
 assert.ok(!g._cache['fcm:panne'], 'verifierAlertes lève la pause');
 
+// ---------- essaiAlertesAdmin (éditeur) : seulement les appareils de l'éduc admin, rien de secret dans le journal ----------
+g.call({ action: 'pushAbonner', token: et, jeton: T.admin, cats: ['seance'], appareil: 'iPhone' });
+g.call({ action: 'pushAbonner', token: ct, jeton: T.cyril, cats: ['seance'] });
+envois.length = 0; g._logs.length = 0;
+g.essaiAlertesAdmin();
+assert.deepStrictEqual(envois.map(e => e.token), [T.admin], 'l\'essai de l\'éditeur ne part que chez l\'admin');
+assert.ok(/✅ Alerte d'essai envoyée à 1 appareil\(s\) : éduc · iPhone/.test(g._logs.join('\n')), g._logs.join('\n'));
+assert.ok(!g._logs.join('\n').includes('jeton-'), 'pas de jeton dans le journal');
+
 console.log('test_push : OK');
