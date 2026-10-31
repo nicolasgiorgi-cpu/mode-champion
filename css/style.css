@@ -1705,3 +1705,8 @@ textarea.txt{min-height:84px;padding:10px 12px;resize:vertical;font:500 16px/1.4
 .bvc-l{display:flex;gap:10px;align-items:flex-start;font-size:15px;line-height:1.35}
 .bvc-i{font-size:24px;line-height:1;flex:none}
 .bvc-m{display:block;color:var(--soft);font-size:14px;margin-top:3px}
+
+/* ===== (v37) arriver d'une alerte ou de la cloche : l'élément visé est montré d'un éclair (js/app.js, cible) ===== */
+.cible-on{animation:cibleEclair 2s ease-out 1}
+@keyframes cibleEclair{0%,35%{outline:2px solid var(--cyan);outline-offset:2px}100%{outline:2px solid transparent;outline-offset:2px}}
+@media (prefers-reduced-motion:reduce){.cible-on{animation:none;outline:2px solid var(--cyan);outline-offset:2px}}

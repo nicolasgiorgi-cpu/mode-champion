@@ -73,8 +73,9 @@ envois.forEach(e => {
   assert.strictEqual(e.data.tag, (e.token === T.parent ? 'f' : 'e') + '-seance-' + tom, 'une alerte affichée par profil, sorte et enfant');
   assert.strictEqual(e.verrou, false, 'Firebase est appelé APRÈS le verrou relâché (les autres n\'attendent pas)');
 });
-assert.strictEqual(envois.find(e => e.token === T.parent).data.lien, '#/parent/notifs');
-assert.strictEqual(envois.find(e => e.token === T.admin).data.lien, '#/educ/notifs');
+// (v37) le lien mène à la séance : la fiche (éduc) ou le suivi (famille), son détail ouvert (c = s-<id>)
+assert.strictEqual(envois.find(e => e.token === T.parent).data.lien, '#/parent?k=' + tom + '&c=s-' + r.seance.id);
+assert.strictEqual(envois.find(e => e.token === T.admin).data.lien, '#/educ/joueur/' + tom + '?t=prepa&c=s-' + r.seance.id);
 // une alerte de la même sorte par appareil toutes les 10 minutes
 envois.length = 0;
 g.call({ action: 'logSession', token: kt, type: 'dupont', date: new Date().toISOString().slice(0, 10), mode: 'rapide' });

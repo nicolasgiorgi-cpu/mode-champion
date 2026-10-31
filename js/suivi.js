@@ -110,8 +110,10 @@ MC.suivi = (function () {
     var j = C.JOURS[s.type] || {}, has = !!s.details, bt = o.bravo ? o.bravo(s) : '';
     var sum = '<span class="dia" style="--dc:' + (j.color || '#888') + '"></span><span class="grow"><span class="t1">' + esc(j.nomSeance || s.type) + '</span><span class="t2">' + esc(ui.fmtDate(s.date)) + ' · ' + esc(info(s)) + '</span>' + bravosDe(s, o) + '</span>';
     var inner = has ? '<details><summary>' + sum + '<span class="chev">' + icon('right', 16) + '</span></summary><div class="sbody">' + detail(s) + '</div></details>' : sum;
-    if (bt) return '<li class="li bvl' + (has ? ' sess' : '') + '">' + (has ? inner : '<div class="bvl-in">' + inner + '</div>') + bt + '</li>';
-    return has ? '<li class="li sess">' + inner + '</li>' : '<li class="li">' + inner + '</li>';
+    // (v37) data-cible : « s-<id> » pour y arriver d'une alerte ou de la cloche (js/app.js, cible)
+    var dc = ' data-cible="s-' + esc(s.id) + '"';
+    if (bt) return '<li class="li bvl' + (has ? ' sess' : '') + '"' + dc + '>' + (has ? inner : '<div class="bvl-in">' + inner + '</div>') + bt + '</li>';
+    return has ? '<li class="li sess"' + dc + '>' + inner + '</li>' : '<li class="li"' + dc + '>' + inner + '</li>';
   }
   // o.max : nombre de séances visibles avant « Voir plus » ; o.bravos, o.moi, o.bravo : les bravos (v36)
   function seances(list, o) {

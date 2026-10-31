@@ -118,12 +118,14 @@ self.addEventListener('fetch', function (e) {
 // Firebase Cloud Messaging apporte un message « données » (titre, texte, lien, tag) : c'est ici qu'il devient une alerte,
 // TOUJOURS (sur iPhone, un message reçu sans alerte affichée fait couper l'abonnement au bout de quelques fois).
 // Pas de code Firebase ici : rien à charger, rien qui puisse empêcher l'affichage.
+// (v37) un lien de l'appli : un écran, et quelques paramètres simples (?t=prepa&c=s-abc : la séance à montrer)
+var LIEN_OK = /^#\/[A-Za-z0-9\/_-]*(\?[a-z]+=[A-Za-z0-9_-]+(&[a-z]+=[A-Za-z0-9_-]+)*)?$/;
 function alerteDe(ev) {
   var d = {};
   try { var j = ev.data ? ev.data.json() : {}; d = (j && (j.data || j.notification)) || j || {}; }
   catch (x) { try { d = { texte: ev.data.text() }; } catch (y) { d = {}; } }
   return { titre: String(d.titre || d.title || 'Mode champion'), texte: String(d.texte || d.body || 'Une nouveauté à voir dans l\'appli.'),
-    lien: /^#\/[a-z/]*$/.test(String(d.lien || '')) ? String(d.lien) : '', tag: String(d.tag || '') };
+    lien: LIEN_OK.test(String(d.lien || '')) ? String(d.lien) : '', tag: String(d.tag || '') };
 }
 // (v35) la pastille sur l'icône de l'appli : +1 à chaque alerte reçue ; l'appli remet le vrai nombre (celui de la cloche)
 // en s'ouvrant (même petit cache « pastille », hors des caches « mc- » nettoyés à chaque version)
@@ -148,7 +150,7 @@ self.addEventListener('push', function (e) {
 self.addEventListener('notificationclick', function (e) {
   e.notification.close();
   var lien = (e.notification.data && e.notification.data.lien) || '';
-  if (!/^#\/[a-z/]*$/.test(lien)) lien = '';
+  if (!LIEN_OK.test(lien)) lien = '';
   e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (ws) {
     for (var i = 0; i < ws.length; i++) {
       if (ws[i].url.indexOf(BASE) === 0) {
@@ -156,6 +158,7 @@ self.addEventListener('notificationclick', function (e) {
         return ws[i].focus ? ws[i].focus() : null;
       }
     }
-    return self.clients.openWindow ? self.clients.openWindow(BASE + lien) : null;
+    // ?al=1 : l'appli sait qu'on arrive par une alerte (la ligne de la cloche correspondante devient « lue »)
+    return self.clients.openWindow ? self.clients.openWindow(BASE + (lien ? '?al=1' + lien : '')) : null;
   }));
 });

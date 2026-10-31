@@ -350,7 +350,7 @@ window.MC = window.MC || {};
 
     // les demandes des enfants
     var dems = demandesAttente(gr), demHtml = '';
-    if (dems.length) demHtml = '<section class="sec" id="evdem"><div class="between"><h2 class="mlab" style="margin:0">Demandes des enfants (' + dems.length + ')</h2><span class="small">quand vous voulez</span></div><ul class="list">' + dems.map(function (x) {
+    if (dems.length) demHtml = '<section class="sec" id="evdem" data-cible="demandes"><div class="between"><h2 class="mlab" style="margin:0">Demandes des enfants (' + dems.length + ')</h2><span class="small">quand vous voulez</span></div><ul class="list">' + dems.map(function (x) {
       var s = SK.star(x.domaine, x.etoile), Dd = SK.dom(x.domaine);
       return '<li class="li evdem"><span class="grow"><span class="t1">' + esc(nomDe(gr, x.joueurId)) + ' · ' + esc(Dd ? Dd.nom : '') + ' · ' + esc(s ? s.nom : x.etoile) + '</span><span class="t2">' + (x.sorte === 'briller' ? 'L\'a fait au plateau' + (x.occasion ? ' (' + esc(x.occasion) + ')' : '') + ' : la faire briller ?' : 'Demande l\'étoile' + (x.occasion ? ' (' + esc(x.occasion) + ')' : '')) + '</span></span>' +
         '<button type="button" class="btn2 sm grey" data-act="demNon" data-id="' + esc(x.id) + '">Pas vu</button><button type="button" class="btn2 sm gold" data-act="demOui" data-id="' + esc(x.id) + '">Oui</button></li>';
@@ -576,7 +576,7 @@ window.MC = window.MC || {};
       var lignes = actifs(gr).map(function (p) {
         var row = (p.missions || []).filter(function (x) { return x.mission === m.id; })[0], rep = (row && row.reponses) || {};
         var t = row && row.faite ? '<b style="color:var(--green)">faite</b>' + (qs.length ? ' · ' + (rep.score || 0) + ' / ' + (rep.total || qs.length) : '') + ' · ' + jourTxt(row.date) : rep.vu ? 'vidéo vue, quiz à faire' : '<span style="color:var(--orange)">pas encore</span>';
-        return { f: row && row.faite ? 0 : rep.vu ? 1 : 2, html: '<li class="li"><span class="grow"><span class="t1">' + esc(p.joueur.prenom) + '</span><span class="t2">' + t + '</span></span></li>' };
+        return { f: row && row.faite ? 0 : rep.vu ? 1 : 2, html: '<li class="li" data-cible="j-' + esc(p.joueur.id) + '"><span class="grow"><span class="t1">' + esc(p.joueur.prenom) + '</span><span class="t2">' + t + '</span></span></li>' };
       }).sort(function (a, b) { return a.f - b.f; }).map(function (x) { return x.html; }).join('');
       return '<main class="screen">' + MC.educBar(gr, m.titre, '#/educ/missions', 'Missions') +
         '<div class="head"><span class="kicker" style="color:var(--pink)">' + (m.sorte === 'video' ? 'Vidéo' + (qs.length ? ' + ' + qs.length + ' question' + (qs.length > 1 ? 's' : '') : '') : 'QCM · ' + qs.length + ' question' + (qs.length > 1 ? 's' : '')) + ' · +' + m.xp + ' XP · par ' + esc(m.parNom) + '</span><h1 class="big sm">' + esc(m.titre) + '</h1>' + (m.texte ? '<p class="lead">' + esc(m.texte) + '</p>' : '') + '</div>' +

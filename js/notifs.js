@@ -132,32 +132,32 @@ MC.notifs = (function () {
       var who = b(j.prenom), fiche = '#/educ/joueur/' + encodeURIComponent(j.id);
       (p.seances || []).forEach(function (s) {
         // (v36) bv : le bouton « 👏 Bravo » sur la ligne (js/bravos.js)
-        out.push({ id: 's:' + s.id, cat: 'seance', t: ms(s.cree), txt: who + ' a fait ' + esc(nomSeance(s)) + '.', href: fiche + '?t=prepa', bv: { j: j.id, s: s } });
+        out.push({ id: 's:' + s.id, cat: 'seance', t: ms(s.cree), txt: who + ' a fait ' + esc(nomSeance(s)) + '.', href: fiche + '?t=prepa&c=s-' + s.id, bv: { j: j.id, s: s } });
       });
       groupes(p.records).forEach(function (x) {
-        if (x.defi) { var r = x.recs[0]; out.push({ id: 'r:' + r.id, cat: 'bilan', t: x.t, txt: who + ' a relevé un défi : ' + esc(nomTest(r.test)) + '.', href: fiche + '?t=prepa' }); return; }
-        out.push({ id: 'b:' + j.id + ':' + x.bilan, cat: 'bilan', t: x.t, txt: who + ' a noté son ' + esc(nomBilan(x.bilan)) + ' (' + pl(x.recs.length, 'résultat') + ').', href: fiche + '?t=prepa' });
+        if (x.defi) { var r = x.recs[0]; out.push({ id: 'r:' + r.id, cat: 'bilan', t: x.t, txt: who + ' a relevé un défi : ' + esc(nomTest(r.test)) + '.', href: fiche + '?t=prepa&c=bilans' }); return; }
+        out.push({ id: 'b:' + j.id + ':' + x.bilan, cat: 'bilan', t: x.t, txt: who + ' a noté son ' + esc(nomBilan(x.bilan)) + ' (' + pl(x.recs.length, 'résultat') + ').', href: fiche + '?t=prepa&c=bilans' });
       });
       (p.missions || []).forEach(function (m) {
         var r = m.reponses || {}, t = ms(m.maj), mot = r.message ? ' 💬 « ' + esc(court(r.message, 90)) + ' »' : '';
         if (m.mission === 'jeu10') {
           if (!(r.postes && r.postes.length) && !r.copainsFait) return;
           var quoi = (r.postes && r.postes.length ? '« Choisis ton poste »' : '') + (r.copainsFait ? (r.postes && r.postes.length ? ' et ' : '') + '« Avec qui tu aimes jouer »' : '');
-          out.push({ id: 'm:' + m.id + ':' + (m.maj || ''), cat: 'mission', t: t, txt: who + ' a répondu à ' + quoi + '.' + mot, href: '#/educ/mission/poste' });
+          out.push({ id: 'm:' + m.id + ':' + (m.maj || ''), cat: 'mission', t: t, txt: who + ' a répondu à ' + quoi + '.' + mot, href: '#/educ/mission/' + (r.postes && r.postes.length ? 'poste' : 'copains') + '?c=j-' + j.id });
           return;
         }
         if (!m.faite && !r.vu && !r.ans) return;
         var sc = r.ans ? ' (' + (r.score || 0) + '/' + (r.total || 0) + ')' : '';
-        out.push({ id: 'm:' + m.id + ':' + (m.maj || ''), cat: 'mission', t: t, txt: who + ' a répondu à la mission « ' + esc(nomMission(m.mission, defs)) + ' »' + sc + '.', href: '#/educ/missions/m/' + encodeURIComponent(m.mission) });
+        out.push({ id: 'm:' + m.id + ':' + (m.maj || ''), cat: 'mission', t: t, txt: who + ' a répondu à la mission « ' + esc(nomMission(m.mission, defs)) + ' »' + sc + '.', href: '#/educ/missions/m/' + encodeURIComponent(m.mission) + '?c=j-' + j.id });
       });
       (p.demandes || []).forEach(function (x) {
         var et = '« ' + esc(nomEtoile(x.domaine, x.etoile)) + ' »';
-        out.push({ id: 'd:' + x.id, cat: 'etoile', t: ms(x.cree), txt: x.sorte === 'briller' ? who + ' dit avoir fait briller l\'étoile ' + et + ' au plateau.' : who + ' demande l\'étoile ' + et + '.', href: '#/educ/skills' });
+        out.push({ id: 'd:' + x.id, cat: 'etoile', t: ms(x.cree), txt: x.sorte === 'briller' ? who + ' dit avoir fait briller l\'étoile ' + et + ' au plateau.' : who + ' demande l\'étoile ' + et + '.', href: '#/educ/skills?c=demandes' });
       });
       (p.journal || []).forEach(function (n) {
         var d = n.data || {};
-        if (n.type === 'niveau' && d.cle) out.push({ id: 'n:' + n.id, cat: 'niveau', t: ms(n.cree), txt: who + (Number(d.a) > Number(d.de) ? ' passe en N' : ' revient en N') + esc(d.a) + ' : ' + esc(nomCle(d.cle)) + '.', href: fiche + '?t=prepa' });
-        else if (n.type === 'niveau_adulte' && d.par !== moiNom) out.push({ id: 'n:' + n.id, cat: 'niveau', t: ms(n.cree), txt: 'Niveaux de ' + who + ' changés' + esc(par(d.par)) + ' : ' + esc(changes(d.changes)) + '.', href: fiche + '?t=prepa' });
+        if (n.type === 'niveau' && d.cle) out.push({ id: 'n:' + n.id, cat: 'niveau', t: ms(n.cree), txt: who + (Number(d.a) > Number(d.de) ? ' passe en N' : ' revient en N') + esc(d.a) + ' : ' + esc(nomCle(d.cle)) + '.', href: fiche + '?t=prepa&c=niveaux' });
+        else if (n.type === 'niveau_adulte' && d.par !== moiNom) out.push({ id: 'n:' + n.id, cat: 'niveau', t: ms(n.cree), txt: 'Niveaux de ' + who + ' changés' + esc(par(d.par)) + ' : ' + esc(changes(d.changes)) + '.', href: fiche + '?t=prepa&c=niveaux' });
       });
     });
     // les compos : un vote demandé, les votes sur ma compo, une contre-proposition, la réponse à la mienne
@@ -200,31 +200,31 @@ MC.notifs = (function () {
       if (!j) return;
       var who = b(j.prenom), k = '?k=' + encodeURIComponent(j.id);
       (d.seances || []).forEach(function (s) {
-        out.push({ id: 's:' + s.id, cat: 'seance', t: ms(s.cree), txt: who + ' a fait ' + esc(nomSeance(s)) + '.', href: '#/parent' + k });
+        out.push({ id: 's:' + s.id, cat: 'seance', t: ms(s.cree), txt: who + ' a fait ' + esc(nomSeance(s)) + '.', href: '#/parent' + k + '&c=s-' + s.id });
       });
       // (v36) les bravos des éducs ; un mot ajouté après coup = une nouvelle ligne
       (d.bravos || []).forEach(function (x) {
         var s = seanceDe(d.seances, x.seanceId);
-        out.push({ id: bravoId(x), cat: 'bravo', t: ms(x.maj || x.cree), txt: bravoTxt(x, '👏 ' + b(x.parNom || 'Un éduc') + ' a dit bravo à ' + who + ' pour ' + esc(pour(s, false)), '.'), href: '#/parent' + k });
+        out.push({ id: bravoId(x), cat: 'bravo', t: ms(x.maj || x.cree), txt: bravoTxt(x, '👏 ' + b(x.parNom || 'Un éduc') + ' a dit bravo à ' + who + ' pour ' + esc(pour(s, false)), '.'), href: '#/parent' + k + '&c=s-' + x.seanceId });
       });
       groupes(d.records).forEach(function (x) {
         var att = x.attente ? ' <span class="nt-att">À confirmer</span>' : '';
-        if (x.defi) { var r = x.recs[0]; out.push({ id: 'r:' + r.id, cat: 'confirmer', t: x.t, txt: who + ' a relevé un défi : ' + esc(nomTest(r.test)) + '.' + att, href: '#/parent' + k }); return; }
-        out.push({ id: 'b:' + j.id + ':' + x.bilan, cat: 'confirmer', t: x.t, txt: who + ' a noté son ' + esc(nomBilan(x.bilan)) + ' (' + pl(x.recs.length, 'résultat') + ').' + att, href: '#/parent' + k });
+        if (x.defi) { var r = x.recs[0]; out.push({ id: 'r:' + r.id, cat: 'confirmer', t: x.t, txt: who + ' a relevé un défi : ' + esc(nomTest(r.test)) + '.' + att, href: '#/parent' + k + '&c=confirmer' }); return; }
+        out.push({ id: 'b:' + j.id + ':' + x.bilan, cat: 'confirmer', t: x.t, txt: who + ' a noté son ' + esc(nomBilan(x.bilan)) + ' (' + pl(x.recs.length, 'résultat') + ').' + att, href: '#/parent' + k + '&c=confirmer' });
       });
       (d.missions || []).forEach(function (m) {
         var r = m.reponses || {}, t = ms(m.maj);
         if (m.mission === 'jeu10') {
-          if (r.postes && r.postes.length) out.push({ id: 'm:' + m.id + ':poste', cat: 'mission', t: t, txt: who + ' a fait la mission « Choisis ton poste ».', href: '#/parent/missions' + k });
-          if (r.copainsFait && ouvert('copains')) out.push({ id: 'm:' + m.id + ':copains', cat: 'mission', t: t, txt: who + ' a fait la mission « Avec qui tu aimes jouer ».', href: '#/parent/missions' + k });
+          if (r.postes && r.postes.length) out.push({ id: 'm:' + m.id + ':poste', cat: 'mission', t: t, txt: who + ' a fait la mission « Choisis ton poste ».', href: '#/parent/missions/jeu10' + k });
+          if (r.copainsFait && ouvert('copains')) out.push({ id: 'm:' + m.id + ':copains', cat: 'mission', t: t, txt: who + ' a fait la mission « Avec qui tu aimes jouer ».', href: '#/parent/missions/jeu10' + k });
           return;
         }
         if (m.faite && ouvert('missionsEducs')) out.push({ id: 'm:' + m.id, cat: 'mission', t: t, txt: who + ' a fait la mission « ' + esc(nomMission(m.mission, d.defmissions)) + ' ».', href: '#/parent/missions' + k });
       });
       (d.journal || []).forEach(function (n) {
         var dd = n.data || {};
-        if (n.type === 'niveau' && dd.cle) out.push({ id: 'n:' + n.id, cat: 'niveau', t: ms(n.cree), txt: who + (Number(dd.a) > Number(dd.de) ? ' passe en N' : ' revient en N') + esc(dd.a) + ' : ' + esc(nomCle(dd.cle)) + '.', href: '#/parent' + k });
-        else if (n.type === 'niveau_adulte' && /^Éduc /.test(dd.par || '')) out.push({ id: 'n:' + n.id, cat: 'niveau', t: ms(n.cree), txt: 'Niveaux de ' + who + ' changés' + esc(par(dd.par)) + ' : ' + esc(changes(dd.changes)) + '.', href: '#/parent' + k });
+        if (n.type === 'niveau' && dd.cle) out.push({ id: 'n:' + n.id, cat: 'niveau', t: ms(n.cree), txt: who + (Number(dd.a) > Number(dd.de) ? ' passe en N' : ' revient en N') + esc(dd.a) + ' : ' + esc(nomCle(dd.cle)) + '.', href: '#/parent/bilans' + k + '&c=niveaux' });
+        else if (n.type === 'niveau_adulte' && /^Éduc /.test(dd.par || '')) out.push({ id: 'n:' + n.id, cat: 'niveau', t: ms(n.cree), txt: 'Niveaux de ' + who + ' changés' + esc(par(dd.par)) + ' : ' + esc(changes(dd.changes)) + '.', href: '#/parent/bilans' + k + '&c=niveaux' });
       });
       if (ouvert('skills')) (d.etoiles || []).forEach(function (e) {
         var et = '« ' + esc(nomEtoile(e.domaine, e.etoile)) + ' »';
@@ -253,7 +253,7 @@ MC.notifs = (function () {
       var s = seanceDe(me.seances, x.seanceId);
       // le lien : Ma semaine (la carte des 7 derniers jours) ; plus ancien, Ma progression (sous la séance)
       var t = ms(x.maj || x.cree);
-      out.push({ id: bravoId(x), cat: 'bravo', t: t, txt: bravoTxt(x, '👏 ' + b(x.parNom || 'Ton éduc') + ' te dit bravo pour ' + esc(pour(s, true)), ' !'), href: Date.now() - t < 6.5 * JOUR ? '#/semaine' : '#/progression' });
+      out.push({ id: bravoId(x), cat: 'bravo', t: t, txt: bravoTxt(x, '👏 ' + b(x.parNom || 'Ton éduc') + ' te dit bravo pour ' + esc(pour(s, true)), ' !'), href: Date.now() - t < 6.5 * JOUR ? '#/semaine?c=bravos' : '#/progression?c=s-' + x.seanceId });
     });
     groupes(me.records).forEach(function (x) {
       var faits = x.recs.filter(function (r) { return r.statut === 'ok' || r.statut === 'refuse'; });
@@ -313,6 +313,7 @@ MC.notifs = (function () {
     if (!v || typeof v !== 'object') return null;
     if (!v.vus || typeof v.vus !== 'object') v.vus = {};
     if (!v.off || typeof v.off !== 'object') v.off = {};
+    if (!v.lus || typeof v.lus !== 'object') v.lus = {};
     v.lu = Number(v.lu) || 0;
     return v;
   }
@@ -328,7 +329,7 @@ MC.notifs = (function () {
   function etat(role, id, evs, now, st) {
     st = stor(st);
     var k = key(role, id), s = load(st, k), changed = false;
-    if (!s) s = { lu: now, vus: {}, off: {} };
+    if (!s) s = { lu: now, vus: {}, off: {}, lus: {} };
     var first = !s.init;
     if (first) { s.init = now; s.lu = Math.max(Number(s.lu) || 0, now); changed = true; }
     var grace = now - s.init < GRACE, known = s.cats && typeof s.cats === 'object' ? s.cats : null, nowCats = {}, ids = {};
@@ -342,6 +343,7 @@ MC.notifs = (function () {
       s.vus[ev.id] = vieux ? 0 : now; changed = true;
     });
     Object.keys(s.vus).forEach(function (x) { if (!ids[x]) { delete s.vus[x]; changed = true; } });   // ce qui n'existe plus
+    Object.keys(s.lus).forEach(function (x) { if (!ids[x]) { delete s.lus[x]; changed = true; } });
     if (!known || Object.keys(nowCats).sort().join() !== Object.keys(known).sort().join()) { s.cats = nowCats; changed = true; }
     if (changed) save(st, k, s);
     var okCats = {};
@@ -350,7 +352,7 @@ MC.notifs = (function () {
       var vu = s.vus[ev.id] || 0, o = {};
       for (var x in ev) o[x] = ev[x];
       o.quand = ev.t || vu || ev.t0 || 0;
-      o.nouveau = vu > s.lu;
+      o.nouveau = vu > s.lu && !s.lus[ev.id];   // (v37) lue à l'unité : arrivé par son alerte
       return o;
     }).filter(function (o) { return o.nouveau || (o.quand && now - o.quand < FENETRE); });
     list.sort(function (a, b2) { return a.nouveau !== b2.nouveau ? (a.nouveau ? -1 : 1) : b2.quand - a.quand; });
@@ -361,7 +363,17 @@ MC.notifs = (function () {
   function marquerLu(role, id, now, st) {
     st = stor(st);
     var k = key(role, id), s = load(st, k) || { vus: {}, off: {} };   // sans « init » : la 1re cloche n'en fera pas une avalanche
-    s.lu = now; save(st, k, s);
+    s.lu = now; s.lus = {}; save(st, k, s);
+  }
+  // (v37) arrivé par une alerte du téléphone (lien) : les lignes de la cloche qui mènent au même endroit sont lues
+  // (comme dans les autres applis : toucher une notification la fait partir). Renvoie combien.
+  function lireLien(role, id, lien, evs, st) {
+    st = stor(st);
+    var k = key(role, id), s = load(st, k), n = 0;
+    if (!s || !lien) return 0;
+    (evs || []).forEach(function (ev) { if (ev.href === lien && !s.lus[ev.id] && (s.vus[ev.id] || 0) > s.lu) { s.lus[ev.id] = 1; n++; } });
+    if (n) save(st, k, s);
+    return n;
   }
   // réglages : allumer ou éteindre une catégorie
   function regler(role, id, cat, on, st) {
@@ -372,5 +384,5 @@ MC.notifs = (function () {
   }
   function reglages(role, id, st) { var s = load(stor(st), key(role, id)); return s ? s.off : {}; }
 
-  return { CATS: CATS, cats: cats, catOf: catOf, events: events, pour: pour, etat: etat, marquerLu: marquerLu, regler: regler, reglages: reglages, key: key, FENETRE: FENETRE };
+  return { CATS: CATS, cats: cats, catOf: catOf, events: events, pour: pour, etat: etat, marquerLu: marquerLu, lireLien: lireLien, regler: regler, reglages: reglages, key: key, FENETRE: FENETRE };
 })();

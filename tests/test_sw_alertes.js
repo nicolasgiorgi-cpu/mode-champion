@@ -92,7 +92,22 @@ function toucher(w, lien) {
   // 4. toucher l'alerte, appli fermée : elle s'ouvre sur la cloche du bon profil
   var f = await toucher(w, '#/parent/notifs');
   ok(f === 1, 'toucher : l\'alerte se ferme');
-  ok(w.ouvert.length === 1 && w.ouvert[0] === BASE + '#/parent/notifs', 'appli fermée : elle s\'ouvre sur la cloche', w.ouvert);
+  ok(w.ouvert.length === 1 && w.ouvert[0] === BASE + '?al=1#/parent/notifs', 'appli fermée : elle s\'ouvre sur le lien (« ?al=1 » : arrivée par une alerte)', w.ouvert);
+  // (v37) un lien précis : l'écran et ce qu'il faut montrer
+  var wl = monde();
+  await toucher(wl, '#/educ/mission/poste?c=j-abc23');
+  ok(wl.ouvert[0] === BASE + '?al=1#/educ/mission/poste?c=j-abc23', 'lien précis : l\'appli s\'ouvre sur la ligne de l\'enfant', wl.ouvert);
+  var wl2 = monde([BASE + '#/educ/entrainements']);
+  await toucher(wl2, '#/educ/joueur/abc23?t=prepa&c=s-xyz9');
+  ok(wl2.messages.length === 1 && wl2.messages[0].m.lien === '#/educ/joueur/abc23?t=prepa&c=s-xyz9', 'appli ouverte : elle va sur le lien précis', wl2.messages);
+  for (var lp of ['#/educ/joueur/a?t=prepa&c=s-<b>', '#/educ?x=1&y=javascript:alert(1)', '#/educ?c=a b', '#/parent?k=a&&c=b']) {
+    var wb = monde();
+    await toucher(wb, lp);
+    ok(wb.ouvert[0] === BASE, 'lien précis abîmé refusé : ' + lp, wb.ouvert);
+  }
+  var kp = w.montre.length;
+  await pousser(w, charge({ data: { titre: 't', texte: 'u', lien: '#/parent?k=abc&c=s-def' } }));
+  ok(w.montre[kp].o.data.lien === '#/parent?k=abc&c=s-def', 'alerte reçue : le lien précis est gardé', w.montre[kp].o.data);
 
   // 5. appli déjà ouverte : elle revient au premier plan et va sur la cloche (pas de 2e fenêtre)
   var w2 = monde(['https://autre.example/', BASE + '#/educ/entrainements']);

@@ -305,6 +305,29 @@ MC.app = (function () {
     var h = root.querySelector('h1');
     if (h) { h.setAttribute('tabindex', '-1'); }
     if (current && current.after) { try { current.after(root); } catch (e) { console.error(e); } }
+    try { cible(root); } catch (e) { }
+  }
+  // (v37) arriver d'une alerte du téléphone ou d'une ligne de la cloche : « c » dans l'adresse (#/…?c=j-abc) désigne
+  // l'élément [data-cible="j-abc"] à montrer : ses volets ouverts (et le sien), au milieu de l'écran, avec un éclair.
+  // Pendant 6 s, chaque nouveau dessin (les données fraîches arrivent après la copie gardée) le rouvre et le recentre.
+  var CIB = { hash: '', t: 0, vu: false };
+  function cible(root) {
+    var c = parseHash().q.c;
+    if (!c || !/^[A-Za-z0-9_-]{1,80}$/.test(c)) return;
+    if (CIB.hash !== location.hash) CIB = { hash: location.hash, t: Date.now(), vu: false };
+    if (Date.now() - CIB.t > 6000) return;
+    var el = root.querySelector('[data-cible="' + c + '"]');
+    if (!el) return;
+    for (var p = el; p && p !== root; p = p.parentElement) if (p.tagName === 'DETAILS') p.open = true;
+    var d = el.querySelector('details');
+    if (d && (d.parentElement === el || el.tagName === 'LI')) d.open = true;
+    var r = el.getBoundingClientRect();
+    if (!CIB.vu || r.top < 60 || r.top > window.innerHeight * 0.6) {
+      // un grand bloc (une section) : son haut sous la barre du haut ; une ligne : au milieu de l'écran
+      if (r.height > window.innerHeight * 0.5) window.scrollTo(0, Math.max(0, window.scrollY + r.top - 84));
+      else { try { el.scrollIntoView({ block: 'center' }); } catch (e) { el.scrollIntoView(); } }
+    }
+    if (!CIB.vu) { CIB.vu = true; el.classList.add('cible-on'); setTimeout(function () { el.classList.remove('cible-on'); }, 2200); }
   }
   function rerender() { render(); }
   function errorView(e) {

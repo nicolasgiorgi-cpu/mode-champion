@@ -139,7 +139,7 @@
     var pending = (d.records || []).filter(function (r) { return r.statut === 'attente'; });
     var refused = (d.records || []).filter(function (r) { return r.statut === 'refuse'; }).sort(function (a, b) { return a.date < b.date ? 1 : -1; }).slice(0, 12);
     var attFam = d.enAttente ? '<div class="note">' + icon('info', 18, 'style="color:var(--cyan);flex:none"') + '<span class="small">' + d.enAttente + ' résultat' + (d.enAttente > 1 ? 's attendent' : ' attend') + ' la confirmation de sa famille.</span></div>' : '';
-    var pendHtml = attFam + (pending.length ? '<section class="note pink" style="flex-direction:column;gap:10px"><div><div class="hud" style="color:var(--pink)">' + pending.length + ' résultat' + (pending.length > 1 ? 's' : '') + ' à confirmer</div><div class="small" style="color:var(--soft);margin-top:4px">' + esc(k.prenom) + ' les a notés. Vous étiez là ? Choisissez <b>Confirmer</b> ou <b>Refuser</b> pour chacun (vous pouvez changer d\'avis), puis touchez <b>Enregistrer</b> juste en dessous : tant que ce n\'est pas fait, c\'est « Choix non enregistré ».</div></div>' +
+    var pendHtml = attFam + (pending.length ? '<section class="note pink" data-cible="confirmer" style="flex-direction:column;gap:10px"><div><div class="hud" style="color:var(--pink)">' + pending.length + ' résultat' + (pending.length > 1 ? 's' : '') + ' à confirmer</div><div class="small" style="color:var(--soft);margin-top:4px">' + esc(k.prenom) + ' les a notés. Vous étiez là ? Choisissez <b>Confirmer</b> ou <b>Refuser</b> pour chacun (vous pouvez changer d\'avis), puis touchez <b>Enregistrer</b> juste en dessous : tant que ce n\'est pas fait, c\'est « Choix non enregistré ».</div></div>' +
       '<ul class="list" style="width:100%">' + pending.map(function (r) { return recLine(r, '', true); }).join('') + '</ul>' +
       (pending.length > 1 ? '<button type="button" class="btn2 pink" data-act="decAll" data-ids="' + esc(pending.map(function (r) { return r.id; }).join(',')) + '">' + icon('check', 16) + ' Tout confirmer</button>' : '') + decBar() + '</section>' : '');
     if (refused.length) pendHtml += '<details class="note" style="flex-direction:column;gap:8px;display:block"><summary style="cursor:pointer;min-height:32px"><span class="hud" style="color:var(--muted)">' + refused.length + ' résultat' + (refused.length > 1 ? 's' : '') + ' refusé' + (refused.length > 1 ? 's' : '') + '</span> <span class="small">· refusé par erreur ? Rétablissez-le.</span></summary>' +
@@ -356,7 +356,8 @@
   MC.act.parentSee = function (b) { parentSel = b.getAttribute('data-id'); app.rerender(); window.scrollTo(0, 0); };
 
   // ----- Prépa › Bilans (bilans, records, niveaux) -----
-  function parentBilans() {
+  function parentBilans(p, q) {
+    MC.parentPick(q);   // (v37) un lien d'alerte ou de la cloche (?k=) : le bon enfant
     return loadFamily().then(function (fam) {
       app.refreshNav();
       if (!fam.enfants.length) return noKid(fam);
@@ -365,7 +366,7 @@
         '<div class="head"><span class="kicker" style="color:var(--cyan)">Bilans, records et niveaux</span><h1 class="big md">Les progrès<br>de ' + esc(k.prenom) + '</h1></div>' +
         '<div class="cols2"><div class="sec" style="gap:20px"><section class="sec"><h2 class="h2">D\'un bilan à l\'autre</h2>' + S.prog + '</section>' +
         '<section class="sec"><h2 class="h2">Ses records confirmés</h2>' + S.recs + '</section></div>' +
-        '<section class="sec"><h2 class="h2">Ses niveaux</h2><p class="small" style="margin:0">Ils viennent du bilan. ' + esc(k.prenom) + ' peut monter d\'un niveau après une séance « facile » (ou redescendre après une séance « dure »). Vous pouvez aussi les ajuster ici.</p>' + S.levels + '</section></div>' +
+        '<section class="sec" data-cible="niveaux"><h2 class="h2">Ses niveaux</h2><p class="small" style="margin:0">Ils viennent du bilan. ' + esc(k.prenom) + ' peut monter d\'un niveau après une séance « facile » (ou redescendre après une séance « dure »). Vous pouvez aussi les ajuster ici.</p>' + S.levels + '</section></div>' +
         '</main>';
     });
   }
@@ -746,9 +747,9 @@
         '<div class="cols2"><div class="sec" style="gap:20px"><section class="sec"><div class="between"><h2 class="h2">Cette semaine</h2><span class="hud" style="color:var(--gold)">' + S.st.week.stars + ' / 6</span></div>' + S.week + '</section>' +
         '<section class="sec"><h2 class="h2">Séances</h2>' + (d.seances && d.seances.length && !d.seances.some(function (x) { return x.details; }) ? '<p class="small" style="margin:0">Chargement du détail…</p>' : '') +
         (MC.bravo ? MC.suivi.seances(d.seances, MC.bravo.opts(g, k.id)) : S.hist) + '</section></div>' +
-        '<div class="sec" style="gap:20px"><section class="sec"><h2 class="h2">Progression aux bilans</h2>' + S.prog + '</section>' +
+        '<div class="sec" style="gap:20px"><section class="sec" data-cible="bilans"><h2 class="h2">Progression aux bilans</h2>' + S.prog + '</section>' +
         '<section class="sec"><h2 class="h2">Records confirmés</h2>' + S.recs + '</section>' +
-        '<section class="sec"><h2 class="h2">Niveaux</h2>' + S.levels + '</section></div></div>';
+        '<section class="sec" data-cible="niveaux"><h2 class="h2">Niveaux</h2>' + S.levels + '</section></div></div>';
     } else if (tab === 'famille') {
       body = '<section class="sec"><h2 class="h2">Famille</h2><p class="small" style="margin:0">' + esc(fam ? fam.nom : 'Sans famille') + '. Le code parent se refait dans Réglages › Familles et codes.</p>' +
         '<label class="lab" for="kfam">Changer de famille</label><select id="kfam" class="txt" data-act-change="kidFamily" data-id="' + esc(k.id) + '">' + g.familles.map(function (f) { return '<option value="' + esc(f.id) + '"' + (f.id === k.familleId ? ' selected' : '') + '>' + esc(f.nom) + '</option>'; }).join('') + '</select></section>' +

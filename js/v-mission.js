@@ -495,7 +495,8 @@
   // ---------- côté éduc : une page par mission (Progrès › Missions) ----------
   var edMsn = { filtre: 'all' };
   app.route('/educ/mission', function () { app.go('#/educ/mission/poste', true); return Promise.resolve('<main class="screen"></main>'); }, { adult: 'e', nav: 'e:progres', bg: '#2A1640' });
-  app.route('/educ/mission/:id', function (p) {
+  app.route('/educ/mission/:id', function (p, q) {
+    if (q && q.c) edMsn.filtre = 'all';   // (v37) arrivé d'une alerte : la ligne de l'enfant doit être là (pas cachée par « Pas encore »)
     return MC.loadGroup().then(function (g) { app.refreshNav(); return p.id === 'copains' ? paintEducCopains(g) : paintEducPoste(g); });
   }, { adult: 'e', nav: 'e:progres', bg: '#2A1640' });
   function joueursMission(g) {
@@ -514,7 +515,7 @@
   // c'est fait, puis ses réponses sur la même ligne. Toucher la ligne déplie le détail (son mot, son test, sa fiche).
   function coche(ok) { return ok ? '<span class="mok" role="img" aria-label="Mission faite">' + icon('check', 16) + '</span>' : ''; }
   function ligneMission(p, ok, cellules, detail, indice) {
-    return '<li><details class="mrow"><summary><span class="mrow-n"><span class="nm">' + esc(p.joueur.prenom) + '</span>' + coche(ok) + '</span>' + cellules +
+    return '<li data-cible="j-' + esc(p.joueur.id) + '"><details class="mrow"><summary><span class="mrow-n"><span class="nm">' + esc(p.joueur.prenom) + '</span>' + coche(ok) + '</span>' + cellules +
       '<span class="mrow-x' + (indice ? ' on' : '') + '" aria-hidden="true">' + icon(indice ? 'chat' : 'chevd', 16) + '</span></summary>' +
       '<div class="mrow-d">' + detail + '<a class="btn2 sm grey" href="#/educ/joueur/' + esc(p.joueur.id) + '?t=terrain">' + icon('user', 16) + ' Sa fiche</a></div></details></li>';
   }

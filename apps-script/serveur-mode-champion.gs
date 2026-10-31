@@ -2039,6 +2039,12 @@ var Core = (function () {
   var PUSH_CATS = { p: ['resultat', 'bravo', 'nouvelle', 'niveau', 'etoile', 'mots', 'demande'], f: ['seance', 'bravo', 'confirmer', 'mission', 'niveau', 'skills', 'mots', 'nouvelle'],
     e: ['seance', 'bilan', 'mission', 'etoile', 'niveau', 'compo'] };
   var PUSH_LIENS = { p: '#/notifs', f: '#/parent/notifs', e: '#/educ/notifs' };
+  // (v37) toucher l'alerte mène à l'endroit précis (c = l'élément à montrer, volet ouvert) ; sinon, la cloche du profil.
+  // Même forme que les liens de la cloche (js/notifs.js) et même contrôle que sw.js.
+  var LIEN_OK = /^#\/[A-Za-z0-9\/_-]*(\?[a-z]+=[A-Za-z0-9_-]+(&[a-z]+=[A-Za-z0-9_-]+)*)?$/;
+  function ficheE(jid, c) { return '#/educ/joueur/' + jid + '?t=prepa' + (c ? '&c=' + c : ''); }
+  function parentL(jid, c) { return '#/parent?k=' + jid + (c ? '&c=' + c : ''); }
+  function compoL(c) { return '#/educ/compo/' + c.evenementId + (c.partie ? '?p=' + c.partie : ''); }
   var SEANCES_NOMS = { cros: 'la séance de Cros', capuozzo: 'la séance de Capuozzo', dupont: 'la séance de Dupont', meafou: 'la séance de Meafou', club: 'l\'entraînement au club', recup: 'la récup' };
   // (v36) « pour ta séance de Cros », « pour son entraînement au club », « pour ton match » (s : la séance)
   function pourSeance(s, ta) {
@@ -2117,7 +2123,7 @@ var Core = (function () {
   function alerter(ctx, dest, cat, texte) {
     if (dest.r !== 'e' && !dest.qui) return;   // jamais « toutes les familles » par erreur (enfant sans famille…)
     (ctx.alertes = ctx.alertes || []).push({ r: dest.r, qui: dest.qui || '', sauf: dest.sauf || '', soi: !!dest.soi, jeton: dest.jeton || '', sujet: dest.sujet || '',
-      cat: cat, texte: String(texte).slice(0, 180), lien: PUSH_LIENS[dest.r] || '' });
+      cat: cat, texte: String(texte).slice(0, 180), lien: dest.lien && LIEN_OK.test(dest.lien) ? dest.lien : PUSH_LIENS[dest.r] || '' });
   }
   function titreEvt(ctx, compo) {
     var e = compo ? find(ctx.db.rows('evenements'), compo.evenementId) : null;
@@ -2129,8 +2135,8 @@ var Core = (function () {
       var j = ctx.auth.row, s = res.seance;
       if (!s) return;
       var t = j.prenom + ' a fait ' + (SEANCES_NOMS[s.type] || 'une séance') + '.';
-      alerter(ctx, { r: 'e', sujet: j.id }, 'seance', t);
-      alerter(ctx, { r: 'f', qui: j.familleId, sujet: j.id }, 'seance', t);
+      alerter(ctx, { r: 'e', sujet: j.id, lien: ficheE(j.id, 's-' + s.id) }, 'seance', t);
+      alerter(ctx, { r: 'f', qui: j.familleId, sujet: j.id, lien: parentL(j.id, 's-' + s.id) }, 'seance', t);
     },
     // (v36) le bravo d'un éduc : l'enfant et sa famille (le prénom de l'éduc ; jamais le mot lui-même sur l'écran verrouillé)
     bravo: function (req, ctx, res) {
@@ -2139,70 +2145,70 @@ var Core = (function () {
       if (res.nouveau) {
         // une alerte par enfant toutes les 10 minutes au plus (tag par enfant, pause côté Google) : un éduc qui félicite
         // plusieurs séances du même enfant d'affilée ne fait pas sonner son téléphone 4 fois ; tout reste visible dans l'appli
-        alerter(ctx, { r: 'p', qui: j.id, sujet: j.id }, 'bravo', '👏 ' + nom + ' te dit bravo ' + pourSeance(s, true) + ' !' + (b.mot ? ' Avec un petit mot.' : ''));
-        alerter(ctx, { r: 'f', qui: j.familleId, sujet: j.id }, 'bravo', '👏 ' + nom + ' a dit bravo à ' + j.prenom + ' ' + pourSeance(s, false) + '.');
+        alerter(ctx, { r: 'p', qui: j.id, sujet: j.id, lien: '#/semaine?c=bravos' }, 'bravo', '👏 ' + nom + ' te dit bravo ' + pourSeance(s, true) + ' !' + (b.mot ? ' Avec un petit mot.' : ''));
+        alerter(ctx, { r: 'f', qui: j.familleId, sujet: j.id, lien: parentL(j.id, 's-' + s.id) }, 'bravo', '👏 ' + nom + ' a dit bravo à ' + j.prenom + ' ' + pourSeance(s, false) + '.');
       } else if (ctx.bravoMot) {
         // le mot ajouté juste après le bravo : sa propre étiquette (sinon la pause des 10 minutes du bravo le retiendrait)
-        alerter(ctx, { r: 'p', qui: j.id, sujet: j.id + '-mot' }, 'bravo', '💬 ' + nom + ' t\'a laissé un mot ' + pourSeance(s, true) + '.');
+        alerter(ctx, { r: 'p', qui: j.id, sujet: j.id + '-mot', lien: '#/semaine?c=bravos' }, 'bravo', '💬 ' + nom + ' t\'a laissé un mot ' + pourSeance(s, true) + '.');
       }
     },
     submitRecords: function (req, ctx, res) {
       var j = ctx.auth.row, n = ctx.nAttente || 0;   // seulement les résultats nouveaux ou changés (pas un bilan renvoyé tel quel)
       if (!n) return;
       var b = String(req.bilan), t = b === 'defi' ? j.prenom + ' a relevé un défi.' : j.prenom + ' a noté son Bilan ' + b + ' (' + n + ' résultat' + (n > 1 ? 's' : '') + ').';
-      alerter(ctx, { r: 'f', qui: j.familleId, sujet: j.id }, 'confirmer', t + ' À confirmer.');
-      alerter(ctx, { r: 'e', sujet: j.id }, 'bilan', t);
+      alerter(ctx, { r: 'f', qui: j.familleId, sujet: j.id, lien: parentL(j.id, 'confirmer') }, 'confirmer', t + ' À confirmer.');
+      alerter(ctx, { r: 'e', sujet: j.id, lien: ficheE(j.id, 'bilans') }, 'bilan', t);
     },
     mission: function (req, ctx) {
       var j = ctx.auth.row, t = req.fin ? ' a répondu à « Avec qui tu aimes jouer ».' : req.postes !== undefined ? ' a répondu à « Choisis ton poste ».' : req.message !== undefined ? ' a écrit un mot pour les éducs.' : '';
       if (!t) return;
-      alerter(ctx, { r: 'e', sujet: j.id }, 'mission', j.prenom + t);
-      if (req.postes !== undefined) alerter(ctx, { r: 'f', qui: j.familleId, sujet: j.id }, 'mission', j.prenom + ' a fait la mission « Choisis ton poste ».');
+      alerter(ctx, { r: 'e', sujet: j.id, lien: '#/educ/mission/' + (req.fin ? 'copains' : 'poste') + '?c=j-' + j.id }, 'mission', j.prenom + t);
+      if (req.postes !== undefined) alerter(ctx, { r: 'f', qui: j.familleId, sujet: j.id, lien: '#/parent/missions/jeu10?k=' + j.id }, 'mission', j.prenom + ' a fait la mission « Choisis ton poste ».');
     },
     repondreMission: function (req, ctx) {
       if (!ctx.missionFaite) return;
       var def = find(ctx.db.rows('defmissions'), String(req.missionId || ''));
-      alerter(ctx, { r: 'e', sujet: ctx.auth.id }, 'mission', ctx.auth.row.prenom + ' a répondu à la mission « ' + cleanText(def && def.titre || 'Mission', 50) + ' ».');
+      alerter(ctx, { r: 'e', sujet: ctx.auth.id, lien: def ? '#/educ/missions/m/' + def.id + '?c=j-' + ctx.auth.id : '' }, 'mission', ctx.auth.row.prenom + ' a répondu à la mission « ' + cleanText(def && def.titre || 'Mission', 50) + ' ».');
     },
-    demanderEtoile: function (req, ctx) { alerter(ctx, { r: 'e', sujet: ctx.auth.id }, 'etoile', ctx.auth.row.prenom + ' demande une étoile Skills.'); },
+    demanderEtoile: function (req, ctx) { alerter(ctx, { r: 'e', sujet: ctx.auth.id, lien: '#/educ/skills?c=demandes' }, 'etoile', ctx.auth.row.prenom + ' demande une étoile Skills.'); },
     updateMe: function (req, ctx) {
       var j = ctx.auth.row, n = (Array.isArray(req.journal) ? req.journal : []).filter(function (e) { return e && e.type === 'niveau'; }).length;
-      if (n) alerter(ctx, { r: 'e', sujet: j.id }, 'niveau', j.prenom + ' a changé ' + (n > 1 ? 'des niveaux' : 'un niveau') + ' de sa prépa.');
+      if (n) alerter(ctx, { r: 'e', sujet: j.id, lien: ficheE(j.id, 'niveaux') }, 'niveau', j.prenom + ' a changé ' + (n > 1 ? 'des niveaux' : 'un niveau') + ' de sa prépa.');
     },
     setNiveaux: function (req, ctx, res) {
       var j = res.joueur, educ = ctx.auth.r === 'e', qui = educ ? ctx.auth.row.nom : 'sa famille';
       if (!j || !ctx.nChg) return;
-      alerter(ctx, { r: 'p', qui: j.id }, 'niveau', 'Tes niveaux de prépa ont changé (' + (educ ? ctx.auth.row.nom : 'ta famille') + ').');
-      if (educ) alerter(ctx, { r: 'f', qui: j.familleId, sujet: j.id }, 'niveau', 'Niveaux de ' + j.prenom + ' changés par ' + qui + '.');
-      alerter(ctx, { r: 'e', sauf: educ ? ctx.auth.id : '', sujet: j.id }, 'niveau', 'Niveaux de ' + j.prenom + ' changés par ' + qui + '.');
+      alerter(ctx, { r: 'p', qui: j.id, lien: '#/niveaux' }, 'niveau', 'Tes niveaux de prépa ont changé (' + (educ ? ctx.auth.row.nom : 'ta famille') + ').');
+      if (educ) alerter(ctx, { r: 'f', qui: j.familleId, sujet: j.id, lien: '#/parent/bilans?k=' + j.id + '&c=niveaux' }, 'niveau', 'Niveaux de ' + j.prenom + ' changés par ' + qui + '.');
+      alerter(ctx, { r: 'e', sauf: educ ? ctx.auth.id : '', sujet: j.id, lien: ficheE(j.id, 'niveaux') }, 'niveau', 'Niveaux de ' + j.prenom + ' changés par ' + qui + '.');
     },
     confirm: function (req, ctx, res) {
       var par = {}, qui = ctx.auth.r === 'e' ? ctx.auth.row.nom : 'ta famille';
       (res.records || []).forEach(function (r) { var o = par[r.joueurId] = par[r.joueurId] || { ok: 0, no: 0 }; if (r.statut === 'ok') o.ok++; else o.no++; });
       Object.keys(par).forEach(function (id) {
         var o = par[id], t = (o.ok ? o.ok + ' résultat' + (o.ok > 1 ? 's' : '') + ' confirmé' + (o.ok > 1 ? 's' : '') : '') + (o.ok && o.no ? ', ' : '') + (o.no ? o.no + ' refusé' + (o.no > 1 ? 's' : '') : '');
-        alerter(ctx, { r: 'p', qui: id }, 'resultat', 'Tes résultats : ' + t + ' par ' + qui + '.');
+        alerter(ctx, { r: 'p', qui: id, lien: '#/bilans' }, 'resultat', 'Tes résultats : ' + t + ' par ' + qui + '.');
       });
     },
     saveCompo: function (req, ctx, res) {
       var c = res.compo;
       if (!c || c.statut !== 'vote' || !Array.isArray(req.versions)) return;
-      alerter(ctx, { r: 'e', sauf: ctx.auth.id }, 'compo', ctx.auth.row.nom + ' demande votre vote sur une compo' + titreEvt(ctx, c) + '.');
+      alerter(ctx, { r: 'e', sauf: ctx.auth.id, lien: compoL(c) }, 'compo', ctx.auth.row.nom + ' demande votre vote sur une compo' + titreEvt(ctx, c) + '.');
     },
     voteCompo: function (req, ctx, res) {
       var c = res.compo;
       if (!c || c.auteur === ctx.auth.id) return;
-      alerter(ctx, { r: 'e', qui: c.auteur }, 'compo', ctx.auth.row.nom + ' a voté sur votre compo' + titreEvt(ctx, c) + '.');
+      alerter(ctx, { r: 'e', qui: c.auteur, lien: compoL(c) }, 'compo', ctx.auth.row.nom + ' a voté sur votre compo' + titreEvt(ctx, c) + '.');
     },
     contreProposition: function (req, ctx, res) {
       var a = res.avis, c = a ? find(ctx.db.rows('compos'), a.compoId) : null;
       if (!c || c.auteur === ctx.auth.id) return;
-      alerter(ctx, { r: 'e', qui: c.auteur }, 'compo', ctx.auth.row.nom + ' propose de modifier votre compo' + titreEvt(ctx, c) + '.');
+      alerter(ctx, { r: 'e', qui: c.auteur, lien: '#/educ/avis/' + a.id }, 'compo', ctx.auth.row.nom + ' propose de modifier votre compo' + titreEvt(ctx, c) + '.');
     },
     repondreAvis: function (req, ctx, res) {
       var a = res.avis;
       if (!a || (a.statut !== 'acceptee' && a.statut !== 'refusee') || a.auteur === ctx.auth.id) return;
-      alerter(ctx, { r: 'e', qui: a.auteur }, 'compo', ctx.auth.row.nom + (a.statut === 'acceptee' ? ' a accepté' : ' a refusé') + ' votre contre-proposition' + titreEvt(ctx, find(ctx.db.rows('compos'), a.compoId)) + '.');
+      alerter(ctx, { r: 'e', qui: a.auteur, lien: '#/educ/avis/' + a.id }, 'compo', ctx.auth.row.nom + (a.statut === 'acceptee' ? ' a accepté' : ' a refusé') + ' votre contre-proposition' + titreEvt(ctx, find(ctx.db.rows('compos'), a.compoId)) + '.');
     }
   };
   // les destinataires : les appareils abonnés au bon profil, encore valide (éduc actif, code pas changé), qui veulent cette

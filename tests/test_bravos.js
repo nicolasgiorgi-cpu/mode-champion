@@ -130,7 +130,7 @@ assert.ok(r.ok && r.nouveau);
 const aTom = envois.filter(m => m.token === T.tom), aPar = envois.filter(m => m.token === T.parent);
 assert.strictEqual(aTom.length, 1, 'l\'enfant est prévenu');
 assert.strictEqual(aTom[0].data.texte, '👏 Julien te dit bravo pour ta séance de Meafou !');
-assert.strictEqual(aTom[0].data.lien, '#/notifs');
+assert.strictEqual(aTom[0].data.lien, '#/semaine?c=bravos', '(v37) toucher l\'alerte : la carte des bravos');
 assert.strictEqual(aPar.length, 1, 'sa famille aussi');
 assert.strictEqual(aPar[0].data.texte, '👏 Julien a dit bravo à Tom pour sa séance de Meafou.');
 assert.ok(!envois.some(m => m.token === T.julien), 'jamais l\'éduc qui l\'a donné');

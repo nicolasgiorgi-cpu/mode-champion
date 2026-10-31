@@ -269,12 +269,27 @@ MC.alertes = (function () {
     return appel(role, 'pushEssai', { jeton: s.jeton, cats: catsOn(role, id), appareil: appareil() });
   }
 
-  // toucher une alerte quand l'appli est déjà ouverte : sw.js demande d'aller sur la cloche
+  // toucher une alerte : l'appli va à l'endroit précis (v37 : ex. la ligne d'un enfant dépliée), et la ligne de la cloche
+  // qui mène au même endroit devient « lue ». Appli déjà ouverte : sw.js envoie un message ; appli fermée : il l'ouvre
+  // sur ce lien avec « ?al=1 » (retiré tout de suite de l'adresse).
+  var LIEN_OK = /^#\/[A-Za-z0-9\/_-]*(\?[a-z]+=[A-Za-z0-9_-]+(&[a-z]+=[A-Za-z0-9_-]+)*)?$/;
+  function aller(lien) {
+    if (!LIEN_OK.test(String(lien || ''))) return false;
+    if (MC.clocheLire) MC.clocheLire(lien);
+    app.go(lien);
+    return true;
+  }
   try {
     if (navigator.serviceWorker) navigator.serviceWorker.addEventListener('message', function (e) {
       var d = e.data || {};
-      if (d.mc === 'aller' && /^#\/[a-z/]*$/.test(String(d.lien || ''))) app.go(d.lien);
+      if (d.mc === 'aller') aller(d.lien);
     });
+  } catch (e) { }
+  try {
+    if (/[?&]al=1(&|$)/.test(location.search)) {
+      if (MC.clocheLire && LIEN_OK.test(location.hash)) MC.clocheLire(location.hash);
+      history.replaceState(history.state, '', location.pathname + location.search.replace(/([?&])al=1(&|$)/, function (_, a, z) { return z ? a : ''; }).replace(/[?&]$/, '') + location.hash);
+    }
   } catch (e) { }
 
   // les messages pour les erreurs (tu = l'enfant)
@@ -289,5 +304,5 @@ MC.alertes = (function () {
   }
 
   return { support: support, plateforme: plateforme, activer: activer, desactiver: desactiver, actif: actif, majCats: majCats,
-    verifier: verifier, oublier: oublier, essai: essai, message: message, catsOn: catsOn, cle: cle, prechauffer: prechauffer, pastille: pastille };
+    verifier: verifier, oublier: oublier, essai: essai, message: message, catsOn: catsOn, cle: cle, prechauffer: prechauffer, pastille: pastille, aller: aller };
 })();

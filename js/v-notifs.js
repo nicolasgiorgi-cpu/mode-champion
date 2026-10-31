@@ -31,10 +31,20 @@
     if (role === 'f') return { family: famille() };
     return { group: groupe(), compos: compos() };   // les deux sont nécessaires (js/notifs.js)
   }
+  // (v37) arrivé par une alerte du téléphone : la ligne de la cloche qui mène au même endroit sera lue dès que les
+  // données sont là (au plus 30 s après ; js/alertes.js appelle MC.clocheLire)
+  var aLire = null;
+  MC.clocheLire = function (lien) { aLire = { lien: String(lien || ''), t: Date.now() }; };
   function etat(w) {
     if (!w || !w.id) return null;
     var evs = N.events(w.role, donnees(w.role));
-    return evs ? N.etat(w.role, w.id, evs, Date.now()) : null;
+    if (!evs) return null;
+    var st = N.etat(w.role, w.id, evs, Date.now());   // d'abord : les lignes arrivées sont notées (vues)
+    if (aLire) {
+      if (Date.now() - aLire.t > 30000) aLire = null;
+      else if (N.lireLien(w.role, w.id, aLire.lien, evs)) { aLire = null; st = N.etat(w.role, w.id, evs, Date.now()); }
+    }
+    return st;
   }
 
   // ---------- la cloche, dans la barre du haut ----------
