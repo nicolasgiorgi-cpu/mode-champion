@@ -38,7 +38,7 @@ with sync_playwright() as p:
     pg.click('.topbar [data-cloche]'); pg.wait_for_timeout(1500)
     check('la cloche ouvre la liste', '#/educ/notifs' in pg.url, pg.url)
     first = pg.query_selector('.ntl .nt.new')
-    check('en haut, en nouveau : « Tom a fait … »', first is not None and 'Tom' in first.inner_text() and 'Jour de club' in first.inner_text(), first.inner_text() if first else '')
+    check('en haut, en nouveau : « Tom a fait … »', first is not None and 'Tom' in first.inner_text() and 'entraînement au club' in first.inner_text(), first.inner_text() if first else '')
     check('pas de cloche sur l\'écran de la liste', pg.query_selector('.topbar [data-cloche]') is None)
     check('liste : pas de défilement de côté', sans_debord(pg))
     pg.goto(BASE + '#/educ/progres'); pg.wait_for_timeout(900)
@@ -55,7 +55,7 @@ with sync_playwright() as p:
     sw.click(); pg.wait_for_timeout(300)
     check('éteindre « Séances des enfants »', sw.get_attribute('aria-checked') == 'false')
     pg.goto(BASE + '#/educ/notifs'); pg.wait_for_timeout(1200)
-    check('séances éteintes : plus dans la liste', 'Jour de club' not in (pg.inner_text('main') or ''))
+    check('séances éteintes : plus dans la liste', 'entraînement au club' not in (pg.inner_text('main') or ''))
     check('la liste dit qu\'une sorte est éteinte', 'éteinte' in pg.inner_text('main'))
     pg.goto(BASE + '#/educ/notifs/reglages'); pg.wait_for_timeout(900); pg.click('[data-act="ntToggle"][data-c="seance"]'); pg.wait_for_timeout(300)
     # ----- le parent de Tom -----

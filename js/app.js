@@ -55,11 +55,13 @@ MC.app = (function () {
   function adultUnlocked() { if (!S.adult) return false; if (!sharedDevice()) return true; return openFlag(); }
   function touchAdult() { if (S.adult && sharedDevice() && lsGet(OPEN_KEY) !== true) lsSet(OPEN_KEY, true); }
   function lockAdult() { lsSet(OPEN_KEY, null); }
-  // le dernier profil utilisé sur l'appareil : 'k' (un enfant), 'f' (parent) ou 'e' (éduc)
+  // le dernier profil utilisé sur l'appareil : 'k' (un enfant), 'f' (parent) ou 'e' (éduc) ; null = la connexion des joueurs
+  // mc-last : 'k', 'f', 'e', ou 'j' (« côté joueurs » : on a quitté l'espace adulte d'un appareil partagé vers la connexion des joueurs)
   function lastProfile() {
     var l = lsGet(LAST_KEY);
-    if (l === 'k' && S.kid) return 'k';
-    if ((l === 'f' || l === 'e') && S.adult && S.adult.role === l) return l;
+    // côté joueurs : jamais l'espace adulte sans son code (un enfant qui ferme et rouvre l'appli reste côté joueurs)
+    if (l === 'k' || l === 'j') return S.kid ? 'k' : null;
+    if (l === 'f' || l === 'e') return S.adult && S.adult.role === l ? l : (S.kid ? 'k' : null);
     if (S.adult && S.kid) {
       // pas encore retenu (appli d'avant la v33) : le plus récent des deux
       var v = lsGet(OPEN_KEY), adultAt = typeof v === 'number' ? v - ADULT_IDLE : 0, kidAt = Number(lsGet(SEEN_KEY) || 0);
@@ -261,12 +263,14 @@ MC.app = (function () {
     if (o.adult && !adultUnlocked()) { adultTarget = location.hash; go('#/adultes', true); return; }
     if (o.adult && S.adult.mustChange) { go('#/adultes/code', true); return; }   // 1re connexion : il choisit d'abord son code
     if (o.kid && !o.first && !o.busy && kidCheckNeeded()) { kidTarget = location.hash; go('#/qui', true); return; }
+    var lastAdult0 = lastAdult;
     if (o.adult) touchAdult();
     else if ((lastAdult || o.kid) && !o.neutral && sharedDevice()) lockAdult();   // retour côté joueur : l'espace adulte se referme
     lastAdult = !!o.adult;
     if (o.kid) touchKid();
-    // le dernier profil utilisé : c'est lui qu'on retrouve en rouvrant l'appli (sans code)
-    var lp = o.kid ? 'k' : o.adult ? S.adult.role : null;
+    // le dernier profil utilisé : c'est lui qu'on retrouve en rouvrant l'appli (sans code) ; quitter l'espace adulte d'un appareil
+    // partagé vers la connexion des joueurs compte comme « côté joueurs » (sinon un enfant n'aurait qu'à fermer et rouvrir l'appli)
+    var lp = o.kid ? 'k' : o.adult ? S.adult.role : (lastAdult0 && !o.neutral && sharedDevice() ? 'j' : null);
     if (lp && lsGet(LAST_KEY) !== lp) lsSet(LAST_KEY, lp);
     if (current && current.cleanup) { try { current.cleanup(); } catch (e) { } }
     current = { route: r, params: params, q: ph.q, cleanup: null };

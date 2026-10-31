@@ -60,8 +60,9 @@ MC.notifs = (function () {
   // ---------- libellés ----------
   function nomSeance(s) {
     var J = MC.CONTENT && MC.CONTENT.JOURS && MC.CONTENT.JOURS[s.type];
-    if (s.type === 'club' && s.details && s.details.match) return 'un match';
-    return J ? (J.nomSeance || J.theme || s.type).replace(/^La séance de /, 'la séance de ') : String(s.type || 'une séance');
+    if (s.type === 'club') return s.details && s.details.match ? 'un match' : 'l\'entraînement au club';
+    if (s.type === 'recup') return 'la récup';
+    return J ? (J.nomSeance || J.theme || s.type).replace(/^La séance de /, 'la séance de ') : 'une séance';
   }
   function nomBilan(bilan) {
     var l = (MC.CONFIG && MC.CONFIG.BILANS) || [], n = Number(bilan);
