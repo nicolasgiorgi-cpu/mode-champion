@@ -60,7 +60,8 @@
         // (v34) les alertes sur l'écran du téléphone
         (tu ? 'Pour être prévenu sur l\'écran du téléphone, même appli fermée : allume <b>Alertes sur ce téléphone</b>, en haut de ces réglages, puis touche « Autoriser ». ' :
           'Pour être prévenu sur l\'écran du téléphone, même appli fermée : allumez <b>Alertes sur ce téléphone</b>, en haut de ces réglages, puis touchez « Autoriser ». ') +
-          'Sur iPhone, l\'appli doit être sur l\'écran d\'accueil (iOS 16.4 ou plus) ; sur Android, ça marche dans Chrome.'
+          'Sur iPhone, l\'appli doit être sur l\'écran d\'accueil (iOS 16.4 ou plus) ; sur Android, ça marche dans Chrome. ' +
+          (tu ? 'Un chiffre rouge sur l\'icône de l\'appli dit combien de nouveautés t\'attendent ; il disparaît quand tu ouvres la cloche.' : 'Un chiffre rouge sur l\'icône de l\'appli dit combien de nouveautés vous attendent ; il disparaît quand vous ouvrez la cloche.')
       ]));
   }
 

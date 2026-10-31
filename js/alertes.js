@@ -242,6 +242,23 @@ MC.alertes = (function () {
   setTimeout(function () { try { retirerEnAttente(); } catch (e) { } }, 5000);
 
   // l'essai : seulement sur CET appareil (pas sur le téléphone de l'autre parent)
+  // (v35) la pastille sur l'icône de l'appli = les nouveautés de la cloche du profil affiché ; le service worker
+  // ajoute 1 à chaque alerte reçue appli fermée (même petit cache « pastille »). iPhone : appli de l'écran d'accueil et
+  // alertes autorisées ; Android : appli installée (un chiffre ou un point selon le téléphone).
+  var pastilleVue = null;
+  function pastille(n) {
+    n = Math.max(0, Math.floor(Number(n) || 0));
+    if (n === pastilleVue) return;
+    pastilleVue = n;
+    try {
+      if (navigator.setAppBadge) (n ? navigator.setAppBadge(n) : navigator.clearAppBadge()).catch(noop);
+      if (window.caches) {
+        var base = location.href.split('#')[0].split('?')[0].replace(/[^/]*$/, '');
+        caches.open('pastille').then(function (c) { return c.put(base + '__pastille', new Response(String(n))); }).catch(noop);
+      }
+    } catch (e) { }
+  }
+
   function essai(role, id) {
     var s = lire(role, id);
     if (!s || !s.jeton) return Promise.reject({ code: 'jeton' });
@@ -268,5 +285,5 @@ MC.alertes = (function () {
   }
 
   return { support: support, plateforme: plateforme, activer: activer, desactiver: desactiver, actif: actif, majCats: majCats,
-    verifier: verifier, oublier: oublier, essai: essai, message: message, catsOn: catsOn, cle: cle, prechauffer: prechauffer };
+    verifier: verifier, oublier: oublier, essai: essai, message: message, catsOn: catsOn, cle: cle, prechauffer: prechauffer, pastille: pastille };
 })();

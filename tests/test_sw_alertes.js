@@ -7,8 +7,8 @@ var BASE = 'https://exemple.github.io/mode-champion/';
 var fails = 0, n = 0;
 function ok(c, m, info) { n++; if (!c) { fails++; console.log('ÉCHEC :', m, info === undefined ? '' : JSON.stringify(info)); } }
 
-function monde(fenetres) {
-  var L = {}, montre = [], ouvert = [], messages = [], focus = [];
+function monde(fenetres, sansPastille) {
+  var L = {}, montre = [], ouvert = [], messages = [], focus = [], pastilles = [], stock = {};
   var self = {
     location: { origin: 'https://exemple.github.io' },
     registration: { scope: BASE, showNotification: function (t, o) { montre.push({ titre: t, o: o }); return Promise.resolve(); } },
@@ -22,10 +22,16 @@ function monde(fenetres) {
     },
     skipWaiting: function () { }
   };
-  var ctx = { self: self, URL: URL, Promise: Promise, caches: {}, fetch: function () { return Promise.reject(new Error('réseau')); }, setTimeout: setTimeout, clearTimeout: clearTimeout, console: console };
+  // (v35) la pastille : navigator.setAppBadge et un petit cache
+  function Resp(t) { this.t = String(t); } Resp.prototype.text = function () { return Promise.resolve(this.t); };
+  var caches = { open: function (n) { var c = stock[n] = stock[n] || {}; return Promise.resolve({ match: function (u) { return Promise.resolve(c[u]); }, put: function (u, r) { c[u] = r; return Promise.resolve(); } }); },
+    keys: function () { return Promise.resolve(Object.keys(stock)); }, delete: function (n) { delete stock[n]; return Promise.resolve(true); } };
+  if (!sansPastille) self.navigator = { setAppBadge: function (n) { pastilles.push(n); return Promise.resolve(); } };
+  self.caches = caches;
+  var ctx = { self: self, URL: URL, Promise: Promise, caches: caches, Response: Resp, fetch: function () { return Promise.reject(new Error('réseau')); }, setTimeout: setTimeout, clearTimeout: clearTimeout, console: console };
   vm.createContext(ctx);
   vm.runInContext(src, ctx);
-  return { L: L, montre: montre, ouvert: ouvert, messages: messages, focus: focus };
+  return { L: L, montre: montre, ouvert: ouvert, messages: messages, focus: focus, pastilles: pastilles, stock: stock };
 }
 function pousser(w, data) {
   var attente = null;
@@ -69,6 +75,19 @@ function toucher(w, lien) {
     await pousser(w, charge({ data: { titre: 't', texte: 'u', lien: l } }));
     ok(w.montre[k].o.data.lien === '', 'lien refusé : ' + l, w.montre[k].o.data);
   }
+
+  // 3b. (v35) la pastille sur l'icône : +1 à chaque alerte, à partir du nombre laissé par l'appli
+  var wp = monde();
+  await pousser(wp, charge({ data: { titre: 't', texte: 'u' } }));
+  await pousser(wp, charge({ data: { titre: 't', texte: 'v' } }));
+  ok(JSON.stringify(wp.pastilles) === '[1,2]', 'pastille : 1 puis 2', wp.pastilles);
+  wp.stock.pastille[BASE + '__pastille'] = { text: function () { return Promise.resolve('5'); } };   // l'appli a laissé 5 (la cloche)
+  await pousser(wp, charge({ data: { titre: 't', texte: 'w' } }));
+  ok(wp.pastilles[2] === 6, 'pastille : repart du nombre de la cloche', wp.pastilles);
+  ok(wp.montre.length === 3, 'les alertes s\'affichent toujours avec la pastille');
+  var wn = monde(null, true);
+  await pousser(wn, charge({ data: { titre: 't', texte: 'u' } }));
+  ok(wn.montre.length === 1, 'sans pastille possible (ancien téléphone) : l\'alerte s\'affiche quand même');
 
   // 4. toucher l'alerte, appli fermée : elle s'ouvre sur la cloche du bon profil
   var f = await toucher(w, '#/parent/notifs');

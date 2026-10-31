@@ -10,6 +10,14 @@
 window.MC = window.MC || {};
 
 MC.NEWS = [
+  // (31/10, v35) la pastille sur l'icône de l'appli
+  { id: '2026-10-31-pastille', date: '2026-10-31', pour: ['k', 'f', 'e'],
+    titre: { k: 'Un chiffre sur l\'icône', f: 'Un chiffre sur l\'icône de l\'appli', e: 'Un chiffre sur l\'icône de l\'appli' },
+    texte: {
+      k: 'Avec les alertes allumées, un chiffre rouge sur l\'icône de l\'appli te dit combien de nouveautés t\'attendent. Il disparaît quand tu ouvres la cloche.',
+      f: 'Avec les alertes allumées, un chiffre rouge sur l\'icône de l\'appli dit combien de nouveautés vous attendent dans la cloche. Il disparaît quand vous l\'ouvrez.',
+      e: 'Avec les alertes allumées, un chiffre rouge sur l\'icône de l\'appli dit combien de nouveautés vous attendent dans la cloche. Il disparaît quand vous l\'ouvrez.'
+    } },
   // (31/10, v35) la répartition des postes et les postes aux matchs d'entraînement (éducs)
   { id: '2026-10-31-postes', date: '2026-10-31', pour: ['e'],
     titre: 'Les postes du groupe, et aux matchs',

@@ -16,6 +16,8 @@ def sans_debord(pg): return pg.evaluate('document.documentElement.scrollWidth <=
 with sync_playwright() as p:
     b = p.chromium.launch(); pg = b.new_page(viewport={'width': W, 'height': H}, is_mobile=True, has_touch=True)
     pg.add_init_script('window.__MC_QUIET=1'); pg.on('pageerror', lambda e: errs.append(str(e)))
+    # (v35) la pastille sur l'icône de l'appli : on note les appels (le navigateur de test n'a pas d'icône)
+    pg.add_init_script("window.__badge = []; navigator.setAppBadge = function (n) { __badge.push(n); return Promise.resolve(); }; navigator.clearAppBadge = function () { __badge.push(0); return Promise.resolve(); };")
     pg.goto(BASE + '#/adultes'); pg.evaluate('localStorage.clear()'); pg.reload(); pg.wait_for_timeout(900)
     codes = pg.evaluate('MC.demo.CODES')
     # ----- l'éduc -----
@@ -35,8 +37,11 @@ with sync_playwright() as p:
     pg.goto(BASE + '#/educ/progres'); pg.wait_for_timeout(900); pin(pg, codes['educ']); pg.wait_for_timeout(1800)
     pg.evaluate("MC.loadGroup(true)"); pg.wait_for_timeout(900); pg.goto(BASE + '#/educ/joueurs'); pg.wait_for_timeout(1000)
     check('éduc : la séance de Tom allume la cloche (1)', nb(pg) == '1', nb(pg))
+    check('pastille sur l\'icône de l\'appli : 1', pg.evaluate('window.__badge[window.__badge.length - 1]') == 1, pg.evaluate('window.__badge'))
+    check('… et le même nombre gardé pour les alertes à venir (cache « pastille »)', pg.evaluate("caches.open('pastille').then(c => c.match(location.href.split('#')[0].split('?')[0].replace(/[^/]*$/, '') + '__pastille')).then(r => r ? r.text() : null)") == '1')
     pg.click('.topbar [data-cloche]'); pg.wait_for_timeout(1500)
     check('la cloche ouvre la liste', '#/educ/notifs' in pg.url, pg.url)
+    check('liste lue : plus de pastille sur l\'icône', pg.evaluate('window.__badge[window.__badge.length - 1]') == 0, pg.evaluate('window.__badge'))
     first = pg.query_selector('.ntl .nt.new')
     check('en haut, en nouveau : « Tom a fait … »', first is not None and 'Tom' in first.inner_text() and 'entraînement au club' in first.inner_text(), first.inner_text() if first else '')
     check('pas de cloche sur l\'écran de la liste', pg.query_selector('.topbar [data-cloche]') is None)

@@ -45,6 +45,7 @@
     if (!w) return '';
     if (MC.alertes) MC.alertes.verifier(w);   // (v34) les alertes sur le téléphone : l'abonnement est-il toujours là ?
     var st = etat(w), n = st ? st.n : 0, href = HREF[w.role];
+    if (MC.alertes && st) MC.alertes.pastille(n);   // (v35) la pastille sur l'icône de l'appli
     return '<a class="tb-bell' + (n ? ' on' : '') + '" href="' + href + '" data-cloche aria-label="' + lab(n) + '">' + icon('bell', 22) +
       (n ? '<span class="tb-nb">' + (n > 9 ? '9+' : n) + '</span>' : '') + '</a>';
   }
@@ -55,6 +56,7 @@
     if (!el) return;
     var w = qui(), st = etat(w), n = st ? st.n : 0;
     if (MC.alertes) MC.alertes.verifier(w);   // (v34) les alertes sur le téléphone : l'abonnement est-il toujours là ?
+    if (MC.alertes && st) MC.alertes.pastille(n);   // (v35) la pastille sur l'icône de l'appli
     el.classList.toggle('on', !!n);
     el.setAttribute('aria-label', lab(n));
     var nb = el.querySelector('.tb-nb');
@@ -98,7 +100,7 @@
         var bar = ui.topbar({ back: home(role), backLabel: T(role, 'Accueil', 'Accueil'), title: 'Notifications', right: reg, help: ui.helpLink(role === 'k' ? 'joueur' : role === 'f' ? 'parent' : 'educ') });
         if (!st) return '<main class="screen">' + bar + '<div class="empty">' + (role === 'e' && groupe() && !compos() ?
           'Les compos n\'ont pas pu être chargées, et la cloche en a besoin. Tirez l\'écran vers le bas pour réessayer.' : 'Rien pour l\'instant.') + '</div></main>';
-        if (w && w.id) cur.after = function () { N.marquerLu(w.role, w.id, Date.now()); paintBell(); app.refreshNav(); };
+        if (w && w.id) cur.after = function () { N.marquerLu(w.role, w.id, Date.now()); paintBell(); app.refreshNav(); if (MC.alertes) MC.alertes.pastille(0); };
         var neuf = st.list.filter(function (e) { return e.nouveau; }), vieux = st.list.filter(function (e) { return !e.nouveau; });
         var nbOff = Object.keys(st.off || {}).filter(function (k) { return N.catOf(role, k); }).length;
         var body = !st.list.length ? '<div class="empty">' + T(role, 'Rien de neuf pour l\'instant. Quand tes parents ou tes éducs confirment un résultat ou te donnent une mission, ça arrive ici.', 'Rien pour l\'instant. Les séances, les résultats et les missions arriveront ici.') + '</div>' :

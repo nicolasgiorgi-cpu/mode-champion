@@ -5,7 +5,8 @@
    - les fichiers versionnés (?v=N) : la copie gardée d'abord (ils ne changent jamais pour un même N)
    - icônes, polices Google : la copie, mise à jour en arrière-plan
    - le serveur Google (les données) : jamais intercepté
-   - (v34) les alertes sur l'écran du téléphone (Firebase Cloud Messaging) : affichées ici, voir en bas du fichier
+   - (v34) les alertes sur l'écran du téléphone (Firebase Cloud Messaging) : affichées ici, voir en bas du fichier ;
+     (v35) la pastille (chiffre) sur l'icône de l'appli
    Réparer : ouvrir l'adresse avec ?reset=1 (voir index.html).
    ========================================================= */
 var SHELL = 'mc-shell-1', FONTS = 'mc-fonts-1', NAV_WAIT = 3500;
@@ -124,10 +125,24 @@ function alerteDe(ev) {
   return { titre: String(d.titre || d.title || 'Mode champion'), texte: String(d.texte || d.body || 'Une nouveauté à voir dans l\'appli.'),
     lien: /^#\/[a-z/]*$/.test(String(d.lien || '')) ? String(d.lien) : '', tag: String(d.tag || '') };
 }
+// (v35) la pastille sur l'icône de l'appli : +1 à chaque alerte reçue ; l'appli remet le vrai nombre (celui de la cloche)
+// en s'ouvrant (même petit cache « pastille », hors des caches « mc- » nettoyés à chaque version)
+var PASTILLE = 'pastille', PASTILLE_URL = BASE + '__pastille';
+function pastillePlus() {
+  var nav = self.navigator;
+  if (!nav || !nav.setAppBadge || !self.caches) return Promise.resolve();
+  return caches.open(PASTILLE).then(function (c) {
+    return c.match(PASTILLE_URL).then(function (r) { return r ? r.text() : '0'; }).then(function (t) {
+      var n = (parseInt(t, 10) || 0) + 1;
+      return c.put(PASTILLE_URL, new Response(String(n))).then(function () { return nav.setAppBadge(n); });
+    });
+  }).catch(function () { });
+}
 self.addEventListener('push', function (e) {
   var a = alerteDe(e), o = { body: a.texte, icon: BASE + 'icons/icon-192.png', badge: BASE + 'icons/icon-192.png', data: { lien: a.lien } };
   if (a.tag) { o.tag = a.tag; o.renotify = true; }   // une alerte par sorte : la nouvelle remplace l'ancienne
-  e.waitUntil(self.registration.showNotification(a.titre, o));
+  // l'alerte d'abord, toujours ; la pastille ne peut jamais l'empêcher
+  e.waitUntil(Promise.all([self.registration.showNotification(a.titre, o), pastillePlus()]));
 });
 // toucher l'alerte : l'appli s'ouvre (ou revient au premier plan) sur la cloche du bon profil
 self.addEventListener('notificationclick', function (e) {
