@@ -1681,3 +1681,27 @@ textarea.txt{min-height:84px;padding:10px 12px;resize:vertical;font:500 16px/1.4
 .switch .nt-ic{width:32px;height:32px}
 /* petits téléphones : un peu moins d'espace autour des boutons de la barre du haut, pour laisser le titre lisible */
 @media (max-width:389px){.topbar{gap:7px}.tb-pass{padding:0 9px;gap:4px}}
+
+/* ===== (v36) « Bravo » pour une séance (js/bravos.js) ===== */
+.bvb{flex:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;min-width:44px;padding:0 12px;border:1.5px solid var(--gold);background:rgba(255,194,61,.12);color:var(--gold);font:700 13px/1 var(--f-hud);letter-spacing:.04em;cursor:pointer}
+.bvb .bv-i{font-size:18px;line-height:1}
+.bvb.sm{padding:0 10px}
+.bvb.on{background:transparent;border-color:rgba(61,255,176,.55);color:var(--green)}
+.bvb[data-wait]{opacity:.75;pointer-events:none}
+.bvrow{display:flex;align-items:center;gap:6px}
+.bvrow>.li{flex:1;min-width:0}
+.ntb{display:flex;align-items:center;gap:6px}
+.ntb>.nt{flex:1;min-width:0}
+.li.bvl{display:flex;align-items:center;gap:8px;padding-right:8px}
+.li.bvl.sess{align-items:flex-start;padding:0 8px 0 0}
+.li.bvl.sess>details{flex:1;min-width:0}
+.li.bvl.sess>.bvb{margin-top:4px}
+.bvl-in{display:flex;align-items:center;gap:12px;flex:1;min-width:0}
+.li .t2.bvw{color:var(--gold)}
+.li .t2.bvw b{font-weight:700}
+.bvph{display:flex;flex-wrap:wrap;gap:6px}
+.bvph button{min-height:40px;padding:6px 10px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font:600 13px/1.2 var(--f-body);cursor:pointer;text-align:left}
+.bvcard{display:flex;flex-direction:column;gap:10px;padding:12px 14px;border:1.5px solid rgba(255,194,61,.55);background:rgba(255,194,61,.08)}
+.bvc-l{display:flex;gap:10px;align-items:flex-start;font-size:15px;line-height:1.35}
+.bvc-i{font-size:24px;line-height:1;flex:none}
+.bvc-m{display:block;color:var(--soft);font-size:14px;margin-top:3px}

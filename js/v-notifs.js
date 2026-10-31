@@ -80,10 +80,12 @@
   }
   function ligne(role, ev, now) {
     var c = N.catOf(role, ev.cat) || { icon: 'bell', color: '#38E8FF' };
-    return '<li><a class="nt' + (ev.nouveau ? ' new' : '') + '" href="' + esc(ev.href || HREF[role]) + '">' +
+    // (v36) une séance d'un enfant : « 👏 Bravo » d'un toucher, à côté de la ligne (js/bravos.js)
+    var bv = role === 'e' && ev.bv && MC.bravo ? MC.bravo.btn(groupe(), ev.bv.j, ev.bv.s, { sm: true }) : '';
+    return '<li' + (bv ? ' class="ntb"' : '') + '><a class="nt' + (ev.nouveau ? ' new' : '') + '" href="' + esc(ev.href || HREF[role]) + '">' +
       '<span class="nt-ic" style="--nc:' + c.color + '">' + icon(c.icon, 18) + '</span>' +
       '<span class="nt-tx"><span class="nt-t">' + ev.txt + '</span><span class="nt-q">' + (ev.nouveau ? '<b>Nouveau</b> · ' : '') + esc(quand(ev.quand, now)) + '</span></span>' +
-      icon('right', 16, 'class="nt-go"') + '</a></li>';
+      (bv ? '' : icon('right', 16, 'class="nt-go"')) + '</a>' + bv + '</li>';
   }
   function T(role, k, a) { return role === 'k' ? k : a; }
   function charger(role) {

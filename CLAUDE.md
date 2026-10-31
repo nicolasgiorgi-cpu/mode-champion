@@ -28,7 +28,7 @@ Ce dépôt est public et le site tourne en production auprès de vraies familles
 
 ## Ouverture des parties de l'appli (réglages V1)
 
-`MC.CONFIG.ENFANTS = { skills, copains, missionsEducs }` dans `js/config.js` : ce que voient les enfants et les parents. Côté éducs, tout reste ouvert. Toujours passer par `MC.ouvert('skills' | 'copains' | 'missionsEducs')`, jamais lire le réglage directement. Tant qu'une partie est fermée, elle ne rapporte pas d'XP aux enfants. Pour ouvrir une partie : la passer à `true`, ajouter une entrée en haut de `MC.NEWS` (`js/nouveautes.js`, champ `si` pour la cibler), augmenter `?v=`, pousser `main`. L'état courant de ces réglages fait foi dans `js/config.js`.
+`MC.CONFIG.ENFANTS = { skills, copains, missionsEducs }` dans `js/config.js` : ce que voient les enfants et les parents. Côté éducs, tout reste ouvert. Toujours passer par `MC.ouvert('skills' | 'copains' | 'missionsEducs')`, jamais lire le réglage directement. Tant qu'une partie est fermée, elle ne rapporte pas d'XP aux enfants. Pour ouvrir une partie : la passer à `true`, augmenter `?v=`, pousser `main` (pas d'entrée dans `MC.NEWS` sans demande du propriétaire, voir plus bas). L'état courant de ces réglages fait foi dans `js/config.js`.
 
 ## Commandes et tests
 
@@ -69,7 +69,7 @@ Le site est servi par GitHub Pages depuis `main`, racine du dépôt. Le serveur 
 - Ne pas complexifier l'interface : elle porte déjà beaucoup de concepts. Passer le téléphone d'un adulte à l'enfant doit rester simple.
 - Les éducateurs sont bénévoles et débordés : toute saisie ou validation doit très peu les solliciter, se faire après la séance, en 15 minutes maximum. Les enfants ne voient pas les étoiles Skills avant la fin de l'entraînement.
 - Textes pour les enfants : courts, simples, valorisants ; jamais de formulation qui prête à erreur (ex. hors-jeu au ruck : ne jamais parler du pied).
-- Une nouveauté annoncée : une entrée en haut de `MC.NEWS`, et mettre à jour l'aide « ? » (`js/v-guide.js`) si le comportement change.
+- « Quoi de neuf ? » (`MC.NEWS`, `js/nouveautes.js`) : **plus aucune nouvelle entrée sans demande explicite du propriétaire** (décision du 31/10/2026 : trop d'annonces perdent les familles). Mettre à jour l'aide « ? » (`js/v-guide.js`) quand le comportement change.
 
 ## Contexte produit et suivi (hors dépôt)
 

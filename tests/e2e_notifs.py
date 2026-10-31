@@ -73,7 +73,7 @@ with sync_playwright() as p:
     pg.goto(BASE + '#/parent/plus'); pg.wait_for_timeout(900)
     check('Plus : « Mes notifications »', pg.query_selector('a[href="#/parent/notifs/reglages"]') is not None)
     pg.goto(BASE + '#/parent/notifs/reglages'); pg.wait_for_timeout(900)
-    check('parent (V1) : 4 sortes (rien des parties fermées)', pg.evaluate("document.querySelectorAll('[data-act=ntToggle]').length") == 4)
+    check('parent (V1) : 5 sortes (rien des parties fermées ; v36 : + les bravos des éducs)', pg.evaluate("document.querySelectorAll('[data-act=ntToggle]').length") == 5)
     tom = pg.evaluate("MC.app.S.cache.family.enfants[0].joueur.id")
     pg.goto(BASE + '#/parent?k=' + tom); pg.wait_for_timeout(1000)
     check('un lien de notification (?k=) : l\'adresse redevient #/parent', pg.url.endswith('#/parent'), pg.url)
@@ -101,7 +101,7 @@ with sync_playwright() as p:
     pg.goto(BASE + '#/reglages'); pg.wait_for_timeout(900)
     check('Réglages enfant : « Mes notifications »', pg.query_selector('a[href="#/notifs/reglages"]') is not None)
     pg.goto(BASE + '#/notifs/reglages'); pg.wait_for_timeout(900)
-    check('enfant (V1) : 3 sortes', pg.evaluate("document.querySelectorAll('[data-act=ntToggle]').length") == 3)
+    check('enfant (V1) : 4 sortes (v36 : + les bravos de tes éducs)', pg.evaluate("document.querySelectorAll('[data-act=ntToggle]').length") == 4)
     b.close()
 bad = [n for n, c in res if not c]
 print('ERREURS JS :', errs[:4] if errs else 'aucune')

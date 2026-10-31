@@ -13,8 +13,9 @@ const ids = l => l.map(e => e.id);
 
 // ---------- les catégories : en V1, rien des parties fermées pour les familles ; tout pour les éducs ----------
 assert.deepStrictEqual(J(N.cats('e').map(c => c.id)), ['seance', 'bilan', 'mission', 'etoile', 'niveau', 'compo']);
-assert.deepStrictEqual(J(N.cats('f').map(c => c.id)), ['seance', 'confirmer', 'mission', 'niveau']);
-assert.deepStrictEqual(J(N.cats('k').map(c => c.id)), ['resultat', 'nouvelle', 'niveau']);
+// (v36) les bravos des éducs : une sorte ouverte aux familles dès le départ (la prépa n'est jamais fermée)
+assert.deepStrictEqual(J(N.cats('f').map(c => c.id)), ['seance', 'bravo', 'confirmer', 'mission', 'niveau']);
+assert.deepStrictEqual(J(N.cats('k').map(c => c.id)), ['resultat', 'bravo', 'nouvelle', 'niveau']);
 
 // ---------- ÉDUC ----------
 const moi = { id: 'ed1', nom: 'Nico', admin: true, enfants: [] };
@@ -195,10 +196,43 @@ assert.strictEqual(Object.keys(JSON.parse(st._m['mc-notif:e:ed1']).vus).length, 
 cd.compos[0].votes = { ed1: 1 };
 assert.ok(!N.events('e', { group: g, compos: cd }).some(e => e.id === 'cv:c1'), 'vote fait : plus de demande');
 
+// ---------- (v36) les bravos des éducs pour une séance ----------
+{
+  const ses = [{ id: 'sb1', type: 'cros', date: '2026-10-30', cree: iso(NOW - 20 * H) }, { id: 'sb2', type: 'club', date: '2026-10-31', cree: iso(NOW - 3 * H) }];
+  const bv = [{ id: 'bv1', seanceId: 'sb1', mot: '', parNom: 'Cyril', cree: iso(NOW - 2 * H), maj: iso(NOW - 2 * H) },
+    { id: 'bv2', seanceId: 'sb2', mot: 'Top <b>match</b> & bravo', parNom: 'Julien', cree: iso(NOW - H), maj: iso(NOW - H / 2) }];
+  const meB = { joueur: { id: 'k9', prenom: 'Nina' }, seances: ses, records: [], journal: [], bravos: bv };
+  const kb = N.events('k', { me: meB }).filter(e => e.cat === 'bravo');
+  assert.strictEqual(kb.length, 2, 'l\'enfant : une ligne par bravo');
+  assert.strictEqual(kb.find(e => e.id === 'bv:bv1').txt, '👏 <b>Cyril</b> te dit bravo pour ta séance de Cros !');
+  const k2 = kb.find(e => e.id === 'bv:bv2:m');
+  assert.ok(k2 && /pour ton entraînement au club !/.test(k2.txt), 'club : « ton entraînement au club »');
+  assert.ok(/« Top &lt;b&gt;match&lt;\/b&gt; &amp; bravo »/.test(k2.txt), 'le mot de l\'éduc, échappé');
+  assert.strictEqual(k2.t, NOW - H / 2, 'un mot ajouté après coup : l\'heure du mot');
+  assert.strictEqual(kb[0].href, '#/semaine');
+  const famB = { famille: { id: 'f9' }, enfants: [{ joueur: { id: 'k9', prenom: 'Nina' }, seances: ses, records: [], journal: [], missions: [], bravos: bv }] };
+  const pb = N.events('f', { family: famB }).filter(e => e.cat === 'bravo');
+  assert.strictEqual(pb.length, 2, 'la famille aussi');
+  assert.strictEqual(pb.find(e => e.id === 'bv:bv1').txt, '👏 <b>Cyril</b> a dit bravo à <b>Nina</b> pour sa séance de Cros');
+  assert.ok(pb.every(e => e.href === '#/parent?k=k9'));
+  // un bravo dont la séance n'est plus là : « sa séance », sans planter
+  assert.ok(/pour ta séance !/.test(N.events('k', { me: Object.assign({}, meB, { seances: [] }) }).find(e => e.id === 'bv:bv1').txt));
+  // l'éduc : le bouton « Bravo » sur chaque séance de la cloche
+  const ge = N.events('e', { group: { moi, defmissions: [], joueurs: [joueur('k9', 'Nina', { seances: ses })] }, compos: { compos: [], avis: [], evenements: [], educs: [] } });
+  const sl = ge.filter(e => e.cat === 'seance');
+  assert.ok(sl.length === 2 && sl.every(e => e.bv && e.bv.j === 'k9' && e.bv.s && e.bv.s.id), 'chaque séance porte de quoi dire bravo');
+  assert.ok(!ge.some(e => e.cat === 'bravo'), 'les éducs ne reçoivent pas les bravos des autres éducs dans la cloche');
+  // pour() : les tournures
+  assert.strictEqual(N.pour({ type: 'capuozzo' }, true), 'ta séance de Capuozzo');
+  assert.strictEqual(N.pour({ type: 'recup' }, false), 'sa récup');
+  assert.strictEqual(N.pour({ type: 'club', details: { match: true } }, true), 'ton match');
+  assert.strictEqual(N.pour(null, false), 'sa séance');
+}
+
 // ---------- tout ouvert (plus tard) : les étoiles, les mots, les missions des éducs ----------
 ctx.__MC_TOUT = true;
-assert.deepStrictEqual(J(N.cats('k').map(c => c.id)), ['resultat', 'nouvelle', 'niveau', 'etoile', 'mots', 'demande']);
-assert.deepStrictEqual(J(N.cats('f').map(c => c.id)), ['seance', 'confirmer', 'mission', 'niveau', 'skills', 'mots', 'nouvelle']);
+assert.deepStrictEqual(J(N.cats('k').map(c => c.id)), ['resultat', 'bravo', 'nouvelle', 'niveau', 'etoile', 'mots', 'demande']);
+assert.deepStrictEqual(J(N.cats('f').map(c => c.id)), ['seance', 'bravo', 'confirmer', 'mission', 'niveau', 'skills', 'mots', 'nouvelle']);
 pe = N.events('f', { family: fam });
 assert.ok(pe.some(e => e.id === 'e:pe1') && pe.some(e => e.id === 'x:px1'), 'étoiles et mots');
 assert.strictEqual(pe.filter(e => e.id === 'dm:q1').length, 1, 'une mission du groupe : une seule ligne même avec 2 enfants');

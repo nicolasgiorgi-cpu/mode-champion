@@ -135,8 +135,9 @@ MC.alertes = (function () {
     }).then(function (t) {
       // si la réponse se perd, le serveur a peut-être abonné l'appareil : on le saura à retirer (l'interrupteur dit « éteint »)
       ecrire(role, id, { on: false, jeton: t, retirer: true });
-      return appel(role, 'pushAbonner', { jeton: t, cats: catsOn(role, id), appareil: appareil() }).then(function () {
-        ecrire(role, id, { on: true, jeton: t, t: Date.now() });
+      var cs = catsOn(role, id);
+      return appel(role, 'pushAbonner', { jeton: t, cats: cs, appareil: appareil() }).then(function () {
+        ecrire(role, id, { on: true, jeton: t, t: Date.now(), c: cs.join() });
         return true;
       });
     });
@@ -161,7 +162,8 @@ MC.alertes = (function () {
     minuteur[role + id] = setTimeout(function () {
       var s = lire(role, id);
       if (!s || !s.on || !s.jeton) return;
-      fond(role, 'pushAbonner', { jeton: s.jeton, cats: catsOn(role, id), appareil: appareil() }).then(function () { s.t = Date.now(); ecrire(role, id, s); },
+      var cs = catsOn(role, id);
+      fond(role, 'pushAbonner', { jeton: s.jeton, cats: cs, appareil: appareil() }).then(function () { s.t = Date.now(); s.c = cs.join(); ecrire(role, id, s); },
         function () { s.t = 0; ecrire(role, id, s); });   // raté : réessayé à la prochaine ouverture
     }, 1200);
   }
@@ -182,9 +184,9 @@ MC.alertes = (function () {
       return;
     }
     function reabonner(t) {
-      var avant = s.jeton;
-      return fond(w.role, 'pushAbonner', { jeton: t, cats: catsOn(w.role, w.id), appareil: appareil() }).then(function () {
-        ecrire(w.role, w.id, { on: true, jeton: t, t: Date.now() });
+      var avant = s.jeton, cs = catsOn(w.role, w.id);
+      return fond(w.role, 'pushAbonner', { jeton: t, cats: cs, appareil: appareil() }).then(function () {
+        ecrire(w.role, w.id, { on: true, jeton: t, t: Date.now(), c: cs.join() });
         if (avant && avant !== t) fond(w.role, 'pushDesabonner', { jeton: avant }).catch(noop);
       });
     }
@@ -194,6 +196,8 @@ MC.alertes = (function () {
     var perdu = window.__MC_PUSH_FAKE ? Promise.resolve(false) :
       navigator.serviceWorker.getRegistration().then(function (r) { return r ? r.pushManager.getSubscription().then(function (x) { return !x; }) : true; }).catch(function () { return false; });
     perdu.then(function (p) {
+      // (v36) une nouvelle sorte dans la cloche (ex. « Bravos des éducs ») : le serveur la reçoit tout de suite, même jeton
+      if (!p && s.c !== catsOn(w.role, w.id).join()) return reabonner(s.jeton);
       if (!p && now - (s.t || 0) < JOUR) return;
       return nouveauJeton(w.role).then(reabonner);
     }).catch(noop);

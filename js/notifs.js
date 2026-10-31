@@ -35,6 +35,7 @@ MC.notifs = (function () {
     ],
     f: [
       ['seance', 'Séances', 'Votre enfant a fait une séance de prépa.', 'pulse', '#38E8FF'],
+      ['bravo', 'Bravos des éducs', 'Un éduc a félicité votre enfant pour sa séance.', 'heart', '#FFC23D'],
       ['confirmer', 'Résultats à confirmer', 'Votre enfant a noté son bilan ou un défi.', 'check', '#FF4FA3'],
       ['mission', 'Missions faites', 'Votre enfant a fait une mission.', 'target', '#FF7FBC'],
       ['niveau', 'Niveaux', 'Un niveau de votre enfant a changé.', 'up', '#C9AEFF'],
@@ -44,6 +45,7 @@ MC.notifs = (function () {
     ],
     k: [
       ['resultat', 'Tes résultats', 'Un parent ou un éduc a confirmé (ou refusé) un de tes résultats.', 'check', '#3DFFB0'],
+      ['bravo', 'Les bravos de tes éducs', 'Un éduc te dit bravo pour ta séance.', 'heart', '#FFC23D'],
       ['nouvelle', 'Nouvelles missions', 'Une nouvelle mission à faire.', 'target', '#FF7FBC'],
       ['niveau', 'Tes niveaux', 'Un parent ou un éduc a changé un de tes niveaux.', 'up', '#C9AEFF'],
       ['etoile', 'Tes étoiles', 'Un éduc a validé une de tes étoiles.', 'star', '#FFC23D', ['skills']],
@@ -64,6 +66,19 @@ MC.notifs = (function () {
     if (s.type === 'recup') return 'la récup';
     return J ? (J.nomSeance || J.theme || s.type).replace(/^La séance de /, 'la séance de ') : 'une séance';
   }
+  // (v36) « ta séance de Cros », « son entraînement au club », « sa récup » (ta : pour l'enfant ; sinon sa / son)
+  function pour(s, ta) {
+    var n = nomSeance(s || {});
+    if (/^la séance/.test(n)) return (ta ? 'ta' : 'sa') + n.slice(2);
+    if (n === 'la récup') return ta ? 'ta récup' : 'sa récup';
+    if (/^l'entraînement/.test(n)) return (ta ? 'ton ' : 'son ') + n.slice(2);
+    if (n === 'un match') return ta ? 'ton match' : 'son match';
+    return ta ? 'ta séance' : 'sa séance';
+  }
+  function bravoTxt(x, s, qui) {
+    return qui + (x.mot ? ' : « ' + esc(court(x.mot, 90)) + ' »' : '');
+  }
+  function seanceDe(l, id) { for (var i = 0; i < (l || []).length; i++) if (l[i].id === id) return l[i]; return null; }
   function nomBilan(bilan) {
     var l = (MC.CONFIG && MC.CONFIG.BILANS) || [], n = Number(bilan);
     for (var i = 0; i < l.length; i++) if (l[i].n === n) return l[i].nom;
@@ -113,7 +128,8 @@ MC.notifs = (function () {
       if (!j || !j.actif) return;
       var who = b(j.prenom), fiche = '#/educ/joueur/' + encodeURIComponent(j.id);
       (p.seances || []).forEach(function (s) {
-        out.push({ id: 's:' + s.id, cat: 'seance', t: ms(s.cree), txt: who + ' a fait ' + esc(nomSeance(s)) + '.', href: fiche + '?t=prepa' });
+        // (v36) bv : le bouton « 👏 Bravo » sur la ligne (js/bravos.js)
+        out.push({ id: 's:' + s.id, cat: 'seance', t: ms(s.cree), txt: who + ' a fait ' + esc(nomSeance(s)) + '.', href: fiche + '?t=prepa', bv: { j: j.id, s: s } });
       });
       groupes(p.records).forEach(function (x) {
         if (x.defi) { var r = x.recs[0]; out.push({ id: 'r:' + r.id, cat: 'bilan', t: x.t, txt: who + ' a relevé un défi : ' + esc(nomTest(r.test)) + '.', href: fiche + '?t=prepa' }); return; }
@@ -183,6 +199,11 @@ MC.notifs = (function () {
       (d.seances || []).forEach(function (s) {
         out.push({ id: 's:' + s.id, cat: 'seance', t: ms(s.cree), txt: who + ' a fait ' + esc(nomSeance(s)) + '.', href: '#/parent' + k });
       });
+      // (v36) les bravos des éducs ; un mot ajouté après coup = une nouvelle ligne
+      (d.bravos || []).forEach(function (x) {
+        var s = seanceDe(d.seances, x.seanceId);
+        out.push({ id: 'bv:' + x.id + (x.mot ? ':m' : ''), cat: 'bravo', t: ms(x.maj || x.cree), txt: bravoTxt(x, s, '👏 ' + b(x.parNom || 'Un éduc') + ' a dit bravo à ' + who + ' pour ' + esc(pour(s, false))), href: '#/parent' + k });
+      });
       groupes(d.records).forEach(function (x) {
         var att = x.attente ? ' <span class="nt-att">À confirmer</span>' : '';
         if (x.defi) { var r = x.recs[0]; out.push({ id: 'r:' + r.id, cat: 'confirmer', t: x.t, txt: who + ' a relevé un défi : ' + esc(nomTest(r.test)) + '.' + att, href: '#/parent' + k }); return; }
@@ -225,6 +246,10 @@ MC.notifs = (function () {
   function enfant(me) {
     var out = [];
     if (!me || !me.joueur) return out;
+    (me.bravos || []).forEach(function (x) {
+      var s = seanceDe(me.seances, x.seanceId);
+      out.push({ id: 'bv:' + x.id + (x.mot ? ':m' : ''), cat: 'bravo', t: ms(x.maj || x.cree), txt: bravoTxt(x, s, '👏 ' + b(x.parNom || 'Ton éduc') + ' te dit bravo pour ' + esc(pour(s, true)) + ' !'), href: '#/semaine' });
+    });
     groupes(me.records).forEach(function (x) {
       var faits = x.recs.filter(function (r) { return r.statut === 'ok' || r.statut === 'refuse'; });
       if (!faits.length) return;
@@ -342,5 +367,5 @@ MC.notifs = (function () {
   }
   function reglages(role, id, st) { var s = load(stor(st), key(role, id)); return s ? s.off : {}; }
 
-  return { CATS: CATS, cats: cats, catOf: catOf, events: events, etat: etat, marquerLu: marquerLu, regler: regler, reglages: reglages, key: key, FENETRE: FENETRE };
+  return { CATS: CATS, cats: cats, catOf: catOf, events: events, pour: pour, etat: etat, marquerLu: marquerLu, regler: regler, reglages: reglages, key: key, FENETRE: FENETRE };
 })();

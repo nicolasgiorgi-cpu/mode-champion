@@ -349,7 +349,7 @@
         (MC.accueil ? MC.accueil.parentChecklist(fam) : '') +
         '<div class="head"><span class="kicker" style="color:var(--cyan)">' + esc(ui.fmtDate(L.today())) + '</span><h1 class="big md">' + esc(k.prenom) + '<br>cette semaine</h1></div>' +
         '<div class="cols2"><section class="sec"><div class="between"><h2 class="h2">Sa semaine</h2><span class="hud" style="color:var(--gold)">' + S.st.week.stars + ' / 6 étoiles</span></div>' + S.week + S.tiles + '</section>' +
-        '<section class="sec"><h2 class="h2">Ses séances</h2><p class="small" style="margin:0">Touchez une séance pour le détail : exercices, séries, ressenti.</p>' + MC.suivi.seances(d.seances, { max: 4 }) + rdvH + '</section></div>' +
+        '<section class="sec"><h2 class="h2">Ses séances</h2><p class="small" style="margin:0">Touchez une séance pour le détail : exercices, séries, ressenti.</p>' + MC.suivi.seances(d.seances, { max: 4, bravos: d.bravos }) + rdvH + '</section></div>' +
         '</main>';
     });
   }, { adult: 'f', nav: 'p:prepa', bg: '#12333A' });
@@ -472,15 +472,23 @@
     // ce qui s'est passé ces derniers jours : séances et bilans envoyés
     var ev = [];
     G.players.forEach(function (p) {
-      p.seances.forEach(function (s) { ev.push({ at: s.cree || s.date, id: p.joueur.id, p: p.joueur, t1: (C.JOURS[s.type] || {}).nomSeance || s.type, t2: ui.fmtDate(s.date) + ' · ' + (s.mode === 'guidee' ? 'séance guidée' : 'notée') + (s.ressenti ? ' · ' + ({ facile: 'facile', bien: 'pile bien', dur: 'dur' }[s.ressenti] || '') : ''), c: (C.JOURS[s.type] || {}).color || '#888' }); });
+      p.seances.forEach(function (s) { ev.push({ s: s, bravos: p.bravos || [], at: s.cree || s.date, id: p.joueur.id, p: p.joueur, t1: (C.JOURS[s.type] || {}).nomSeance || s.type, t2: ui.fmtDate(s.date) + ' · ' + (s.mode === 'guidee' ? 'séance guidée' : 'notée') + (s.ressenti ? ' · ' + ({ facile: 'facile', bien: 'pile bien', dur: 'dur' }[s.ressenti] || '') : ''), c: (C.JOURS[s.type] || {}).color || '#888' }); });
       var byB = {};
       p.records.forEach(function (r) { if (r.bilan === 'defi') { ev.push({ at: r.cree || r.date, id: p.joueur.id, p: p.joueur, t1: 'Défi · ' + testName(r), t2: ui.fmtDate(r.date), c: '#FFC23D' }); return; } var key = r.bilan + r.date; (byB[key] = byB[key] || []).push(r); });
       Object.keys(byB).forEach(function (key) { var l = byB[key]; ev.push({ at: l[0].cree || l[0].date, id: p.joueur.id, p: p.joueur, t1: 'Bilan ' + l[0].bilan + ' · ' + l.length + ' test' + (l.length > 1 ? 's' : ''), t2: ui.fmtDate(l[0].date), c: '#38E8FF' }); });
     });
     ev.sort(function (a, b) { return a.at < b.at ? 1 : -1; });
-    var feed = ev.slice(0, 6).map(function (e) {
-      return '<li><a class="li" href="#/educ/joueur/' + esc(e.id) + '"><span class="dia" style="--dc:' + e.c + '"></span><span class="grow"><span class="t1">' + esc(e.p.prenom) + ' · ' + esc(e.t1) + '</span><span class="t2">' + esc(e.t2) + '</span></span>' + icon('right', 16) + '</a></li>';
-    }).join('');
+    // (v36) une séance : « 👏 Bravo » d'un toucher à droite (js/bravos.js), et les bravos déjà donnés dessous
+    function feedLi(e) {
+      var bt = e.s && MC.bravo ? MC.bravo.btn(g, e.id, e.s, { sm: true }) : '', vu = e.s ? MC.suivi.bravosDe(e.s, { bravos: e.bravos, moi: g.moi.id }) : '';
+      var a = '<a class="li" href="#/educ/joueur/' + esc(e.id) + '"><span class="dia" style="--dc:' + e.c + '"></span><span class="grow"><span class="t1">' + esc(e.p.prenom) + ' · ' + esc(e.t1) + '</span><span class="t2">' + esc(e.t2) + '</span>' + vu + '</span>' + (bt ? '' : icon('right', 16)) + '</a>';
+      return bt ? '<li class="bvrow">' + a + bt + '</li>' : '<li>' + a + '</li>';
+    }
+    var feed = ev.slice(0, 6).map(feedLi).join('');
+    // la suite de la semaine (pour féliciter tout le monde), repliée
+    var plus = ev.slice(6).filter(function (e) { return String(e.at).slice(0, 10) >= G.weekAgo; }).slice(0, 30);
+    if (feed && plus.length) feed = '<ul class="list">' + feed + '</ul><details class="more"><summary class="small" style="cursor:pointer;color:var(--cyan);min-height:44px;display:flex;align-items:center">Voir les ' + plus.length + ' autres des 7 derniers jours</summary><ul class="list" style="margin-top:6px">' + plus.map(feedLi).join('') + '</ul></details>';
+    else if (feed) feed = '<ul class="list">' + feed + '</ul>';
     return '<main class="screen">' + educBar(g, 'Progrès') + progresTabs('prepa') +
       (MC.accueil ? MC.accueil.educChecklist(g) : '') +
       (MC.api.DEMO ? '<p class="small" style="margin:0;color:var(--yellow)">Mode démo : joueurs fictifs.</p>' : '') +
@@ -488,7 +496,7 @@
       '<div class="tile"><span class="v" style="color:var(--green)">' + G.active + '<small style="font-size:13px;color:var(--dim)"> / ' + G.players.length + '</small></span><span class="l" style="text-transform:none;font-family:var(--f-body);letter-spacing:0;font-size:12px">actifs sur 7 jours</span></div>' +
       '<a class="tile" href="#/educ/joueurs?filtre=late" style="text-decoration:none;border-color:rgba(255,138,61,.5);background:rgba(255,138,61,.08)"><span class="v" style="color:var(--orange)">' + G.late.length + '</span><span class="l" style="text-transform:none;font-family:var(--f-body);letter-spacing:0;font-size:12px;color:var(--soft)">à relancer ›</span></a></div>' +
       '<div class="cols2"><section class="sec">' + aConfirmer(g, pending, pend) + '</section>' +
-      '<section class="sec"><div class="between"><h2 class="h2">Ça bouge</h2><a class="lnk" href="#/educ/joueurs">Les enfants</a></div>' + (feed ? '<ul class="list">' + feed + '</ul>' : '<div class="empty">Pas encore de séance notée.</div>') + '</section></div>' +
+      '<section class="sec"><div class="between"><h2 class="h2">Ça bouge</h2><a class="lnk" href="#/educ/joueurs">Les enfants</a></div>' + (feed || '<div class="empty">Pas encore de séance notée.</div>') + '</section></div>' +
       '<div class="grid2"><a class="li" href="#/educ/classement">' + icon('podium', 20, 'style="color:var(--pink);flex:none"') + '<span class="grow"><span class="t1">Le classement</span><span class="t2">L\'arène, par ligue</span></span>' + icon('right', 16) + '</a>' +
       '<a class="li" href="#/educ/progres/bilans">' + icon('up', 20, 'style="color:var(--green);flex:none"') + '<span class="grow"><span class="t1">Progrès aux bilans</span><span class="t2">Test par test</span></span>' + icon('right', 16) + '</a></div>' +
       '</main>';
@@ -704,6 +712,7 @@
     var o = {}; for (var k in d) o[k] = d[k];
     o.etoiles = gp.etoiles || d.etoiles || [];
     o.encouragements = gp.encouragements || d.encouragements || [];
+    o.bravos = gp.bravos || d.bravos || [];
     o.missions = gp.missions || d.missions || [];
     o.demandes = gp.demandes || d.demandes || [];
     o.defmissions = (g.defmissions || []).filter(function (m) { return m.sorte !== 'etoile' || m.joueurId === d.joueur.id; });
@@ -735,7 +744,8 @@
       var S = kidSummary(d, { editLevels: true });
       body = S.pending + S.tiles +
         '<div class="cols2"><div class="sec" style="gap:20px"><section class="sec"><div class="between"><h2 class="h2">Cette semaine</h2><span class="hud" style="color:var(--gold)">' + S.st.week.stars + ' / 6</span></div>' + S.week + '</section>' +
-        '<section class="sec"><h2 class="h2">Séances</h2>' + (d.seances && d.seances.length && !d.seances.some(function (x) { return x.details; }) ? '<p class="small" style="margin:0">Chargement du détail…</p>' : '') + S.hist + '</section></div>' +
+        '<section class="sec"><h2 class="h2">Séances</h2>' + (d.seances && d.seances.length && !d.seances.some(function (x) { return x.details; }) ? '<p class="small" style="margin:0">Chargement du détail…</p>' : '') +
+        (MC.bravo ? MC.suivi.seances(d.seances, MC.bravo.opts(g, k.id)) : S.hist) + '</section></div>' +
         '<div class="sec" style="gap:20px"><section class="sec"><h2 class="h2">Progression aux bilans</h2>' + S.prog + '</section>' +
         '<section class="sec"><h2 class="h2">Records confirmés</h2>' + S.recs + '</section>' +
         '<section class="sec"><h2 class="h2">Niveaux</h2>' + S.levels + '</section></div></div>';

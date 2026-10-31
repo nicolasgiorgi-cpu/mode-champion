@@ -305,6 +305,15 @@ MC.demo = (function () {
     plus1('Tom', mTom, x.nico, null, L.addDays(today, -10), '');
     plus1('Tom', mTom, x.nico, x.e0, x.merAv, 'Je l\'ai vu ! L\'épaule était bien engagée sur le plaquage de Jules.');
     plus1('Tom', null, x.cyril, x.p1, d1, 'Quelle envie au plateau, continue comme ça !');
+    // (v36) des bravos des éducs sur une séance récente (Tom avec un mot, Inès sans)
+    function bravo(nom, par, mot) {
+      var l = db.rows('seances').filter(function (s) { return s.joueurId === ids[nom]; }).sort(function (a, b) { return a.cree < b.cree ? 1 : -1; });
+      if (!l.length) return;
+      var t = new Date(Math.min(Date.now() - 60000, Date.parse(l[0].cree) + 3600000)).toISOString();
+      db.insert('bravos', { id: id(), joueurId: ids[nom], seanceId: l[0].id, mot: mot || '', parQui: par.id, parNom: par.nom, retire: false, cree: t, maj: t });
+    }
+    bravo('Tom', x.cyril, 'Super régularité, continue !');
+    bravo('Inès', x.julien, '');
     var mInes = perso('Inès', 'passe', ['gauche', 'vrillee'], x.nico, L.addDays(today, -6), 'Passe à gauche et Passe vrillée');
     plus1('Inès', mInes, x.nico, x.e0, x.merAv, '');
     perso('Jules', 'ruck', ['tete', 'porte'], x.julien, L.addDays(today, -9), 'Tête bien placée et Par la porte');

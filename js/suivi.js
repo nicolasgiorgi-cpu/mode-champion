@@ -98,20 +98,29 @@ MC.suivi = (function () {
     if (d.partiel) t += ' · pas finie';
     return t;
   }
-  function line(s) {
-    var j = C.JOURS[s.type] || {}, has = !!s.details;
-    var sum = '<span class="dia" style="--dc:' + (j.color || '#888') + '"></span><span class="grow"><span class="t1">' + esc(j.nomSeance || s.type) + '</span><span class="t2">' + esc(ui.fmtDate(s.date)) + ' · ' + esc(info(s)) + '</span></span>';
-    if (!has) return '<li class="li">' + sum + '</li>';
-    return '<li class="li sess"><details><summary>' + sum + '<span class="chev">' + icon('right', 16) + '</span></summary><div class="sbody">' + detail(s) + '</div></details></li>';
+  // (v36) les bravos des éducs reçus pour cette séance : « 👏 Cyril · Julien : « Super ! » » (« vous » : les miens, côté éduc)
+  function bravosDe(s, o) {
+    var l = (o.bravos || []).filter(function (b) { return b.seanceId === s.id; });
+    if (!l.length) return '';
+    return '<span class="t2 bvw">👏 ' + l.map(function (b) { return '<b>' + esc(o.moi && b.parQui === o.moi ? 'vous' : b.parNom || 'un éduc') + '</b>' + (b.mot ? ' : « ' + esc(b.mot) + ' »' : ''); }).join(' · ') + '</span>';
   }
-  // o.max : nombre de séances visibles avant « Voir plus »
+  // o.bravo(s) : le bouton « 👏 Bravo » des éducs (js/bravos.js), à droite de la ligne
+  function line(s, o) {
+    o = o || {};
+    var j = C.JOURS[s.type] || {}, has = !!s.details, bt = o.bravo ? o.bravo(s) : '';
+    var sum = '<span class="dia" style="--dc:' + (j.color || '#888') + '"></span><span class="grow"><span class="t1">' + esc(j.nomSeance || s.type) + '</span><span class="t2">' + esc(ui.fmtDate(s.date)) + ' · ' + esc(info(s)) + '</span>' + bravosDe(s, o) + '</span>';
+    var inner = has ? '<details><summary>' + sum + '<span class="chev">' + icon('right', 16) + '</span></summary><div class="sbody">' + detail(s) + '</div></details>' : sum;
+    if (bt) return '<li class="li bvl' + (has ? ' sess' : '') + '">' + (has ? inner : '<div class="bvl-in">' + inner + '</div>') + bt + '</li>';
+    return has ? '<li class="li sess">' + inner + '</li>' : '<li class="li">' + inner + '</li>';
+  }
+  // o.max : nombre de séances visibles avant « Voir plus » ; o.bravos, o.moi, o.bravo : les bravos (v36)
   function seances(list, o) {
     o = o || {};
     var all = (list || []).slice().sort(function (a, b) { return a.date === b.date ? (a.cree < b.cree ? 1 : -1) : (a.date < b.date ? 1 : -1); });
     if (!all.length) return '<div class="empty">' + esc(o.vide || 'Aucune séance notée pour l\'instant.') + '</div>';
-    var max = o.max || 8, first = all.slice(0, max), rest = all.slice(max);
-    return '<ul class="list">' + first.map(line).join('') + '</ul>' +
-      (rest.length ? '<details class="more"><summary class="small" style="cursor:pointer;color:var(--cyan);min-height:40px;display:flex;align-items:center">Voir les ' + rest.length + ' séances plus anciennes</summary><ul class="list" style="margin-top:6px">' + rest.map(line).join('') + '</ul></details>' : '');
+    var max = o.max || 8, first = all.slice(0, max), rest = all.slice(max), ln = function (s) { return line(s, o); };
+    return '<ul class="list">' + first.map(ln).join('') + '</ul>' +
+      (rest.length ? '<details class="more"><summary class="small" style="cursor:pointer;color:var(--cyan);min-height:40px;display:flex;align-items:center">Voir les ' + rest.length + ' séances plus anciennes</summary><ul class="list" style="margin-top:6px">' + rest.map(ln).join('') + '</ul></details>' : '');
   }
 
   // ---------- progrès du groupe (éducs) ----------
@@ -144,5 +153,5 @@ MC.suivi = (function () {
     }).join('') + '</ul>';
   }
 
-  return { progression: progression, seances: seances, detail: detail, groupe: groupe, valText: valText };
+  return { progression: progression, seances: seances, detail: detail, groupe: groupe, valText: valText, bravosDe: bravosDe };
 })();

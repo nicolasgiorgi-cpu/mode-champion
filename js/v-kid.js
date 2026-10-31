@@ -113,6 +113,18 @@
     });
   }, { kid: true, nav: 'prepa', live: true });
 
+  // (v36) les bravos de tes éducs pour tes séances des 7 derniers jours (les 3 plus récents)
+  function bravosCarte(me) {
+    var lim = L.addDays(L.today(), -7), ses = me.seances || [];
+    var l = (me.bravos || []).filter(function (b) { return String(b.maj || b.cree || '').slice(0, 10) >= lim; })
+      .sort(function (a, b) { return String(a.maj || a.cree) < String(b.maj || b.cree) ? 1 : -1; }).slice(0, 3);
+    if (!l.length) return '';
+    return '<section class="bvcard" aria-label="Les bravos de tes éducs">' + l.map(function (b) {
+      var s = ses.filter(function (x) { return x.id === b.seanceId; })[0] || null;
+      return '<div class="bvc-l"><span class="bvc-i" aria-hidden="true">👏</span><span><b>' + esc(b.parNom || 'Ton éduc') + '</b> te dit bravo pour ' + esc(MC.notifs ? MC.notifs.pour(s, true) : 'ta séance') + ' !' +
+        (b.mot ? '<span class="bvc-m">« ' + esc(b.mot) + ' »</span>' : '') + '</span></div>';
+    }).join('') + '</section>';
+  }
   function paintSemaine(me, st) {
     var t = L.today(), type = L.dayType(t), j = C.JOURS[type], niv = me.joueur.niveaux || {};
     var wk = st.week, cy = st.cycle;
@@ -181,7 +193,7 @@
       '<div class="head"><span class="kicker">' + esc(C.JOURS[type].jour.toUpperCase()) + ' · ' + (cy.semaine > 8 ? 'SEMAINE DU BILAN' : 'SEMAINE ' + cy.semaine + ' / 8') + '</span>' +
       '<h1 class="big">Mission<br>du jour</h1></div>' +
       '<div class="home"><div>' + mission + '</div><div class="side">' +
-      (MC.accueil ? MC.accueil.kidChecklist(me, st) : '') +
+      (MC.accueil ? MC.accueil.kidChecklist(me, st) : '') + bravosCarte(me) +
       '<section class="sec"><div class="between"><h2 class="h2">Ma semaine</h2><span class="hud" style="color:var(--gold)">' + wk.stars + ' / 6 étoiles</span></div>' +
       '<div class="week">' + days.map(function (d) { return d.strip; }).join('') + '</div>' +
       '<div class="weeklist">' + days.map(function (d) { return d.list; }).join('') + '</div></section>' + aReg +

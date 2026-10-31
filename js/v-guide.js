@@ -88,7 +88,8 @@
           '<b>Vendredi</b> : repos. <b>Samedi</b> : le club. <b>Dimanche</b> : la récup.',
           'Chaque jour fait = <b>1 étoile</b>. Les 6 étoiles de la semaine = <b>+1 étoile bonus</b> (semaine parfaite).',
           'Tu as raté un jour ? Fais sa séance un autre jour de la même semaine : son étoile s\'allume quand même.',
-          icon('flame', 14) + ' <b>Ta série</b> : les étoiles d\'affilée, sans en rater (le vendredi ne compte pas). Si tu rates un jour, elle repart à 0.'
+          icon('flame', 14) + ' <b>Ta série</b> : les étoiles d\'affilée, sans en rater (le vendredi ne compte pas). Si tu rates un jour, elle repart à 0.',
+          '👏 <b>Bravo !</b> Quand tes éducs voient ta séance, ils peuvent te dire bravo (parfois avec un petit mot) : tu le vois dans Ma semaine, sous ta séance et dans la cloche.'
         ])) +
       card('seance', 'play', '#3DFFB0', 'Faire une séance', 'Guidée exo par exo, ou notée en 10 secondes',
         ul([
@@ -193,6 +194,7 @@
       card('p-voir', 'eye', '#3DFFB0', 'Ce que vous voyez', 'Le suivi de votre enfant',
         ul([
           'Sa semaine : les étoiles gagnées et les séances faites. <b>Touchez une séance</b> pour le détail : exercices, niveau, séries, ressenti.',
+          '👏 Les <b>bravos des éducs</b> : quand un éduc félicite votre enfant pour une séance, c\'est écrit sous la séance (avec son mot, s\'il en a laissé un), et la cloche vous prévient.',
           '<b>Sa progression aux bilans</b> : ses résultats à chaque bilan et ce qu\'il a gagné depuis le précédent.',
           'Son grade, ses niveaux exercice par exercice, ses records confirmés.',
           'Les résultats de bilan ou de défi <b>en attente de confirmation</b>.',
@@ -263,6 +265,7 @@
           '<b>Entraîn.</b> (on arrive ici) : à venir et passés. Un entraînement : les présents de Spond (à corriger d\'un toucher), <b>1. les ateliers</b> puis <b>2. les matchs</b>, et après la séance : évaluer des Skills avec les présents (une étoile ou un atelier), et les missions des présents (un toucher = +1).',
           '<b>Plateaux</b> : à venir et joués. Un plateau : les présents, puis la compo (jeu à 5 ou à 10, 2 versions, vote, contre-propositions), et le +1 pendant et après. Pastille rose = un vote ou une contre-proposition attend.',
           '<b>Progrès</b> : <b>Prépa physique</b> (les résultats de votre enfant à confirmer, ça bouge, le classement, les progrès aux bilans), <b>Skills</b> (évaluer, le passeport du groupe, la journée d\'évaluation) et <b>Missions</b> (pour le groupe, individuelles).',
+          '👏 <b>Bravo</b> : un enfant a fait sa séance ? Touchez « 👏 Bravo » sur sa ligne, dans <b>Progrès › Prépa physique › Ça bouge</b>, dans la <b>cloche</b> ou sur sa <b>fiche › Prépa</b> : c\'est envoyé, l\'enfant et sa famille le voient (une alerte sur le téléphone s\'ils l\'ont allumée). Retouchez « Envoyé » pour ajouter un petit mot ou retirer le bravo. Pas d\'XP : c\'est un encouragement.',
           '<b>Enfants</b> : <b>Tous</b>, <b>À relancer</b> (rien noté depuis 7 jours) et <b>Niveaux et postes</b> (la fiche terrain du groupe). Toucher un prénom ouvre sa fiche, partout dans l\'appli.',
           'La <b>flèche en haut à gauche</b>, sur tous les écrans, ramène à l\'écran d\'avant, là où vous étiez. Tout en haut d\'un écran, <b>tirez vers le bas</b> puis relâchez pour l\'actualiser (résultats, présents, compos).',
           'L\'<b>engrenage</b>, en haut à droite : mon enfant, mon code, les éducs (admin), les familles et leurs codes, Spond (admin), cet appareil, l\'aide et les nouveautés.',
@@ -273,7 +276,7 @@
       card('e-fiche', 'user', '#FFC23D', 'La fiche d\'un enfant', 'Touchez un prénom',
         ul([
           'En haut : son niveau, son poste, sa passerelle. Puis 6 onglets : <b>Terrain</b> (fiche terrain, postes souhaités, copains), <b>Skills</b> (valider ou retirer une étoile), <b>Missions</b> (sa mission perso et ses +1, les missions du groupe, ses mots), <b>Prépa</b>, <b>Historique</b> (plateaux et entraînements) et <b>Famille</b> (codes, classement, désactiver). Le dernier onglet choisi est gardé.',
-          'Prépa : ses séances (touchez-en une pour le détail), sa <b>progression d\'un bilan à l\'autre</b>, ses records confirmés, ses niveaux.',
+          'Prépa : ses séances (touchez-en une pour le détail ; « 👏 Bravo » à droite pour le féliciter), sa <b>progression d\'un bilan à l\'autre</b>, ses records confirmés, ses niveaux.',
           '<b>Modifier les niveaux</b> (N1 à N4) si le bilan ne reflète pas ce que vous voyez sur le terrain : bouton Modifier, puis Enregistrer. Les parents peuvent aussi les ajuster.',
           '<b>Nouveau code provisoire</b> si l\'enfant a oublié le sien.',
           '<b>Masquer du classement</b>, ou <b>désactiver</b> un joueur qui a quitté le groupe (ses données sont gardées).'

@@ -138,6 +138,9 @@ var Core = (function () {
     // un « +1 » (ou un mot) d'un éduc à un enfant : sur sa mission perso (missionId) ou sur autre chose (mot obligatoire)
     encouragements: [['id', 's'], ['joueurId', 's'], ['missionId', 's'], ['domaine', 's'], ['etoile', 's'], ['mot', 's'], ['parQui', 's'], ['parNom', 's'],
       ['date', 's'], ['occasion', 's'], ['evenementId', 's'], ['retire', 'b'], ['cree', 's']],
+    // (v36) un « bravo » d'un éduc à un enfant pour une séance de prépa faite : un par éduc et par séance, un mot facultatif
+    // (ajouté après coup) ; retire = donné par erreur. Pas d'XP : c'est un encouragement, pas une récompense.
+    bravos: [['id', 's'], ['joueurId', 's'], ['seanceId', 's'], ['mot', 's'], ['parQui', 's'], ['parNom', 's'], ['retire', 'b'], ['cree', 's'], ['maj', 's']],
     // les missions créées par les éducs : pour le groupe (video : une vidéo + des questions ; qcm) ou individuelles
     // (etoile : décrocher une étoile précise, pour un enfant). statut : active, faite (étoile validée), retiree
     defmissions: [['id', 's'], ['sorte', 's'], ['titre', 's'], ['texte', 's'], ['video', 's'], ['questions', 'j'], ['joueurId', 's'], ['domaine', 's'],
@@ -323,6 +326,13 @@ var Core = (function () {
     return { id: x.id, joueurId: x.joueurId, missionId: x.missionId || '', domaine: x.domaine || '', etoile: x.etoile || '', mot: x.mot || '', parQui: x.parQui || '', parNom: x.parNom || '',
       date: x.date || '', occasion: x.occasion || '', evenementId: x.evenementId || '', cree: x.cree || '' };
   }
+  // (v36) un bravo : l'éduc qui l'a donné (parQui) seulement pour les éducs
+  function pubBravo(x, full) {
+    var o = { id: x.id, joueurId: x.joueurId, seanceId: x.seanceId || '', mot: x.mot || '', parNom: x.parNom || '', cree: x.cree || '', maj: x.maj || x.cree || '' };
+    if (full) o.parQui = x.parQui || '';
+    return o;
+  }
+  function bravosDe(db, joueurId, full) { return where(db.rows('bravos'), 'joueurId', joueurId).filter(function (x) { return !x.retire; }).map(function (x) { return pubBravo(x, full); }); }
   function pubDef(m) {
     return { id: m.id, sorte: m.sorte, titre: m.titre || '', texte: m.texte || '', video: m.video || '', questions: Array.isArray(m.questions) ? m.questions : [],
       joueurId: m.joueurId || '', domaine: m.domaine || '', etoile: m.etoile || '', xp: Number(m.xp) || 0, debut: m.debut || '', fin: m.fin || '',
@@ -355,6 +365,7 @@ var Core = (function () {
       missions: where(db.rows('missions'), 'joueurId', joueur.id).map(function (m) { return pubMission(m, parent); }),
       etoiles: where(db.rows('etoiles'), 'joueurId', joueur.id).filter(function (e) { return !e.retiree; }).map(function (e) { return pubEtoile(e, ctx.auth && ctx.auth.r === 'e'); }),
       encouragements: where(db.rows('encouragements'), 'joueurId', joueur.id).filter(function (x) { return !x.retire; }).map(pubEnc),
+      bravos: bravosDe(db, joueur.id, !!(ctx.auth && ctx.auth.r === 'e')),
       defmissions: defsDe(db, joueur.id),
       demandes: where(db.rows('demandes'), 'joueurId', joueur.id).filter(function (x) { return x.statut !== 'retiree'; }).map(pubDemande)
     };
@@ -907,6 +918,7 @@ var Core = (function () {
       var fams = db.rows('familles'), terrain = db.rows('terrain');
       var etoiles = db.rows('etoiles').filter(function (e) { return !e.retiree; }), encs = db.rows('encouragements').filter(function (x) { return !x.retire; });
       var dems = db.rows('demandes').filter(function (x) { return x.statut !== 'retiree'; });
+      var bravos = db.rows('bravos').filter(function (x) { return !x.retire; });
       var joueurs = db.rows('joueurs').map(function (j) {
         return {
           joueur: pubJoueur(j),
@@ -918,6 +930,7 @@ var Core = (function () {
           terrain: pubTerrain(find(terrain, j.id)),
           etoiles: where(etoiles, 'joueurId', j.id).map(function (e) { return pubEtoile(e, true); }),
           encouragements: where(encs, 'joueurId', j.id).map(pubEnc),
+          bravos: where(bravos, 'joueurId', j.id).map(function (x) { return pubBravo(x, true); }),
           demandes: where(dems, 'joueurId', j.id).map(pubDemande)
         };
       });
@@ -1160,6 +1173,35 @@ var Core = (function () {
       if (!x || x.retire) fail('introuvable', 'Introuvable.');
       if (x.parQui !== ctx.auth.row.id && !ctx.auth.row.admin) fail('interdit', 'Seul l\'éduc qui l\'a donné peut le retirer.');
       ctx.db.update('encouragements', x.id, { retire: true });
+      return { id: x.id };
+    }
+  };
+  // (v36) « Bravo » pour une séance de prépa faite : un toucher. Un seul bravo par éduc et par séance (le 2e geste
+  // ne fait que changer le mot) ; mot facultatif (140 caractères). L'enfant et sa famille le voient ; pas d'XP.
+  A.bravo = {
+    auth: ['e'],
+    run: function (req, ctx) {
+      var s = find(ctx.db.rows('seances'), String(req.seanceId || ''));
+      if (!s) fail('introuvable', 'Séance introuvable.');
+      var j = joueurActif(ctx, s.joueurId), me = ctx.auth.row, now = isoNow(ctx.now), mot = req.mot === undefined ? null : cleanText(req.mot, 140), ex = null;
+      ctx.db.rows('bravos').forEach(function (x) { if (x.seanceId === s.id && x.parQui === me.id && !x.retire) ex = x; });
+      if (ex) {
+        if (mot !== null && mot !== (ex.mot || '')) { ctx.db.update('bravos', ex.id, { mot: mot, maj: now }); ctx.bravoMot = !!mot; }
+        return { bravo: pubBravo(find(ctx.db.rows('bravos'), ex.id), true), nouveau: false };
+      }
+      var row = { id: genId(ctx.env), joueurId: j.id, seanceId: s.id, mot: mot || '', parQui: me.id, parNom: educNom(ctx), retire: false, cree: now, maj: now };
+      ctx.db.insert('bravos', row);
+      return { bravo: pubBravo(row, true), nouveau: true };
+    }
+  };
+  // retirer un bravo donné par erreur : son auteur, ou l'admin
+  A.retirerBravo = {
+    auth: ['e'],
+    run: function (req, ctx) {
+      var x = find(ctx.db.rows('bravos'), String(req.id || ''));
+      if (!x || x.retire) fail('introuvable', 'Introuvable.');
+      if (x.parQui !== ctx.auth.row.id && !ctx.auth.row.admin) fail('interdit', 'Seul l\'éduc qui l\'a donné peut le retirer.');
+      ctx.db.update('bravos', x.id, { retire: true, maj: isoNow(ctx.now) });
       return { id: x.id };
     }
   };
@@ -1989,10 +2031,15 @@ var Core = (function () {
   // Le texte s'affiche sur l'écran verrouillé : le prénom de l'enfant (choix de Nicolas, 31/10), jamais un résultat chiffré,
   // ni le mot d'un enfant, ni ses copains. En mode démo (pas d'env.envoyerPush), rien n'est envoyé.
   // ---------------------------------------------------------
-  var PUSH_CATS = { p: ['resultat', 'nouvelle', 'niveau', 'etoile', 'mots', 'demande'], f: ['seance', 'confirmer', 'mission', 'niveau', 'skills', 'mots', 'nouvelle'],
+  var PUSH_CATS = { p: ['resultat', 'bravo', 'nouvelle', 'niveau', 'etoile', 'mots', 'demande'], f: ['seance', 'bravo', 'confirmer', 'mission', 'niveau', 'skills', 'mots', 'nouvelle'],
     e: ['seance', 'bilan', 'mission', 'etoile', 'niveau', 'compo'] };
   var PUSH_LIENS = { p: '#/notifs', f: '#/parent/notifs', e: '#/educ/notifs' };
   var SEANCES_NOMS = { cros: 'la séance de Cros', capuozzo: 'la séance de Capuozzo', dupont: 'la séance de Dupont', meafou: 'la séance de Meafou', club: 'l\'entraînement au club', recup: 'la récup' };
+  // (v36) « pour ta séance de Cros », « pour son entraînement au club »
+  function pourSeance(type, ta) {
+    var n = SEANCES_NOMS[type] || 'une séance';
+    return 'pour ' + (n.indexOf('la ') === 0 ? (ta ? 'ta ' : 'sa ') + n.slice(3) : n.indexOf('l\'') === 0 ? (ta ? 'ton ' : 'son ') + n.slice(2) : (ta ? 'ta séance' : 'sa séance'));
+  }
   function cleanCats(role, l) {
     var ok = PUSH_CATS[role] || [], out = [];
     (Array.isArray(l) ? l : []).slice(0, 20).forEach(function (c) { c = String(c); if (ok.indexOf(c) >= 0 && out.indexOf(c) < 0) out.push(c); });
@@ -2078,6 +2125,18 @@ var Core = (function () {
       var t = j.prenom + ' a fait ' + (SEANCES_NOMS[s.type] || 'une séance') + '.';
       alerter(ctx, { r: 'e', sujet: j.id }, 'seance', t);
       alerter(ctx, { r: 'f', qui: j.familleId, sujet: j.id }, 'seance', t);
+    },
+    // (v36) le bravo d'un éduc : l'enfant et sa famille (le prénom de l'éduc ; jamais le mot lui-même sur l'écran verrouillé)
+    bravo: function (req, ctx, res) {
+      var b = res.bravo, s = b ? find(ctx.db.rows('seances'), b.seanceId) : null, j = s ? find(ctx.db.rows('joueurs'), s.joueurId) : null, nom = ctx.auth.row.nom;
+      if (!s || !j) return;
+      if (res.nouveau) {
+        // une alerte par séance (sujet) : deux séances félicitées coup sur coup arrivent toutes les deux
+        alerter(ctx, { r: 'p', qui: j.id, sujet: s.id }, 'bravo', '👏 ' + nom + ' te dit bravo ' + pourSeance(s.type, true) + ' !' + (b.mot ? ' Avec un petit mot.' : ''));
+        alerter(ctx, { r: 'f', qui: j.familleId, sujet: s.id }, 'bravo', '👏 ' + nom + ' a dit bravo à ' + j.prenom + ' ' + pourSeance(s.type, false) + '.');
+      } else if (ctx.bravoMot) {
+        alerter(ctx, { r: 'p', qui: j.id, sujet: s.id }, 'bravo', '💬 ' + nom + ' t\'a laissé un mot ' + pourSeance(s.type, true) + '.');
+      }
     },
     submitRecords: function (req, ctx, res) {
       var j = ctx.auth.row, n = ctx.nAttente || 0;   // seulement les résultats nouveaux ou changés (pas un bilan renvoyé tel quel)

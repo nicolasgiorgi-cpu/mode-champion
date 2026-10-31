@@ -138,7 +138,7 @@
       return '<main class="screen">' + MC.kidSubBar('#/bilans', 'Bilans', 'Ma progression') +
         '<div class="head"><span class="kicker">Bilans de la saison</span><h1 class="big md">Ma progression</h1><p class="lead" style="margin:0">Tes résultats à chaque bilan, et ce que tu as gagné depuis le bilan d\'avant.</p></div>' +
         '<section class="sec">' + MC.suivi.progression(me.records, { vide: 'Fais ton premier bilan pour voir ta progression ici.' }) + '</section>' +
-        '<section class="sec"><h2 class="h2">Mes séances</h2><p class="small" style="margin:0">Touche une séance pour revoir le détail.</p>' + MC.suivi.seances(me.seances) + '</section></main>';
+        '<section class="sec"><h2 class="h2">Mes séances</h2><p class="small" style="margin:0">Touche une séance pour revoir le détail.</p>' + MC.suivi.seances(me.seances, { bravos: me.bravos }) + '</section></main>';
     });
   }, { kid: true, nav: 'prepa', live: true });
 

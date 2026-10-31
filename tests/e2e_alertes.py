@@ -163,14 +163,21 @@ with sync_playwright() as p:
     sw(pg).click(); pg.wait_for_timeout(1500)
     r = actifs(pg, 'f')
     fam = pg.evaluate('MC.app.S.cache.family.famille.id')
-    check('parent : abonné, pour sa famille, avec les 4 sortes ouvertes (V1)', len(r) == 1 and r[0]['qui'] == fam and sorted(r[0]['cats']) == sorted(['seance', 'confirmer', 'mission', 'niveau']), r)
+    check('parent : abonné, pour sa famille, avec les 5 sortes ouvertes (V1 ; v36 : + bravo)', len(r) == 1 and r[0]['qui'] == fam and sorted(r[0]['cats']) == sorted(['seance', 'bravo', 'confirmer', 'mission', 'niveau']), r)
     pg.goto(BASE + '#/parent'); pg.wait_for_timeout(900); pg.click('.tb-pass'); pg.wait_for_timeout(1800)
     pg.goto(BASE + '#/notifs/reglages'); pg.wait_for_timeout(1000)
     check('enfant : l\'interrupteur', sw(pg) is not None and 'Alertes sur ce téléphone' in sw(pg).inner_text())
     sw(pg).click(); pg.wait_for_timeout(1500)
     r = actifs(pg, 'p'); tom = pg.evaluate('MC.app.S.kid.joueur.id')
-    check('enfant : abonné (rôle joueur, son id, 3 sortes)', len(r) == 1 and r[0]['qui'] == tom and sorted(r[0]['cats']) == sorted(['resultat', 'nouvelle', 'niveau']), r)
+    check('enfant : abonné (rôle joueur, son id, 4 sortes ; v36 : + bravo)', len(r) == 1 and r[0]['qui'] == tom and sorted(r[0]['cats']) == sorted(['resultat', 'bravo', 'nouvelle', 'niveau']), r)
     check('enfant : « tu »', 'tu seras prévenu' in toast(pg), toast(pg))
+    # (v36) un appareil abonné avant la v36 (sans « bravo ») : à l'ouverture, le serveur reçoit la nouvelle sorte, même jeton
+    pg.evaluate("""k => { var d = JSON.parse(localStorage.getItem(k)); d.tables.push.forEach(function (x) { if (x.role === 'p') x.cats = ['resultat', 'nouvelle', 'niveau']; }); localStorage.setItem(k, JSON.stringify(d));
+      Object.keys(localStorage).filter(function (c) { return c.indexOf('mc-notif-push:k:') === 0; }).forEach(function (c) { var o = JSON.parse(localStorage.getItem(c)); delete o.c; localStorage.setItem(c, JSON.stringify(o)); }); }""", DEMO)
+    jet = actifs(pg, 'p')[0]['jeton']
+    pg.goto(BASE + '#/semaine'); pg.reload(); pg.wait_for_timeout(2500)
+    r = actifs(pg, 'p')
+    check('v36 : abonné avant les bravos → la sorte « bravo » arrive au serveur toute seule', len(r) == 1 and 'bravo' in r[0]['cats'] and r[0]['jeton'] == jet, r)
     check('le parent garde les siennes (deux profils, un appareil)', len(actifs(pg, 'f')) == 1)
     ctx.close()
     # ----- 10. permission refusée au moment de la question -----
@@ -214,7 +221,7 @@ with sync_playwright() as p:
     pg.goto(BASE + '#/parent/notifs/reglages'); pg.wait_for_timeout(1000)
     t = pg.inner_text('main')
     check('navigateur sans alertes (Android) : « Ouvrez l\'appli dans Chrome »', sw(pg) is None and 'Chrome' in t, t[:300])
-    check('… les sortes de la cloche restent réglables', pg.evaluate("document.querySelectorAll('[data-act=ntToggle]').length") == 4)
+    check('… les sortes de la cloche restent réglables (5 pour un parent depuis la v36)', pg.evaluate("document.querySelectorAll('[data-act=ntToggle]').length") == 5)
     ctx.close()
     b.close()
 bad = [n for n, c in res if not c]
