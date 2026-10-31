@@ -471,7 +471,11 @@ MC.app = (function () {
     refreshers.forEach(function (fn) { try { var p = fn(o); if (p && typeof p.then === 'function') jobs.push(p); } catch (e) { } });
     return Promise.all(jobs).then(function () { render(); });
   }
-  var PT = { track: false, on: false, busy: false, y0: 0, x0: 0, d: 0, el: null }, PULL_GO = 70, PULL_MAX = 116;
+  // (31/10, après les essais de Nicolas) plus difficile à déclencher : il faut tirer franchement (environ 210 px de doigt,
+  // un quart d'écran de téléphone ; avant : 130) et pas d'un simple coup de doigt rapide (au moins 0,3 s).
+  var PT = { track: false, on: false, busy: false, y0: 0, x0: 0, d: 0, ts: 0, tm: 0, el: null },
+    PULL_DEAD = 16, PULL_RATIO = 0.5, PULL_GO = 96, PULL_MAX = 132, PULL_TMIN = 300;
+  function pullPret() { return PT.d >= PULL_GO && Date.now() - PT.ts >= PULL_TMIN; }
   function ptrEl() {
     if (!PT.el) {
       PT.el = document.createElement('div');
@@ -492,7 +496,7 @@ MC.app = (function () {
     el.style.setProperty('--rot', state === 'pull' ? Math.round(d / PULL_GO * 300) + 'deg' : '0deg');
     el.style.opacity = Math.min(1, d / 34);
     el.querySelector('.ptr-t').textContent = ptrText(state);
-    root.style.transform = d ? 'translateY(' + d + 'px)' : '';
+    root.style.transform = d ? 'translate3d(0,' + d + 'px,0)' : '';
   }
   function ptrHide() {
     root.classList.add('ptr-back'); if (PT.el) PT.el.classList.add('ptr-back');
@@ -512,28 +516,33 @@ MC.app = (function () {
     var t = e.target;
     if (!t || !t.closest || t.closest('input, textarea, select, .modal, .numpad, .bk, [data-noptr]') || document.querySelector('.modal, .bk') || document.body.classList.contains('np-open')) return;
     if (scrolledInside(t)) return;
-    PT.track = true; PT.y0 = e.touches[0].clientY; PT.x0 = e.touches[0].clientX; PT.d = 0;
+    PT.track = true; PT.y0 = e.touches[0].clientY; PT.x0 = e.touches[0].clientX; PT.d = 0; PT.ts = Date.now();
+    ebPrep();   // la page sur sa couche graphique avant de bouger (pas de saccade à la 1re image)
   }
   function onTouchMove(e) {
     if (!PT.track || !e.touches || e.touches.length !== 1) return;
     var dy = e.touches[0].clientY - PT.y0, dx = e.touches[0].clientX - PT.x0;
     if (!PT.on) {
       if (dy <= 0 || Math.abs(dx) > dy || (window.scrollY || 0) > 0) { if (dy < 0 || Math.abs(dx) > 12) PT.track = false; return; }
-      if (dy < 10) return;                    // un simple toucher qui glisse un peu ne déclenche rien
+      if (dy < PULL_DEAD) return;             // un simple toucher qui glisse un peu ne déclenche rien
       PT.on = true; root.classList.add('ptr-pull');
     } else if (dy <= 4 || (window.scrollY || 0) > 0) {
       // on remonte (ou la page défile) : on lâche, le défilement normal reprend
       PT.on = false; PT.track = false; root.classList.remove('ptr-pull'); ptrHide(); return;
     }
-    PT.d = Math.max(0, Math.min(PULL_MAX, Math.round(dy * 0.55)));
-    ptrShow(PT.d, PT.d >= PULL_GO ? 'go' : 'pull');
+    // l'écran part de 0 (pas de saut au moment où le tirer commence), avec résistance
+    PT.d = Math.max(0, Math.min(PULL_MAX, Math.round((dy - PULL_DEAD) * PULL_RATIO)));
+    ptrShow(PT.d, pullPret() ? 'go' : 'pull');
+    // assez tiré mais trop vite : « Relâchez » s'affiche quand même au bout de 0,3 s si le doigt ne bouge plus
+    clearTimeout(PT.tm);
+    if (PT.d >= PULL_GO && !pullPret()) PT.tm = setTimeout(function () { if (PT.on && pullPret()) ptrShow(PT.d, 'go'); }, PULL_TMIN - (Date.now() - PT.ts) + 5);
   }
   function onTouchEnd() {
     if (!PT.track) return;
     PT.track = false;
     if (!PT.on) return;
-    PT.on = false; root.classList.remove('ptr-pull');
-    if (PT.d < PULL_GO) { ptrHide(); return; }
+    PT.on = false; root.classList.remove('ptr-pull'); clearTimeout(PT.tm);
+    if (!pullPret()) { ptrHide(); return; }
     PT.busy = true;
     root.classList.add('ptr-back'); ptrShow(56, 'load');
     var t0 = Date.now();
@@ -555,7 +564,13 @@ MC.app = (function () {
   // s'arrêtait net au bout. Un léger ressort à la place : glisser au-delà du bas (ou du haut, sur les écrans sans
   // « tirer pour actualiser ») tire la page avec résistance, puis elle revient ; un élan (doigt levé) qui arrive au
   // bout rebondit un peu. La barre du haut reste en place. Rien si l'appareil demande de réduire les animations.
-  var EB = { track: false, on: false, dir: 0, py: 0, y0: 0, x0: 0, axis: 0, anchor: 0, x: 0, raf: 0, touching: false, tEnd: 0, lastY: 0, lastT: 0 };
+  // (31/10, plus fluide) : la page passe sur sa propre couche graphique un peu avant le rebond (eb-prep : sinon la
+  // 1re image saccade, le temps de la créer) ; translate3d ; la barre du haut retenue directement (plus de variable CSS
+  // héritée par toute la page, qui faisait recalculer tous les éléments à chaque image) ; ressort amorti sans
+  // dépassement, calculé d'après l'heure (régulier même si une image saute) ; l'élan garde sa vitesse en arrivant au bout.
+  var EB = { track: false, on: false, dir: 0, py: 0, y0: 0, x0: 0, axis: 0, anchor: 0, x: 0, raf: 0, touching: false, tEnd: 0, lastY: 0, lastT: 0,
+    vel: 0, bar: null, shown: false, prep: false, prepT: 0 };
+  var EB_W = 15;   // le ressort (rad/s) : revient en ~0,45 s
   var EB_SKIP = 'input, textarea, select, .modal, .numpad, .bk, [data-noptr], .fiche, .kidpick';
   var EB_OK = (function () { try { return !window.CSS || !CSS.supports || CSS.supports('overscroll-behavior-y', 'none'); } catch (e) { return true; } })();
   // pas de rebond maison : animations réduites, navigateur qui rebondit déjà tout seul (iOS < 16), ou clavier ouvert (champ actif)
@@ -566,27 +581,41 @@ MC.app = (function () {
     try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { return false; }
   }
   function maxScroll() { var de = document.documentElement; return Math.max(0, Math.max(de.scrollHeight, document.body.scrollHeight) - window.innerHeight); }
+  function ebPrep() {
+    if (!root) return;
+    if (!EB.prep) { EB.prep = true; root.classList.add('eb-prep'); }
+    clearTimeout(EB.prepT); EB.prepT = setTimeout(ebUnprep, 1500);
+  }
+  function ebUnprep() {
+    if (EB.on || EB.raf || EB.x || EB.touching || PT.on || PT.busy) { EB.prepT = setTimeout(ebUnprep, 1500); return; }
+    EB.prep = false; root.classList.remove('eb-prep');
+  }
+  // près du haut (écran sans « tirer pour actualiser ») ou du bas : préparer la couche
+  function ebPres() {
+    var sy = window.scrollY || 0, h = window.innerHeight || 600;
+    return sy >= maxScroll() - h * 0.6 || (sy <= h * 0.3 && !pullable());
+  }
   // x < 0 : la page monte (rebond en bas), la barre du haut est retenue ; x > 0 : la page descend (rebond en haut)
   function ebSet(x) {
     EB.x = x;
     if (Math.abs(x) < 0.4) {
       EB.x = 0;
-      if (root.classList.contains('eb-on')) { root.classList.remove('eb-on'); root.style.transform = ''; root.style.removeProperty('--eb'); }
+      if (EB.shown) { EB.shown = false; root.classList.remove('eb-on'); root.style.transform = ''; if (EB.bar) EB.bar.style.transform = ''; EB.bar = null; }
       return;
     }
-    root.classList.add('eb-on');
-    root.style.setProperty('--eb', (x < 0 ? -x : 0).toFixed(1) + 'px');
-    root.style.transform = 'translateY(' + x.toFixed(1) + 'px)';
+    if (!EB.shown || (EB.bar && !EB.bar.isConnected)) { EB.shown = true; root.classList.add('eb-on'); EB.bar = root.querySelector('.topbar'); }
+    root.style.transform = 'translate3d(0,' + x.toFixed(1) + 'px,0)';
+    if (EB.bar) EB.bar.style.transform = x < 0 ? 'translate3d(0,' + (-x).toFixed(1) + 'px,0)' : '';
   }
   // ressort amorti (un léger dépassement, puis immobile) : départ en x (px) avec une vitesse v (px/s)
+  // ressort à amortissement critique : x(t) = (x0 + (v0 + w·x0)·t)·e^(−w·t) ; départ en x0 (px), vitesse v0 (px/s)
   function ebSpring(x0, v0) {
     if (EB.raf) cancelAnimationFrame(EB.raf);
-    var x = x0, v = v0, k = 170, c = 2 * Math.sqrt(k) * 0.72, last = 0;
-    function step(t) {
-      if (!last) last = t;
-      var dt = Math.min(0.034, Math.max(0, (t - last) / 1000)); last = t;
-      for (var i = 0; i < 3; i++) { var h = dt / 3, a = -k * x - c * v; v += a * h; x += v * h; }
-      if (Math.abs(x) < 0.5 && Math.abs(v) < 12) { EB.raf = 0; ebSet(0); return; }
+    ebPrep();
+    var w = EB_W, b = v0 + w * x0, t0 = performance.now();
+    function step(now) {
+      var t = Math.max(0, (now - t0) / 1000), e = Math.exp(-w * t), x = (x0 + b * t) * e, v = (v0 - w * b * t) * e;
+      if (t > 0.03 && Math.abs(x) < 0.5 && Math.abs(v) < 15) { EB.raf = 0; ebSet(0); return; }
       ebSet(x);
       EB.raf = requestAnimationFrame(step);
     }
@@ -600,6 +629,7 @@ MC.app = (function () {
     if (!t || !t.closest || t.closest(EB_SKIP) || document.querySelector('.modal, .bk') || document.body.classList.contains('np-open')) return;
     if (EB.raf) ebStop();   // un doigt pendant que la page revient : elle s'arrête là où elle est (presque revenue)
     EB.track = true; EB.py = EB.y0 = e.touches[0].clientY; EB.x0 = e.touches[0].clientX;
+    if (ebPres()) ebPrep();
   }
   function ebMove(e) {
     if (!EB.track || !e.touches || e.touches.length !== 1) return;
@@ -614,6 +644,7 @@ MC.app = (function () {
     }
     if (!EB.on) {
       var sy = window.scrollY || 0;
+      if (!EB.prep && ebPres()) ebPrep();
       if (y < py && sy >= maxScroll() - 2) { EB.on = true; EB.dir = -1; EB.anchor = py; }
       else if (y > py && sy <= 0 && !pullable()) { EB.on = true; EB.dir = 1; EB.anchor = py; }
       else return;
@@ -630,12 +661,16 @@ MC.app = (function () {
   }
   // l'élan du défilement (doigt levé) qui arrive en bas ou en haut : la page continue un peu, puis revient
   function ebScroll() {
-    var now = Date.now(), y = window.scrollY || 0, dt = now - EB.lastT, dy = y - EB.lastY, prev = EB.lastY;
+    var now = performance.now(), y = window.scrollY || 0, dt = now - EB.lastT, dy = y - EB.lastY, prev = EB.lastY, vAvant = EB.vel;
     EB.lastY = y; EB.lastT = now;
-    if (EB.touching || EB.raf || EB.x || !painted || now - EB.tEnd > 3000 || !(dt > 0 && dt < 100) || Math.abs(dy) > 300) return;
-    var vel = dy / dt;   // px/ms
+    // la vitesse du défilement (px/ms), lissée sur les derniers événements
+    EB.vel = dt > 0 && dt < 100 && Math.abs(dy) < 600 ? (vAvant ? 0.6 * (dy / dt) + 0.4 * vAvant : dy / dt) : 0;
+    if (EB.touching || EB.raf || EB.x || !painted || Date.now() - EB.tEnd > 3000 || !(dt > 0 && dt < 100) || Math.abs(dy) > 600) return;
+    if (!EB.prep && !ebReduced() && ebPres()) ebPrep();   // l'élan approche du bout : la couche est prête avant
+    // au bout, le dernier pas est raccourci (la page s'arrête net) : la vitesse d'avant compte aussi
+    var vel = Math.abs(vAvant) > Math.abs(dy / dt) && (vAvant > 0) === (dy > 0) ? vAvant : dy / dt;
     if (Math.abs(vel) < 0.35 || ebReduced() || PT.on || PT.busy || document.querySelector('.modal, .bk')) return;
-    var max = maxScroll(), v0 = Math.min(780, 220 * Math.abs(vel));
+    var max = maxScroll(), v0 = Math.min(2000, 1000 * Math.abs(vel));   // px/s : le rebond part à la vitesse de l'élan (50 px au plus)
     if (vel > 0 && y >= max - 1 && prev < max - 1) ebSpring(0, -v0);
     else if (vel < 0 && y <= 0 && prev > 0) ebSpring(0, v0);
   }

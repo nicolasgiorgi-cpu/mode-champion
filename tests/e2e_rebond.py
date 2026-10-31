@@ -11,7 +11,7 @@ def pin(pg, code, sel='#adultzone'):
     for c in code: pg.click(sel + ' [data-k="%s"]' % c); pg.wait_for_timeout(50)
 def ty(pg, sel):
     t = pg.evaluate("(function(){var e=document.querySelector('%s');return e?e.style.transform||getComputedStyle(e).transform:''})()" % sel)
-    m = re.search(r'translateY\((-?[\d.]+)px\)', t or '')
+    m = re.search(r'translateY\((-?[\d.]+)px\)', t or '') or re.search(r'translate3d\(0(?:px)?, (-?[\d.]+)px', t or '')
     if m: return float(m.group(1))
     m = re.search(r'matrix\(1, 0, 0, 1, 0, (-?[\d.]+)\)', t or '')
     return float(m.group(1)) if m else 0.0
@@ -41,6 +41,9 @@ with sync_playwright() as p:
             d = ty(pg, '#app'); tb = ty(pg, '#app .topbar')
             check('en bas, on tire vers le haut : la page monte avec résistance', -150 <= d < -20, d)
             check('la barre du haut reste en place', abs(tb + d) < 1.5, (d, tb))
+            # (31/10, plus fluide) la page est sur sa propre couche, sans variable CSS recalculée pour toute la page
+            check('pendant le rebond : la page sur sa couche (eb-prep, will-change)', pg.evaluate("document.getElementById('app').classList.contains('eb-prep') && getComputedStyle(document.getElementById('app')).willChange === 'transform'"))
+            check('pendant le rebond : plus de variable --eb sur la page', pg.evaluate("document.getElementById('app').style.getPropertyValue('--eb')") == '')
             touch(cdp, 'touchEnd', W // 2, int(H * 0.3)); pg.wait_for_timeout(150)
             mid = ty(pg, '#app')
             pg.wait_for_timeout(1100)
@@ -50,9 +53,16 @@ with sync_playwright() as p:
             pg.evaluate('window.scrollTo(0, 0)'); pg.wait_for_timeout(300)
             pg.evaluate("""() => new Promise(r => { MC.rebond.state.tEnd = Date.now(); MC.rebond.state.touching = false;
                 var max = document.documentElement.scrollHeight - innerHeight, y = Math.max(0, max - 600), mn = 0;
-                (function f(){ y = Math.min(max, y + 40); window.scrollTo(0, y); var t = parseFloat((document.getElementById('app').style.transform.match(/-?[\\d.]+/)||[0])[0]); if (t < mn) mn = t; if (y < max) requestAnimationFrame(f); else { var n = 0; (function g(){ var t2 = parseFloat((document.getElementById('app').style.transform.match(/-?[\\d.]+/)||[0])[0]); if (t2 < mn) mn = t2; if (++n < 30) requestAnimationFrame(g); else { window.__mn = mn; r(); } })(); } })(); })""")
+                // le décalage vertical de la page (translate3d(0, y, 0) ou translateY(y))
+                function ty() { var m = document.getElementById('app').style.transform.match(/translate(?:3d\\(0(?:px)?, |Y\\()(-?[\\d.]+)px/); return m ? parseFloat(m[1]) : 0; }
+                (function f(){ y = Math.min(max, y + 40); window.scrollTo(0, y); var t = ty(); if (t < mn) mn = t; if (y < max) requestAnimationFrame(f); else { var n = 0; (function g(){ var t2 = ty(); if (t2 < mn) mn = t2; if (++n < 30) requestAnimationFrame(g); else { window.__mn = mn; r(); } })(); } })(); })""")
             mn = pg.evaluate('window.__mn')
-            check('élan qui arrive en bas : petit rebond vers le haut', -40 <= mn < -3, mn)
+            check('élan qui arrive en bas : petit rebond vers le haut', -60 <= mn < -3, mn)
+            # le ressort : la vitesse de l'élan, puis retour sans dépasser de l'autre côté
+            tr = pg.evaluate("""() => new Promise(res => { var out = []; MC.rebond.spring(0, -1500); var t0 = performance.now();
+                (function f(t){ var m = (document.getElementById('app').style.transform.match(/translate3d\\(0px, (-?[\\d.]+)px/)||[0,0])[1]; out.push(+m); if (t - t0 < 800) requestAnimationFrame(f); else res(out); })(t0); })""")
+            check('ressort : pic proportionné à l\'élan (1500 px/s → 25 à 50 px)', -50 <= min(tr) <= -25, min(tr))
+            check('ressort : jamais de l\'autre côté (pas de saccade au retour)', max(tr) <= 0 and tr[-1] == 0, (max(tr), tr[-1]))
             pg.wait_for_timeout(900)
             check('après l\'élan : la page est revenue', ty(pg, '#app') == 0)
             # en haut d'un écran SANS « tirer pour actualiser » (réglages éduc) : rebond vers le bas

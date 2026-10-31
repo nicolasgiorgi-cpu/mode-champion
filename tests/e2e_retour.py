@@ -26,9 +26,10 @@ with sync_playwright() as p:
     pg = ctx.new_page(); pg.on('pageerror', lambda e: errs.append(str(e)))
     cdp = ctx.new_cdp_session(pg)
     def touch(t, x, y): cdp.send('Input.dispatchTouchEvent', {'type': t, 'touchPoints': [] if t == 'touchEnd' else [{'x': x, 'y': y}]})
-    def pull(dist):
+    # (31/10) tirer franchement : ~210 px de doigt et au moins 0,3 s ; n pas de 16 ms (12 pas = un coup de doigt rapide)
+    def pull(dist, n=28):
         touch('touchStart', W // 2, 230)
-        for k in range(1, 13): touch('touchMove', W // 2, 230 + dist * k / 12); pg.wait_for_timeout(16)
+        for k in range(1, n + 1): touch('touchMove', W // 2, 230 + dist * k / n); pg.wait_for_timeout(16)
         st = pg.evaluate("(() => { const e = document.querySelector('.ptr'); return e ? e.className + '|' + e.textContent : '' })()")
         touch('touchEnd', 0, 0); return st
     pg.goto(BASE); pg.wait_for_timeout(400); pg.evaluate('localStorage.clear(); sessionStorage.clear()'); pg.goto(BASE); pg.wait_for_timeout(700)
@@ -94,7 +95,14 @@ with sync_playwright() as p:
     # tirer pour actualiser (éduc)
     push(pg, '#/educ/mission/poste'); pg.evaluate('window.scrollTo(0,0)')
     pg.evaluate("window.__calls=[]; const c0 = MC.api.call; MC.api.call = function (a) { window.__calls.push(a); return c0.apply(this, arguments) }; 1")
-    st = pull(230); pg.wait_for_timeout(1400)
+    # (31/10) plus difficile à déclencher : un tirer moyen (150 px) ou un coup de doigt rapide ne redemandent rien
+    st = pull(150); pg.wait_for_timeout(900)
+    check('éduc : tirer 150 px = pas encore « Relâchez »', 'Relâchez' not in st and 'Tirez' in st, st)
+    check('éduc : tirer 150 px ne redemande rien au serveur', 'group' not in pg.evaluate('window.__calls'), pg.evaluate('window.__calls'))
+    st = pull(260, 6); pg.wait_for_timeout(900)
+    check('éduc : un coup de doigt rapide (260 px en 0,1 s) ne redemande rien', 'group' not in pg.evaluate('window.__calls') and 'Relâchez' not in st, (st, pg.evaluate('window.__calls')))
+    check('… et l\'écran revient en place', pg.evaluate("document.getElementById('app').style.transform") in ('', 'none'))
+    st = pull(260); pg.wait_for_timeout(1400)
     check('éduc : tirer fort en haut = « Relâchez pour actualiser »', 'Relâchez' in st, st)
     check('éduc : le groupe est redemandé au serveur', 'group' in pg.evaluate('window.__calls'), pg.evaluate('window.__calls'))
     check('écran remis en place après', pg.evaluate("document.getElementById('app').style.transform") in ('', 'none'))

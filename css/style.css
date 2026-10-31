@@ -367,7 +367,8 @@ label.lab{font:600 11px/1.2 var(--f-hud);letter-spacing:.14em;color:var(--dim);t
 .ptr.err .ptr-t{color:var(--yellow)}
 .ptr.ptr-back,#app.ptr-back{transition:transform .25s ease,opacity .25s ease}
 /* (v33) rebond en fin de défilement : la page est décalée le temps du ressort (js/app.js), la barre du haut reste en place */
-#app.eb-on .topbar{transform:translateY(var(--eb,0px))}
+/* (31/10) le rebond : la page sur sa propre couche juste avant (js/app.js, ebPrep) ; la barre du haut est retenue par js */
+#app.eb-prep{will-change:transform}
 @keyframes ptrspin{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.ptr.spin .ptr-i svg{animation-duration:2s}}
 .cbtn.tb-back.off{--cbc:#2A3350;--cbt:#4A5577;cursor:default;pointer-events:none}
