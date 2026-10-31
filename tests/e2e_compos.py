@@ -304,7 +304,7 @@ with sync_playwright() as p:
     pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(900)
     check('jeu à 10 : postes affichés', len(pg.query_selector_all('.cpj .cpo')) >= 16)
     check('jeu à 10 : bouton Postes auto', pg.query_selector('[data-act="cPostes"]') is not None)
-    ordre = ev(pg, """[...document.querySelectorAll('.ccol')].map(c => [...c.querySelectorAll('.csec')].map(s => s.querySelector('.csech span').textContent + ':' + [...s.querySelectorAll('.cpo')].map(x => x.textContent).join(',')))""")
+    ordre = ev(pg, """[...document.querySelectorAll('.ccol')].map(c => [...c.querySelectorAll('.csec')].map(s => ((s.querySelector('.csech span') || {}).textContent || '') + ':' + [...s.querySelectorAll('.cpo')].map(x => x.textContent).join(',')))""")
     rang = {'Pilier': 0, 'Talon.': 1, '3e L.': 2, '9': 3, '10': 4, 'Centre': 5, 'Ailier': 6}
     def bien_range(team):
         if not team or not team[0].startswith('Avants:') or len(team) < 2 or not team[1].startswith('Arrières:'): return False
