@@ -40,18 +40,35 @@ MC.app = (function () {
   }
 
   // ---------- Appareil partagé (le téléphone ou l'iPad des parents) ----------
-  // Dès qu'un enfant a utilisé l'appareil, l'espace adulte se verrouille : on retape son code après
-  // 10 min sans y toucher, ou dès qu'on revient côté joueur. Les adultes peuvent couper ce réglage.
-  // Quand plusieurs enfants utilisent l'appareil, on demande « C'est bien toi ? » après 30 min.
-  var OPEN_KEY = 'mc-adult-open', SHARED_KEY = 'mc-shared', SEEN_KEY = 'mc-kid-seen';
-  var ADULT_IDLE = 10 * 60000, KID_IDLE = 30 * 60000;
+  // (31/10, v33) Quand on rouvre l'appli, on retrouve le DERNIER profil utilisé (enfant, parent ou éduc), sans code.
+  // Sur un appareil qui sert aussi à un enfant, le code adulte n'est redemandé qu'à un moment : quand on repasse
+  // de l'espace de l'enfant (ou de la connexion des joueurs) à l'espace adulte. Plus de verrou au bout de 10 min.
+  // Les adultes peuvent couper ce réglage. Quand plusieurs enfants utilisent l'appareil, « C'est bien toi ? » après 30 min.
+  var OPEN_KEY = 'mc-adult-open', SHARED_KEY = 'mc-shared', SEEN_KEY = 'mc-kid-seen', LAST_KEY = 'mc-last';
+  var ADULT_IDLE = 10 * 60000, KID_IDLE = 30 * 60000;   // ADULT_IDLE : seulement pour lire l'ancien réglage (heure d'expiration)
   var adultTarget = null, kidTarget = null, lastAdult = false;
   function recents() { var r = lsGet('mc-recents'); return Array.isArray(r) ? r.filter(function (x) { return typeof x === 'string'; }) : []; }
   function sharedDevice() { var p = lsGet(SHARED_KEY); if (p === 'off') return false; if (p === 'on') return true; return recents().length > 0; }
   function setShared(on) { lsSet(SHARED_KEY, on ? 'on' : 'off'); if (on) touchAdult(); }
-  function adultUnlocked() { if (!S.adult) return false; if (!sharedDevice()) return true; return Number(lsGet(OPEN_KEY) || 0) > Date.now(); }
-  function touchAdult() { if (S.adult && sharedDevice()) lsSet(OPEN_KEY, Date.now() + ADULT_IDLE); }
+  // ouvert = true ; avant la v33, c'était l'heure d'expiration (un nombre) : un nombre veut dire « laissé ouvert »
+  function openFlag() { var v = lsGet(OPEN_KEY); return v === true || (typeof v === 'number' && v > 0); }
+  function adultUnlocked() { if (!S.adult) return false; if (!sharedDevice()) return true; return openFlag(); }
+  function touchAdult() { if (S.adult && sharedDevice() && lsGet(OPEN_KEY) !== true) lsSet(OPEN_KEY, true); }
   function lockAdult() { lsSet(OPEN_KEY, null); }
+  // le dernier profil utilisé sur l'appareil : 'k' (un enfant), 'f' (parent) ou 'e' (éduc)
+  function lastProfile() {
+    var l = lsGet(LAST_KEY);
+    if (l === 'k' && S.kid) return 'k';
+    if ((l === 'f' || l === 'e') && S.adult && S.adult.role === l) return l;
+    if (S.adult && S.kid) {
+      // pas encore retenu (appli d'avant la v33) : le plus récent des deux
+      var v = lsGet(OPEN_KEY), adultAt = typeof v === 'number' ? v - ADULT_IDLE : 0, kidAt = Number(lsGet(SEEN_KEY) || 0);
+      return adultAt > kidAt || (!sharedDevice() && !kidAt) ? S.adult.role : 'k';
+    }
+    if (S.adult) return S.adult.role;
+    return S.kid ? 'k' : null;
+  }
+  function startHash() { var l = lastProfile(); return l === 'k' ? '#/semaine' : l === 'f' ? '#/parent' : l === 'e' ? '#/educ/entrainements' : '#/connexion'; }
   function touchKid() { if (S.kid) lsSet(SEEN_KEY, Date.now()); }
   function kidCheckNeeded() { return !!(S.kid && recents().length >= 2 && Date.now() - Number(lsGet(SEEN_KEY) || 0) > KID_IDLE); }
   function takeTarget(who) { var t = who === 'adult' ? adultTarget : kidTarget; if (who === 'adult') adultTarget = null; else kidTarget = null; return t; }
@@ -161,8 +178,9 @@ MC.app = (function () {
     if (sp === 'k') return '#/semaine';
     if (sp === 'f') return '#/parent';
     if (sp === 'e') return '#/educ/entrainements';
-    if (S.adult && adultUnlocked()) return S.adult.role === 'e' ? '#/educ/entrainements' : '#/parent';
-    return S.kid ? '#/semaine' : '#/connexion';
+    var l = lastProfile();
+    if ((l === 'f' || l === 'e') && !adultUnlocked()) l = S.kid ? 'k' : null;
+    return l === 'k' ? '#/semaine' : l === 'f' ? '#/parent' : l === 'e' ? '#/educ/entrainements' : '#/connexion';
   }
   function isHome(h, sp) { var p = parseHash(h).path; return p === parseHash(homeOf(sp)).path || (sp === 'e' && p === '/educ'); }
   function usable(en, here, sp) {
@@ -234,7 +252,7 @@ MC.app = (function () {
     renderedHash = location.hash;
     var ph = parseHash(), r = null, params = {}, mr = matchRoute(ph.path);
     if (mr) { r = mr.r; r.keys.forEach(function (k, j) { try { params[k] = decodeURIComponent(mr.m[j + 1]); } catch (e) { params[k] = mr.m[j + 1]; } }); }
-    if (!r) { go(S.kid ? '#/semaine' : '#/connexion', true); return; }
+    if (!r) { go(homeOf(null), true); return; }
     var o = r.opts;
     if (o.kid && !S.kid) { go('#/connexion', true); return; }
     if (o.kid && S.kid && S.kid.joueur.mustChange && !o.first) { go('#/premiere', true); return; }
@@ -244,9 +262,12 @@ MC.app = (function () {
     if (o.adult && S.adult.mustChange) { go('#/adultes/code', true); return; }   // 1re connexion : il choisit d'abord son code
     if (o.kid && !o.first && !o.busy && kidCheckNeeded()) { kidTarget = location.hash; go('#/qui', true); return; }
     if (o.adult) touchAdult();
-    else if (lastAdult && !o.neutral && sharedDevice()) lockAdult();   // retour côté joueur : l'espace adulte se referme
+    else if ((lastAdult || o.kid) && !o.neutral && sharedDevice()) lockAdult();   // retour côté joueur : l'espace adulte se referme
     lastAdult = !!o.adult;
     if (o.kid) touchKid();
+    // le dernier profil utilisé : c'est lui qu'on retrouve en rouvrant l'appli (sans code)
+    var lp = o.kid ? 'k' : o.adult ? S.adult.role : null;
+    if (lp && lsGet(LAST_KEY) !== lp) lsSet(LAST_KEY, lp);
     if (current && current.cleanup) { try { current.cleanup(); } catch (e) { } }
     current = { route: r, params: params, q: ph.q, cleanup: null };
     var seq = ++renderSeq;
@@ -523,12 +544,101 @@ MC.app = (function () {
       setTimeout(function () { PT.busy = false; ptrHide(); ui.toast(err && err.message ? err.message : 'Pas de réseau : réessaie dans un instant.', true); }, 700);
     });
   }
+  // ---------- Rebond en fin de défilement (v33) ----------
+  // Le rebond natif est coupé (overscroll-behavior, pour « tirer pour actualiser ») : sans rien, le défilement
+  // s'arrêtait net au bout. Un léger ressort à la place : glisser au-delà du bas (ou du haut, sur les écrans sans
+  // « tirer pour actualiser ») tire la page avec résistance, puis elle revient ; un élan (doigt levé) qui arrive au
+  // bout rebondit un peu. La barre du haut reste en place. Rien si l'appareil demande de réduire les animations.
+  var EB = { track: false, on: false, dir: 0, py: 0, y0: 0, x0: 0, axis: 0, anchor: 0, x: 0, raf: 0, touching: false, tEnd: 0, lastY: 0, lastT: 0 };
+  var EB_SKIP = 'input, textarea, select, .modal, .numpad, .bk, [data-noptr], .fiche, .kidpick';
+  function ebReduced() { try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { return false; } }
+  function maxScroll() { var de = document.documentElement; return Math.max(0, Math.max(de.scrollHeight, document.body.scrollHeight) - window.innerHeight); }
+  // x < 0 : la page monte (rebond en bas), la barre du haut est retenue ; x > 0 : la page descend (rebond en haut)
+  function ebSet(x) {
+    EB.x = x;
+    if (Math.abs(x) < 0.4) {
+      EB.x = 0;
+      if (root.classList.contains('eb-on')) { root.classList.remove('eb-on'); root.style.transform = ''; root.style.removeProperty('--eb'); }
+      return;
+    }
+    root.classList.add('eb-on');
+    root.style.setProperty('--eb', (x < 0 ? -x : 0).toFixed(1) + 'px');
+    root.style.transform = 'translateY(' + x.toFixed(1) + 'px)';
+  }
+  // ressort amorti (un léger dépassement, puis immobile) : départ en x (px) avec une vitesse v (px/s)
+  function ebSpring(x0, v0) {
+    if (EB.raf) cancelAnimationFrame(EB.raf);
+    var x = x0, v = v0, k = 170, c = 2 * Math.sqrt(k) * 0.72, last = 0;
+    function step(t) {
+      if (!last) last = t;
+      var dt = Math.min(0.034, Math.max(0, (t - last) / 1000)); last = t;
+      for (var i = 0; i < 3; i++) { var h = dt / 3, a = -k * x - c * v; v += a * h; x += v * h; }
+      if (Math.abs(x) < 0.5 && Math.abs(v) < 12) { EB.raf = 0; ebSet(0); return; }
+      ebSet(x);
+      EB.raf = requestAnimationFrame(step);
+    }
+    EB.raf = requestAnimationFrame(step);
+  }
+  function ebStop() { if (EB.raf) { cancelAnimationFrame(EB.raf); EB.raf = 0; } ebSet(0); }
+  function ebStart(e) {
+    EB.touching = true; EB.track = false; EB.on = false; EB.axis = 0;
+    if (!e.touches || e.touches.length !== 1 || ebReduced() || !root) { if (EB.x) ebSpring(EB.x, 0); return; }
+    var t = e.target;
+    if (!t || !t.closest || t.closest(EB_SKIP) || document.querySelector('.modal, .bk') || document.body.classList.contains('np-open')) return;
+    if (EB.raf) ebStop();   // un doigt pendant que la page revient : elle s'arrête là où elle est (presque revenue)
+    EB.track = true; EB.py = EB.y0 = e.touches[0].clientY; EB.x0 = e.touches[0].clientX;
+  }
+  function ebMove(e) {
+    if (!EB.track || !e.touches || e.touches.length !== 1) return;
+    if (PT.on || PT.busy) { EB.track = false; if (EB.on) { EB.on = false; ebSet(0); } return; }   // « tirer pour actualiser » a la main
+    var y = e.touches[0].clientY, py = EB.py;
+    EB.py = y;
+    if (!EB.axis) {
+      var adx = Math.abs(e.touches[0].clientX - EB.x0), ady = Math.abs(y - EB.y0);
+      if (adx < 8 && ady < 8) return;
+      if (adx > ady) { EB.track = false; return; }   // geste de côté (carrousel, curseur…) : pas de rebond
+      EB.axis = 1;
+    }
+    if (!EB.on) {
+      var sy = window.scrollY || 0;
+      if (y < py && sy >= maxScroll() - 2) { EB.on = true; EB.dir = -1; EB.anchor = py; }
+      else if (y > py && sy <= 0 && !pullable()) { EB.on = true; EB.dir = 1; EB.anchor = py; }
+      else return;
+    }
+    var over = EB.dir < 0 ? EB.anchor - y : y - EB.anchor;
+    if (over <= 0) { EB.on = false; ebSet(0); return; }   // le doigt repart dans l'autre sens : la page défile normalement
+    var dim = Math.max(260, window.innerHeight * 0.6), d = (1 - 1 / (over * 0.55 / dim + 1)) * dim;
+    ebSet(EB.dir * Math.min(150, d));
+  }
+  function ebEnd() {
+    EB.touching = false; EB.tEnd = Date.now(); EB.track = false;
+    if (EB.on) { EB.on = false; ebSpring(EB.x, 0); }
+    else if (EB.x && !EB.raf) ebSpring(EB.x, 0);
+  }
+  // l'élan du défilement (doigt levé) qui arrive en bas ou en haut : la page continue un peu, puis revient
+  function ebScroll() {
+    var now = Date.now(), y = window.scrollY || 0, dt = now - EB.lastT, dy = y - EB.lastY, prev = EB.lastY;
+    EB.lastY = y; EB.lastT = now;
+    if (EB.touching || EB.raf || EB.x || !painted || now - EB.tEnd > 3000 || !(dt > 0 && dt < 100) || Math.abs(dy) > 300) return;
+    var vel = dy / dt;   // px/ms
+    if (Math.abs(vel) < 0.35 || ebReduced() || PT.on || PT.busy || document.querySelector('.modal, .bk')) return;
+    var max = maxScroll(), v0 = Math.min(780, 220 * Math.abs(vel));
+    if (vel > 0 && y >= max - 1 && prev < max - 1) ebSpring(0, -v0);
+    else if (vel < 0 && y <= 0 && prev > 0) ebSpring(0, v0);
+  }
   function bindPull() {
     document.addEventListener('touchstart', onTouchStart, { passive: true });
     document.addEventListener('touchmove', onTouchMove, { passive: true });   // jamais bloquant : le défilement n'est jamais empêché
     document.addEventListener('touchend', onTouchEnd, { passive: true });
     document.addEventListener('touchcancel', function () { if (PT.on) { PT.on = false; PT.track = false; root.classList.remove('ptr-pull'); ptrHide(); } else PT.track = false; }, { passive: true });
+    // le rebond (après « tirer pour actualiser », qui passe en premier)
+    document.addEventListener('touchstart', ebStart, { passive: true });
+    document.addEventListener('touchmove', ebMove, { passive: true });
+    document.addEventListener('touchend', ebEnd, { passive: true });
+    document.addEventListener('touchcancel', ebEnd, { passive: true });
+    window.addEventListener('scroll', ebScroll, { passive: true });
   }
+  MC.rebond = { set: ebSet, spring: ebSpring, state: EB };   // pour les tests
 
   // ---------- Événements ----------
   function onClick(e) {
@@ -601,8 +711,12 @@ MC.app = (function () {
     window.addEventListener('offline', function () { var o = document.getElementById('offline'); if (o) o.hidden = false; });
     if (navigator.onLine === false) { var off = document.getElementById('offline'); if (off) off.hidden = false; }
     hLoad();
+    // (v33) l'appli s'ouvre sur le dernier profil utilisé (enfant, parent ou éduc), sans redemander de code
+    var lp0 = lastProfile();
+    if (lp0) lsSet(LAST_KEY, lp0);   // retenu tout de suite (une appli d'avant la v33 le devine une seule fois)
+    if (lp0 === 'f' || lp0 === 'e') touchAdult();
     if (!location.hash || location.hash === '#' || location.hash === '#/') {
-      try { history.replaceState(history.state, '', S.kid ? '#/semaine' : '#/connexion'); } catch (e) { }
+      try { history.replaceState(history.state, '', startHash()); } catch (e) { }
     }
     render();
     window.__mcStarted = true;
@@ -626,6 +740,6 @@ MC.app = (function () {
     back: back, canBack: canBack, homeOf: homeOf, setUrl: setUrl, spaceOf: spaceOf, onRefresh: onRefresh, pullRefresh: pullRefresh, pullable: pullable,
     refreshNav: refreshNav, setNav: setNav, rememberTab: rememberTab,
     sharedDevice: sharedDevice, setShared: setShared, adultUnlocked: adultUnlocked, touchAdult: touchAdult, lockAdult: lockAdult,
-    touchKid: touchKid, takeTarget: takeTarget, recents: recents
+    touchKid: touchKid, takeTarget: takeTarget, recents: recents, lastProfile: lastProfile
   };
 })();

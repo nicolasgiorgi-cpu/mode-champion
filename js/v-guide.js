@@ -206,7 +206,7 @@
           '<b>Lui passer le téléphone</b> : touchez <b>▶ son prénom</b>, en haut à droite de votre espace. Son espace s\'ouvre directement, sans son code (vous êtes déjà entré avec le code de la famille). Pour revenir dans votre espace : « Rendre le téléphone », puis votre code.',
           '<b>Le récupérer</b> : le bouton <b>🔒 Parent</b>, en haut à droite de son côté (à la place du ▶), ou « J\'ai fini : je rends le téléphone » à la fin de sa séance. Vous tapez votre code et vous voilà dans votre espace.',
           'Frères et sœurs sur le même téléphone : chacun a son profil. « Pas Tom ? Changer de joueur » en haut de la semaine, ou « J\'ai fini » à la fin de la séance. S\'il n\'a pas servi depuis 30 min, le site demande « C\'est bien toi ? » avant de commencer.',
-          'Votre espace parent est protégé : sur un appareil partagé, votre code est redemandé après 10 min, ou dès qu\'on repasse côté joueur. Votre enfant ne peut donc pas confirmer lui-même ses résultats. Réglage « Appareil partagé avec un enfant » dans l\'onglet <b>Plus</b>.',
+          'Votre espace parent est protégé : sur un appareil partagé, votre code est redemandé dès qu\'on revient de l\'espace joueur (en rouvrant l\'appli, vous retrouvez votre espace sans code). Votre enfant ne peut donc pas confirmer lui-même ses résultats. Réglage « Appareil partagé avec un enfant » dans l\'onglet <b>Plus</b>.',
           'Une séance commencée est gardée sur le téléphone : si vous en avez besoin au milieu, votre enfant la reprendra là où il en était.'
         ])) +
       card('p-code', 'key', '#7CFF6B', 'Code oublié', 'Votre enfant ne se souvient plus de son code',

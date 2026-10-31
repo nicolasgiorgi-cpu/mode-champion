@@ -170,7 +170,7 @@
   function sharedSwitch() {
     var on = app.sharedDevice();
     return '<button type="button" class="switch" role="switch" aria-checked="' + on + '" data-act="toggleShared"><span><span class="t1" style="display:block">Appareil partagé avec un enfant</span><span class="t2" style="display:block">' +
-      (on ? 'Votre code est redemandé après 10 min, ou quand on repasse côté joueur' : 'Votre espace reste ouvert sur cet appareil') + '</span></span><span class="k"></span></button>';
+      (on ? 'Votre code est redemandé quand on revient de l\'espace joueur' : 'Votre espace reste ouvert sur cet appareil') + '</span></span><span class="k"></span></button>';
   }
   MC.act.toggleShared = function () { app.setShared(!app.sharedDevice()); app.rerender(); };
   MC.act.adultLogout = function () {

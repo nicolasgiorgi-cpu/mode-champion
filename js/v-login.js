@@ -273,7 +273,7 @@
       var w = A.role === 'e' ? 'éduc' : 'parent';
       return '<main class="screen nonav" id="adultzone">' + ui.topbar({ back: '#/connexion', backLabel: 'Espace joueurs', title: 'Espace ' + w, help: false }) +
         '<div class="head"><span class="kicker">Espace ' + w + ' · ' + esc(A.nom || '') + '</span><h1 class="big md">Espace<br>verrouillé</h1>' +
-        '<p class="lead" style="margin:0">Cet appareil sert aussi à un enfant : retapez votre code pour ouvrir votre espace. Il se referme tout seul après 10 minutes sans y toucher.</p></div>' +
+        '<p class="lead" style="margin:0">Cet appareil sert aussi à un enfant : quand on revient de son espace, votre code est redemandé. Ensuite, votre espace reste ouvert, même en rouvrant l\'appli.</p></div>' +
         adultCodeZone('Votre code') +
         '<button type="button" class="btn2 grey" data-act="adultForget">Ce n\'est pas mon espace : se déconnecter</button></main>';
     }

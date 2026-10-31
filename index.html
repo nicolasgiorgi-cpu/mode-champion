@@ -33,8 +33,10 @@
   var kid = get('mc-kid'), adult = get('mc-adult');
   var kidOk = !!(kid && typeof kid.token === 'string' && kid.joueur && kid.joueur.id);
   var adultOk = !!(adult && typeof adult.token === 'string' && (adult.role === 'e' || adult.role === 'f'));
-  var keep = m[1] === '2' ? [] : ['mc-recents', 'mc-prefs', 'mc-mute', 'mc-shared', 'mc-guide-vu'].concat(kidOk ? ['mc-kid', 'mc-kid-seen'] : []).concat(adultOk ? ['mc-adult', 'mc-adult-open'] : []);
-  try { Object.keys(localStorage).forEach(function (k) { if (k.indexOf('mc-') === 0 && keep.indexOf(k) < 0) localStorage.removeItem(k); }); } catch (e) { }
+  var keep = m[1] === '2' ? [] : ['mc-recents', 'mc-prefs', 'mc-mute', 'mc-shared', 'mc-guide-vu', 'mc-last'].concat(kidOk ? ['mc-kid', 'mc-kid-seen'] : []).concat(adultOk ? ['mc-adult', 'mc-adult-open'] : []);
+  // (v33) les réglages des notifications et ce qui a déjà été lu restent aussi (sauf « Repartir de zéro »)
+  function garde(k) { return keep.indexOf(k) >= 0 || (m[1] !== '2' && k.indexOf('mc-notif') === 0); }
+  try { Object.keys(localStorage).forEach(function (k) { if (k.indexOf('mc-') === 0 && !garde(k)) localStorage.removeItem(k); }); } catch (e) { }
   // adresse neuve : on est sûr de recevoir la dernière version du site, pas une copie
   function again() { location.replace(location.pathname + '?r=' + Date.now()); }
   Promise.all(tasks).catch(function () { }).then(again);
