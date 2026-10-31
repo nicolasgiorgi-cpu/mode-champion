@@ -81,6 +81,8 @@ with sync_playwright() as p:
     check('parent : « Tom a relevé un défi : Saut » à confirmer', 'défi' in t and 'Saut' in t and 'confirmer' in t.lower(), t[:120])
     check('liste parent : pas de défilement de côté', sans_debord(pg))
     rid = pg.evaluate("MC.app.S.cache.family.enfants[0].records.filter(r => r.statut === 'attente').map(r => r.id)")
+    # le temps passe (plus de 3 min depuis la 1re cloche de Tom sur cet appareil : ce qui arrive ensuite est « nouveau »)
+    pg.evaluate("Object.keys(localStorage).filter(k => k.indexOf('mc-notif:k:') === 0).forEach(k => { var s = JSON.parse(localStorage.getItem(k)); s.init -= 600000; localStorage.setItem(k, JSON.stringify(s)); })")
     pg.evaluate("ids => MC.api.call('confirm', { token: MC.app.S.adult.token, decisions: ids.map(id => ({ id: id, statut: 'ok' })) })", rid); pg.wait_for_timeout(600)
     # ----- Tom -----
     pg.goto(BASE + '#/parent'); pg.wait_for_timeout(900); pg.click('.tb-pass'); pg.wait_for_timeout(1800)

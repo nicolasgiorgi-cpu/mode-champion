@@ -94,7 +94,8 @@
         var w = qui(), now = Date.now(), st = etat(w);
         var reg = '<a class="cbtn grey" href="' + HREF[role] + '/reglages" aria-label="Réglages des notifications">' + icon('settings', 20) + '</a>';
         var bar = ui.topbar({ back: home(role), backLabel: T(role, 'Accueil', 'Accueil'), title: 'Notifications', right: reg, help: ui.helpLink(role === 'k' ? 'joueur' : role === 'f' ? 'parent' : 'educ') });
-        if (!st) return '<main class="screen">' + bar + '<div class="empty">' + T(role, 'Rien pour l\'instant.', 'Rien pour l\'instant.') + '</div></main>';
+        if (!st) return '<main class="screen">' + bar + '<div class="empty">' + (role === 'e' && groupe() && !compos() ?
+          'Les compos n\'ont pas pu être chargées, et la cloche en a besoin. Tirez l\'écran vers le bas pour réessayer.' : 'Rien pour l\'instant.') + '</div></main>';
         if (w && w.id) cur.after = function () { N.marquerLu(w.role, w.id, Date.now()); paintBell(); app.refreshNav(); };
         var neuf = st.list.filter(function (e) { return e.nouveau; }), vieux = st.list.filter(function (e) { return !e.nouveau; });
         var nbOff = Object.keys(st.off || {}).filter(function (k) { return N.catOf(role, k); }).length;

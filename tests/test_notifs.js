@@ -49,7 +49,7 @@ let ev = N.events('e', { group: g, compos: cd });
 const byId = {}; ev.forEach(e => { byId[e.id] = e; });
 assert.ok(byId['s:s1'] && byId['s:s1'].cat === 'seance' && /Léo<\/b> a fait la séance de Cros/.test(byId['s:s1'].txt), 'la séance de Léo');
 assert.ok(!byId['s:s9'], 'pas les enfants désactivés');
-assert.ok(byId['b:j1:1:2'] && /Bilan 1 \(2 résultats\)/.test(byId['b:j1:1:2'].txt), 'un bilan = une ligne, avec le nombre de résultats');
+assert.ok(byId['b:j1:1'] && /Bilan 1 \(2 résultats\)/.test(byId['b:j1:1'].txt), 'un bilan = une ligne (toujours la même), avec le nombre de résultats');
 assert.ok(byId['r:r3'] && /défi : Saut/.test(byId['r:r3'].txt), 'un défi = une ligne');
 const m1 = ev.filter(e => e.id.indexOf('m:m1:') === 0)[0];
 assert.ok(m1 && /Choisis ton poste » et « Avec qui tu aimes jouer/.test(m1.txt), 'poste et copains');
@@ -124,12 +124,12 @@ const fam = { famille: { id: 'f1', nom: 'Famille' }, enfants: [
 let pe = N.events('f', { family: fam });
 const pid = {}; pe.forEach(e => { pid[e.id] = e; });
 assert.ok(pid['s:ps1'] && pid['s:ps1'].href === '#/parent?k=k1', 'la séance, avec l\'enfant à regarder');
-assert.ok(pid['b:k1:1:1'] && /À confirmer/.test(pid['b:k1:1:1'].txt), 'le bilan à confirmer');
+assert.ok(pid['b:k1:1'] && /À confirmer/.test(pid['b:k1:1'].txt), 'le bilan à confirmer');
 assert.ok(pid['m:pm1:poste'] && !pid['m:pm1:copains'], 'V1 : la mission du poste, pas celle des copains');
 assert.ok(!pid['n:pn1'] && pid['n:pn2'], 'niveaux : ceux des éducs (pas les nôtres)');
 assert.ok(!pid['e:pe1'] && !pid['x:px1'] && !pid['dm:q1'], 'V1 : ni étoiles, ni mots, ni missions des éducs');
 fam.enfants[0].records[0].statut = 'ok';
-assert.ok(!/À confirmer/.test(N.events('f', { family: fam }).filter(e => e.id === 'b:k1:1:1')[0].txt), 'confirmé : plus « à confirmer », même ligne');
+assert.ok(!/À confirmer/.test(N.events('f', { family: fam }).filter(e => e.id === 'b:k1:1')[0].txt), 'confirmé : plus « à confirmer », même ligne');
 
 // ---------- ENFANT ----------
 const me = { joueur: { id: 'k1', prenom: 'Tom' }, seances: [], journal: [{ id: 'kn1', type: 'niveau_adulte', data: { changes: { pompes: { de: 1, a: 2 } }, par: 'Parent' }, cree: iso(NOW - H) }],
@@ -141,19 +141,59 @@ assert.ok(ke.some(e => e.id === 'nm:poste' && /Choisis ton poste/.test(e.txt)), 
 assert.ok(ke.some(e => e.id === 'n:kn1' && /par ta famille/.test(e.txt)), 'niveau changé par la famille');
 assert.ok(!ke.some(e => e.cat === 'etoile'), 'V1 : pas d\'étoiles');
 st = stock();
-N.etat('k', 'k1', ke, NOW, st);
+N.etat('k', 'k1', ke, NOW, st);                       // 1re fois : rien de nouveau
 me.records[0].statut = 'ok'; me.records[0].parQui = 'Parent';
 ke = N.events('k', { me });
-E = N.etat('k', 'k1', ke, NOW + 1000, st);
-assert.strictEqual(E.n, 1, '1 résultat confirmé : 1 nouvelle');
+E = N.etat('k', 'k1', ke, NOW + 60000, st);
+assert.strictEqual(E.n, 0, 'dans les 3 premières minutes : ce qui date d\'avant est encore « lu » (la réponse fraîche du serveur arrive après la copie gardée)');
+st = stock();
+me.records[0].statut = 'attente';
+N.etat('k', 'k1', N.events('k', { me }), NOW, st);
+me.records[0].statut = 'ok';
+E = N.etat('k', 'k1', N.events('k', { me }), NOW + 5 * 60000, st);
+assert.strictEqual(E.n, 1, 'après : 1 résultat confirmé = 1 nouvelle');
 assert.ok(/Bilan 1<\/b> : 1 résultat confirmé par ta famille/.test(E.list[0].txt), E.list[0].txt);
-assert.ok(E.list[0].quand === NOW + 1000, 'sans heure dans les données : l\'heure où on l\'a vu');
+assert.strictEqual(E.list[0].quand, NOW + 5 * 60000, 'sans heure dans les données : l\'heure où on l\'a vu');
 me.records[1].statut = 'refuse'; me.records[1].parQui = 'Éduc Cyril';
-ke = N.events('k', { me });
-E = N.etat('k', 'k1', ke, NOW + 2000, st);
+E = N.etat('k', 'k1', N.events('k', { me }), NOW + 6 * 60000, st);
 assert.strictEqual(E.n, 1, 'le 2e résultat (refusé) : la ligne du bilan est remplacée par une nouvelle');
 assert.strictEqual(E.list.filter(e => e.cat === 'resultat').length, 1, 'une seule ligne par bilan');
 assert.ok(E.list.some(e => /1 résultat confirmé, 1 refusé par Cyril/.test(e.txt)));
+
+// ---------- pas d'avalanche : réglages avant la 1re cloche, sorte qui apparaît, stockage borné ----------
+st = stock();
+N.regler('k', 'k1', 'niveau', false, st);            // les réglages touchés avant la 1re cloche
+E = N.etat('k', 'k1', N.events('k', { me }), NOW + 3600000, st);
+assert.strictEqual(E.n, 0, 'réglages avant la 1re cloche : pas d\'avalanche');
+assert.ok(!E.list.some(e => e.cat === 'niveau'), 'et le réglage est gardé');
+st = stock();
+N.marquerLu('k', 'k1', NOW, st);
+assert.strictEqual(N.etat('k', 'k1', N.events('k', { me }), NOW + 3600000, st).n, 0, 'marquer lu avant la 1re cloche : pas d\'avalanche');
+// une partie qui s'ouvre aux familles (Skills) : les étoiles données en avance ne sont pas « nouvelles »
+st = stock();
+N.etat('k', 'k1', N.events('k', { me }), NOW, st);
+ctx.__MC_TOUT = true;
+E = N.etat('k', 'k1', N.events('k', { me }), NOW + 3600000, st);
+assert.ok(E.list.some(e => e.id === 'e:ke1') && !E.list.filter(e => e.id === 'e:ke1')[0].nouveau, 'Skills ouverts : l\'étoile d\'avant est dans la liste, pas en « nouveau »');
+me.etoiles.push({ id: 'ke2', domaine: 'plaquage', etoile: 'joue', cree: iso(NOW + 2 * 3600000) });
+E = N.etat('k', 'k1', N.events('k', { me }), NOW + 3 * 3600000, st);
+assert.ok(E.list.filter(e => e.id === 'e:ke2')[0].nouveau, 'une étoile validée ensuite : nouvelle');
+ctx.__MC_TOUT = false;
+// le stockage ne garde ni les vieux événements (> 45 jours), ni ceux qui n'existent plus
+st = stock();
+const vieux = joueur('j9', 'Ana', { seances: Array.from({ length: 300 }, (_, i) => ({ id: 'v' + i, type: 'cros', cree: iso(NOW - (50 + i) * 24 * H) })) });
+const g2 = { moi, defmissions: [], joueurs: [vieux] };
+N.etat('e', 'ed1', N.events('e', { group: g2, compos: { compos: [], avis: [], evenements: [], educs: [] } }), NOW, st);
+assert.strictEqual(Object.keys(JSON.parse(st._m['mc-notif:e:ed1']).vus).length, 0, 'les séances de plus de 45 jours ne sont pas gardées');
+vieux.seances.push({ id: 'neuve', type: 'cros', cree: iso(NOW + 10 * 60000) });
+E = N.etat('e', 'ed1', N.events('e', { group: g2, compos: { compos: [], avis: [], evenements: [], educs: [] } }), NOW + 20 * 60000, st);
+assert.strictEqual(E.n, 1, 'mais une nouvelle séance, oui');
+vieux.seances.pop();
+N.etat('e', 'ed1', N.events('e', { group: g2, compos: { compos: [], avis: [], evenements: [], educs: [] } }), NOW + 30 * 60000, st);
+assert.strictEqual(Object.keys(JSON.parse(st._m['mc-notif:e:ed1']).vus).length, 0, 'ce qui n\'existe plus est oublié');
+// un vote déjà fait : plus de « demande votre vote »
+cd.compos[0].votes = { ed1: 1 };
+assert.ok(!N.events('e', { group: g, compos: cd }).some(e => e.id === 'cv:c1'), 'vote fait : plus de demande');
 
 // ---------- tout ouvert (plus tard) : les étoiles, les mots, les missions des éducs ----------
 ctx.__MC_TOUT = true;

@@ -50,8 +50,9 @@ MC.app = (function () {
   function recents() { var r = lsGet('mc-recents'); return Array.isArray(r) ? r.filter(function (x) { return typeof x === 'string'; }) : []; }
   function sharedDevice() { var p = lsGet(SHARED_KEY); if (p === 'off') return false; if (p === 'on') return true; return recents().length > 0; }
   function setShared(on) { lsSet(SHARED_KEY, on ? 'on' : 'off'); if (on) touchAdult(); }
-  // ouvert = true ; avant la v33, c'était l'heure d'expiration (un nombre) : un nombre veut dire « laissé ouvert »
-  function openFlag() { var v = lsGet(OPEN_KEY); return v === true || (typeof v === 'number' && v > 0); }
+  // ouvert = true. Avant la v33, c'était une heure d'expiration (un nombre) : elle est convertie une seule fois au démarrage
+  // (ouvert seulement si l'adulte est le dernier à s'être servi de l'appareil), voir start()
+  function openFlag() { return lsGet(OPEN_KEY) === true; }
   function adultUnlocked() { if (!S.adult) return false; if (!sharedDevice()) return true; return openFlag(); }
   function touchAdult() { if (S.adult && sharedDevice() && lsGet(OPEN_KEY) !== true) lsSet(OPEN_KEY, true); }
   function lockAdult() { lsSet(OPEN_KEY, null); }
@@ -62,12 +63,13 @@ MC.app = (function () {
     // côté joueurs : jamais l'espace adulte sans son code (un enfant qui ferme et rouvre l'appli reste côté joueurs)
     if (l === 'k' || l === 'j') return S.kid ? 'k' : null;
     if (l === 'f' || l === 'e') return S.adult && S.adult.role === l ? l : (S.kid ? 'k' : null);
-    if (S.adult && S.kid) {
-      // pas encore retenu (appli d'avant la v33) : le plus récent des deux
-      var v = lsGet(OPEN_KEY), adultAt = typeof v === 'number' ? v - ADULT_IDLE : 0, kidAt = Number(lsGet(SEEN_KEY) || 0);
-      return adultAt > kidAt || (!sharedDevice() && !kidAt) ? S.adult.role : 'k';
+    // pas encore retenu (appli d'avant la v33) : le plus récent des deux ; sur un appareil partagé, l'adulte seulement
+    // s'il s'en est servi après l'enfant (sinon on reste côté joueurs, comme le verrou d'avant)
+    if (S.adult && !sharedDevice()) return S.adult.role;
+    if (S.adult) {
+      var v = lsGet(OPEN_KEY), adultAt = typeof v === 'number' ? v - ADULT_IDLE : v === true ? Date.now() : 0, kidAt = Number(lsGet(SEEN_KEY) || 0);
+      if (adultAt > kidAt) return S.adult.role;
     }
-    if (S.adult) return S.adult.role;
     return S.kid ? 'k' : null;
   }
   function startHash() { var l = lastProfile(); return l === 'k' ? '#/semaine' : l === 'f' ? '#/parent' : l === 'e' ? '#/educ/entrainements' : '#/connexion'; }
@@ -555,7 +557,14 @@ MC.app = (function () {
   // bout rebondit un peu. La barre du haut reste en place. Rien si l'appareil demande de réduire les animations.
   var EB = { track: false, on: false, dir: 0, py: 0, y0: 0, x0: 0, axis: 0, anchor: 0, x: 0, raf: 0, touching: false, tEnd: 0, lastY: 0, lastT: 0 };
   var EB_SKIP = 'input, textarea, select, .modal, .numpad, .bk, [data-noptr], .fiche, .kidpick';
-  function ebReduced() { try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { return false; } }
+  var EB_OK = (function () { try { return !window.CSS || !CSS.supports || CSS.supports('overscroll-behavior-y', 'none'); } catch (e) { return true; } })();
+  // pas de rebond maison : animations réduites, navigateur qui rebondit déjà tout seul (iOS < 16), ou clavier ouvert (champ actif)
+  function ebReduced() {
+    if (!EB_OK) return true;
+    var a = document.activeElement;
+    if (a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT' || a.isContentEditable)) return true;
+    try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { return false; }
+  }
   function maxScroll() { var de = document.documentElement; return Math.max(0, Math.max(de.scrollHeight, document.body.scrollHeight) - window.innerHeight); }
   // x < 0 : la page monte (rebond en bas), la barre du haut est retenue ; x > 0 : la page descend (rebond en haut)
   function ebSet(x) {
@@ -716,9 +725,10 @@ MC.app = (function () {
     if (navigator.onLine === false) { var off = document.getElementById('offline'); if (off) off.hidden = false; }
     hLoad();
     // (v33) l'appli s'ouvre sur le dernier profil utilisé (enfant, parent ou éduc), sans redemander de code
-    var lp0 = lastProfile();
-    if (lp0) lsSet(LAST_KEY, lp0);   // retenu tout de suite (une appli d'avant la v33 le devine une seule fois)
-    if (lp0 === 'f' || lp0 === 'e') touchAdult();
+    // (un espace verrouillé ne se rouvre jamais sans le code : le verrou « mc-adult-open » est gardé d'une ouverture à l'autre)
+    var lp0 = lastProfile(), ov = lsGet(OPEN_KEY);
+    lsSet(LAST_KEY, lp0 || 'j');   // retenu tout de suite (une appli d'avant la v33 le devine une seule fois)
+    if (typeof ov === 'number') lsSet(OPEN_KEY, lp0 === 'f' || lp0 === 'e' ? true : null);   // ancienne valeur : convertie une fois
     if (!location.hash || location.hash === '#' || location.hash === '#/') {
       try { history.replaceState(history.state, '', startHash()); } catch (e) { }
     }

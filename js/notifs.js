@@ -14,7 +14,7 @@
 window.MC = window.MC || {};
 
 MC.notifs = (function () {
-  var JOUR = 86400000, FENETRE = 30 * JOUR, MAX = 80, MAX_VUS = 1500;
+  var JOUR = 86400000, FENETRE = 30 * JOUR, OUBLI = 45 * JOUR, GRACE = 3 * 60000, MAX = 80;
   function ouvert(k) { return MC.ouvert ? MC.ouvert(k) : true; }
   function esc(s) { return String(s === null || s === undefined ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function b(s) { return '<b>' + esc(s) + '</b>'; }
@@ -117,7 +117,7 @@ MC.notifs = (function () {
       });
       groupes(p.records).forEach(function (x) {
         if (x.defi) { var r = x.recs[0]; out.push({ id: 'r:' + r.id, cat: 'bilan', t: x.t, txt: who + ' a relevé un défi : ' + esc(nomTest(r.test)) + '.', href: fiche + '?t=prepa' }); return; }
-        out.push({ id: 'b:' + j.id + ':' + x.bilan + ':' + x.recs.length, cat: 'bilan', t: x.t, txt: who + ' a noté son ' + esc(nomBilan(x.bilan)) + ' (' + pl(x.recs.length, 'résultat') + ').', href: fiche + '?t=prepa' });
+        out.push({ id: 'b:' + j.id + ':' + x.bilan, cat: 'bilan', t: x.t, txt: who + ' a noté son ' + esc(nomBilan(x.bilan)) + ' (' + pl(x.recs.length, 'résultat') + ').', href: fiche + '?t=prepa' });
       });
       (p.missions || []).forEach(function (m) {
         var r = m.reponses || {}, t = ms(m.maj), mot = r.message ? ' 💬 « ' + esc(court(r.message, 90)) + ' »' : '';
@@ -150,13 +150,13 @@ MC.notifs = (function () {
       var dequoi = function (c) {
         var e = evts[c.evenementId], q = !c.partie ? 'du plateau' : c.partie === 'ateliers' ? 'des ateliers' : 'des matchs';
         var dt = e && e.debut ? String(e.debut).slice(8, 10) + '/' + String(e.debut).slice(5, 7) : '';
-        return 'la compo ' + q + (e ? ' « ' + esc(court(e.titre, 40)) + ' »' : '') + (dt ? ' du ' + dt : '');
+        return 'la compo ' + q + (e ? ' « ' + esc(court(e.titre, 40)) + ' »' : '') + (dt ? ' du ' + esc(dt) : '');
       };
       var byId = {};
       (cd.compos || []).forEach(function (c) {
         byId[c.id] = c;
         if (c.statut === 'retiree') return;
-        if (c.statut === 'vote' && c.auteur !== me.id) out.push({ id: 'cv:' + c.id, cat: 'compo', t: ms(c.cree), txt: b(c.auteurNom || 'Un éduc') + ' demande votre vote sur ' + dequoi(c) + '.', href: lien(c) });
+        if (c.statut === 'vote' && c.auteur !== me.id && !(c.votes && c.votes[me.id] !== undefined)) out.push({ id: 'cv:' + c.id, cat: 'compo', t: ms(c.cree), txt: b(c.auteurNom || 'Un éduc') + ' demande votre vote sur ' + dequoi(c) + '.', href: lien(c) });
         if (c.auteur === me.id) Object.keys(c.votes || {}).forEach(function (eid) {
           if (eid === me.id) return;
           out.push({ id: 'vo:' + c.id + ':' + eid, cat: 'compo', t: 0, t0: ms(c.maj), txt: b(noms[eid] || 'Un éduc') + ' a voté sur ' + dequoi(c) + '.', href: lien(c) });
@@ -186,7 +186,7 @@ MC.notifs = (function () {
       groupes(d.records).forEach(function (x) {
         var att = x.attente ? ' <span class="nt-att">À confirmer</span>' : '';
         if (x.defi) { var r = x.recs[0]; out.push({ id: 'r:' + r.id, cat: 'confirmer', t: x.t, txt: who + ' a relevé un défi : ' + esc(nomTest(r.test)) + '.' + att, href: '#/parent' + k }); return; }
-        out.push({ id: 'b:' + j.id + ':' + x.bilan + ':' + x.recs.length, cat: 'confirmer', t: x.t, txt: who + ' a noté son ' + esc(nomBilan(x.bilan)) + ' (' + pl(x.recs.length, 'résultat') + ').' + att, href: '#/parent' + k });
+        out.push({ id: 'b:' + j.id + ':' + x.bilan, cat: 'confirmer', t: x.t, txt: who + ' a noté son ' + esc(nomBilan(x.bilan)) + ' (' + pl(x.recs.length, 'résultat') + ').' + att, href: '#/parent' + k });
       });
       (d.missions || []).forEach(function (m) {
         var r = m.reponses || {}, t = ms(m.maj);
@@ -290,21 +290,32 @@ MC.notifs = (function () {
 
   // l'état de la cloche : la liste (catégories allumées, 30 derniers jours, les nouveaux d'abord), le nombre de non lus
   // evs : events(...) ; now : l'heure ; st : le stockage (localStorage par défaut)
+  // Jamais d'avalanche de « nouveau » :
+  // - la 1re fois sur l'appareil (init), tout ce qui existe est lu ; pendant 3 min encore (GRACE), ce qui date d'avant
+  //   aussi (la réponse fraîche du serveur arrive juste après la copie gardée sur l'appareil) ;
+  // - une sorte qui apparaît (une partie de l'appli ouverte aux familles) : ce qu'elle contient déjà est lu ;
+  // - plus de 45 jours : jamais nouveau, et pas gardé (le stockage reste petit ; absent = lu).
   function etat(role, id, evs, now, st) {
     st = stor(st);
-    var k = key(role, id), s = load(st, k), first = !s, changed = first;
+    var k = key(role, id), s = load(st, k), changed = false;
     if (!s) s = { lu: now, vus: {}, off: {} };
-    var ids = {};
+    var first = !s.init;
+    if (first) { s.init = now; s.lu = Math.max(Number(s.lu) || 0, now); changed = true; }
+    var grace = now - s.init < GRACE, known = s.cats && typeof s.cats === 'object' ? s.cats : null, nowCats = {}, ids = {};
+    cats(role).forEach(function (c) { nowCats[c.id] = 1; });
     (evs || []).forEach(function (ev) {
       ids[ev.id] = 1;
-      if (!Object.prototype.hasOwnProperty.call(s.vus, ev.id)) { s.vus[ev.id] = first ? 0 : now; changed = true; }
+      if (Object.prototype.hasOwnProperty.call(s.vus, ev.id)) return;
+      var t = ev.t || ev.t0 || 0;
+      if (t && now - t > OUBLI) return;
+      var vieux = first || (grace && t && t <= s.init) || (known && !known[ev.cat]);
+      s.vus[ev.id] = vieux ? 0 : now; changed = true;
     });
-    // ménage : on oublie ce qui n'existe plus, seulement quand la liste devient longue
-    var all = Object.keys(s.vus);
-    if (all.length > MAX_VUS) { all.forEach(function (x) { if (!ids[x]) delete s.vus[x]; }); changed = true; }
+    Object.keys(s.vus).forEach(function (x) { if (!ids[x]) { delete s.vus[x]; changed = true; } });   // ce qui n'existe plus
+    if (!known || Object.keys(nowCats).sort().join() !== Object.keys(known).sort().join()) { s.cats = nowCats; changed = true; }
     if (changed) save(st, k, s);
     var okCats = {};
-    cats(role).forEach(function (c) { if (!s.off[c.id]) okCats[c.id] = 1; });
+    Object.keys(nowCats).forEach(function (c) { if (!s.off[c]) okCats[c] = 1; });
     var list = (evs || []).filter(function (ev) { return okCats[ev.cat]; }).map(function (ev) {
       var vu = s.vus[ev.id] || 0, o = {};
       for (var x in ev) o[x] = ev[x];
@@ -319,7 +330,7 @@ MC.notifs = (function () {
   // la cloche a été ouverte : tout ce qui est là est lu
   function marquerLu(role, id, now, st) {
     st = stor(st);
-    var k = key(role, id), s = load(st, k) || { vus: {}, off: {} };
+    var k = key(role, id), s = load(st, k) || { vus: {}, off: {} };   // sans « init » : la 1re cloche n'en fera pas une avalanche
     s.lu = now; save(st, k, s);
   }
   // réglages : allumer ou éteindre une catégorie
