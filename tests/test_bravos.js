@@ -85,10 +85,27 @@ assert.strictEqual(g.call({ action: 'retirerBravo', token: jt, id: b2.id }).erro
 assert.strictEqual(g.call({ action: 'retirerBravo', token: ft, id: b2.id }).error, 'interdit');
 r = g.call({ action: 'retirerBravo', token: ct, id: b2.id }); assert.ok(r.ok, 'son auteur le retire');
 assert.strictEqual(g.call({ action: 'retirerBravo', token: ct, id: b2.id }).error, 'introuvable', 'déjà retiré');
-r = g.call({ action: 'retirerBravo', token: et, id: b3.id }); assert.ok(r.ok, 'l\'admin aussi');
+r = g.call({ action: 'retirerBravo', token: et, id: b3.id }); assert.ok(r.ok, 'son auteur (l\'admin) le retire');
+// l'admin retire le bravo d'un AUTRE éduc
+r = g.call({ action: 'bravo', token: jt, seanceId: s2 }); const bj = r.bravo;
+r = g.call({ action: 'retirerBravo', token: et, id: bj.id }); assert.ok(r.ok, 'l\'admin retire aussi le bravo d\'un autre éduc');
 assert.strictEqual(g.call({ action: 'me', token: kt }).bravos.length, 1, 'les bravos retirés disparaissent');
 r = g.call({ action: 'bravo', token: ct, seanceId: s1 });
 assert.ok(r.ok && r.nouveau && r.bravo.id !== b2.id, 'après un retrait, Cyril peut redire bravo');
+
+// la famille qui ouvre la fiche de son enfant (action kid) : jamais l'identifiant de l'éduc
+const kf = g.call({ action: 'kid', token: ft, joueurId: tom });
+assert.ok(kf.ok && kf.bravos.length >= 1 && kf.bravos.every(x => !('parQui' in x)), 'kid (famille) : pas de parQui');
+// l'enfant supprime sa séance : ses bravos disparaissent avec elle
+{
+  const sd = g.call({ action: 'logSession', token: kt, type: 'capuozzo', date: auj, mode: 'rapide' }).seance.id;
+  g.call({ action: 'bravo', token: ct, seanceId: sd, mot: 'Bien' });
+  assert.ok(g.call({ action: 'me', token: kt }).bravos.some(x => x.seanceId === sd));
+  r = g.call({ action: 'deleteSession', token: kt, id: sd }); assert.ok(r.ok, r.message);
+  assert.ok(!g.call({ action: 'me', token: kt }).bravos.some(x => x.seanceId === sd), 'séance supprimée : plus de bravo dessus');
+  assert.ok(!g.call({ action: 'family', token: ft }).enfants[0].bravos.some(x => x.seanceId === sd), '… côté famille non plus');
+  assert.strictEqual(g.call({ action: 'bravo', token: ct, seanceId: sd }).error, 'introuvable', 'plus de bravo sur une séance supprimée');
+}
 
 // ---------- enfant désactivé ----------
 r = g.call({ action: 'addPlayer', token: et, prenom: 'Zoé', familleNom: 'Famille Z' }); const zoe = r.joueur.id, zc = r.code;
@@ -122,8 +139,14 @@ envois.length = 0;
 r = g.call({ action: 'bravo', token: jt, seanceId: s3, mot: 'Mot très personnel' });
 assert.ok(r.ok && !r.nouveau);
 assert.ok(!JSON.stringify(envois).includes('très personnel'), 'jamais le mot sur l\'écran');
-// (la même sorte sur le même appareil dans les 10 minutes : l'alerte peut être retenue ; s'il y en a une, c'est la bonne)
-envois.filter(m => m.token === T.tom).forEach(m => assert.strictEqual(m.data.texte, '💬 Julien t\'a laissé un mot pour ta séance de Meafou.'));
+const aMot = envois.filter(m => m.token === T.tom);
+assert.strictEqual(aMot.length, 1, 'le mot ajouté juste après le bravo prévient l\'enfant (sa propre étiquette, hors de la pause du bravo)');
+assert.strictEqual(aMot[0].data.texte, '💬 Julien t\'a laissé un mot pour ta séance de Meafou.');
+assert.strictEqual(aMot[0].data.tag, 'p-bravo-' + tom + '-mot');
+// un mot changé dans les 10 minutes : retenu (pas de rafale)
+envois.length = 0;
+g.call({ action: 'bravo', token: jt, seanceId: s3, mot: 'Autre mot' });
+assert.strictEqual(envois.filter(m => m.token === T.tom).length, 0, 'un 2e changement de mot dans les 10 min : pas d\'alerte de plus');
 assert.ok(!envois.some(m => m.token === T.parent), 'le mot seul ne réveille pas la famille');
 // re-toucher sans changement : rien
 envois.length = 0;
@@ -133,11 +156,22 @@ assert.strictEqual(envois.length, 0, 'un 2e toucher ne renvoie pas d\'alerte');
 const s4 = g.call({ action: 'logSession', token: kt, type: 'club', date: auj, mode: 'rapide' }).seance.id;
 envois.length = 0;
 r = g.call({ action: 'bravo', token: ct, seanceId: s4, mot: 'Bien joué' });
-const t4 = envois.filter(m => m.token === T.tom), p4 = envois.filter(m => m.token === T.parent);
-assert.strictEqual(t4.length, 1, 'une autre séance félicitée juste après : une alerte de plus (une par séance)');
-assert.strictEqual(t4[0].data.texte, '👏 Cyril te dit bravo pour ton entraînement au club ! Avec un petit mot.');
-assert.strictEqual(t4[0].data.tag, 'p-bravo-' + s4, 'tag par séance');
-assert.strictEqual(p4.length, 1);
-assert.strictEqual(p4[0].data.texte, '👏 Cyril a dit bravo à Tom pour son entraînement au club.');
+assert.ok(r.ok && r.nouveau);
+assert.strictEqual(envois.filter(m => m.token === T.tom || m.token === T.parent).length, 0, 'une autre séance du même enfant félicitée dans les 10 min : pas de 2e sonnerie (tout est dans l\'appli)');
+// 10 minutes plus tard (la pause des alertes est passée) : ça sonne de nouveau, avec le bon texte
+Object.keys(g._cache).forEach(k => { if (k.indexOf('fcm:v:') === 0) delete g._cache[k]; });   // les pauses de 10 min passées
+const s5 = g.call({ action: 'logSession', token: kt, type: 'club', date: auj, mode: 'rapide', details: { match: true } }).seance.id;
+envois.length = 0;
+r = g.call({ action: 'bravo', token: ct, seanceId: s5, mot: 'Bien joué' });
+const t5 = envois.filter(m => m.token === T.tom), p5 = envois.filter(m => m.token === T.parent);
+assert.strictEqual(t5.length, 1, 'la pause passée : l\'enfant est prévenu');
+assert.strictEqual(t5[0].data.texte, '👏 Cyril te dit bravo pour ton match ! Avec un petit mot.');
+assert.strictEqual(t5[0].data.tag, 'p-bravo-' + tom, 'tag par enfant');
+assert.strictEqual(p5.length, 1);
+assert.strictEqual(p5[0].data.texte, '👏 Cyril a dit bravo à Tom pour son match.');
+Object.keys(g._cache).forEach(k => { if (k.indexOf('fcm:v:') === 0) delete g._cache[k]; });   // les pauses de 10 min passées
+envois.length = 0;
+g.call({ action: 'bravo', token: jt, seanceId: s4 });
+assert.strictEqual(envois.find(m => m.token === T.tom).data.texte, '👏 Julien te dit bravo pour ton entraînement au club !', 'club sans match : « ton entraînement au club »');
 
 console.log('test_bravos : OK');

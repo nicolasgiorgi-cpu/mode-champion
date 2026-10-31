@@ -526,6 +526,8 @@ var Core = (function () {
       if (!s || s.joueurId !== ctx.auth.id) fail('introuvable', 'Séance introuvable.');
       if (ctx.now - Date.parse(s.cree) > 7 * DAY) fail('interdit', 'Trop ancienne pour être supprimée.');
       ctx.db.remove('seances', s.id);
+      // (v36) les bravos des éducs pour cette séance disparaissent avec elle
+      ctx.db.rows('bravos').forEach(function (x) { if (x.seanceId === s.id && !x.retire) ctx.db.update('bravos', x.id, { retire: true, maj: isoNow(ctx.now) }); });
       return {};
     }
   };
@@ -2038,9 +2040,10 @@ var Core = (function () {
     e: ['seance', 'bilan', 'mission', 'etoile', 'niveau', 'compo'] };
   var PUSH_LIENS = { p: '#/notifs', f: '#/parent/notifs', e: '#/educ/notifs' };
   var SEANCES_NOMS = { cros: 'la séance de Cros', capuozzo: 'la séance de Capuozzo', dupont: 'la séance de Dupont', meafou: 'la séance de Meafou', club: 'l\'entraînement au club', recup: 'la récup' };
-  // (v36) « pour ta séance de Cros », « pour son entraînement au club »
-  function pourSeance(type, ta) {
-    var n = SEANCES_NOMS[type] || 'une séance';
+  // (v36) « pour ta séance de Cros », « pour son entraînement au club », « pour ton match » (s : la séance)
+  function pourSeance(s, ta) {
+    if (s.type === 'club' && s.details && s.details.match) return 'pour ' + (ta ? 'ton' : 'son') + ' match';
+    var n = SEANCES_NOMS[s.type] || 'une séance';
     return 'pour ' + (n.indexOf('la ') === 0 ? (ta ? 'ta ' : 'sa ') + n.slice(3) : n.indexOf('l\'') === 0 ? (ta ? 'ton ' : 'son ') + n.slice(2) : (ta ? 'ta séance' : 'sa séance'));
   }
   function cleanCats(role, l) {
@@ -2134,11 +2137,13 @@ var Core = (function () {
       var b = res.bravo, s = b ? find(ctx.db.rows('seances'), b.seanceId) : null, j = s ? find(ctx.db.rows('joueurs'), s.joueurId) : null, nom = ctx.auth.row.nom;
       if (!s || !j) return;
       if (res.nouveau) {
-        // une alerte par séance (sujet) : deux séances félicitées coup sur coup arrivent toutes les deux
-        alerter(ctx, { r: 'p', qui: j.id, sujet: s.id }, 'bravo', '👏 ' + nom + ' te dit bravo ' + pourSeance(s.type, true) + ' !' + (b.mot ? ' Avec un petit mot.' : ''));
-        alerter(ctx, { r: 'f', qui: j.familleId, sujet: s.id }, 'bravo', '👏 ' + nom + ' a dit bravo à ' + j.prenom + ' ' + pourSeance(s.type, false) + '.');
+        // une alerte par enfant toutes les 10 minutes au plus (tag par enfant, pause côté Google) : un éduc qui félicite
+        // plusieurs séances du même enfant d'affilée ne fait pas sonner son téléphone 4 fois ; tout reste visible dans l'appli
+        alerter(ctx, { r: 'p', qui: j.id, sujet: j.id }, 'bravo', '👏 ' + nom + ' te dit bravo ' + pourSeance(s, true) + ' !' + (b.mot ? ' Avec un petit mot.' : ''));
+        alerter(ctx, { r: 'f', qui: j.familleId, sujet: j.id }, 'bravo', '👏 ' + nom + ' a dit bravo à ' + j.prenom + ' ' + pourSeance(s, false) + '.');
       } else if (ctx.bravoMot) {
-        alerter(ctx, { r: 'p', qui: j.id, sujet: s.id }, 'bravo', '💬 ' + nom + ' t\'a laissé un mot ' + pourSeance(s.type, true) + '.');
+        // le mot ajouté juste après le bravo : sa propre étiquette (sinon la pause des 10 minutes du bravo le retiendrait)
+        alerter(ctx, { r: 'p', qui: j.id, sujet: j.id + '-mot' }, 'bravo', '💬 ' + nom + ' t\'a laissé un mot ' + pourSeance(s, true) + '.');
       }
     },
     submitRecords: function (req, ctx, res) {

@@ -39,13 +39,30 @@
     for (var k in extra || {}) o[k] = extra[k];
     return o;
   }
-  // le bravo arrive ou part : le groupe gardé en mémoire suit, et l'écran se redessine (à la même place)
+  // le bravo arrive ou part : le groupe gardé en mémoire suit, puis les lignes de cette séance sont mises à jour SUR PLACE
+  // (pas de redessin de l'écran : les volets ouverts, « Voir les autres », le détail d'une séance, restent ouverts,
+  // et la cloche garde sa partie « Nouveau »)
   function garder(jid, b, retire) {
     var g = G(), p = joueur(g, jid);
     if (!p) return;
     p.bravos = (p.bravos || []).filter(function (x) { return x.id !== (b && b.id); });
     if (!retire && b) p.bravos.push(b);
     persist();
+  }
+  function surPlace(sid, jid) {
+    var g = G(), p = joueur(g, jid), s = seance(p, sid) || { id: sid };
+    Array.prototype.slice.call(document.querySelectorAll('.bvb')).forEach(function (el) {
+      if (el.getAttribute('data-bv') !== sid) return;
+      var li = el.closest('li'), tmp = document.createElement('div');
+      tmp.innerHTML = btn(g, jid, s, { sm: el.classList.contains('sm') });
+      if (tmp.firstChild) el.replaceWith(tmp.firstChild); else el.remove();
+      // la ligne « 👏 vous · Cyril » sous la séance (Ça bouge, la fiche)
+      var gr = li && li.querySelector('.grow');
+      if (!gr || !MC.suivi) return;
+      var old = gr.querySelector('.bvw');
+      if (old) old.remove();
+      gr.insertAdjacentHTML('beforeend', MC.suivi.bravosDe(s, { bravos: (p && p.bravos) || [], moi: g.moi.id }));
+    });
   }
 
   MC.act.bravo = function (b) {
@@ -56,8 +73,8 @@
     app.adultCall('bravo', { seanceId: sid }).then(function (r) {
       garder(jid, r.bravo);
       ui.toast('👏 Bravo envoyé à ' + p.joueur.prenom + ' (retouchez pour ajouter un mot)');
-      app.rerender();
-    }).catch(function (e) { ui.toast(e.message || 'Le bravo n\'est pas parti.', true); app.rerender(); });
+      surPlace(sid, jid);
+    }).catch(function (e) { ui.toast(e.message || 'Le bravo n\'est pas parti.', true); surPlace(sid, jid); });
   };
 
   // retoucher « Envoyé » : un petit mot (phrases toutes prêtes) ou retirer le bravo
@@ -85,13 +102,13 @@
       if (!v) return;
       if (v === 'retirer') {
         return app.adultCall('retirerBravo', { id: m.id }).then(function () {
-          garder(jid, m, true); ui.toast('Bravo retiré.'); app.rerender();
+          garder(jid, m, true); ui.toast('Bravo retiré.'); surPlace(sid, jid);
         }, function (e) { ui.toast(e.message, true); });
       }
-      var mot = String(v.mot || '').trim();
-      if (mot === (m.mot || '')) return;
+      var mot = String(v.mot || '').replace(/\s+/g, ' ').trim();
+      if (mot === (m.mot || '')) { ui.toast(mot ? 'C\'est déjà ce mot-là.' : 'Pas de mot : le bravo reste envoyé.'); return; }
       return app.adultCall('bravo', { seanceId: sid, mot: mot }).then(function (r) {
-        garder(jid, r.bravo); ui.toast(mot ? 'Mot envoyé à ' + nom + '.' : 'Mot retiré.'); app.rerender();
+        garder(jid, r.bravo); ui.toast(mot ? 'Mot envoyé à ' + nom + '.' : 'Mot retiré.'); surPlace(sid, jid);
       }, function (e) { ui.toast(e.message, true); });
     });
   };

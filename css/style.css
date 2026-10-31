@@ -1700,7 +1700,7 @@ textarea.txt{min-height:84px;padding:10px 12px;resize:vertical;font:500 16px/1.4
 .li .t2.bvw{color:var(--gold)}
 .li .t2.bvw b{font-weight:700}
 .bvph{display:flex;flex-wrap:wrap;gap:6px}
-.bvph button{min-height:40px;padding:6px 10px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font:600 13px/1.2 var(--f-body);cursor:pointer;text-align:left}
+.bvph button{min-height:44px;padding:6px 10px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font:600 13px/1.2 var(--f-body);cursor:pointer;text-align:left}
 .bvcard{display:flex;flex-direction:column;gap:10px;padding:12px 14px;border:1.5px solid rgba(255,194,61,.55);background:rgba(255,194,61,.08)}
 .bvc-l{display:flex;gap:10px;align-items:flex-start;font-size:15px;line-height:1.35}
 .bvc-i{font-size:24px;line-height:1;flex:none}

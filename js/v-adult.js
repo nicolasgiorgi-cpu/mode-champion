@@ -486,7 +486,7 @@
     }
     var feed = ev.slice(0, 6).map(feedLi).join('');
     // la suite de la semaine (pour féliciter tout le monde), repliée
-    var plus = ev.slice(6).filter(function (e) { return String(e.at).slice(0, 10) >= G.weekAgo; }).slice(0, 30);
+    var plus = ev.slice(6).filter(function (e) { return String(e.at).slice(0, 10) >= G.weekAgo; }).slice(0, 40);
     if (feed && plus.length) feed = '<ul class="list">' + feed + '</ul><details class="more"><summary class="small" style="cursor:pointer;color:var(--cyan);min-height:44px;display:flex;align-items:center">Voir les ' + plus.length + ' autres des 7 derniers jours</summary><ul class="list" style="margin-top:6px">' + plus.map(feedLi).join('') + '</ul></details>';
     else if (feed) feed = '<ul class="list">' + feed + '</ul>';
     return '<main class="screen">' + educBar(g, 'Progrès') + progresTabs('prepa') +

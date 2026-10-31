@@ -205,15 +205,21 @@ assert.ok(!N.events('e', { group: g, compos: cd }).some(e => e.id === 'cv:c1'), 
   const kb = N.events('k', { me: meB }).filter(e => e.cat === 'bravo');
   assert.strictEqual(kb.length, 2, 'l\'enfant : une ligne par bravo');
   assert.strictEqual(kb.find(e => e.id === 'bv:bv1').txt, '👏 <b>Cyril</b> te dit bravo pour ta séance de Cros !');
-  const k2 = kb.find(e => e.id === 'bv:bv2:m');
-  assert.ok(k2 && /pour ton entraînement au club !/.test(k2.txt), 'club : « ton entraînement au club »');
+  const k2 = kb.find(e => e.id === 'bv:bv2:m:' + bv[1].maj);
+  assert.ok(k2 && /pour ton entraînement au club : « /.test(k2.txt), 'club : « ton entraînement au club », puis le mot', k2 && k2.txt);
+  assert.ok(!/! :/.test(k2.txt), 'pas de « ! : » avec un mot');
   assert.ok(/« Top &lt;b&gt;match&lt;\/b&gt; &amp; bravo »/.test(k2.txt), 'le mot de l\'éduc, échappé');
   assert.strictEqual(k2.t, NOW - H / 2, 'un mot ajouté après coup : l\'heure du mot');
-  assert.strictEqual(kb[0].href, '#/semaine');
+  // le lien : Ma semaine (carte des 7 derniers jours), sinon Ma progression (sous la séance)
+  kb.forEach(e => assert.strictEqual(e.href, Date.now() - e.t < 6.5 * 86400000 ? '#/semaine' : '#/progression'));
+  // un mot changé : une nouvelle ligne (l'heure du mot dans l'identifiant)
+  const k3 = N.events('k', { me: Object.assign({}, meB, { bravos: [Object.assign({}, bv[1], { mot: 'Autre', maj: iso(NOW) })] }) })[0];
+  assert.ok(k3.id !== k2.id, 'mot changé : nouvelle ligne');
   const famB = { famille: { id: 'f9' }, enfants: [{ joueur: { id: 'k9', prenom: 'Nina' }, seances: ses, records: [], journal: [], missions: [], bravos: bv }] };
   const pb = N.events('f', { family: famB }).filter(e => e.cat === 'bravo');
   assert.strictEqual(pb.length, 2, 'la famille aussi');
-  assert.strictEqual(pb.find(e => e.id === 'bv:bv1').txt, '👏 <b>Cyril</b> a dit bravo à <b>Nina</b> pour sa séance de Cros');
+  assert.strictEqual(pb.find(e => e.id === 'bv:bv1').txt, '👏 <b>Cyril</b> a dit bravo à <b>Nina</b> pour sa séance de Cros.');
+  assert.ok(/pour son entraînement au club : « Top/.test(pb.find(e => e.id !== 'bv:bv1').txt), 'famille : le mot après « : »');
   assert.ok(pb.every(e => e.href === '#/parent?k=k9'));
   // un bravo dont la séance n'est plus là : « sa séance », sans planter
   assert.ok(/pour ta séance !/.test(N.events('k', { me: Object.assign({}, meB, { seances: [] }) }).find(e => e.id === 'bv:bv1').txt));

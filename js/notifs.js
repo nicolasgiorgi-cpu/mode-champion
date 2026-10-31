@@ -75,9 +75,12 @@ MC.notifs = (function () {
     if (n === 'un match') return ta ? 'ton match' : 'son match';
     return ta ? 'ta séance' : 'sa séance';
   }
-  function bravoTxt(x, s, qui) {
-    return qui + (x.mot ? ' : « ' + esc(court(x.mot, 90)) + ' »' : '');
+  // « 👏 Cyril te dit bravo pour ta séance de Cros ! » ; avec un mot : « … pour ta séance de Cros : « Super ! » »
+  function bravoTxt(x, debut, fin) {
+    return debut + (x.mot ? ' : « ' + esc(court(x.mot, 90)) + ' »' : fin);
   }
+  // un mot ajouté ou changé = une ligne nouvelle (l'heure du mot dans l'identifiant)
+  function bravoId(x) { return 'bv:' + x.id + (x.mot ? ':m:' + (x.maj || '') : ''); }
   function seanceDe(l, id) { for (var i = 0; i < (l || []).length; i++) if (l[i].id === id) return l[i]; return null; }
   function nomBilan(bilan) {
     var l = (MC.CONFIG && MC.CONFIG.BILANS) || [], n = Number(bilan);
@@ -202,7 +205,7 @@ MC.notifs = (function () {
       // (v36) les bravos des éducs ; un mot ajouté après coup = une nouvelle ligne
       (d.bravos || []).forEach(function (x) {
         var s = seanceDe(d.seances, x.seanceId);
-        out.push({ id: 'bv:' + x.id + (x.mot ? ':m' : ''), cat: 'bravo', t: ms(x.maj || x.cree), txt: bravoTxt(x, s, '👏 ' + b(x.parNom || 'Un éduc') + ' a dit bravo à ' + who + ' pour ' + esc(pour(s, false))), href: '#/parent' + k });
+        out.push({ id: bravoId(x), cat: 'bravo', t: ms(x.maj || x.cree), txt: bravoTxt(x, '👏 ' + b(x.parNom || 'Un éduc') + ' a dit bravo à ' + who + ' pour ' + esc(pour(s, false)), '.'), href: '#/parent' + k });
       });
       groupes(d.records).forEach(function (x) {
         var att = x.attente ? ' <span class="nt-att">À confirmer</span>' : '';
@@ -248,7 +251,9 @@ MC.notifs = (function () {
     if (!me || !me.joueur) return out;
     (me.bravos || []).forEach(function (x) {
       var s = seanceDe(me.seances, x.seanceId);
-      out.push({ id: 'bv:' + x.id + (x.mot ? ':m' : ''), cat: 'bravo', t: ms(x.maj || x.cree), txt: bravoTxt(x, s, '👏 ' + b(x.parNom || 'Ton éduc') + ' te dit bravo pour ' + esc(pour(s, true)) + ' !'), href: '#/semaine' });
+      // le lien : Ma semaine (la carte des 7 derniers jours) ; plus ancien, Ma progression (sous la séance)
+      var t = ms(x.maj || x.cree);
+      out.push({ id: bravoId(x), cat: 'bravo', t: t, txt: bravoTxt(x, '👏 ' + b(x.parNom || 'Ton éduc') + ' te dit bravo pour ' + esc(pour(s, true)), ' !'), href: Date.now() - t < 6.5 * JOUR ? '#/semaine' : '#/progression' });
     });
     groupes(me.records).forEach(function (x) {
       var faits = x.recs.filter(function (r) { return r.statut === 'ok' || r.statut === 'refuse'; });

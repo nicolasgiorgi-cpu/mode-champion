@@ -51,9 +51,24 @@ with sync_playwright() as p:
     mb = mes_bravos(pg, jid)
     check('le mot part avec le même bravo (pas de 2e)', len(mb) == 1 and mb[0]['mot'] == 'Super séance !', mb)
     check('le mot est écrit sous la ligne', 'Super séance !' in pg.evaluate("document.querySelector('.bvb[data-bv=\"%s\"]').closest('li').innerText" % sid))
-    # le reste de la semaine, replié
+    # le reste de la semaine, replié ; un bravo dedans ne le referme pas (mise à jour sur place, pas de redessin)
     more = pg.query_selector('.sec details.more')
-    if more: check('« Voir les … autres des 7 derniers jours » : replié', not more.evaluate('e => e.open'))
+    check('« Voir les … autres des 7 derniers jours » : replié', more is not None and not more.evaluate('e => e.open'))
+    if more:
+        pg.click('.sec details.more > summary'); pg.wait_for_timeout(300)
+        b3 = pg.query_selector('.sec details.more .bvb:not(.on)')
+        if b3:
+            s3 = b3.get_attribute('data-bv'); b3.click(); pg.wait_for_timeout(1500)
+            check('bravo dans « Voir les autres » : le volet reste ouvert', more.evaluate('e => e.open'))
+            check('… et la ligne passe à « Envoyé » sur place', pg.query_selector('.sec details.more .bvb.on[data-bv="%s"]' % s3) is not None)
+    # une erreur du serveur : le bouton revient à « Bravo » et un message le dit
+    pg.evaluate("window.__ac = MC.app.adultCall; MC.app.adultCall = function (a, p) { return a === 'bravo' ? Promise.reject({ message: 'Le serveur ne répond pas.' }) : window.__ac(a, p); }; 0")
+    be = pg.query_selector('.bvrow .bvb:not(.on)') or pg.query_selector('.bvb:not(.on)')
+    if be:
+        se = be.get_attribute('data-bv'); be.click(); pg.wait_for_timeout(800)
+        check('erreur du serveur : le bouton redevient « Bravo »', 'Bravo' in pg.inner_text('.bvb[data-bv="%s"]' % se) and pg.query_selector('.bvb.on[data-bv="%s"]' % se) is None)
+        check('… avec le message', 'ne répond pas' in (pg.inner_text('#toast') or ''), pg.inner_text('#toast'))
+    pg.evaluate("MC.app.adultCall = window.__ac; 0")
 
     # ----- la fiche › Prépa -----
     pg.goto(BASE + '#/educ/joueur/%s?t=prepa' % jid); pg.wait_for_timeout(1500)
@@ -64,12 +79,25 @@ with sync_playwright() as p:
     if det:
         pg.click('.li.bvl.sess details > summary >> nth=0'); pg.wait_for_timeout(300)
         check('fiche : toucher la séance ouvre toujours son détail', det.evaluate('e => e.open'))
+        bd = det.evaluate_handle('e => e.closest("li").querySelector(".bvb")').as_element()
+        sd = bd.get_attribute('data-bv'); bd.click(); pg.wait_for_timeout(1500)
+        check('fiche : un bravo ne referme pas le détail ouvert', det.evaluate('e => e.open'))
+        if pg.query_selector('.bvb.on[data-bv="%s"]' % sd) and sd != sid:
+            pg.click('.bvb.on[data-bv="%s"]' % sd); pg.wait_for_timeout(500); pg.click('.modal .mbtns button >> nth=1'); pg.wait_for_timeout(1300)
+    # plus de 14 jours : pas de bouton ; sauf si le bravo est déjà donné (pour le retoucher)
+    vieux = pg.evaluate("(function(){var p=MC.app.S.cache.group.joueurs.filter(function(x){return x.joueur.id==='%s';})[0],lim=MC.logic.addDays(MC.logic.today(),-15);return (p.seances||[]).filter(function(s){return s.date<lim;}).map(function(s){return s.id;});})()" % jid)
+    if vieux:
+        check('fiche : pas de bouton sur une séance de plus de 14 jours', all(pg.query_selector('.bvb[data-bv="%s"]' % v) is None for v in vieux))
+        pg.evaluate("MC.app.adultCall('bravo', { seanceId: '%s' })" % vieux[0]); pg.wait_for_timeout(800)
+        pg.evaluate("MC.loadGroup(true)"); pg.wait_for_timeout(1200); pg.goto(BASE + '#/educ/joueur/%s?t=prepa' % jid); pg.wait_for_timeout(300); pg.goto(BASE + '#/educ/joueur/%s?t=prepa&x=1' % jid); pg.wait_for_timeout(1500)
+        pg.evaluate("document.querySelectorAll('details.more').forEach(function(d){d.open=true;})"); pg.wait_for_timeout(200)
+        check('… sauf si le bravo est déjà donné (« Envoyé », pour le retoucher)', pg.query_selector('.bvb.on[data-bv="%s"]' % vieux[0]) is not None)
     # retirer le bravo
     pg.click('.bvb.on[data-bv="%s"]' % sid); pg.wait_for_timeout(500)
     pg.click('.modal .mbtns button >> nth=1'); pg.wait_for_timeout(1500)
-    check('« Retirer le bravo » : il n\'y est plus', len(mes_bravos(pg, jid)) == 0 and pg.query_selector('.bvb.on[data-bv="%s"]' % sid) is None)
+    check('« Retirer le bravo » : il n\'y est plus', not any(x['seanceId'] == sid for x in mes_bravos(pg, jid)) and pg.query_selector('.bvb.on[data-bv="%s"]' % sid) is None)
     pg.click('.bvb[data-bv="%s"]' % sid); pg.wait_for_timeout(1500)
-    check('… et on peut le redonner', len(mes_bravos(pg, jid)) == 1)
+    check('… et on peut le redonner', len([x for x in mes_bravos(pg, jid) if x['seanceId'] == sid]) == 1)
 
     # ----- la cloche : Tom (l'enfant de Coach Nico en démo) fait une séance -----
     pg.goto(BASE + '#/educ/entrainements'); pg.wait_for_timeout(900)
@@ -85,6 +113,7 @@ with sync_playwright() as p:
     check('cloche : pas de défilement de côté', sans_debord(pg))
     b2.click(); pg.wait_for_timeout(1500)
     check('cloche : un toucher, c\'est envoyé, on reste sur la cloche', '#/educ/notifs' in pg.url and pg.query_selector('.ntb .bvb.on[data-bv="%s"]' % sid2) is not None, pg.url)
+    check('cloche : la partie « Nouveau » reste là après le bravo', 'NOUVEAU' in pg.inner_text('main').upper() and pg.query_selector('.ntl .nt.new') is not None)
     check('cloche : Tom a son bravo', any(x['seanceId'] == sid2 for x in mes_bravos(pg, tom)))
 
     # ----- l'enfant -----
