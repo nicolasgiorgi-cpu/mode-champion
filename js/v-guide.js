@@ -48,6 +48,18 @@
     }).join('') + '</div>';
   }
 
+  // (v33) la cloche : ce qu'elle signale (les sortes ouvertes pour ce profil) et où la régler
+  function cloche(id, role, tu) {
+    var sortes = MC.notifs ? MC.notifs.cats(role).map(function (c) { return esc(c.nom.charAt(0).toLowerCase() + c.nom.slice(1)); }) : [];
+    var reg = role === 'k' ? 'Moi › Réglages › Mes notifications' : role === 'f' ? 'Plus › Mes notifications' : 'l\'engrenage › Mes notifications';
+    return card(id, 'bell', '#FF7FBC', tu ? 'La cloche' : 'La cloche (notifications)', tu ? 'Ce qui s\'est passé pour toi' : 'Ce qui s\'est passé depuis votre dernière visite',
+      ul([
+        tu ? 'En haut de l\'écran, la <b>cloche</b> 🔔. Une pastille rose te dit combien de nouveautés t\'attendent.' : 'En haut des écrans, la <b>cloche</b> 🔔. Une pastille rose dit combien de nouveautés vous attendent.',
+        (tu ? 'Touche-la : la liste, les nouvelles en haut. Touche une ligne pour aller au bon écran.' : 'Touchez-la : la liste des 30 derniers jours, les nouvelles en haut. Une ligne mène au bon écran.') + (sortes.length ? ' Elle signale : ' + sortes.join(', ') + '.' : ''),
+        (tu ? 'Tu choisis ce que tu reçois : ' : 'Vous choisissez ce que vous recevez : ') + '<b>' + reg + '</b> (ou la roue dentée de la liste). ' + (tu ? 'C\'est réglé sur cet appareil.' : 'C\'est réglé sur cet appareil : l\'autre parent règle le sien.')
+      ]));
+  }
+
   // ---------- onglet joueur ----------
   // V1 (28/10) : ce qui est ouvert aux enfants et aux parents (MC.CONFIG.ENFANTS)
   var SKON, MEON, COPON;
@@ -150,6 +162,7 @@
           'Oublié ? Demande à tes parents (espace parent) ou à ton éduc : ils te donnent un <b>code provisoire</b>, puis tu choisis un nouveau code. Tes étoiles et tes XP sont gardés.',
           'Après 5 codes faux, ton profil est bloqué 10 minutes.'
         ])) +
+      cloche('notifs', 'k', true) +
       card('astuces', 'info', '#C7CEDF', 'Astuces', 'Pour que ce soit encore plus pratique',
         ul([
           'Mets le site sur ton écran d\'accueil : menu <b>Partager › Sur l\'écran d\'accueil</b>. Il s\'ouvre alors comme une appli (il faudra te connecter une fois depuis l\'icône).',
@@ -171,6 +184,7 @@
           'Un seul code pour la famille : les deux parents peuvent l\'utiliser, et il donne accès à tous vos enfants inscrits.',
           'Vous restez connecté sur l\'appareil. Pour changer de code : Plus › Changer mon code parent. Code perdu : l\'éducateur vous en crée un provisoire. Après 5 codes faux, l\'accès se bloque 10 minutes.'
         ]), true) +
+      cloche('p-notifs', 'f', false) +
       card('p-voir', 'eye', '#3DFFB0', 'Ce que vous voyez', 'Le suivi de votre enfant',
         ul([
           'Sa semaine : les étoiles gagnées et les séances faites. <b>Touchez une séance</b> pour le détail : exercices, niveau, séries, ressenti.',
@@ -238,6 +252,7 @@
           'L\'<b>engrenage</b> (en haut à droite de chaque onglet) › <b>Changer mon code</b> pour en choisir un autre.',
           'L\'éduc <b>admin</b> crée les codes provisoires des autres éducs (engrenage › Les éducs) et peut en refaire un s\'il est perdu. Après 5 codes faux, l\'accès se bloque 10 minutes.'
         ]), true) +
+      cloche('e-notifs', 'e', false) +
       card('e-vestiaire', 'group', '#3DFFB0', 'Les 4 onglets et l\'engrenage', 'Un onglet par usage',
         ul([
           '<b>Entraîn.</b> (on arrive ici) : à venir et passés. Un entraînement : les présents de Spond (à corriger d\'un toucher), <b>1. les ateliers</b> puis <b>2. les matchs</b>, et après la séance : évaluer des Skills avec les présents (une étoile ou un atelier), et les missions des présents (un toucher = +1).',

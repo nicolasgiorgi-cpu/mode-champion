@@ -26,6 +26,8 @@ Site statique (HTML/CSS/JS, rien à installer) + une Google Sheet qui sert de ba
 | `js/v-guide.js` | Le guide « Comment ça marche ? » (joueur, parents, éducs) |
 | `js/accueil.js` | L'accueil des nouveaux : visites (joueur, parent, éduc), listes « premiers pas », astuces |
 | `js/nouveautes.js` | **Les nouveautés** : une entrée par nouvelle fonction (voir plus bas) |
+| `js/notifs.js` | **La cloche** (notifications) : les événements de chaque profil, lu / non lu, réglages ; tout est calculé sur l'appareil |
+| `js/v-notifs.js` | La cloche dans la barre du haut, la liste des notifications et ses réglages |
 | `js/missions.js` | **Les missions spéciales** (dates, textes) et le test « Aide-moi à choisir » |
 | `js/postes-data.js` | Les 7 cartes postes de la mission « Prépare le jeu à 10 » (reprises du site « Choisis ton poste ») |
 | `js/v-mission.js` | Les écrans de la mission « Prépare le jeu à 10 » (joueur), sa vue éduc et parent |
@@ -100,7 +102,7 @@ Sur iPad et téléphone : **Partager › Sur l'écran d'accueil** pour l'ouvrir 
 4. L'enfant fait son **bilan 0** (profil › Saisir mon bilan › **Lancer le bilan guidé** : échauffement puis les 12 tests un par un, avec démo, chrono, compteur et 2 min de repos ; ou le formulaire pour noter directement). Ses niveaux N1-N3 se règlent tout seuls. Un parent ou un éduc confirme les résultats pour qu'ils comptent au classement.
 5. Autres éducs : **Les éducs (admin)** › Ajouter un éduc.
 
-**Téléphone partagé** (l'enfant utilise le téléphone ou l'iPad d'un parent) : chaque enfant touche son avatar et tape son code, il reste connecté. « Pas Tom ? Changer de joueur » en bas de la semaine et « J'ai fini » en fin de séance pour passer la main. Si plusieurs enfants utilisent l'appareil, le site demande « C'est bien toi ? » après 30 min sans utilisation. Dès qu'un enfant a utilisé l'appareil, l'espace parent ou éduc se reverrouille (code redemandé après 10 min, ou dès qu'on repasse côté joueur) : un enfant ne peut pas confirmer ses propres résultats. Réglage « Appareil partagé avec un enfant » dans l'espace adulte.
+**Téléphone partagé** (l'enfant utilise le téléphone ou l'iPad d'un parent) : chaque enfant touche son avatar et tape son code, il reste connecté. « Pas Tom ? Changer de joueur » en bas de la semaine et « J'ai fini » en fin de séance pour passer la main. Si plusieurs enfants utilisent l'appareil, le site demande « C'est bien toi ? » après 30 min sans utilisation. Dès qu'un enfant a utilisé l'appareil, l'espace parent ou éduc se reverrouille quand on revient de l'espace joueur (code redemandé) : un enfant ne peut pas confirmer ses propres résultats. En rouvrant l'appli, on retrouve le dernier profil utilisé (enfant, parent ou éduc), sans code (v33). Réglage « Appareil partagé avec un enfant » dans l'espace adulte.
 
 Un éduc qui est aussi parent : l'engrenage › **Mon enfant**. Son enfant apparaît en premier dans Enfants (et ses résultats à confirmer dans Progrès), avec tout le suivi (séances, progression, niveaux, code), sans changer de code. Progrès › **Progrès du groupe aux bilans** classe les joueurs test par test selon leur progrès.
 
@@ -146,4 +148,8 @@ python3 /home/claude/tests/e2e_mission.py 390 844                  # la mission 
 python3 /home/claude/tests/e2e_compos.py 390 844                   # les compos (aussi en 1180 820 et 820 1180 pour l'iPad)
 python3 /home/claude/tests/e2e_nav16.py 390 844                    # les 4 onglets (joueur, parent, éduc), Missions, Skills, +1
 python3 /home/claude/tests/e2e_retour.py 390 844                   # Retour = vrai précédent, tirer pour actualiser, mission éduc, arène, pas de défilement de côté
+node /home/claude/tests/test_notifs.js                              # la cloche : événements, lu / non lu, réglages, V1
+python3 /home/claude/tests/e2e_notifs.py 390 844                   # la cloche : éduc, parent, enfant, réglages, liens
+python3 /home/claude/tests/e2e_reouvrir.py 390 844                 # rouvrir l'appli : le dernier profil, sans code
+python3 /home/claude/tests/e2e_rebond.py 390 844                   # le rebond en fin de défilement
 ```

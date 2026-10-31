@@ -10,6 +10,18 @@
 window.MC = window.MC || {};
 
 MC.NEWS = [
+  // (31/10, v33) la cloche des notifications, et l'appli qui rouvre son espace sans code
+  { id: '2026-10-31-cloche', date: '2026-10-31', pour: ['k', 'f', 'e'],
+    titre: { k: 'La cloche', f: 'La cloche : vos notifications', e: 'La cloche : vos notifications' },
+    texte: {
+      k: 'En haut de l\'écran, la cloche te dit ce qui s\'est passé pour toi : un résultat confirmé, une nouvelle mission, un niveau changé. Tu choisis ce que tu reçois dans Moi › Réglages.',
+      f: 'En haut des écrans, la cloche dit ce qui s\'est passé : ses séances, ses résultats à confirmer, ses missions. Une pastille rose compte les nouveautés. Vous choisissez ce que vous recevez dans Plus › Mes notifications.',
+      e: 'En haut des écrans, la cloche dit ce qui s\'est passé : séances, bilans, réponses aux missions et mots des enfants, demandes d\'étoiles, niveaux, votes et contre-propositions sur les compos. Réglez ce que vous recevez dans l\'engrenage › Mes notifications.'
+    },
+    lien: { k: '#/notifs', f: '#/parent/notifs', e: '#/educ/notifs' } },
+  { id: '2026-10-31-reouvrir', date: '2026-10-31', pour: ['f', 'e'],
+    titre: 'Votre espace, sans retaper votre code',
+    texte: 'En rouvrant l\'appli, vous retrouvez votre espace directement. Le code n\'est redemandé que si un enfant a utilisé l\'appareil entre-temps (en revenant de son espace).' },
   // (29/10) le Retour = un vrai « précédent », tirer pour actualiser, l'arène en entier, la mission côté éduc, le mot pour les éducs
   { id: '2026-10-29-retour', date: '2026-10-29', pour: ['k', 'f', 'e'],
     titre: { k: 'Retour et actualiser', f: 'Retour et actualiser', e: 'Retour et actualiser' },

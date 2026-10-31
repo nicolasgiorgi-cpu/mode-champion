@@ -591,6 +591,7 @@
         '<div class="head"><span class="kicker">' + esc(k.prenom) + '</span><h1 class="big md">Réglages</h1></div>' +
         '<div class="sec">' + sw(mini, 'Mode mini matériel', 'Tapis + élastiques : les exercices et les tests s\'adaptent', 'toggleMini') +
         sw(!ui.isMuted(), 'Bips du chrono', 'Un bip 10 s avant la fin, puis 5-4-3-2-1 et le son de fin', 'togglePrefSon') +
+        '<a class="switch" href="#/notifs/reglages" style="text-decoration:none"><span><span class="t1" style="display:block">Mes notifications</span><span class="t2" style="display:block">Ce qui arrive dans la cloche, en haut de l\'écran</span></span>' + icon('right', 18) + '</a>' +
         '<a class="switch" href="#/guide?pour=joueur&de=reglages" style="text-decoration:none"><span><span class="t1" style="display:block">Comment ça marche ?</span><span class="t2" style="display:block">Étoiles, niveaux, badges, bilan, classement</span></span>' + icon('right', 18) + '</a>' +
         '<a class="switch" href="#/nouveautes" style="text-decoration:none"><span><span class="t1" style="display:block">Les nouveautés</span><span class="t2" style="display:block">Ce qui a changé dans l\'appli</span></span>' + icon('right', 18) + '</a>' +
         '<a class="switch" href="#/bienvenue?revoir=1" style="text-decoration:none"><span><span class="t1" style="display:block">Revoir la visite</span><span class="t2" style="display:block">Les 5 écrans du début</span></span>' + icon('right', 18) + '</a>' +

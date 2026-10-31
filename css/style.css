@@ -1644,3 +1644,22 @@ textarea.txt{min-height:84px;padding:10px 12px;resize:vertical;font:500 16px/1.4
 .rkmore{align-self:stretch;min-height:40px}
 .rkcards{display:flex;flex-direction:column;gap:20px}
 @media (min-width:1000px){ .rkcards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start} }
+
+/* ---------- (v33) la cloche des notifications (js/v-notifs.js) ---------- */
+.tb-bell{position:relative;flex:none;width:34px;height:44px;margin:0 -3px;display:inline-flex;align-items:center;justify-content:center;color:var(--soft);text-decoration:none}
+.tb-bell.on{color:var(--cyan)}
+.tb-bell .tb-nb{position:absolute;top:3px;right:-5px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--pink);color:#070A12;font:700 11px/18px var(--f-hud);letter-spacing:0;text-align:center}
+.ntl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.nt{display:flex;align-items:center;gap:12px;min-height:56px;padding:10px 12px;background:#0E1428;border:1px solid var(--line);color:var(--ink);text-decoration:none}
+.nt.new{border-color:var(--cyan);background:#0F1A33}
+.nt-ic{flex:none;width:34px;height:34px;display:grid;place-items:center;border:1.5px solid var(--nc,var(--cyan));color:var(--nc,var(--cyan))}
+.nt-tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.nt-t{font:500 15px/1.3 var(--f-body);overflow-wrap:anywhere}
+.nt-t b{font-weight:700}
+.nt-q{font:600 12px/1.2 var(--f-body);color:var(--dim)}
+.nt-q b{color:var(--cyan);font-weight:700}
+.nt-go{flex:none;color:var(--dim)}
+.nt-att{display:inline-block;margin-left:4px;padding:1px 6px;border:1px solid var(--pink);color:var(--pink);font:700 11px/1.4 var(--f-hud);letter-spacing:.04em;text-transform:uppercase;vertical-align:1px}
+.switch .nt-ic{width:32px;height:32px}
+/* petits téléphones : un peu moins d'espace autour des boutons de la barre du haut, pour laisser le titre lisible */
+@media (max-width:389px){.topbar{gap:7px}.tb-pass{padding:0 9px;gap:4px}}

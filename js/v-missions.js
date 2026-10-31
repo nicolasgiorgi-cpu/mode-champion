@@ -429,6 +429,7 @@ window.MC = window.MC || {};
   function parentRoute(fn, mark, module, vers) {
     return function (p, q, cur) {
       if (module && ferme(module, vers || '#/parent/missions')) return null;
+      if (MC.parentPick) MC.parentPick(q);
       return MC.loadFamily().then(function (fam) {
         app.refreshNav();
         if (!fam.enfants.length) return MC.parentNoKid(fam);

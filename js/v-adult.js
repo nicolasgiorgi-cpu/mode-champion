@@ -232,6 +232,12 @@
     return kids.filter(function (k) { return k.joueur.id === parentSel; })[0];
   }
   MC.famKid = famKid;
+  // (v33) un lien d'une notification (…?k=<id>) : on regarde cet enfant-là, puis l'adresse redevient normale
+  MC.parentPick = function (q) {
+    if (!q || !q.k) return;
+    parentSel = String(q.k);
+    app.setUrl(location.hash.replace(/([?&])k=[^&]*(&|$)/, function (_, a, z) { return z ? a : ''; }));
+  };
   // le numéro de version (celui des fichiers, ?v=…) : pour vérifier que l'appli est à jour
   function versionLine() { var l = document.querySelector('link[href*="style.css"]'), m = l && /v=(\d+)/.exec(l.getAttribute('href')); return m ? '<p class="small" style="margin:0;text-align:center;color:var(--dim)">Version ' + m[1] + '</p>' : ''; }
   function parentBar(fam, d, title) {
@@ -316,6 +322,7 @@
 
   // ----- Suivi -----
   app.route('/parent', function (p, q, cur) {
+    MC.parentPick(q);
     return loadFamily().then(function (fam) {
       app.refreshNav();
       if (!fam.enfants.length) return noKid(fam);
@@ -377,7 +384,7 @@
         '<div class="cols2"><div class="sec" style="gap:20px"><section class="sec"><h2 class="h2">' + esc(k.prenom) + '</h2>' +
         '<button type="button" class="switch" role="switch" aria-checked="' + !!k.visible + '" data-act="kidVisible" data-id="' + esc(k.id) + '"><span><span class="t1" style="display:block">Afficher ' + esc(k.prenom) + ' au classement</span><span class="t2" style="display:block">' + (k.visible ? 'Son prénom apparaît dans sa ligue' : 'Il voit son rang, les autres ne le voient pas') + '</span></span><span class="k"></span></button>' +
         '<button type="button" class="switch" data-act="kidCode" data-id="' + esc(k.id) + '" data-p="' + esc(k.prenom) + '"><span><span class="t1" style="display:block">Nouveau code secret pour ' + esc(k.prenom) + '</span><span class="t2" style="display:block">S\'il a oublié le sien</span></span>' + icon('right', 18) + '</button></section>' +
-        '<section class="sec"><h2 class="h2">Cet appareil</h2>' + sharedSwitch() +
+        '<section class="sec"><h2 class="h2">Cet appareil</h2>' + link('#/parent/notifs/reglages', 'bell', 'Mes notifications', 'Ce qui arrive dans la cloche, en haut de l\'écran') + sharedSwitch() +
         '<button type="button" class="switch" data-act="howInstall"><span class="row">' + icon('phone', 20, 'style="color:var(--cyan);flex:none"') + '<span><span class="t1" style="display:block">Mettre l\'appli sur l\'écran d\'accueil</span><span class="t2" style="display:block">Elle s\'ouvre alors comme une vraie appli</span></span></span>' + icon('right', 16) + '</button>' +
         '<button type="button" class="switch" data-act="passKid" data-id="' + esc(k.id) + '"><span class="row">' + icon('play', 20, 'style="color:var(--cyan);flex:none"') + '<span><span class="t1" style="display:block">Passer le téléphone à ' + esc(k.prenom) + '</span><span class="t2" style="display:block">Aussi en haut à droite (▶ ' + esc(k.prenom) + '). Pour revenir ici : votre code</span></span></span>' + icon('right', 16) + '</button>' +
         link(app.S.kid ? '#/semaine' : '#/connexion', 'user', 'Côté joueur', 'Tous les joueurs de cet appareil') + '</section></div>' +
@@ -559,7 +566,7 @@
         link('#/educ/spond', 'refresh', 'Spond', !sp ? 'Les événements et les réponses des familles' : sp.branche ? 'Branché · les événements et les réponses des familles' : 'Pas encore branché', g.moi.admin ? admin : '') +
         link('#/educ/ajouter', 'plus', 'Ajouter des enfants', 'Depuis Spond, avec leurs codes') +
         '<p class="small" style="margin:0">Spond : le compte et le mot de passe se tapent ici, ils restent sur le serveur du club.</p></section></div>' +
-        '<div class="sec" style="gap:20px"><section class="sec"><h2 class="h2">Cet appareil</h2>' + sharedSwitch() +
+        '<div class="sec" style="gap:20px"><section class="sec"><h2 class="h2">Cet appareil</h2>' + link('#/educ/notifs/reglages', 'bell', 'Mes notifications', 'Ce qui arrive dans la cloche : séances, bilans, missions, compos…') + sharedSwitch() +
         (MC.accueil && MC.accueil.mobile() && !MC.accueil.installee() ? '<button type="button" class="switch" data-act="howInstall" data-r="e"><span class="row">' + icon('phone', 20, 'style="color:var(--cyan);flex:none"') + '<span><span class="t1" style="display:block">Mettre l\'appli sur l\'écran d\'accueil</span><span class="t2" style="display:block">Elle s\'ouvre d\'un geste, comme une vraie appli</span></span></span>' + icon('right', 16) + '</button>' : '') +
         link(app.S.kid ? '#/semaine' : '#/connexion', 'user', 'Côté joueur', 'Voir l\'appli comme les enfants') + '</section>' +
         '<button type="button" class="btn2 grey" data-act="adultLogout">' + icon('logout', 18) + ' Se déconnecter</button>' +

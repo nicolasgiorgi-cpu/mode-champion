@@ -83,6 +83,7 @@ MC.ui = (function () {
     chevd: '<path d="M6 9l6 6 6-6"/>',
     swap: '<path d="M7 7h12l-3-3M17 17H5l3 3"/>',
     spark: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M18 6l-2.5 2.5M8.5 15.5L6 18"/>',
+    bell: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>',
     news: '<path d="M4 5h13v14H6a2 2 0 0 1-2-2zM17 9h3v8a2 2 0 0 1-2 2M8 9h5M8 13h5"/>',
     vest: '<path d="M3 11l9-7 9 7v10h-6v-6H9v6H3z"/>',
     board: '<rect x="4" y="4" width="16" height="17" rx="1"/><path d="M9 4V2.5h6V4M8 9l2.5 2.5M10.5 9L8 11.5M15 15.5h.01M9 17.5c1.5-3 4-4.5 6-6"/>',
@@ -480,7 +481,9 @@ MC.ui = (function () {
     var kick = o.back ? (o.backLabel || '') : (o.kicker || '');
     var mid = o.mid !== undefined ? o.mid : '<span class="tb-t">' + (kick ? '<span class="tb-k">' + esc(kick) + '</span>' : '') + '<span class="tb-title">' + esc(o.title || '') + '</span></span>';
     var help = o.help === false ? '' : '<a class="cbtn grey" href="' + esc(o.help || '#/guide') + '" aria-label="Aide : comment ça marche ?"><b class="q">?</b></a>';
-    return '<header class="topbar">' + left + mid + (o.right || '') + help + (o.xp !== undefined ? '<i class="tb-xp" style="width:' + Math.max(2, Math.min(100, o.xp)) + '%" aria-hidden="true"></i>' : '') + '</header>';
+    // (v33) la cloche des notifications : sur les écrans avec onglets (js/v-notifs.js)
+    var bell = o.bell === false || !MC.cloche ? '' : MC.cloche();
+    return '<header class="topbar">' + left + mid + (o.right || '') + bell + help + (o.xp !== undefined ? '<i class="tb-xp" style="width:' + Math.max(2, Math.min(100, o.xp)) + '%" aria-hidden="true"></i>' : '') + '</header>';
   }
   // ---------- Sous-onglets en haut d'un onglet (2 à 4) ----------
   // nav : l'onglet du bas (pour retenir le dernier sous-onglet choisi) ; items : [[clé, lien, libellé, pastille]] ; on : la clé allumée ; c : couleur
