@@ -94,7 +94,7 @@ img{display:block;max-width:100%}
 .roster{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .kidbtn{height:96px;padding:1.5px;border:0;background:#1E2740;clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,12px 100%,0 calc(100% - 12px))}
 .kidbtn>span{height:100%;background:#0C1120;clip-path:polygon(0 0,calc(100% - 11px) 0,100% 11px,100% 100%,11px 100%,0 calc(100% - 11px));display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;padding:0 4px}
-.kidbtn .nm{font:700 12px/1.1 var(--f-hud);letter-spacing:.06em;color:var(--ink);text-transform:uppercase;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kidbtn .nm{font:700 12px/1.1 var(--f-hud);letter-spacing:.06em;color:var(--ink);text-transform:uppercase;max-width:100%;overflow:hidden;text-align:center;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2}
 .kidbtn.on{background:linear-gradient(160deg,var(--cyan),var(--pink))}
 .kidbtn.on>span{background:#102038}
 .search{height:46px;width:100%;padding:0 12px;background:var(--panel2);border:1px solid var(--line2);color:var(--ink);font-size:16px}
@@ -166,6 +166,10 @@ img{display:block;max-width:100%}
 .li .t1{font:700 14px/1.15 var(--f-hud);letter-spacing:.04em}
 .li .t2{font-size:12px;color:var(--dim);margin-top:3px}
 .li .t1,.li .t2{display:block}
+/* « Depuis Spond » : un enfant sans doute déjà dans l'appli (Relier ou Ajouter), les boutons passent dessous si la place manque */
+.li.sp-proche{flex-wrap:wrap;border-color:color-mix(in srgb,var(--orange) 45%,var(--line))}
+.li.sp-proche .grow{flex:1 1 160px}
+.sp-acts{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap;justify-content:flex-end}
 .hexa{width:30px;height:30px;flex:none;display:flex;align-items:center;justify-content:center;font:700 13px/1 var(--f-hud);color:var(--hc);border:1.5px solid var(--hc);clip-path:polygon(50% 0,100% 22%,100% 60%,50% 100%,0 60%,0 22%)}
 .steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
 .steps li{display:flex;gap:12px;align-items:flex-start;padding:10px 12px;background:var(--panel);border:1px solid var(--line)}

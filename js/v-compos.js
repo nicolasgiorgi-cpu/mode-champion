@@ -245,7 +245,9 @@ window.MC = window.MC || {};
     b.disabled = true;
     app.adultCall('syncSpond', {}).then(function (r) {
       var i = r.info;
-      ui.toast('Spond : ' + i.evenements + ' événement' + (i.evenements > 1 ? 's' : '') + (i.nouveauxLiens ? ', ' + i.nouveauxLiens + ' joueur' + (i.nouveauxLiens > 1 ? 's' : '') + ' relié' + (i.nouveauxLiens > 1 ? 's' : '') : ''));
+      var nr = (i.renommes || []).length, nv = (i.aVerifier || []).length;
+      ui.toast('Spond : ' + i.evenements + ' événement' + (i.evenements > 1 ? 's' : '') + (i.nouveauxLiens ? ', ' + i.nouveauxLiens + ' joueur' + (i.nouveauxLiens > 1 ? 's' : '') + ' relié' + (i.nouveauxLiens > 1 ? 's' : '') : '') +
+        (nr ? ', ' + nr + ' nom' + (nr > 1 ? 's' : '') + ' mis à jour' : '') + (nv ? ', ' + nv + ' à vérifier (engrenage › Spond)' : ''));
       return Promise.all([loadCompos(true), MC.loadGroup(true)]);
     }).then(function () { app.rerender(); }).catch(function (e) { b.disabled = false; ui.toast(e.message, true); });
   };
@@ -262,6 +264,8 @@ window.MC = window.MC || {};
       var etat = sp.branche
         ? '<div class="cstate pub">' + icon('check', 18) + '<span><b>Spond est branché</b>' + (cpt ? ' avec le compte ' + esc(cpt.email) + ' (par ' + esc(cpt.parQui) + ', ' + esc(relTime(cpt.quand)) + ')' : '') +
           '<br><span class="small" style="color:var(--soft)">Dernière synchro : ' + (d ? esc(relTime(d.quand)) + ' · ' + d.evenements + ' événement' + (d.evenements > 1 ? 's' : '') + ' · ' + d.membres + ' enfant' + (d.membres > 1 ? 's' : '') : 'pas encore') + '</span>' +
+          (d && d.renommes && d.renommes.length ? '<br><span class="small" style="color:var(--soft)">Noms repris de Spond : ' + esc(d.renommes.join(' · ')) + '</span>' : '') +
+          (d && d.aVerifier && d.aVerifier.length ? '<br><span class="small" style="color:var(--orange)">À vérifier (nom de Spond trop différent, pas repris : le lien est peut-être faux, voir la fiche de l\'enfant › Son nom dans Spond) : ' + esc(d.aVerifier.join(' · ')) + '</span>' : '') +
           (cpt && cpt.declencheur === false ? '<br><span class="small" style="color:var(--orange)">La synchro automatique n\'est pas encore programmée : le propriétaire du script doit lancer « autoriserSpond » une fois dans l\'éditeur Apps Script.</span>' : '') + '</span></div>'
         : '<div class="cstate draft">' + icon('info', 18) + '<span><b>Spond n\'est pas branché</b> : en attendant, les événements s\'ajoutent à la main et les présents se cochent dans l\'appli.</span></div>';
       var indispo = MC.api.DEMO ? '<p class="small" style="margin:0;color:var(--yellow)">Mode démo : Spond ne se branche pas ici. Sur le vrai site, un éduc admin tape dans ce formulaire l\'e-mail et le mot de passe de son compte Spond.</p>'
@@ -1806,7 +1810,7 @@ window.MC = window.MC || {};
     var pris = {};
     g.joueurs.forEach(function (p) { if (p.terrain && p.terrain.spondId && p.joueur.id !== id) pris[p.terrain.spondId] = p.joueur.prenom; });
     return '<label class="lab" for="tk-sp">Son nom dans Spond</label><select id="tk-sp" class="txt" data-act-change="tkSpond"><option value="">Pas relié</option>' + l.map(function (m) {
-      return '<option value="' + esc(m.id) + '"' + (ed.spondId === m.id ? ' selected' : '') + '>' + esc(m.nom) + (pris[m.id] ? ' (déjà relié à ' + esc(pris[m.id]) + ')' : '') + '</option>';
+      return '<option value="' + esc(m.id) + '"' + (ed.spondId === m.id ? ' selected' : '') + '>' + esc(m.nom) + (pris[m.id] ? ' (relié à ' + esc(pris[m.id]) + ' : le lien passera ici)' : '') + '</option>';
     }).join('') + '</select>';
   }
   document.addEventListener('change', function (e) {

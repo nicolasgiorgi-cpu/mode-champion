@@ -102,7 +102,10 @@ var Core = (function () {
   var SCHEMA = {
     joueurs: [['id', 's'], ['prenom', 's'], ['couleur', 's'], ['familleId', 's'], ['pinHash', 's'], ['pinV', 'n'],
       ['tempHash', 's'], ['tempExp', 'n'], ['mustChange', 'b'], ['fails', 'n'], ['lockUntil', 'n'], ['niveaux', 'j'],
-      ['materiel', 's'], ['visible', 'b'], ['actif', 'b'], ['cree', 's']],
+      ['materiel', 's'], ['visible', 'b'], ['actif', 'b'], ['cree', 's'],
+      // le prénom seul et le nom de famille (repris de Spond) ; « prenom » est le nom affiché partout :
+      // le prénom seul, ou « Prénom Nom » quand plusieurs enfants ont le même prénom
+      ['prenomUsuel', 's'], ['nom', 's']],
     familles: [['id', 's'], ['nom', 's'], ['codeHash', 's'], ['codeV', 'n'], ['cree', 's'], ['pinHash', 's'], ['tempHash', 's'], ['tempExp', 'n'], ['mustChange', 'b'], ['fails', 'n'], ['lockUntil', 'n']],
     educs: [['id', 's'], ['nom', 's'], ['codeHash', 's'], ['codeV', 'n'], ['admin', 'b'], ['actif', 'b'], ['cree', 's'], ['enfants', 'j'], ['pinHash', 's'], ['tempHash', 's'], ['tempExp', 'n'], ['mustChange', 'b'], ['fails', 'n'], ['lockUntil', 'n']],
     seances: [['id', 's'], ['joueurId', 's'], ['date', 's'], ['type', 's'], ['mode', 's'], ['ressenti', 's'], ['details', 'j'], ['cree', 's']],
@@ -425,10 +428,27 @@ var Core = (function () {
 
   A.ping = { run: function (req, ctx) { return { app: 'mode-champion', heure: ctx.now }; } };
 
+  // l'écran de connexion se lit sans code : les homonymes y ont les premières lettres de leur nom (« Hugo Dup. »),
+  // le nom entier seulement une fois connecté
+  function nomsConnexion(actifs) {
+    var groupes = {}, out = {};
+    actifs.forEach(function (j) { if (j.nom && j.prenomUsuel && j.prenom === nomAffiche(j.prenomUsuel, j.nom)) (groupes[clePrenom(j.prenomUsuel)] = groupes[clePrenom(j.prenomUsuel)] || []).push(j); });
+    Object.keys(groupes).forEach(function (k) {
+      groupes[k].forEach(function (j) {
+        var n = j.nom.replace(/\s+/g, ' '), autres = groupes[k].filter(function (x) { return x !== j; }).map(function (x) { return x.nom.toLowerCase(); });
+        for (var L = 3; L < n.length; L++) {
+          var pre = n.slice(0, L).toLowerCase();
+          if (!autres.some(function (a) { return a.indexOf(pre) === 0; })) { out[j.id] = j.prenomUsuel + ' ' + n.slice(0, L).trim() + '.'; return; }
+        }
+      });
+    });
+    return out;
+  }
   A.roster = {
     run: function (req, ctx) {
-      var list = ctx.db.rows('joueurs').filter(function (j) { return j.actif; }).map(function (j) {
-        return { id: j.id, prenom: j.prenom, couleur: j.couleur, nouveau: !j.pinHash };
+      var actifs = ctx.db.rows('joueurs').filter(function (j) { return j.actif; }), courts = nomsConnexion(actifs);
+      var list = actifs.map(function (j) {
+        return { id: j.id, prenom: courts[j.id] || j.prenom, couleur: j.couleur, nouveau: !j.pinHash };
       });
       list.sort(function (a, b) { return a.prenom.localeCompare(b.prenom, 'fr'); });
       return { joueurs: list };
@@ -668,8 +688,148 @@ var Core = (function () {
     if (m) { s = m[1]; ini = m[2]; }
     return { cle: s.replace(/[^a-z]/g, ''), ini: ini };
   }
+  // la clé d'un joueur de l'appli : son prénom seul, et l'initiale de son nom (nom repris de Spond, ou « Hugo B. »)
+  function cleDe(j) {
+    var k = cleJoueur(j.prenomUsuel || j.prenom);
+    return { cle: k.cle, ini: j.nom ? sansAccents(j.nom).replace(/[^a-z]/g, '').charAt(0) : k.ini };
+  }
+
+  // ---------- les noms des enfants : ils suivent Spond, et les homonymes ont leur nom de famille ----------
+  var PARTICULES = ['de', 'del', 'della', 'des', 'du', 'da', 'dos', 'di', 'van', 'von'];
+  // « DUPONT », « du PONT » ou « dupont » → « Dupont » ; « ÉLOI VALLON » → « Éloi Vallon » ; « de la Tour » et « McLean » gardés.
+  // Chaque mot tout en majuscules est remis en forme (et tous les mots quand tout est en minuscules) ; « le », « la » en minuscules
+  // seulement après « de » ou « du ».
+  function nomPropre(s) {
+    s = cleanText(s, 40);
+    if (!s) return s;
+    var toutMin = s === s.toLowerCase(), prec = '';
+    return s.replace(/[^\s'’-]+/g, function (w, i) {
+      var l = w.toLowerCase(), out = w;
+      if (toutMin || (w.length > 1 && w === w.toUpperCase() && w !== l)) {
+        var part = i > 0 && (PARTICULES.indexOf(l) >= 0 || ((l === 'le' || l === 'la') && (prec === 'de' || prec === 'du')));
+        out = part ? l : l.charAt(0).toUpperCase() + l.slice(1);
+      }
+      prec = out.toLowerCase();
+      return out;
+    });
+  }
+  // le prénom seul d'un joueur (sans l'initiale ni le nom ajoutés pour les homonymes)
+  function prenomSeul(j) {
+    if (j.prenomUsuel) return j.prenomUsuel;
+    var p = String(j.prenom || ''), m = /^(.*\S)\s+[^\s.]\.?$/.exec(p);   // « Hugo B. » ou « Hugo B »
+    return m ? m[1] : p;
+  }
+  function clePrenom(s) { return sansAccents(s).replace(/[^a-z]/g, ''); }
+  var NOM_MAX = 28;
+  // « Prénom Nom » ; un nom très long : son premier mot, sinon coupé
+  function nomAffiche(prenom, nom) {
+    if (!nom) return prenom;
+    var t = prenom + ' ' + nom;
+    if (t.length <= NOM_MAX) return t;
+    t = prenom + ' ' + nom.split(/\s+/)[0];
+    return t.length <= NOM_MAX ? t : t.slice(0, NOM_MAX - 1) + '.';
+  }
+  // distance d'édition (fautes de frappe : « Mathys » / « Mathis »)
+  function distance(a, b) {
+    if (a === b) return 0;
+    var v = [], i, k;
+    for (k = 0; k <= b.length; k++) v.push(k);
+    for (i = 1; i <= a.length; i++) {
+      var prev = v[0]; v[0] = i;
+      for (k = 1; k <= b.length; k++) { var t = v[k]; v[k] = Math.min(v[k] + 1, v[k - 1] + 1, prev + (a.charAt(i - 1) === b.charAt(k - 1) ? 0 : 1)); prev = t; }
+    }
+    return v[b.length];
+  }
+  // les débuts d'un prénom, mot par mot : « Hugo Dupont » → hugo, hugodupont
+  function debuts(s) { var out = [], acc = ''; String(s || '').split(/\s+/).forEach(function (x) { acc += clePrenom(x); if (acc) out.push(acc); }); return out; }
+  // deux prénoms sans doute du même enfant : identiques, un mot de trop (nom collé au prénom), ou une faute de frappe
+  // (jamais sur un prénom court : Noé / Noa)
+  function prenomsVoisins(a, b) {
+    var ka = clePrenom(a), kb = clePrenom(b);
+    if (!ka || !kb) return false;
+    if (ka === kb || debuts(a).indexOf(kb) >= 0 || debuts(b).indexOf(ka) >= 0) return true;
+    var d = distance(ka, kb), l = Math.min(ka.length, kb.length);
+    return (d === 1 && l >= 5) || (d === 2 && l >= 8);
+  }
+  // les mots d'un nom de famille (3 lettres au moins)
+  function motsNom(s) { return String(s || '').split(/[\s'’-]+/).map(clePrenom).filter(function (w) { return w.length >= 3; }); }
+  // le nom connu d'un joueur : celui repris de Spond, sinon celui de sa famille (« Famille de Tom », créée sans nom : inconnu)
+  function nomConnu(j, fams) {
+    var f = fams && fams[j.familleId], n = f ? String(f.nom || '') : '';
+    return /^\s*famille\s+de\s/i.test(n) ? '' : n.replace(/^\s*famille\s+/i, '');
+  }
+  // 1 : même famille (un mot du nom en commun : « Vidal » et « Lacoste Vidal ») ; -1 : autre famille ; 0 : on ne sait pas
+  // (un mot pareil à une lettre près sur un nom de 5 lettres ou plus : une faute corrigée dans Spond). Les mots du nom de la
+  // famille qui sont des prénoms de ses enfants ne comptent pas (« Famille Tom et Lou » : on ne connaît pas son nom).
+  function famillePareille(nomSpond, j, fams) {
+    var f = fams && fams[j.familleId], pren = (f && f._prenoms) || [clePrenom(prenomSeul(j))];
+    var a = motsNom(nomSpond), b = motsNom(j.nom).concat(motsNom(nomConnu(j, fams)).filter(function (w) { return pren.indexOf(w) < 0; }));
+    if (!a.length || !b.length) return 0;
+    return a.some(function (w) { return b.some(function (x) { return x === w || (Math.min(x.length, w.length) >= 5 && distance(x, w) <= 1); }); }) ? 1 : -1;
+  }
+  // l'initiale tapée dans l'appli (« Hugo B. ») ne contredit pas le nom de Spond
+  function initialeOk(j, nomSpond) {
+    var m = /\s([^\s.])\.?$/.exec(String(j.prenomUsuel ? '' : j.prenom || '')), ini = m ? clePrenom(m[1]) : '';
+    var n = clePrenom(nomSpond).charAt(0);
+    return !ini || !n || ini === n;
+  }
+  // le membre Spond m ressemble-t-il au joueur j ? prénom voisin, initiale qui ne contredit pas, et pas une autre famille
+  function ressemble(j, m, fams) {
+    return prenomsVoisins(m.prenom, prenomSeul(j)) && initialeOk(j, m.nom) && famillePareille(m.nom, j, fams) >= 0;
+  }
+  // un enfant de Spond pas encore relié : est-il sans doute déjà dans l'appli (prénom écrit autrement, nom collé au prénom…) ?
+  // Le joueur proche : pas encore relié à Spond, qui lui ressemble, de la même famille (ou le même prénom exactement quand
+  // on ne connaît pas la famille). Un seul, sinon rien.
+  function procheDe(m, libres, fams) {
+    var kp = clePrenom(m.prenom);
+    if (kp.length < 2) return null;
+    var c = libres.filter(function (j) {
+      if (!ressemble(j, m, fams)) return false;
+      var f = famillePareille(m.nom, j, fams);
+      return f === 1 || clePrenom(prenomSeul(j)) === kp;
+    });
+    return c.length === 1 ? { id: c[0].id, prenom: c[0].prenom, seul: prenomSeul(c[0]), famille: (fams[c[0].familleId] || {}).nom || '' } : null;
+  }
+  // les joueurs actifs reliés à un membre Spond (« - » = délié à la main : jamais relié tout seul de nouveau)
+  function liensActifs(ctx) {
+    var actif = {}, out = {};
+    ctx.db.rows('joueurs').forEach(function (j) { if (j.actif) actif[j.id] = true; });
+    ctx.db.rows('terrain').forEach(function (t) { if (t.spondId && t.spondId !== '-' && actif[t.id]) out[t.id] = t.spondId; });
+    return out;
+  }
+  // les familles, avec les prénoms de leurs enfants (une copie : rien n'est écrit dans la feuille)
+  function famillesParId(ctx) {
+    var f = {};
+    ctx.db.rows('familles').forEach(function (x) { var o = {}; for (var k in x) o[k] = x[k]; o._prenoms = []; f[x.id] = o; });
+    ctx.db.rows('joueurs').forEach(function (j) { var o = f[j.familleId]; if (o) clePrenomsDe(j).forEach(function (k) { if (o._prenoms.indexOf(k) < 0) o._prenoms.push(k); }); });
+    return f;
+  }
+  // les mots du prénom d'un joueur (« Jean-Louis » → jean, louis, jeanlouis)
+  function clePrenomsDe(j) { var p = prenomSeul(j), l = String(p).split(/[\s'’-]+/).map(clePrenom); l.push(clePrenom(p)); return l.filter(Boolean); }
+  // le nom affiché de chaque enfant actif relié à Spond (son prénom et son nom de Spond) : son prénom seul, ou « Prénom Nom »
+  // quand un autre enfant actif a le même prénom. Un enfant pas relié garde le nom tapé par l'éduc, mais compte pour les
+  // homonymes. Chaque changement est noté dans le journal. Renvoie les changements (« ancien → nouveau »).
+  function nommerJoueurs(ctx) {
+    var lies = liensActifs(ctx), actifs = ctx.db.rows('joueurs').filter(function (j) { return j.actif; }), groupes = {}, changes = [];
+    actifs.forEach(function (j) { var k = clePrenom(prenomSeul(j)); (groupes[k] = groupes[k] || []).push(j); });
+    actifs.forEach(function (j) {
+      if (!lies[j.id] || !j.nom || !j.prenomUsuel) return;
+      var seul = (groupes[clePrenom(j.prenomUsuel)] || []).length < 2;
+      var veut = cleanText(seul ? j.prenomUsuel : nomAffiche(j.prenomUsuel, j.nom), 40);
+      if (!veut || veut === j.prenom) return;
+      changes.push(j.prenom + ' → ' + veut);
+      ctx.db.insert('journal', { id: genId(ctx.env), joueurId: j.id, type: 'nom', data: { avant: j.prenom, apres: veut }, date: isoDate(ctx.now), cree: isoNow(ctx.now) });
+      ctx.db.update('joueurs', j.id, { prenom: veut });
+    });
+    return changes;
+  }
+  // un joueur perd son lien Spond : il ne suit plus les noms de Spond (il garde son nom affiché)
+  function oublierSpond(ctx, joueurId) {
+    var j = find(ctx.db.rows('joueurs'), joueurId);
+    if (j && (j.prenomUsuel || j.nom)) ctx.db.update('joueurs', j.id, { prenomUsuel: '', nom: '' });
+  }
   function importPostes(ctx, rows) {
-    var joueurs = ctx.db.rows('joueurs').filter(function (j) { return j.actif; }).map(function (j) { var k = cleJoueur(j.prenom); return { j: j, cle: k.cle, ini: k.ini }; });
+    var joueurs = ctx.db.rows('joueurs').filter(function (j) { return j.actif; }).map(function (j) { var k = cleDe(j); return { j: j, cle: k.cle, ini: k.ini }; });
     var dernier = {}, inconnus = [], ambigus = [];
     (rows || []).forEach(function (r) {
       var cle = cleJoueur(r.prenom).cle, ini = sansAccents(r.nom).replace(/[^a-z]/g, '').charAt(0);
@@ -984,9 +1144,12 @@ var Core = (function () {
     run: function (req, ctx) {
       var prenom = cleanText(req.prenom, 24);
       if (!prenom) fail('invalide', 'Il faut un prénom.');
+      // depuis Spond (v40) : le prénom seul et le nom de famille ; le nom affiché (homonymes) est calculé ici
+      var nomFam = req.nom !== undefined ? nomPropre(req.nom) : '';
+      if (req.nom !== undefined) prenom = nomPropre(prenom).slice(0, 24);
       // ajouté depuis Spond : relié tout de suite à son membre Spond (une seule fois)
       var spondId = req.spondId ? cleanText(String(req.spondId), 64) : '';
-      if (spondId && ctx.db.rows('terrain').some(function (t) { return t.spondId === spondId; })) fail('deja', 'Cet enfant Spond est déjà dans l\'appli.');
+      if (spondId) { var lies = liensActifs(ctx); if (Object.keys(lies).some(function (jid) { return lies[jid] === spondId; })) fail('deja', 'Cet enfant Spond est déjà dans l\'appli.'); }
       var fam = null, famCode = null;
       if (req.familleId) {
         fam = find(ctx.db.rows('familles'), String(req.familleId));
@@ -1004,11 +1167,14 @@ var Core = (function () {
       var row = {
         id: id, prenom: prenom, couleur: couleurs[ctx.env.rand(couleurs.length)], familleId: fam.id,
         pinHash: '', pinV: 1, tempHash: hashTemp(ctx.secret, id, code), tempExp: ctx.now + 45 * DAY, mustChange: true,
-        fails: 0, lockUntil: 0, niveaux: {}, materiel: 'complet', visible: true, actif: true, cree: isoNow(ctx.now)
+        fails: 0, lockUntil: 0, niveaux: {}, materiel: 'complet', visible: true, actif: true, cree: isoNow(ctx.now),
+        prenomUsuel: req.nom !== undefined ? prenom : '', nom: nomFam
       };
       ctx.db.insert('joueurs', row);
       if (spondId) terrainRow(ctx, id, { spondId: spondId, parQui: ctx.auth.row.nom, maj: isoNow(ctx.now) });
-      return { joueur: pubJoueur(row), code: code, expire: row.tempExp, famille: { id: fam.id, nom: fam.nom }, familleCode: famCode, spondId: spondId };
+      var renommes = nommerJoueurs(ctx);
+      row = find(ctx.db.rows('joueurs'), id) || row;
+      return { joueur: pubJoueur(row), renommes: renommes, code: code, expire: row.tempExp, famille: { id: fam.id, nom: fam.nom }, familleCode: famCode, spondId: spondId };
     }
   };
 
@@ -1019,7 +1185,12 @@ var Core = (function () {
       if (!j) fail('introuvable', 'Joueur introuvable.');
       var patch = {};
       if (req.prenom !== undefined) { var p = cleanText(req.prenom, 24); if (p) patch.prenom = p; }
-      if (req.actif !== undefined) patch.actif = !!req.actif;
+      if (req.actif !== undefined) {
+        patch.actif = !!req.actif;
+        // désactivé : son enfant Spond est libéré (un doublon ne garde pas les présences)
+        var tj = find(ctx.db.rows('terrain'), j.id);
+        if (!patch.actif && tj && tj.spondId && tj.spondId !== '-') { terrainRow(ctx, j.id, { spondId: '', parQui: ctx.auth.row.nom, maj: isoNow(ctx.now) }); oublierSpond(ctx, j.id); }
+      }
       if (req.familleId) { if (!find(ctx.db.rows('familles'), String(req.familleId))) fail('introuvable', 'Famille introuvable.'); patch.familleId = String(req.familleId); }
       if (req.niveaux) { var cur = j.niveaux || {}, nv = cleanNiveaux(req.niveaux); for (var k in nv) cur[k] = nv[k]; patch.niveaux = cur; }
       ctx.db.update('joueurs', j.id, patch);
@@ -1491,7 +1662,7 @@ var Core = (function () {
   var POSTES_ID = MISSIONS.jeu10.postes;
   function pubTerrain(t) {
     if (!t) return null;
-    return { niveau: t.niveau || '', passerelle: t.passerelle || '', plaquage: Number(t.plaquage) || 0, postesOk: Array.isArray(t.postesOk) ? t.postesOk : [], spondId: t.spondId || '', note: t.note || '', parQui: t.parQui || '', maj: t.maj || '' };
+    return { niveau: t.niveau || '', passerelle: t.passerelle || '', plaquage: Number(t.plaquage) || 0, postesOk: Array.isArray(t.postesOk) ? t.postesOk : [], spondId: t.spondId && t.spondId !== '-' ? t.spondId : '', note: t.note || '', parQui: t.parQui || '', maj: t.maj || '' };
   }
   function voisins(a, b) { return NIVS.indexOf(a) >= 0 && NIVS.indexOf(b) >= 0 && Math.abs(NIVS.indexOf(a) - NIVS.indexOf(b)) === 1; }
   function terrainRow(ctx, joueurId, patch) {
@@ -1525,7 +1696,19 @@ var Core = (function () {
           patch.postesOk = ps;
         }
         if (l.note !== undefined) patch.note = cleanText(l.note, 200);
-        if (l.spondId !== undefined) patch.spondId = cleanText(l.spondId, 64);
+        // le lien Spond, seulement s'il change (l'écran renvoie le lien à chaque enregistrement de la fiche)
+        if (l.spondId !== undefined) {
+          var sid = cleanText(l.spondId, 64), avant = (find(ctx.db.rows('terrain'), j.id) || {}).spondId || '';
+          if (sid === '-') sid = '';
+          if (sid !== (avant === '-' ? '' : avant)) {
+            // délié à la main : « - », pour que la synchro ne le relie pas tout seul de nouveau ; il ne suit plus les noms de Spond
+            patch.spondId = sid || '-';
+            oublierSpond(ctx, j.id);
+            // un membre Spond n'est relié qu'à un seul joueur : le lien se déplace (ex. un doublon créé depuis Spond)
+            if (sid) ctx.db.rows('terrain').filter(function (t) { return t.id !== j.id && t.spondId === sid; }).map(function (t) { return t.id; })
+              .forEach(function (tid) { terrainRow(ctx, tid, { spondId: '-', parQui: qui, maj: now }); oublierSpond(ctx, tid); out[tid] = pubTerrain(find(ctx.db.rows('terrain'), tid)); });
+          }
+        }
         if (!Object.keys(patch).length) return;
         patch.parQui = qui; patch.maj = now;
         terrainRow(ctx, j.id, patch);
@@ -1567,8 +1750,18 @@ var Core = (function () {
       var avis = ctx.db.rows('avis').filter(function (a) { return cids[a.compoId]; }).map(pubAvis);
       var sp = propJson(ctx, 'spondSync', null), mb = propJson(ctx, 'spondMembres', []);
       // chaque membre Spond dit s'il est déjà relié à un joueur de l'appli (pour « Ajouter depuis Spond »)
-      var lieA = {}; ctx.db.rows('terrain').forEach(function (t) { if (t.spondId) lieA[t.spondId] = t.id; });
-      mb = (Array.isArray(mb) ? mb : []).map(function (m) { var o = {}; for (var k in m) o[k] = m[k]; o.lie = lieA[m.id] || ''; return o; });
+      // les liens des joueurs actifs (un doublon désactivé ne garde pas son enfant Spond)
+      var lies = liensActifs(ctx), lieA = {}, aUnLien = {};
+      Object.keys(lies).forEach(function (jid) { lieA[lies[jid]] = jid; });
+      // « - » (délié à la main) n'empêche que le lien automatique : l'enfant peut être relié d'un geste (avec confirmation)
+      ctx.db.rows('terrain').forEach(function (t) { if (t.spondId && t.spondId !== '-') aUnLien[t.id] = true; });
+      // les joueurs actifs sans lien Spond, et les familles : pour « sans doute déjà dans l'appli »
+      var libres = ctx.db.rows('joueurs').filter(function (j) { return j.actif && !aUnLien[j.id]; }), fams = famillesParId(ctx);
+      mb = (Array.isArray(mb) ? mb : []).map(function (m) {
+        var o = {}; for (var k in m) o[k] = m[k]; o.lie = lieA[m.id] || '';
+        if (!o.lie && libres.length) { var p = procheDe({ prenom: m.prenom, nom: m.nomFamille }, libres, fams); if (p) o.proche = p; }
+        return o;
+      });
       return {
         evenements: evts, compos: compos, avis: avis,
         spond: { branche: !!(ctx.env.spondInfo && ctx.env.spondInfo().branche), derniere: sp, membres: mb, compte: propJson(ctx, 'spondCompte', null),
@@ -1886,10 +2079,12 @@ var Core = (function () {
   // un lien posé à la main dans la fiche terrain (spondId) l'emporte.
   function syncSpond(ctx, data) {
     var joueurs = ctx.db.rows('joueurs').filter(function (j) { return j.actif; });
-    var terrain = ctx.db.rows('terrain'), now = isoNow(ctx.now);
+    var terrain = ctx.db.rows('terrain'), now = isoNow(ctx.now), fams = famillesParId(ctx), actif = {};
+    joueurs.forEach(function (j) { actif[j.id] = true; });
+    // les liens des joueurs actifs ; « - » = délié à la main : pas de nouveau lien tout seul
     var parSpond = {}, lies = {};
-    terrain.forEach(function (t) { if (t.spondId) { parSpond[t.spondId] = t.id; lies[t.id] = t.spondId; } });
-    var cles = joueurs.map(function (j) { var k = cleJoueur(j.prenom); return { j: j, cle: k.cle, ini: k.ini }; });
+    terrain.forEach(function (t) { if (!t.spondId || !actif[t.id]) return; lies[t.id] = t.spondId; if (t.spondId !== '-') parSpond[t.spondId] = t.id; });
+    var cles = joueurs.map(function (j) { var k = cleDe(j); return { j: j, cle: k.cle, ini: k.ini }; });
     var nouveaux = 0, membres = {}, liste = [];
     function cleM(m) { var k = cleJoueur(m.prenom); return { cle: k.cle, ini: sansAccents(m.nom).replace(/[^a-z]/g, '').charAt(0) || k.ini }; }
     var parCle = {};
@@ -1898,14 +2093,15 @@ var Core = (function () {
       var mid = String(m.id || ''); if (!mid) return;
       membres[mid] = m;
       var k = cleM(m);
-      var iniNom = sansAccents(m.nom).replace(/[^a-z]/g, '').charAt(0);
-      liste.push({ id: mid, nom: cleanText(String(m.prenom || '').replace(/\s+([A-Za-z])\.?$/, ' $1.') + (iniNom ? ' ' + iniNom.toUpperCase() + '.' : ''), 40),
-        prenom: cleanText(m.prenom, 24), nomFamille: cleanText(m.nom, 40), categorie: cleanText(m.categorie, 40) });
+      // le nom complet : la liste « Son nom dans Spond » et « Ajouter depuis Spond » distinguent les homonymes
+      var pp = nomPropre(m.prenom).slice(0, 24), nf = nomPropre(m.nom);
+      liste.push({ id: mid, nom: cleanText(pp + (nf ? ' ' + nf : ''), 60), prenom: pp, nomFamille: nf, categorie: cleanText(m.categorie, 40) });
       if (parSpond[mid]) return;
       var cle = k.cle, ini = k.ini;
       var c = cles.filter(function (x) { return x.cle === cle; });
       if (c.length > 1) c = c.filter(function (x) { return x.ini && x.ini === ini; });
       if (c.length !== 1 || lies[c[0].j.id]) return;
+      if (!ressemble(c[0].j, m, fams)) return;   // une initiale ou une famille qui ne va pas : pas de lien au hasard
       // plusieurs membres Spond avec ce prénom : il faut que l'initiale du nom les départage
       var memes = parCle[cle] || [];
       if (memes.length > 1 && (!c[0].ini || memes.filter(function (x) { return x === c[0].ini; }).length !== 1)) return;
@@ -1921,6 +2117,21 @@ var Core = (function () {
       });
       return out;
     }
+    // les enfants reliés prennent le prénom et le nom de Spond : une correction faite dans Spond arrive à la synchro suivante.
+    // Garde-fou : seulement si le nom de Spond ressemble à celui de l'appli (prénom voisin, même initiale, pas une autre
+    // famille) ; sinon rien n'est repris et l'enfant est signalé « à vérifier » (lien peut-être faux).
+    var aVerifier = [];
+    Object.keys(parSpond).forEach(function (mid) {
+      var m = membres[mid], j = m ? find(ctx.db.rows('joueurs'), parSpond[mid]) : null;
+      if (!j || !j.actif) return;
+      var p = nomPropre(m.prenom).slice(0, 24), n = nomPropre(m.nom), patch = {};
+      if (!p || (p === (j.prenomUsuel || '') && n === (j.nom || ''))) return;
+      if (!ressemble(j, { prenom: p, nom: n }, fams)) { aVerifier.push(cleanText(j.prenom + ' ↔ ' + p + (n ? ' ' + n : ''), 70)); return; }
+      if (p !== (j.prenomUsuel || '')) patch.prenomUsuel = p;
+      if (n !== (j.nom || '')) patch.nom = n;
+      ctx.db.update('joueurs', j.id, patch);
+    });
+    var renommes = nommerJoueurs(ctx);
     liste.sort(function (a, b) { return a.nom.localeCompare(b.nom, 'fr'); });
     ctx.db.setProp('spondMembres', JSON.stringify(liste.slice(0, 120)));
     var evts = 0, vus = {};
@@ -1954,8 +2165,8 @@ var Core = (function () {
     if (Array.isArray(data.categories)) ctx.db.setProp('spondCategories', JSON.stringify(data.categories.slice(0, 40).map(function (c) {
       return { id: cleanText(String(c.id || ''), 64), nom: cleanText(c.nom, 40), groupe: cleanText(c.groupe, 60), coach: !!c.coach, suivie: !!c.suivie };
     })));
-    var nonLies = joueurs.filter(function (j) { return !lies[j.id]; }).map(function (j) { return j.prenom; });
-    var info = { quand: now, evenements: evts, membres: Object.keys(membres).length, nouveauxLiens: nouveaux, joueursSansLien: nonLies };
+    var nonLies = joueurs.filter(function (j) { return !lies[j.id] || lies[j.id] === '-'; }).map(function (j) { return j.prenom; });
+    var info = { quand: now, evenements: evts, membres: Object.keys(membres).length, nouveauxLiens: nouveaux, joueursSansLien: nonLies, renommes: renommes.slice(0, 40), aVerifier: aVerifier.slice(0, 40) };
     ctx.db.setProp('spondSync', JSON.stringify(info));
     return info;
   }
@@ -2326,7 +2537,8 @@ var Core = (function () {
     cellsFromRow: cellsFromRow,
     // outils exposés pour le mode démo et les tests
     _sha256: sha256, _hmac: hmac, _hashPin: hashPin, _hashTemp: hashTemp, _hashAdulte: hashAdulte, _hashPinA: hashPinA, _hashTempA: hashTempA, _pinFaible: pinFaible, _clone: clone,
-    _posteDuTexte: posteDuTexte, _sansAccents: sansAccents,
+    _posteDuTexte: posteDuTexte, _sansAccents: sansAccents, _nomPropre: nomPropre, _nomAffiche: nomAffiche, _procheDe: procheDe, _distance: distance,
+    _prenomsVoisins: prenomsVoisins, _ressemble: ressemble, _nomsConnexion: nomsConnexion,
     importPostesDepuis: function (db, env, rows) { return importPostes({ db: db, env: env, now: env.now() }, rows); },
     syncSpondDepuis: function (db, env, data) { return syncSpond({ db: db, env: env, now: env.now() }, data || {}); },
     _diffCompo: diffCompo

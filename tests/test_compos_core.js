@@ -416,7 +416,7 @@ assert.ok(r.ok, JSON.stringify(r));
 assert.deepStrictEqual(r.info.joueursSansLien, ['Baptiste'], 'deux Baptiste dans Spond : pas de lien au hasard');
 r = g.call({ action: 'compos', token: nico });
 assert.deepStrictEqual(r.evenements.find(e => e.id === 'sp-E1').presents, [P.Zoé], 'Zoé M reliée à Zoé');
-assert.deepStrictEqual(r.spond.membres.map(m => m.nom), ['Baptiste A.', 'Baptiste D.', 'Tom M.', 'Zoé M.']);
+assert.deepStrictEqual(r.spond.membres.map(m => m.nom), ['Baptiste Abadie', 'Baptiste Durand', 'Tom Martin', 'Zoé M'], 'noms complets (homonymes distingués)');
 // relier à la main depuis la fiche terrain
 g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P.Baptiste, spondId: 'm-b1' }] });
 // un événement supprimé dans Spond est marqué annulé

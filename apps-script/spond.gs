@@ -215,7 +215,9 @@ function synchroSpond() {
   try {
     var info = Core.syncSpondDepuis(db, env_(), lireSpond_());
     Logger.log('Spond : ' + info.evenements + ' événements, ' + info.membres + ' enfants, ' + info.nouveauxLiens + ' nouveaux liens joueur ↔ Spond' +
-      (info.joueursSansLien.length ? ' · joueurs sans lien Spond : ' + info.joueursSansLien.join(', ') : ''));
+      (info.joueursSansLien.length ? ' · joueurs sans lien Spond : ' + info.joueursSansLien.join(', ') : '') +
+      (info.renommes && info.renommes.length ? ' · noms repris de Spond : ' + info.renommes.join(', ') : '') +
+      (info.aVerifier && info.aVerifier.length ? ' · à vérifier (nom Spond trop différent, pas repris) : ' + info.aVerifier.join(', ') : ''));
   } finally {
     try { db.flush_(); } catch (e) { /* le cache sera relu */ }
     lock.releaseLock();

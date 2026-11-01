@@ -831,27 +831,56 @@
     var sp = app.S.cache.compos && app.S.cache.compos.spond;
     return ((sp && sp.membres) || []).filter(function (m) { return !m.lie; });
   }
+  // « sans doute déjà dans l'appli » (prénom écrit autrement dans Spond) : on propose de relier plutôt que de créer un doublon
   function spondListe(g) {
     var l = spondAAjouter();
     if (!l.length) return '';
-    return '<section class="sec"><div class="between"><h2 class="h2">Depuis Spond (' + l.length + ')</h2>' + (l.length > 1 ? '<button type="button" class="btn2 sm" data-act="spAddAll">' + icon('plus', 16) + ' Tout ajouter</button>' : '') + '</div>' +
-      '<p class="small" style="margin:0">Inscrits dans Spond, pas encore dans l\'appli. Ajoutés d\'un geste : prénom et famille repris de Spond, reliés à Spond tout de suite, codes créés.</p>' +
+    var nouveaux = l.filter(function (m) { return !m.proche; });
+    return '<section class="sec"><div class="between"><h2 class="h2">Depuis Spond (' + l.length + ')</h2>' + (nouveaux.length > 1 ? '<button type="button" class="btn2 sm" data-act="spAddAll">' + icon('plus', 16) + ' Tout ajouter</button>' : '') + '</div>' +
+      '<p class="small" style="margin:0">Inscrits dans Spond, pas encore dans l\'appli. Ajoutés d\'un geste : prénom et famille repris de Spond, reliés à Spond tout de suite, codes créés.' +
+      (nouveaux.length < l.length ? ' Un enfant « sans doute déjà dans l\'appli » : touchez <b>Relier</b> si c\'est bien lui (pas de doublon).' : '') + '</p>' +
       '<ul class="list">' + l.map(function (m) {
-        return '<li class="li"><span class="grow"><span class="t1">' + esc(m.prenom || m.nom) + (m.nomFamille ? ' ' + esc(m.nomFamille) : '') + '</span><span class="t2">' + esc(m.categorie || 'Spond') + '</span></span>' +
+        var nom = esc(m.prenom || m.nom) + (m.nomFamille ? ' ' + esc(m.nomFamille) : '');
+        if (m.proche) {
+          return '<li class="li sp-proche"><span class="grow"><span class="t1">' + nom + '</span><span class="t2">Sans doute <b style="color:var(--ink)">' + esc(m.proche.prenom) + '</b>' + (m.proche.famille ? ' (' + esc(m.proche.famille) + ')' : '') + ', déjà dans l\'appli</span></span>' +
+            '<span class="sp-acts"><button type="button" class="btn2 sm" data-act="spLier" data-id="' + esc(m.id) + '">' + icon('check', 16) + ' Relier</button>' +
+            '<button type="button" class="btn2 sm grey" data-act="spAdd" data-id="' + esc(m.id) + '">' + icon('plus', 16) + ' Ajouter</button></span></li>';
+        }
+        return '<li class="li"><span class="grow"><span class="t1">' + nom + '</span><span class="t2">' + esc(m.categorie || 'Spond') + '</span></span>' +
           '<button type="button" class="btn2 sm" data-act="spAdd" data-id="' + esc(m.id) + '">' + icon('plus', 16) + ' Ajouter</button></li>';
       }).join('') + '</ul></section>';
   }
-  // prénom de l'appli (avec l'initiale du nom si le prénom est déjà pris) et famille (« Famille Nom » si elle existe déjà : frère, sœur)
+  // le prénom et le nom de Spond (le serveur ajoute le nom de famille si le prénom est déjà pris) ;
+  // la famille : « Famille Nom » si elle existe déjà (frère, sœur)
   function spondParams(g, m) {
-    var prenom = String(m.prenom || m.nom || '').trim(), ini = String(m.nomFamille || '').trim().charAt(0).toUpperCase();
-    var pris = g.joueurs.some(function (p) { return p.joueur.actif && p.joueur.prenom.toLowerCase() === prenom.toLowerCase(); });
-    var p = { prenom: (pris && ini ? prenom + ' ' + ini + '.' : prenom).slice(0, 24), spondId: m.id };
+    var p = { prenom: String(m.prenom || m.nom || '').trim().slice(0, 24), nom: String(m.nomFamille || '').trim(), spondId: m.id };
     var nomFam = m.nomFamille ? 'Famille ' + m.nomFamille : '';
     var fam = nomFam && g.familles.filter(function (f) { return f.nom.toLowerCase() === nomFam.toLowerCase(); })[0];
     if (fam) p.familleId = fam.id; else p.familleNom = nomFam;
     return p;
   }
   function apresSpond() { dropGroup(); return Promise.all([loadGroup(true), MC.loadCompos ? MC.loadCompos(true) : null]).then(function () { app.rerender(); }); }
+  // relier l'enfant de Spond au joueur déjà dans l'appli (après confirmation : le nom de Spond remplacera le sien) ;
+  // la synchro reprend tout de suite son nom et ses réponses
+  MC.act.spLier = function (b) {
+    var m = spondAAjouter().filter(function (x) { return x.id === b.getAttribute('data-id'); })[0];
+    if (!m || !m.proche) return;
+    var spNom = (m.prenom || m.nom) + (m.nomFamille ? ' ' + m.nomFamille : ''), autre = String(m.prenom || '') !== String(m.proche.prenom || '');
+    ui.modal({
+      title: 'C\'est bien ' + esc(m.proche.prenom) + ' ?',
+      body: '<p class="lead">« ' + esc(spNom) + ' » dans Spond est-il bien <b>' + esc(m.proche.prenom) + '</b>' + (m.proche.famille ? ' (' + esc(m.proche.famille) + ')' : '') + ', déjà dans l\'appli ?</p>' +
+        '<p class="small" style="margin:0">' + (autre ? 'Son prénom dans l\'appli deviendra celui de Spond : <b style="color:var(--ink)">« ' + esc(m.prenom) + ' »</b>. ' : '') +
+        'Ses réponses Spond arriveront sur son profil. Si ce n\'est pas lui (frère, sœur…), touchez Annuler puis Ajouter.</p>',
+      actions: [{ label: icon('check', 18) + ' Oui, relier', value: true, cls: 'btn' }, { label: 'Annuler', value: false, cls: 'btn2 grey' }]
+    }).then(function (ok) {
+      if (!ok) return;
+      b.disabled = true;
+      app.adultCall('setTerrain', { lignes: [{ joueurId: m.proche.id, spondId: m.id }] }).then(function () {
+        ui.toast(m.proche.prenom + ' est relié à Spond');
+        return MC.api.DEMO ? null : app.adultCall('syncSpond', {}).catch(function () { return null; });
+      }).then(apresSpond).catch(function (e) { b.disabled = false; ui.toast(e.message, true); });
+    });
+  };
   MC.act.spAdd = function (b) {
     var m = spondAAjouter().filter(function (x) { return x.id === b.getAttribute('data-id'); })[0], g = app.S.cache.group;
     if (!m || !g) return;
@@ -861,11 +890,12 @@
       var text = 'Mode champion M12 · Bienvenue ' + r.joueur.prenom + ' ! Site : ' + siteUrl() + ' — touche ton prénom et tape ton code provisoire : ' + r.code + '.';
       if (r.familleCode) { lines.push('Code parent provisoire de « ' + esc(r.famille.nom) + ' » : <b style="color:var(--cyan);font-family:var(--f-hud);letter-spacing:.1em">' + r.familleCode + '</b> (Adultes › Je suis parent › le prénom de l\'enfant ; 30 jours, puis le parent choisit le sien).'); text += ' Code parent provisoire (Adultes › Je suis parent › ' + r.joueur.prenom + ') : ' + r.familleCode + '.'; }
       else lines.push('Famille « ' + esc(r.famille.nom) + ' » : même code parent que ses frères et sœurs.');
+      if (r.renommes && r.renommes.length) lines.push('Même prénom qu\'un autre enfant : chacun est affiché avec son nom de famille (' + esc(r.renommes.join(', ')) + ').');
       return showCode(esc(r.joueur.prenom) + ' est ajouté !', r.code, lines, text);
     }).then(apresSpond).catch(function (e) { b.disabled = false; ui.toast(e.message, true); });
   };
   MC.act.spAddAll = function (b) {
-    var l = spondAAjouter(), g = app.S.cache.group, faits = [];
+    var l = spondAAjouter().filter(function (m) { return !m.proche; }), g = app.S.cache.group, faits = [];
     if (!l.length || !g) return;
     b.disabled = true;
     // un par un : chaque enfant ajouté compte pour le suivant (prénom déjà pris, famille déjà créée)
@@ -877,6 +907,12 @@
         });
       });
     }, Promise.resolve()).then(function () {
+      // deux prénoms pareils ajoutés d'un coup : le serveur leur a donné leur nom de famille, on relit les noms
+      return loadGroup(true).then(function (g2) {
+        var nm = {}; g2.joueurs.forEach(function (p) { nm[p.joueur.id] = p.joueur.prenom; });
+        faits.forEach(function (r) { if (nm[r.joueur.id]) r.joueur.prenom = nm[r.joueur.id]; });
+      }).catch(function () { return null; });
+    }).then(function () {
       var text = 'Mode champion M12 · ' + siteUrl() + ' — codes provisoires (1re connexion) :\n' + faits.map(function (r) { return r.joueur.prenom + ' : ' + r.code + (r.familleCode ? ' · code parent (' + r.famille.nom + ') : ' + r.familleCode : ''); }).join('\n');
       return ui.modal({
         title: faits.length + ' joueur' + (faits.length > 1 ? 's' : '') + ' ajouté' + (faits.length > 1 ? 's' : ''),
