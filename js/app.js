@@ -479,7 +479,8 @@ MC.app = (function () {
 
   // ---------- Tirer pour actualiser ----------
   // En haut d'un écran qui montre des données du serveur : tirer vers le bas puis lâcher redemande tout au serveur.
-  // Un repère apparaît au-dessus de l'écran qui descend avec le doigt : la flèche tourne, devient pleine quand on a
+  // Un repère apparaît au-dessus de l'écran qui descend avec le doigt (sur tablette, l'écran reste en place et le repère
+  // descend par-dessus, voir ptrFixe) : la flèche tourne, devient pleine quand on a
   // tiré assez (« Lâche pour actualiser »), puis tourne pendant le chargement. Pas sur les formulaires, la connexion,
   // les séances et bilans guidés (rien à perdre en cours de saisie).
   var refreshers = [];
@@ -505,9 +506,28 @@ MC.app = (function () {
   }
   // (31/10, après les essais de Nicolas) plus difficile à déclencher : il faut tirer franchement (environ 210 px de doigt,
   // un quart d'écran de téléphone ; avant : 130) et pas d'un simple coup de doigt rapide (au moins 0,3 s).
-  var PT = { track: false, on: false, busy: false, y0: 0, x0: 0, d: 0, ts: 0, tm: 0, el: null },
+  var PT = { track: false, on: false, busy: false, fixe: false, y0: 0, x0: 0, d: 0, ts: 0, tm: 0, th: 0, el: null },
     PULL_DEAD = 16, PULL_RATIO = 0.5, PULL_GO = 96, PULL_MAX = 132, PULL_TMIN = 300;
   function pullPret() { return PT.d >= PULL_GO && Date.now() - PT.ts >= PULL_TMIN; }
+  // (03/11, v41) sur tablette (700 px de large ou plus), la page ne bouge plus quand on tire : seul le repère descend,
+  // par-dessus le haut de l'écran. Sur iPad (appli installée, paysage, les 3 profils), déplacer toute la page faisait
+  // apparaître une 2e copie de la page, superposée et décalée, pendant qu'on tirait (défaut d'affichage de Safari quand
+  // toute la page bouge sur sa propre couche). Le téléphone garde la page qui descend avec le doigt (un téléphone en
+  // paysage, 700 px ou plus, est traité comme une tablette, comme dans le CSS). Un iPad reste « tablette » même en
+  // écran partagé, plus étroit (l'iPad se présente comme un Mac tactile).
+  function ptrFixe() {
+    try {
+      if (window.matchMedia && window.matchMedia('(min-width: 700px)').matches) return true;
+      var ua = navigator.userAgent || '';
+      return /iPad/.test(ua) || (/Macintosh/.test(ua) && (navigator.maxTouchPoints || 0) > 1);
+    } catch (e) { return false; }
+  }
+  // tablette : le repère centré sur la page (pas sur l'écran entier : en paysage, les onglets sont à gauche) ;
+  // recalculé à chaque fois (l'appareil peut tourner pendant le chargement), la page ne bougeant pas c'est léger
+  function ptrCentre() {
+    var sc = root.querySelector('.screen'), r = sc && sc.getBoundingClientRect();
+    return r && r.width ? Math.round(r.left + r.width / 2) + 'px' : '50%';
+  }
   function ptrEl() {
     if (!PT.el) {
       PT.el = document.createElement('div');
@@ -522,18 +542,29 @@ MC.app = (function () {
     return k === 'go' ? (kid ? 'Lâche pour actualiser' : 'Relâchez pour actualiser') : k === 'load' ? 'Actualisation…' : k === 'ok' ? 'À jour' : k === 'err' ? 'Pas de réseau' : (kid ? 'Tire pour actualiser' : 'Tirez pour actualiser');
   }
   function ptrShow(d, state) {
-    var el = ptrEl();
-    el.className = 'ptr on' + (state === 'go' ? ' go' : state === 'load' ? ' go spin' : state === 'ok' ? ' go done' : state === 'err' ? ' err' : '');
+    var el = ptrEl(), x = PT.fixe && d ? ptrCentre() : '';   // (lu avant d'écrire les styles)
+    if (x) el.style.setProperty('--x', x);
+    el.className = 'ptr on' + (PT.fixe ? ' fixe' : '') + (state === 'go' ? ' go' : state === 'load' ? ' go spin' : state === 'ok' ? ' go done' : state === 'err' ? ' err' : '');
     el.style.setProperty('--d', d + 'px');
     el.style.setProperty('--rot', state === 'pull' ? Math.round(d / PULL_GO * 300) + 'deg' : '0deg');
     el.style.opacity = Math.min(1, d / 34);
     el.querySelector('.ptr-t').textContent = ptrText(state);
-    root.style.transform = d ? 'translate3d(0,' + d + 'px,0)' : '';
+    // tablette : la page reste en place (rien n'est écrit sur #app)
+    if (!PT.fixe) root.style.transform = d ? 'translate3d(0,' + d + 'px,0)' : '';
   }
+  // le repère glisse jusqu'à sa place (classe posée après ptrShow, qui réécrit ses classes) ; depuis la v41, sur
+  // téléphone aussi, il remonte en s'effaçant au lieu de disparaître d'un coup
+  function ptrGlisse() { if (PT.el) PT.el.classList.add('ptr-back'); }
   function ptrHide() {
-    root.classList.add('ptr-back'); if (PT.el) PT.el.classList.add('ptr-back');
-    ptrShow(0, 'pull');
-    setTimeout(function () { root.classList.remove('ptr-back'); if (PT.el) { PT.el.classList.remove('ptr-back'); PT.el.className = 'ptr'; } root.style.transform = ''; }, 260);
+    if (!PT.fixe) root.classList.add('ptr-back');
+    ptrShow(0, 'pull'); ptrGlisse();
+    clearTimeout(PT.th);   // deux « lâcher » rapprochés : seul le dernier compte
+    PT.th = setTimeout(function () {
+      root.classList.remove('ptr-back'); if (PT.el) PT.el.classList.remove('ptr-back');
+      if (PT.on || PT.busy) return;   // un nouveau tirer a déjà commencé : on garde son état
+      if (PT.el) PT.el.className = 'ptr';
+      if (!PT.fixe) root.style.transform = '';
+    }, 260);
   }
   function scrolledInside(t) {
     for (var el = t; el && el !== document.body && el !== document.documentElement; el = el.parentElement) {
@@ -549,7 +580,8 @@ MC.app = (function () {
     if (!t || !t.closest || t.closest('input, textarea, select, .modal, .numpad, .bk, [data-noptr]') || document.querySelector('.modal, .bk') || document.body.classList.contains('np-open')) return;
     if (scrolledInside(t)) return;
     PT.track = true; PT.y0 = e.touches[0].clientY; PT.x0 = e.touches[0].clientX; PT.d = 0; PT.ts = Date.now();
-    ebPrep();   // la page sur sa couche graphique avant de bouger (pas de saccade à la 1re image)
+    PT.fixe = ptrFixe();   // décidé pour tout le geste
+    if (!PT.fixe) ebPrep();   // téléphone : la page sur sa couche graphique avant de bouger (pas de saccade à la 1re image)
   }
   function onTouchMove(e) {
     if (!PT.track || !e.touches || e.touches.length !== 1) return;
@@ -558,10 +590,14 @@ MC.app = (function () {
       if (dy <= 0 || Math.abs(dx) > dy || (window.scrollY || 0) > 0) { if (dy < 0 || Math.abs(dx) > 12) PT.track = false; return; }
       if (dy < PULL_DEAD) return;             // un simple toucher qui glisse un peu ne déclenche rien
       PT.on = true; root.classList.add('ptr-pull');
+      if (PT.fixe && EB.raf) ebStop();   // tablette : un reste de rebond s'arrête, la page ne bougera plus
     } else if (dy <= 4 || (window.scrollY || 0) > 0) {
       // on remonte (ou la page défile) : on lâche, le défilement normal reprend
       PT.on = false; PT.track = false; root.classList.remove('ptr-pull'); ptrHide(); return;
     }
+    // tablette : la page n'a pas à être sur sa propre couche (le rebond l'y met sur une page courte) ; redemandé à chaque
+    // mouvement (un petit rebond commencé juste avant peut encore la tenir au 1er)
+    if (PT.fixe) ebLibere();
     // l'écran part de 0 (pas de saut au moment où le tirer commence), avec résistance
     PT.d = Math.max(0, Math.min(PULL_MAX, Math.round((dy - PULL_DEAD) * PULL_RATIO)));
     ptrShow(PT.d, pullPret() ? 'go' : 'pull');
@@ -576,7 +612,8 @@ MC.app = (function () {
     PT.on = false; root.classList.remove('ptr-pull'); clearTimeout(PT.tm);
     if (!pullPret()) { ptrHide(); return; }
     PT.busy = true;
-    root.classList.add('ptr-back'); ptrShow(56, 'load');
+    if (!PT.fixe) root.classList.add('ptr-back');
+    ptrShow(56, 'load'); ptrGlisse();
     var t0 = Date.now();
     pullRefresh().then(function () {
       setTimeout(function () { ptrShow(56, 'ok'); setTimeout(function () { PT.busy = false; ptrHide(); }, 450); }, Math.max(0, 500 - (Date.now() - t0)));
@@ -622,6 +659,11 @@ MC.app = (function () {
     if (EB.on || EB.raf || EB.x || EB.touching || PT.on || PT.busy) { EB.prepT = setTimeout(ebUnprep, 1500); return; }
     EB.prep = false; root.classList.remove('eb-prep');
   }
+  // (v41) tout de suite, si le rebond n'est pas en cours (tirer pour actualiser sur tablette : ce geste-là ne rebondit pas)
+  function ebLibere() {
+    if (!EB.prep || EB.on || EB.raf || EB.x) return;
+    clearTimeout(EB.prepT); EB.prep = false; root.classList.remove('eb-prep');
+  }
   // près du haut (écran sans « tirer pour actualiser ») ou du bas : préparer la couche
   function ebPres() {
     var sy = window.scrollY || 0, h = window.innerHeight || 600;
@@ -661,7 +703,7 @@ MC.app = (function () {
     if (!t || !t.closest || t.closest(EB_SKIP) || document.querySelector('.modal, .bk') || document.body.classList.contains('np-open')) return;
     if (EB.raf) ebStop();   // un doigt pendant que la page revient : elle s'arrête là où elle est (presque revenue)
     EB.track = true; EB.py = EB.y0 = e.touches[0].clientY; EB.x0 = e.touches[0].clientX;
-    if (ebPres()) ebPrep();
+    if (ebPres() && !(PT.fixe && (PT.track || PT.busy))) ebPrep();   // (v41) pas pendant un tirer sur tablette
   }
   function ebMove(e) {
     if (!EB.track || !e.touches || e.touches.length !== 1) return;
