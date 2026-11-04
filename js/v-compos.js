@@ -1665,13 +1665,20 @@ window.MC = window.MC || {};
     // le filtre de poste : les préférés ★ d'abord, puis ceux qui peuvent aussi le jouer
     var cntP = {}; K.ORDRE.forEach(function (p) { cntP[p] = 0; });
     parNiv.forEach(function (id) { K.postesDe(F[id]).forEach(function (p) { if (cntP[p] !== undefined) cntP[p]++; }); });
+    // (v46) un filtre de niveau (A, B, C) montre aussi, en bas, ceux qui ont une passerelle vers ce niveau ; avec un poste en plus :
+    // ce niveau en préféré ★, puis ce niveau « peut aussi jouer », puis les passerelles qui ont ce poste (préférés d'abord)
+    var nivF = T.filtre !== 'all' && T.filtre !== 'none' ? T.filtre : '';
+    var pas = nivF ? ids.filter(function (id) { return !okNiv(id) && F[id].niveau && K.pasDe(F[id]).indexOf(nivF) >= 0 && (!q || F[id].prenom.toLowerCase().indexOf(q) >= 0); }) : [];
+    function sep(t) { return '<li class="tsep"><span>' + esc(t) + '</span></li>'; }
+    function lignes(l) { return l.map(function (id) { return rowTerrain(F, id); }).join(''); }
     var rows;
     if (T.poste) {
       var pr = list.filter(function (id) { return lienListe(F[id], T.poste) === 'pref'; }), se = list.filter(function (id) { return lienListe(F[id], T.poste) === 'sec'; });
-      rows = pr.map(function (id) { return rowTerrain(F, id); }).join('') +
-        (se.length ? '<li class="tsep"><span>Peuvent aussi jouer ' + esc(NOMP[T.poste].toLowerCase()) + '</span></li>' + se.map(function (id) { return rowTerrain(F, id); }).join('') : '') ;
-      if (!pr.length && !se.length) rows = '';
-    } else rows = list.map(function (id) { return rowTerrain(F, id); }).join('');
+      var pp = pas.filter(function (id) { return lienListe(F[id], T.poste) === 'pref'; }).concat(pas.filter(function (id) { return lienListe(F[id], T.poste) === 'sec'; }));
+      rows = lignes(pr) + (se.length ? sep('Peuvent aussi jouer ' + NOMP[T.poste].toLowerCase()) + lignes(se) : '') +
+        (pp.length ? sep('Passerelle vers ' + nivF + ' · ' + NOMP[T.poste].toLowerCase()) + lignes(pp) : '');
+      if (!pr.length && !se.length && !pp.length) rows = '';
+    } else rows = lignes(list) + (pas.length ? sep('Passerelle vers ' + nivF) + lignes(pas) : '');
     // (v35) sur une seule ligne ; « Sans niveau » disparaît quand tous les enfants ont le leur
     function fb(v, label, n, col, cls) { return '<button type="button" class="opt' + (cls ? ' ' + cls : '') + (T.filtre === v ? ' on' : '') + '"' + (col ? ' style="--oc:' + col + '"' : '') + ' aria-pressed="' + (T.filtre === v) + '" data-act="tFiltre" data-v="' + v + '"><span>' + label + '</span><small>' + n + '</small></button>'; }
     function fp(v, label, n) { var on = T.poste === v; return '<button type="button" class="opt' + (v ? '' : ' tf-w') + (on ? ' on' : '') + '"' + (v ? ' style="--oc:' + coulPoste(v) + '"' : '') + ' aria-pressed="' + on + '" data-act="tPoste" data-v="' + v + '"' + (v ? ' title="' + esc(NOMP[v]) + '"' : '') + '><span>' + label + '</span><small>' + n + '</small></button>'; }

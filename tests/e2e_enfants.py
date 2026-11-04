@@ -70,9 +70,17 @@ with sync_playwright() as p:
     check('filtre Centre : préférés d\'abord, puis « Peuvent aussi jouer »', sep > 0 and 'Tom' in l[:sep] and 'Arthur' in l[sep:] and pg.locator('#tlist .tsep').count() == 1, l)
     check('filtre Centre : chacun a bien ce poste', all(pg.evaluate(LIGNE, n)['pills'] and any(x.strip('*') == 'Centre' for x in pg.evaluate(LIGNE, n)['pills']) for n in l if n != '|'), l)
     pg.click('.tfil:not(.tfp) button[data-v="A"]'); pg.wait_for_timeout(400)
-    l2 = noms(pg)
-    check('filtre A + Centre : seulement des A', 'Tom' not in l2 and 'Sacha' in l2, l2)
-    pg.click('.tfil:not(.tfp) button[data-v="all"]'); pg.click('.tfp button[data-v="centre"]'); pg.wait_for_timeout(300)
+    l2 = noms(pg); seps = pg.evaluate("[...document.querySelectorAll('#tlist .tsep')].map(x => x.textContent)")
+    # (v46) filtre croisé A + Centre : les A au centre (préférés, puis peuvent aussi jouer), puis les passerelles vers A qui jouent centre
+    niv2 = pg.evaluate("(l) => { const F = MC.compos.fiches(MC.app.S.cache.group); const byN = {}; Object.keys(F).forEach(id => { byN[F[id].prenom] = F[id].niveau; }); return l.map(n => n === '|' ? '|' : byN[n]); }", l2)
+    dern = len(l2) - 1 - l2[::-1].index('|') if '|' in l2 else -1
+    check('(v46) filtre A + Centre : d\'abord des A, puis « Passerelle vers A » (Tom, B ⇅A, centre)', 'Sacha' in l2 and 'Tom' in l2 and l2.index('Tom') > dern > 0 and all(n == 'A' for n in niv2[:dern] if n != '|') and any('Passerelle vers A' in x for x in seps), (l2, seps))
+    pg.click('.tfp button[data-v="centre"]'); pg.wait_for_timeout(400)
+    l3 = noms(pg); s3 = pg.evaluate("[...document.querySelectorAll('#tlist .tsep')].map(x => x.textContent)")
+    check('(v46) filtre A : les A, puis en bas les passerelles vers A (Tom, Chloé)', s3 == ['Passerelle vers A'] and l3.index('|') < l3.index('Tom') and l3.index('|') < l3.index('Chloé') and 'Gabin' in l3[:l3.index('|')], (l3, s3))
+    pg.click('.tfil:not(.tfp) button[data-v="all"]'); pg.wait_for_timeout(300)
+    check('(v46) filtre Tous : pas de section passerelle', pg.locator('#tlist .tsep').count() == 0)
+    pg.click('.tfp button[data-v="centre"]'); pg.click('.tfp button[data-v="centre"]'); pg.wait_for_timeout(300)
     check('retoucher le poste : tous les postes', pg.locator('#tlist .tsep').count() == 0 and len(noms(pg)) >= 20)
     # enregistré au toucher
     pg.evaluate("window.__calls=[]; const c0 = MC.api.call; MC.api.call = function (a, p) { window.__calls.push([a, JSON.stringify(p && p.lignes || '')]); return c0.apply(this, arguments) }; 1")
