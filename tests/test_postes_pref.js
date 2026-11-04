@@ -65,6 +65,23 @@ assert.strictEqual(terr(P.Hugo).niveau, 'C', 'la feuille est relue (pas le vieux
 assert.ok(/ · 1$/.test(g._props.PLAQ3_V46), 'une seule fois, une case : ' + g._props.PLAQ3_V46);
 r = g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P.Hugo, plaquage: 0 }] });
 assert.strictEqual(terr(P.Hugo).plaquage, 0, 'ensuite, un 0 choisi reste 0 (la migration ne repasse pas)');
+// (relecture) une migration qui échoue : la demande est refusée (rien n'est écrit), puis la migration réussit au prochain appel ;
+// elle ne touche que les « 0 » de plaquage3 (un 2 et les autres colonnes restent)
+const lea = sh.data.findIndex((r, i) => i > 0 && r && r[0] === P['Léa']);
+sh.data[lea][cP] = '2'; sh.data[lig][cP] = '0'; delete g._props.PLAQ3_V46;
+const avantLea = sh.data[lea].slice(), avantHugo = sh.data[lig].slice();
+const gr0 = sh.getRange; sh.getRange = function () { throw new Error('panne Sheets'); };
+r = g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P.Hugo, plaquage: 0 }] });
+sh.getRange = gr0;
+assert.strictEqual(r.error, 'occupe', 'migration en panne : demande refusée ' + JSON.stringify(r));
+assert.ok(!g._props.PLAQ3_V46, 'pas marquée faite');
+assert.strictEqual(terr(P.Hugo).plaquage, null, 'au prochain appel : migrée (le « 0 » par défaut redevient vide)');
+assert.strictEqual(terr(P['Léa']).plaquage, 2, 'un 2 reste 2');
+assert.deepStrictEqual(sh.data[lea].filter((x, j) => j !== cP), avantLea.filter((x, j) => j !== cP), 'les autres colonnes de Léa sont inchangées');
+assert.deepStrictEqual(sh.data[lig].filter((x, j) => j !== cP), avantHugo.filter((x, j) => j !== cP), 'les autres colonnes de Hugo sont inchangées');
+r = g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P.Hugo, plaquage: 0 }, { joueurId: P['Léa'], plaquage: null }] });
+assert.strictEqual(terr(P.Hugo).plaquage, 0);
+assert.strictEqual(terr(P['Léa']).plaquage, null, 'remis à « pas encore évalué »');
 // un enfant qui reçoit sa fiche (niveau seul) : plaquage pas encore évalué
 r = g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P['Léa'], niveau: 'B' }] });
 assert.strictEqual(terr(P['Léa']).plaquage, null);

@@ -1653,7 +1653,7 @@ window.MC = window.MC || {};
     var f = F[id], niv = f.niveau, pas = K.pasDe(f);
     var nv = niv ? '<span class="tlv on" style="--lc:' + K.COUL_NIV[niv] + '" title="Niveau ' + niv + ' · ' + K.NOM_NIV[niv] + '"><span class="sr-only">niveau </span>' + niv + '</span>'
       : '<span class="tlv none" title="Niveau à renseigner"><span class="sr-only">niveau </span>?</span>';
-    var pasB = pas.map(function (n) { return '<span class="tpas on" style="--lc:' + K.COUL_NIV[n] + '" title="Passerelle vers ' + K.NOM_NIV[n] + '"><span class="sr-only">passerelle vers </span>⇅' + n + '</span>'; }).join('');
+    var pasB = pas.map(function (n) { return '<span class="tpas on" style="--lc:' + K.COUL_NIV[n] + '" title="Passerelle vers ' + K.NOM_NIV[n] + '"><span class="sr-only">passerelle vers </span><span aria-hidden="true">⇅</span>' + n + '</span>'; }).join('');
     return '<li><a class="tfrow" href="#/educ/joueur/' + esc(id) + '"><span class="tnm">' + esc(f.prenom) + '</span><span class="tps">' + pillsPostes(f) + '</span>' +
       '<span class="tctl">' + nv + '<span class="tpasw">' + pasB + '</span>' + bouclier(f.plaquage) + '</span></a></li>';
   }
@@ -1692,7 +1692,7 @@ window.MC = window.MC || {};
       '<p class="small tleg"><span><b>A</b> Confirmés · <b>B</b> Débrouillés · <b>C</b> Débutants</span><span><b>⇅</b> Passerelle : peut aussi jouer dans un autre niveau (une ou deux)</span><span>' + bouclier(3) + ' Plaquage (de 0 à 3)</span></p></div>' +
       graphePostes(F, parNiv, { cle: 'terrain', resume: gNom + ' · ' + parNiv.length + ' enfant' + (parNiv.length > 1 ? 's' : ''), niv: T.filtre === 'all', simple: true }) +
       '<label class="sr-only" for="tq">Chercher un joueur</label><input id="tq" class="search" type="search" placeholder="Chercher un prénom…" value="' + esc(T.q) + '">' +
-      '<div class="tfils"><div class="tfil">' + fb('all', 'Tous', cnt.all, '', 'tf-w') + (cnt[''] || T.filtre === 'none' ? fb('none', 'Sans niveau', cnt[''], 'var(--orange)', 'tf-w') : '') + fb('A', 'A', cnt.A, K.COUL_NIV.A) + fb('B', 'B', cnt.B, K.COUL_NIV.B) + fb('C', 'C', cnt.C, K.COUL_NIV.C) + '</div>' +
+      '<div class="tfils"><div class="tfil" role="group" aria-label="Filtrer par niveau">' + fb('all', 'Tous', cnt.all, '', 'tf-w') + (cnt[''] || T.filtre === 'none' ? fb('none', 'Sans niveau', cnt[''], 'var(--orange)', 'tf-w') : '') + fb('A', 'A', cnt.A, K.COUL_NIV.A) + fb('B', 'B', cnt.B, K.COUL_NIV.B) + fb('C', 'C', cnt.C, K.COUL_NIV.C) + '</div>' +
       '<div class="tfil tfp" role="group" aria-label="Filtrer par poste">' + fp('', 'Tous', parNiv.length) + K.ORDRE.map(function (p) { return fp(p, COURT[p], cntP[p]); }).join('') + '</div></div>' +
       '<ul class="list tlist" id="tlist">' + (rows || '<li class="empty">Personne.</li>') + '</ul>' +
       '<a class="btn2" href="#/educ/ajouter">' + icon('plus', 16) + ' Ajouter des enfants (depuis Spond)</a>' +
@@ -1870,8 +1870,8 @@ window.MC = window.MC || {};
   };
   // le texte est aussi dans la page, masqué, relié au « ? » (lecteur d'écran) ; la bulle : doigt posé (tenir) ou toucher court (reste ouverte
   // jusqu'au toucher suivant), clavier (Entrée / Espace ; Échap ou quitter le bouton la ferme)
-  function aideHtml(k, label) { return ' <button type="button" class="aide-q" data-aide="' + k + '" data-noptr aria-label="' + esc(label) + '" aria-describedby="aide-t-' + k + '" aria-expanded="false">?</button><span class="sr-only" id="aide-t-' + k + '">' + (AIDES[k] || '').replace(/<[^>]+>/g, ' ') + '</span>'; }
-  function aideFerme() { var b = document.querySelector('.aide-bulle'); if (b) b.remove(); Array.prototype.forEach.call(document.querySelectorAll('.aide-q[aria-expanded="true"]'), function (x) { x.setAttribute('aria-expanded', 'false'); }); }
+  function aideHtml(k, label) { return ' <button type="button" class="aide-q" data-aide="' + k + '" data-noptr aria-label="' + esc(label) + '" aria-describedby="aide-t-' + k + '">?</button><span hidden id="aide-t-' + k + '">' + (AIDES[k] || '').replace(/<[^>]+>/g, ' ') + '</span>'; }
+  function aideFerme() { var b = document.querySelector('.aide-bulle'); if (b) b.remove(); Array.prototype.forEach.call(document.querySelectorAll('.aide-q.ouvert'), function (x) { x.classList.remove('ouvert'); }); }
   function aideOuvre(q) {
     aideFerme();
     var d = document.createElement('div'); d.className = 'aide-bulle'; d.setAttribute('aria-hidden', 'true');
@@ -1881,20 +1881,22 @@ window.MC = window.MC || {};
     d.style.width = w + 'px'; d.style.left = x + 'px';
     var h = d.offsetHeight, y = r.top - h - 8; if (y < 60) y = r.bottom + 8;
     d.style.top = y + 'px';
-    q.setAttribute('aria-expanded', 'true');
+    q.classList.add('ouvert');
   }
   var aideTenu = null;
   document.addEventListener('pointerdown', function (e) {
     var q = e.target.closest && e.target.closest('.aide-q');
     if (!q) { if (!e.target.closest || !e.target.closest('.aide-bulle')) aideFerme(); return; }
-    e.preventDefault(); aideTenu = { q: q, t: Date.now() }; aideOuvre(q);
+    e.preventDefault();
+    if (q.classList.contains('ouvert')) { aideFerme(); return; }   // déjà ouverte (toucher court) : un 2e toucher la ferme
+    aideTenu = { q: q, t: Date.now() }; aideOuvre(q);
   });
   // relâché après un appui long : la bulle se ferme ; après un toucher court : elle reste ouverte jusqu'au toucher suivant
   document.addEventListener('pointerup', function () { if (aideTenu) { var long = Date.now() - aideTenu.t >= 400; aideTenu = null; if (long) aideFerme(); } });
   document.addEventListener('pointercancel', function () { if (aideTenu) { aideTenu = null; aideFerme(); } });
   document.addEventListener('click', function (e) {
     var q = e.target.closest && e.target.closest('.aide-q'); if (!q) return;
-    if (e.detail === 0) { if (q.getAttribute('aria-expanded') === 'true') aideFerme(); else aideOuvre(q); }   // clavier : Entrée / Espace
+    if (e.detail === 0) { if (q.classList.contains('ouvert')) aideFerme(); else aideOuvre(q); }   // clavier : Entrée / Espace
   });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && document.querySelector('.aide-bulle')) aideFerme(); });
   document.addEventListener('focusout', function (e) { if (e.target.closest && e.target.closest('.aide-q')) aideFerme(); });

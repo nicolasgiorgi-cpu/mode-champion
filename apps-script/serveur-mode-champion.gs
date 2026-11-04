@@ -2952,7 +2952,8 @@ function doPost(e) {
   } catch (err) {
     return json_({ ok: false, error: 'occupe', message: 'Le serveur est occupé, réessaie dans un instant.' });
   }
-  try { plaquageVideV46_(); } catch (err) { /* réessayée au prochain appel */ }
+  // (v46) aucune demande n'est traitée avant que la migration ait réussi (sinon un 0 choisi pourrait être effacé ensuite)
+  try { plaquageVideV46_(); } catch (err) { lock.releaseLock(); return json_({ ok: false, error: 'occupe', message: 'Le serveur est occupé, réessaie dans un instant.' }); }
   var db = new SheetDB_(), out;
   PUSH_FILE_ = [];
   try {
@@ -3060,13 +3061,13 @@ function plaquageVideV46_() {
       if (n) rg.setValues(v);
     }
   }
-  props.setProperty('PLAQ3_V46', new Date().toISOString() + ' · ' + n);
+  props.setProperty('PLAQ3_V46', new Date().toISOString() + ' · ' + n);   // si ceci échoue, la demande est refusée et la migration rejouée : sans effet de plus (plus aucun « 0 » par défaut)
   var cs = CacheService.getScriptCache();
-  TABLES.forEach(function (t) { cs.remove('t:' + t); cs.remove(CK_ + t); });
+  Object.keys(Core.SCHEMA).forEach(function (t) { cs.remove('t:' + t); cs.remove(CK_ + t); });
   Logger.log('Plaquage : ' + n + ' case(s) « 0 » remise(s) à vide (pas encore évalué).');
 }
 function viderCache() {
   var cs = CacheService.getScriptCache();
-  TABLES.forEach(function (t) { cs.remove(CK_ + t); cs.remove('t:' + t); });
+  Object.keys(Core.SCHEMA).forEach(function (t) { cs.remove(CK_ + t); cs.remove('t:' + t); });   // (v46) toutes les tables (bravos compris)
   Logger.log('Cache vidé : le site relit la feuille.');
 }

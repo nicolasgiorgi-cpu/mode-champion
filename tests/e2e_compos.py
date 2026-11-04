@@ -232,7 +232,7 @@ with sync_playwright() as p:
     shot(pg, 'k09-fiche', True)
     # ----- Joueurs : le niveau à côté du prénom -----
     pg.goto(BASE + '#/educ/joueurs'); pg.wait_for_timeout(600)
-    check('liste des enfants : un niveau par ligne', len(pg.query_selector_all('#tlist .tfrow .tseg')) >= 20)
+    check('liste des enfants : un niveau par ligne', len(pg.query_selector_all('#tlist a.tfrow .tlv')) >= 20 and len(pg.query_selector_all('#tlist a.tfrow')) == len(pg.query_selector_all('#tlist a.tfrow .tlv')))
     # ----- entraînement : d'abord les ateliers, ensuite les matchs -----
     pg.goto(BASE + '#/educ/evt/sp-demo-e1'); pg.wait_for_timeout(800)
     check('entraînement : 2 étapes (ateliers, matchs)', len(pg.query_selector_all('.cpart')) == 2 and 'LES ATELIERS' in pg.inner_text('.cpart >> nth=0').upper())
