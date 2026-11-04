@@ -1791,7 +1791,7 @@ window.MC = window.MC || {};
       if (nl && ol) ol.innerHTML = nl.innerHTML;
     }, 150);
   });
-  document.addEventListener('hashchange', function () { if (location.hash.indexOf('#/educ/joueurs') !== 0) T.vus = {}; });
+  window.addEventListener('hashchange', function () { if (location.hash.indexOf('#/educ/joueurs') !== 0) T.vus = {}; });   // (hashchange arrive sur window)
 
   // ======================================================================
   // Sur la fiche d'un joueur (éduc) : sa fiche terrain et ses plateaux

@@ -2,9 +2,9 @@
 # tout le monde a son niveau, la répartition des postes repliée qui suit le filtre), la répartition des présents avant
 # un plateau et avant les matchs, et les matchs d'entraînement avec des postes (changer le poste d'un enfant pour ce match).
 # Site de démo (sh tests/mkdemo.sh), puis : python3 tests/e2e_postes.py [largeur hauteur]   (aussi 360 780)
-import sys, re
+import os, sys, re
 from playwright.sync_api import sync_playwright
-BASE = 'http://localhost:8899/index.html'
+BASE = os.environ.get('BASE', 'http://localhost:8899/index.html')
 W, H = (int(sys.argv[1]), int(sys.argv[2])) if len(sys.argv) > 2 else (390, 844)
 errs = []; res = []
 def check(n, c, i=''): res.append((n, c)); print(('OK  ' if c else 'BAD ') + n, '' if c else i)
@@ -62,6 +62,9 @@ with sync_playwright() as p:
         pg.click('[data-act="tNiv"][data-id="%s"][data-v="C"]' % i); pg.wait_for_timeout(150)
         if k == 0 and len(ids) > 1: check('(v43) un enfant réglé reste dans « Sans niveau » (on voit qui on vient de régler)', pg.query_selector('#tlist [data-act="tNiv"][data-id="%s"]' % i) is not None)
     pg.wait_for_timeout(1300)
+    # (relecture v43) le filtre ne bascule pas sous le doigt : « Sans niveau » reste, avec ceux qu'on vient de régler, tant qu'on est sur l'écran
+    check('tous réglés : « Sans niveau » reste le temps de l\'écran (ceux qu\'on vient de régler visibles)', ev(pg, "!!document.querySelector('[data-act=tFiltre][data-v=none].on')") and len(pg.query_selector_all('#tlist .tfrow')) == len(ids), len(pg.query_selector_all('#tlist .tfrow')))
+    pg.click('#nav a:has-text("Progrès")'); pg.wait_for_timeout(900); pg.click('#nav a:has-text("Enfants")'); pg.wait_for_timeout(1000)
     check('tous réglés : plus de « Sans niveau », retour à « Tous »', pg.query_selector('[data-act="tFiltre"][data-v="none"]') is None and ev(pg, "document.querySelector('[data-act=tFiltre][data-v=all]').classList.contains('on')"))
     check('(v43) enregistrés au toucher, sans bouton', pg.query_selector('[data-act="tSave"]') is None and ev(pg, "MC.api.call('group',{token:MC.app.S.adult.token}).then(g => g.joueurs.filter(p => %s.indexOf(p.joueur.id) >= 0).every(p => p.terrain && p.terrain.niveau === 'C'))" % str(ids).replace("'", '"')))
     check('4 filtres, toujours sur une ligne', len(pg.query_selector_all(NIVS)) == 4 and une_ligne(pg, NIVS))
