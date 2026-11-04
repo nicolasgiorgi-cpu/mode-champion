@@ -423,8 +423,12 @@
     return ui.topbar({ kicker: 'Éduc · ' + g.moi.nom + (g.moi.admin ? ' · admin' : ''), title: title, right: right, help: ui.helpLink('educ') });
   }
   MC.educBar = educBar;
-  // Progrès : Prépa physique · Skills · Missions
-  function progresTabs(on) { return ui.subtabs('e:progres', [['prepa', '#/educ/progres', 'Prépa physique'], ['skills', '#/educ/skills', 'Skills'], ['missions', '#/educ/missions', 'Missions']], on, '#3DFFB0', 'Progrès'); }
+  // Progrès (v44) : Missions (ouvert de base) · Skills · Prépa physique ; une pastille sur ce qui attend (demandes d'étoiles, résultats de mon enfant)
+  function progresTabs(on) {
+    var g = app.S.cache.group, nSk = MC.demandesSkills ? MC.demandesSkills() : 0, nPr = 0;
+    if (g) mesEnfants(g).forEach(function (p) { if (p.joueur.actif) (p.records || []).forEach(function (r) { if (r.statut === 'attente') nPr++; }); });
+    return ui.subtabs('e:progres', [['missions', '#/educ/missions', 'Missions'], ['skills', '#/educ/skills', 'Skills', nSk || ''], ['prepa', '#/educ/progres', 'Prépa physique', nPr || '']], on, '#3DFFB0', 'Progrès');
+  }
   MC.progresTabs = progresTabs;
   function mesEnfants(g) { return (g.moi.enfants || []).map(function (id) { return g.joueurs.filter(function (p) { return p.joueur.id === id; })[0]; }).filter(Boolean); }
   MC.mesEnfants = mesEnfants;
@@ -477,7 +481,8 @@
     // (v36) une séance : « 👏 Bravo » d'un toucher à droite (js/bravos.js), et les bravos déjà donnés dessous
     function feedLi(e) {
       var bt = e.s && MC.bravo ? MC.bravo.btn(g, e.id, e.s, { sm: true }) : '', vu = e.s ? MC.suivi.bravosDe(e.s, { bravos: e.bravos, moi: g.moi.id }) : '';
-      var a = '<a class="li" href="#/educ/joueur/' + esc(e.id) + '"><span class="dia" style="--dc:' + e.c + '"></span><span class="grow"><span class="t1">' + esc(e.p.prenom) + ' · ' + esc(e.t1) + '</span><span class="t2">' + esc(e.t2) + '</span>' + vu + '</span>' + (bt ? '' : icon('right', 16)) + '</a>';
+      // (v44) un lien précis : sa fiche, onglet Prépa, la séance (ou ses bilans) — la fiche s'ouvre sinon sur Terrain
+      var a = '<a class="li" href="#/educ/joueur/' + esc(e.id) + '?t=prepa&c=' + (e.s && e.s.id ? 's-' + esc(e.s.id) : 'bilans') + '"><span class="dia" style="--dc:' + e.c + '"></span><span class="grow"><span class="t1">' + esc(e.p.prenom) + ' · ' + esc(e.t1) + '</span><span class="t2">' + esc(e.t2) + '</span>' + vu + '</span>' + (bt ? '' : icon('right', 16)) + '</a>';
       return bt ? '<li class="bvrow">' + a + bt + '</li>' : '<li>' + a + '</li>';
     }
     var feed = ev.slice(0, 6).map(feedLi).join('');
@@ -659,8 +664,9 @@
 
   // ---------- ÉDUC : un joueur ----------
   app.route('/educ/joueur/:id', function (p, q, cur) {
-    var tab = q.t || app.lsGet('mc-ftab') || 'terrain';
-    if (q.t) app.lsSet('mc-ftab', q.t);
+    // (v44) venir d'ailleurs = le premier onglet (Terrain) ; seul un lien précis (?t=) ouvre un autre onglet
+    var tab = q.t || 'terrain';
+    app.lsSet('mc-ftab', null);   // l'ancien « dernier onglet de la fiche », effacé
     // (retouche UI-13) l'onglet ouvert reste entièrement visible dans la bande qui défile
     if (cur) cur.after = function (root) {
       var nav = root.querySelector('.ftabs'), on = nav && nav.querySelector('a.on');

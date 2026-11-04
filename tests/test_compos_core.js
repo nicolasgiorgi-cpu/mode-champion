@@ -37,8 +37,8 @@ assert.strictEqual(r.terrain[P['Léa']].plaquage, 0);
 assert.strictEqual(r.terrain[P.Tom].parQui, 'Admin');
 assert.strictEqual(Object.keys(r.terrain).length, 3);
 // modification partielle : le reste ne bouge pas
-r = g.call({ action: 'setTerrain', token: cyril, lignes: [{ joueurId: P.Tom, plaquage: 4 }] });
-assert.strictEqual(r.terrain[P.Tom].niveau, 'B'); assert.strictEqual(r.terrain[P.Tom].passerelle, 'A'); assert.strictEqual(r.terrain[P.Tom].plaquage, 4);
+r = g.call({ action: 'setTerrain', token: cyril, lignes: [{ joueurId: P.Tom, plaquage: 2 }] });   // (v44) plaquage de 0 à 3
+assert.strictEqual(r.terrain[P.Tom].niveau, 'B'); assert.strictEqual(r.terrain[P.Tom].passerelle, 'A'); assert.strictEqual(r.terrain[P.Tom].plaquage, 2);
 assert.strictEqual(r.terrain[P.Tom].parQui, 'Cyril');
 // changer de niveau peut rendre la passerelle impossible
 r = g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P.Hugo, niveau: 'C', passerelle: 'A' }] });

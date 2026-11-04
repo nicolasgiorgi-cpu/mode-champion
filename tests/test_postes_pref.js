@@ -37,6 +37,16 @@ assert.strictEqual(r.terrain[P['Léa']].niveau, 'A');
 // seuls les éducs
 r = g.call({ action: 'setTerrain', token: 'x', lignes: [{ joueurId: P.Hugo, postesPref: [] }] });
 assert.ok(r.error);
+// (v44) le plaquage de 0 à 3 (colonne plaquage3) ; l'ancienne note sur 5 (colonne plaquage) n'est plus lue : tout le monde repart de 0
+const dbp = new g.SheetDB_();
+dbp.insert('terrain', { id: P.Hugo, niveau: 'B', passerelle: '', plaquage: 5, postesOk: [], spondId: '', note: '', parQui: '', maj: '' }); dbp.flush_();
+assert.strictEqual(terr(P.Hugo).plaquage, 0, 'ancienne note sur 5 : repart de 0');
+assert.strictEqual(terr(P.Hugo).niveau, 'B', 'le reste de la fiche est gardé');
+[[2, 2], [3, 3], [0, 0], [5, 3], [4, 3], [9, 0], [-1, 0], ['x', 0]].forEach(function (c) {
+  r = g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P.Hugo, plaquage: c[0] }] });
+  assert.strictEqual(r.terrain[P.Hugo].plaquage, c[1], 'plaquage ' + c[0] + ' → ' + c[1]);
+});
+assert.strictEqual(new g.SheetDB_().rows('terrain').find(t => t.id === P.Hugo).plaquage, 5, 'l\'ancienne colonne n\'est pas touchée');
 
 // ---------- règles des compos (js/compos.js) ----------
 const ctx = { window: {}, console, Date, Math, JSON }; ctx.window = ctx; vm.createContext(ctx);
@@ -79,4 +89,12 @@ assert.strictEqual(K.rang(F7.sept, 'ailier'), 7);
 const A7 = K.apparier(['sept'].concat(AUTRES.map(function (p, i) { return 'a' + i; })), F7);
 assert.strictEqual(A7.poste.sept, 'ailier', 'son 7e poste : ' + JSON.stringify(A7.poste));
 assert.strictEqual(A7.manquants.length, 0);
+// (v44) plaquage de 0 à 3 : repères A 3, B 2 ; « bon plaqueur » à 2 ; fiches bornées à 3
+assert.deepStrictEqual([K.SEUIL.A, K.SEUIL.B, K.BON], [3, 2, 2]);
+const FP = K.fiches({ joueurs: [joueur('a2', { niveau: 'A', plaquage: 2, postesOk: [] }), joueur('a3', { niveau: 'A', plaquage: 3, postesOk: [] }), joueur('b2', { niveau: 'B', plaquage: 2, postesOk: [] }), joueur('b1', { niveau: 'B', plaquage: 1, postesOk: [] }), joueur('x5', { niveau: 'B', plaquage: 5, postesOk: [] })] });
+assert.strictEqual(FP.x5.plaquage, 3, 'une fiche ne dépasse pas 3');
+const SA = K.stats({ niveau: 'A', joueurs: [{ id: 'a2' }, { id: 'a3' }] }, FP, 5), SB = K.stats({ niveau: 'B', joueurs: [{ id: 'b2' }, { id: 'b1' }] }, FP, 5);
+assert.deepStrictEqual(Array.from(SA.sousSeuil), ['a2'], 'en A : sous 3');
+assert.deepStrictEqual(Array.from(SB.sousSeuil), ['b1'], 'en B : sous 2');
+assert.strictEqual(SA.bons, 2, 'bons plaqueurs : 2 ou plus'); assert.strictEqual(SB.bons, 1);
 console.log('test_postes_pref : OK');

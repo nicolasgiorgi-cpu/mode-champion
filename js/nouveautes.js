@@ -83,7 +83,7 @@ MC.NEWS = [
       f: '4 nouvelles cartes (Maul, Défense, Porteur, Soutien). Une étoile vue au plateau brille ; votre enfant peut demander une étoile aux éducs.',
       e: 'Évaluer : une étoile ou un atelier (grille), les groupes d\'ateliers de la séance, gardé sur le téléphone puis envoyé à la fin ; après un plateau, les étoiles brillent ; les demandes des enfants en haut.'
     },
-    lien: { k: '#/skills', f: '#/parent/skills', e: '#/educ/skills' } },
+    lien: { k: '#/skills', f: '#/parent/skills', e: '#/educ/skills/evaluer' } },
   { id: '2026-10-retour-adulte', date: '2026-10-24', pour: ['f', 'e'],
     titre: 'Revenir à votre espace en un geste',
     texte: 'Côté enfant, le bouton 🔒 Parent (ou Éduc) est en haut à droite, à la place du ▶ : votre code est redemandé.' },

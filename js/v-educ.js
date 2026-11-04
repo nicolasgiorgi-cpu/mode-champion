@@ -1,7 +1,9 @@
 /* =========================================================
    Mode champion · M12 — ÉDUCS : Progrès › Skills et Missions, le +1, la fiche d'un enfant
-   - Skills : évaluer (un seul écran, Skills v2 : une étoile = la liste, un atelier = la grille, groupes d'ateliers,
-     gardé sur le téléphone puis envoyé à la fin, brille après un plateau, demandes des enfants), le passeport du groupe.
+   - Skills (v44) : deux vues, le Passeport de compétences (les étoiles de chaque enfant, carte par carte) et le Catalogue
+     (cartes repliées ; une étoile se donne à des enfants en mission ou acquise) ; Évaluer sur sa page (#/educ/skills/evaluer :
+     une étoile = la liste, un atelier = la grille, groupes d'ateliers, gardé sur le téléphone puis envoyé à la fin, brille
+     après un plateau, demandes des enfants).
    - Missions : pour le groupe (vidéo + questions, QCM, et « Prépare le jeu à 10 »),
      et la mission principale de chaque enfant (visuels v2, 25/10 : 1 à 3 étoiles d'une même carte, une date de fin,
      donnée à plusieurs enfants d'un coup, avec un récapitulatif par enfant).
@@ -177,7 +179,7 @@ window.MC = window.MC || {};
     }).join('');
     var nq = queue(evs(), e.id).length, plat = estPlateau(e);
     return '<section class="sec"><h2 class="h2">' + (plat ? 'Après le plateau' : train ? 'Après la séance' : 'Après l\'événement') + '</h2>' +
-      '<a class="li" href="#/educ/skills?evt=' + esc(e.id) + '">' + icon(plat ? 'spark' : 'star', 20, 'style="color:var(--gold);flex:none"') + '<span class="grow"><span class="t1">' + (plat ? 'Faire briller des étoiles' : 'Évaluer des Skills') + '</span><span class="t2">' + (nq ? '<b style="color:var(--pink)">' + nq + ' pas encore envoyée' + (nq > 1 ? 's' : '') + '</b> · ' : '') + 'Avec les ' + pres.length + ' présents' + (plat ? ' · elles brillent' : ' · une étoile ou un atelier') + '</span></span>' + icon('right', 16) + '</a>' +
+      '<a class="li" href="#/educ/skills/evaluer?evt=' + esc(e.id) + '">' + icon(plat ? 'spark' : 'star', 20, 'style="color:var(--gold);flex:none"') + '<span class="grow"><span class="t1">' + (plat ? 'Faire briller des étoiles' : 'Évaluer des Skills') + '</span><span class="t2">' + (nq ? '<b style="color:var(--pink)">' + nq + ' pas encore envoyée' + (nq > 1 ? 's' : '') + '</b> · ' : '') + 'Avec les ' + pres.length + ' présents' + (plat ? ' · elles brillent' : ' · une étoile ou un atelier') + '</span></span>' + icon('right', 16) + '</a>' +
       '<div class="between" style="margin-top:6px"><span class="mlab" style="margin:0">Missions des présents</span><span class="small">un toucher = +1</span></div>' +
       (list ? '<ul class="list">' + list + '</ul>' : '<p class="small" style="margin:0">Aucun présent n\'a de mission principale en cours. Donnez-en une depuis Progrès › Missions ou la fiche d\'un enfant.</p>') +
       '<button type="button" class="li" data-act="encAutre" data-ev="' + esc(e.id) + '">' + icon('heart', 20, 'style="color:var(--green);flex:none"') + '<span class="grow"><span class="t1">Encourager un autre enfant</span><span class="t2">Un +1 avec un mot, sur sa mission ou autre chose</span></span>' + icon('right', 16) + '</button></section>';
@@ -319,7 +321,8 @@ window.MC = window.MC || {};
   }
   function nomCourt(s) { return s.nom.length > 14 ? s.nom.slice(0, 13) + '.' : s.nom; }
 
-  app.route('/educ/skills', function (p, q) {
+  // (v44) Progrès › Skills : le passeport de compétences et le catalogue (plus bas) ; l'évaluation, occasionnelle, a sa page
+  app.route('/educ/skills/evaluer', function (p, q) {
     return both().then(function (r) {
       var gr = r[0], st = evs();
       app.refreshNav();
@@ -330,7 +333,7 @@ window.MC = window.MC || {};
     });
   }, { adult: 'e', nav: 'e:progres', bg: '#2E2612' });
   // l'ancienne journée d'évaluation : le même écran
-  app.route('/educ/skills/journee', function () { app.go('#/educ/skills', true); return Promise.resolve('<main class="screen"></main>'); }, { adult: 'e', nav: 'e:progres', bg: '#2E2612' });
+  app.route('/educ/skills/journee', function () { app.go('#/educ/skills/evaluer', true); return Promise.resolve('<main class="screen"></main>'); }, { adult: 'e', nav: 'e:progres', bg: '#2E2612' });
 
   function paintEval(gr, st) {
     if (Array.isArray(st.repris) && st.repris.length) { var q0 = queue(st, ''); st.repris.forEach(function (k) { if (q0.indexOf(k) < 0) q0.push(k); }); st.repris = null; saveEv(); }
@@ -345,7 +348,7 @@ window.MC = window.MC || {};
     var head = '<section class="skeval"><div class="between" style="align-items:center"><span class="hud" style="color:var(--gold)">Évaluer · ' + ids.length + (g ? ' dans ' + esc(g.nom) : e ? ' présent' + (ids.length > 1 ? 's' : '') : ' enfants') + (e ? ' · ' + esc(e.lieu || e.titre) : '') + '</span><button type="button" class="lnk" data-act="skEvt">Changer</button></div>' +
       (plat ? '<p class="small" style="margin:0;color:var(--gold)">' + icon('spark', 14) + ' Après un plateau : les étoiles que vous touchez <b>brillent</b> (et sont gagnées si l\'enfant ne les avait pas).</p>' : '') +
       (function () { var R = qRoot(st), autres = Object.keys(R).filter(function (k) { return k !== qKey(st.evt) && (R[k] || []).length; }); if (!autres.length) return ''; var k = autres[0], ev = k === '_' ? null : evtById(k);
-        return '<a class="small" style="color:var(--pink)" href="#/educ/skills?evt=' + esc(k === '_' ? '' : k) + '">' + R[k].length + ' étoile' + (R[k].length > 1 ? 's' : '') + ' pas encore envoyée' + (R[k].length > 1 ? 's' : '') + (ev ? ' · ' + esc(ev.titre) : ' · tous les enfants') + '</a>'; })() +
+        return '<a class="small" style="color:var(--pink)" href="#/educ/skills/evaluer?evt=' + esc(k === '_' ? '' : k) + '">' + R[k].length + ' étoile' + (R[k].length > 1 ? 's' : '') + ' pas encore envoyée' + (R[k].length > 1 ? 's' : '') + (ev ? ' · ' + esc(ev.titre) : ' · tous les enfants') + '</a>'; })() +
       (function () { var nd = demandesAttente(gr).length; return nd ? '<button type="button" class="lnk" style="align-self:flex-start;color:var(--cyan)" data-act="evVoirDem">' + nd + ' demande' + (nd > 1 ? 's' : '') + ' d\'enfant' + (nd > 1 ? 's' : '') + ' à répondre ↓</button>' : ''; })() + '</section>';
 
     // les demandes des enfants
@@ -406,11 +409,10 @@ window.MC = window.MC || {};
     var dock = '<div class="cp-bar evdock"><span class="grow small" style="color:var(--soft)" id="ev_t">' + dockTxt(n) + '</span>' +
       '<button type="button" class="btn" id="ev_send" data-act="evSend"' + (n ? '' : ' disabled') + '>' + icon('send', 16) + ' Envoyer</button></div>';
 
-    return '<main class="screen">' + MC.educBar(gr, 'Progrès') + MC.progresTabs('skills') + head + choix +
+    return '<main class="screen">' + MC.educBar(gr, 'Évaluer', '#/educ/skills', 'Skills') + head + choix +
       (grpHtml ? '<section class="sec"><h2 class="mlab" style="margin:0">Le groupe qui arrive</h2>' + grpHtml + '</section>' : '') +
       '<section class="sec">' + corps + '</section>' + demHtml +
       '<p class="small" style="margin:0">Les enfants découvrent leurs étoiles après l\'entraînement, quand vous envoyez. Le +1 dit « tu es sur la bonne voie » ; seule une étoile envoyée la donne.</p>' +
-      '<div class="grid2"><a class="li" href="#/educ/skills/passeport">' + icon('list', 20, 'style="color:var(--cyan);flex:none"') + '<span class="grow"><span class="t1">Passeport du groupe</span><span class="t2">Toutes les cartes</span></span>' + icon('right', 16) + '</a></div>' +
       dock + '</main>';
   }
   function dockTxt(n) { return '<b id="ev_n">' + n + '</b> ' + (n > 1 ? 'étoiles prêtes, gardées' : 'étoile prête, gardée') + ' sur le téléphone'; }
@@ -495,31 +497,143 @@ window.MC = window.MC || {};
       body: '<div class="sec" style="gap:6px">' + list.map(function (e) { return '<button type="button" class="li" data-skev="' + esc(e.id) + '">' + icon(e.sorte === 'plateau' ? 'flag' : 'calendar', 18) + '<span class="grow"><span class="t1">' + esc(e.titre) + '</span><span class="t2">' + esc(ui.fmtDate(jour(e))) + ' · ' + presentsDe(e, gr).length + ' présents</span></span></button>'; }).join('') +
         '<button type="button" class="li" data-skev="">' + icon('kids', 18) + '<span class="grow"><span class="t1">Tous les enfants</span><span class="t2">' + actifs(gr).length + ' enfants</span></span></button></div>',
       actions: [{ label: 'Fermer', value: null, cls: 'btn2 grey' }],
-      onOpen: function (host, close) { host.addEventListener('click', function (ev) { var x = ev.target.closest('[data-skev]'); if (x) { var st = evs(); st.evt = x.getAttribute('data-skev'); st.grp = ''; saveEv(); close(null); app.go('#/educ/skills?evt=' + st.evt); } }); }
+      onOpen: function (host, close) { host.addEventListener('click', function (ev) { var x = ev.target.closest('[data-skev]'); if (x) { var st = evs(); st.evt = x.getAttribute('data-skev'); st.grp = ''; saveEv(); close(null); app.go('#/educ/skills/evaluer?evt=' + st.evt); } }); }
     });
   };
 
-  // ---------- le passeport du groupe ----------
+  // ---------- (v44) Progrès › Skills : le passeport de compétences, puis le catalogue des Skills ----------
   var ABR = { plaquage: 'Plaq.', ruck: 'Ruck', maul: 'Maul', defense: 'Déf.', porteur: 'Port.', passe: 'Passe', pied: 'Pied', soutien: 'Sout.' };
-  app.route('/educ/skills/passeport', function () {
-    return MC.loadGroup().then(function (gr) {
-      var kids = actifs(gr), tot = {}, mois = L.today().slice(0, 7), ceMois = 0;
-      SK.DOMAINES.forEach(function (D) { tot[D.id] = 0; });
-      var rows = kids.map(function (p) {
-        var d = { etoiles: p.etoiles || [] };
-        (p.etoiles || []).forEach(function (e) { if (String(e.date).slice(0, 7) === mois) ceMois++; });
-        return '<tr><th scope="row"><a href="#/educ/joueur/' + esc(p.joueur.id) + '?t=skills">' + esc(p.joueur.prenom) + '</a></th>' + SK.DOMAINES.map(function (D) {
-          var c = SK.carte(d, D.id); tot[D.id] += c.n;
-          return '<td><span class="skcell" style="--gc:' + c.grade.color + '">' + (c.n ? c.n : '·') + '</span></td>';
-        }).join('') + '<td class="sktot">' + SK.total(d) + '</td></tr>';
-      }).join('');
-      return '<main class="screen">' + MC.educBar(gr, 'Passeport du groupe', '#/educ/skills', 'Skills') +
-        '<div class="head"><span class="kicker" style="color:var(--gold)">' + kids.length + ' enfants · ' + ceMois + ' étoile' + (ceMois > 1 ? 's' : '') + ' validée' + (ceMois > 1 ? 's' : '') + ' ce mois-ci</span><h1 class="big sm">Le passeport</h1>' +
-        '<p class="small" style="margin:0">Le nombre d\'étoiles de chaque carte (' + SK.DOMAINES.map(function (D) { return ABR[D.id] + ' ' + D.etoiles.length; }).join(', ') + '). Touchez un prénom pour sa fiche. Jamais montré aux enfants comme un classement.</p></div>' +
-        '<div class="sktable-w"><table class="sktable"><colgroup><col class="n">' + SK.DOMAINES.map(function () { return '<col>'; }).join('') + '<col></colgroup><thead><tr><th></th>' + SK.DOMAINES.map(function (D) { return '<th scope="col" style="color:' + D.color + '" title="' + esc(D.nom) + '">' + esc(ABR[D.id] || D.nom) + '</th>'; }).join('') + '<th>Tout</th></tr></thead><tbody>' + rows + '</tbody>' +
-        '<tfoot><tr><th>Total</th>' + SK.DOMAINES.map(function (D) { return '<td>' + tot[D.id] + '</td>'; }).join('') + '<td></td></tr></tfoot></table></div></main>';
-    });
+  function passeportHtml(gr) {
+    var kids = actifs(gr), tot = {}, mois = L.today().slice(0, 7), ceMois = 0;
+    SK.DOMAINES.forEach(function (D) { tot[D.id] = 0; });
+    var rows = kids.map(function (p) {
+      var d = { etoiles: p.etoiles || [] };
+      (p.etoiles || []).forEach(function (e) { if (String(e.date).slice(0, 7) === mois) ceMois++; });
+      return '<tr><th scope="row"><a href="#/educ/joueur/' + esc(p.joueur.id) + '?t=skills">' + esc(p.joueur.prenom) + '</a></th>' + SK.DOMAINES.map(function (D) {
+        var c = SK.carte(d, D.id); tot[D.id] += c.n;
+        return '<td><span class="skcell" style="--gc:' + c.grade.color + '">' + (c.n ? c.n : '·') + '</span></td>';
+      }).join('') + '<td class="sktot">' + SK.total(d) + '</td></tr>';
+    }).join('');
+    return '<section class="sec" id="passeport"><div class="between" style="align-items:baseline"><h2 class="h2">Passeport de compétences</h2><span class="small" style="color:var(--gold)">' + ceMois + ' étoile' + (ceMois > 1 ? 's' : '') + ' ce mois-ci</span></div>' +
+      '<p class="small" style="margin:0">Les étoiles de chaque enfant, carte par carte (' + SK.DOMAINES.map(function (D) { return ABR[D.id] + ' ' + D.etoiles.length; }).join(', ') + '). Touchez un prénom pour sa fiche. Jamais montré aux enfants comme un classement.</p>' +
+      '<div class="sktable-w"><table class="sktable"><colgroup><col class="n">' + SK.DOMAINES.map(function () { return '<col>'; }).join('') + '<col></colgroup><thead><tr><th></th>' + SK.DOMAINES.map(function (D) { return '<th scope="col" style="color:' + D.color + '" title="' + esc(D.nom) + '">' + esc(ABR[D.id] || D.nom) + '</th>'; }).join('') + '<th>Tout</th></tr></thead><tbody>' + rows + '</tbody>' +
+      '<tfoot><tr><th>Total</th>' + SK.DOMAINES.map(function (D) { return '<td>' + tot[D.id] + '</td>'; }).join('') + '<td></td></tr></tfoot></table></div></section>';
+  }
+  // le catalogue : les cartes repliées ; une étoile touchée → la donner en mission ou comme acquise
+  var CATO = {};   // les cartes ouvertes
+  function catalogueHtml(gr) {
+    var kids = actifs(gr), n = kids.length;
+    return '<section class="sec" id="catalogue"><h2 class="h2">Catalogue des Skills</h2><p class="small" style="margin:0">Touchez une étoile : sa description, puis la donner à des enfants, en mission ou comme acquise.</p><div class="skcats">' +
+      SK.DOMAINES.map(function (D) {
+        var nb = 0;
+        var lis = D.etoiles.map(function (sd) {
+          var k = kids.filter(function (p) { return SK.acquis(dataDe(gr, p.joueur.id))[SK.key(D.id, sd.id)]; }).length; nb += k;
+          return '<li><button type="button" class="li skce" data-act="skDonner" data-d="' + D.id + '" data-e="' + sd.id + '"><span class="skno" style="color:' + D.color + '">' + icon('star', 14) + '</span><span class="grow"><span class="t1">' + esc(sd.nom) + '</span><span class="t2">« ' + esc(sd.phrase) + ' »</span></span><span class="skce-n" aria-label="' + k + ' sur ' + n + ' l\'ont">' + k + '/' + n + '</span>' + icon('right', 14) + '</button></li>';
+        }).join('');
+        return '<details class="rpost skcat" data-skd="' + D.id + '"' + (CATO[D.id] ? ' open' : '') + '><summary class="rpost-s"><span class="skcat-i" style="color:' + D.color + '">' + icon(D.icon, 20) + '</span><span class="grow"><b style="color:' + D.color + '">' + esc(D.nom) + '</b><small>' + D.etoiles.length + ' étoiles · ' + nb + ' gagnée' + (nb > 1 ? 's' : '') + ' dans le groupe</small></span>' + icon('down', 16, 'class="rpost-i"') + '</summary>' +
+          '<ul class="list rpost-c">' + lis + '</ul></details>';
+      }).join('') + '</div></section>';
+  }
+  document.addEventListener('toggle', function (e) { var d = e.target && e.target.getAttribute && e.target.getAttribute('data-skd'); if (d) CATO[d] = e.target.open; }, true);
+  var SKV = 'passeport';   // la vue : le passeport (de base) ou le catalogue (choix de Nicolas, 04/11 : deux vues séparées)
+  function paintSkills(gr) {
+    var nd = demandesAttente(gr).length;
+    // « Évaluer » : occasionnel, un bouton ; les demandes des enfants à côté quand il y en a
+    var acts = '<div class="row skacts"><a class="btn2 sm gold" href="#/educ/skills/evaluer">' + icon('star', 16) + ' Évaluer</a>' +
+      (nd ? '<a class="btn2 sm" href="#/educ/skills/evaluer?c=demandes" style="border-color:var(--cyan);color:var(--cyan)">' + icon('bell', 16) + ' ' + nd + ' demande' + (nd > 1 ? 's' : '') + '</a>' : '') + '</div>';
+    return '<main class="screen">' + MC.educBar(gr, 'Progrès') + MC.progresTabs('skills') + acts + ui.seg([['passeport', 'Passeport'], ['catalogue', 'Catalogue']], SKV, 'skVue') + (SKV === 'catalogue' ? catalogueHtml(gr) : passeportHtml(gr)) + '</main>';
+  }
+  MC.act.skVue = function (b) { SKV = b.getAttribute('data-v'); app.rerender(); };
+  // (v44) venir d'ailleurs = le Passeport, cartes repliées ; on garde la vue en revenant d'une page ouverte depuis les Skills
+  // (Évaluer, la fiche d'un enfant, la mission principale remplie depuis le catalogue)
+  // Un Retour (ou Avance) se reconnaît à l'état que l'appli a posé sur l'entrée d'historique (history.state.mc) ; une nouvelle
+  // entrée (lien, onglet) n'en a pas encore : cet écouteur passe avant celui de l'appli (app.start), qui le pose ensuite.
+  var SKprec = location.hash;
+  window.addEventListener('hashchange', function () {
+    var h = location.hash, p = SKprec, retour = !!(history.state && history.state.mc); SKprec = h;
+    if (retour) return;
+    if (h.indexOf('#/educ/skills') === 0 && !/^#\/educ\/skills/.test(p)) { SKV = 'passeport'; CATO = {}; }
+    // la fiche d'un enfant : ses cartes Skills repliées quand on vient d'ailleurs (pas en passant d'un onglet de la fiche à l'autre)
+    if (h.indexOf('#/educ/joueur/') === 0 && p.split('?')[0] !== h.split('?')[0]) FSKO = {};
+  });
+  app.route('/educ/skills', function (p, q) {
+    // les anciennes adresses de l'évaluation (?evt=, ?c=demandes : une alerte, la cloche) : sa page
+    if (q.evt !== undefined || q.c === 'demandes') { var i = location.hash.indexOf('?'); app.go('#/educ/skills/evaluer' + (i >= 0 ? location.hash.slice(i) : ''), true); return null; }
+    return both().then(function (r) { app.refreshNav(); return paintSkills(r[0]); });
   }, { adult: 'e', nav: 'e:progres', bg: '#2E2612' });
+  app.route('/educ/skills/passeport', function () { SKV = 'passeport'; app.go('#/educ/skills', true); return null; }, { adult: 'e', nav: 'e:progres', bg: '#2E2612' });
+
+  // donner une étoile du catalogue : à qui, puis « en mission » (la page Mission principale, déjà remplie) ou « acquise »
+  var DON = null;
+  function donBody(gr) {
+    var D = SK.dom(DON.d), sd = SK.star(DON.d, DON.e), ev = evtDuJour(), pres = ev ? presentsDe(ev, gr) : [];
+    var kids = actifs(gr).filter(function (p) { return DON.filtre !== 'presents' || pres.indexOf(p.joueur.id) >= 0; });
+    var filtres = ev ? '<div class="seg3" style="--n:2">' + [['tous', 'Tous'], ['presents', 'Présents (' + pres.length + ')']].map(function (f) {
+      return '<button type="button" class="opt' + (DON.filtre === f[0] ? ' on' : '') + '" aria-pressed="' + (DON.filtre === f[0]) + '" data-don="filtre" data-v="' + f[0] + '">' + f[1] + '</button>'; }).join('') + '</div>' : '';
+    var libres = kids.filter(function (p) { return !SK.acquis(dataDe(gr, p.joueur.id))[SK.key(DON.d, DON.e)]; });
+    // seuls les enfants visibles, actifs et qui ne l'ont pas encore restent cochés (filtre changé, données rafraîchies)
+    var ok = {}; libres.forEach(function (p) { ok[p.joueur.id] = true; });
+    DON.ids = DON.ids.filter(function (id) { return ok[id]; });
+    var tous = libres.length && libres.every(function (p) { return DON.ids.indexOf(p.joueur.id) >= 0; });
+    var liste = '<div class="cop-list">' + kids.map(function (p) {
+      var id = p.joueur.id, a = SK.acquis(dataDe(gr, id))[SK.key(DON.d, DON.e)], m = persoDe(gr, id), enM = m && !etatDe(gr, m).expiree && SK.dansMission(m, DON.d, DON.e);
+      if (a) return '<button type="button" class="cop" disabled><span class="nm">' + esc(p.joueur.prenom) + '<small class="csp" style="color:var(--gold)">l\'a déjà</small></span><span class="ck">' + icon('star', 14) + '</span></button>';
+      var on = DON.ids.indexOf(id) >= 0;
+      return '<button type="button" class="cop' + (on ? ' on' : '') + '" aria-pressed="' + on + '" data-don="kid" data-v="' + esc(id) + '"' + (DON.busy ? ' disabled' : '') + '><span class="nm">' + esc(p.joueur.prenom) + (enM ? '<small class="csp" style="color:var(--violet)">dans sa mission</small>' : m && !etatDe(gr, m).expiree ? '<small class="csp">a une mission</small>' : '') + '</span><span class="ck">' + icon('check', 14) + '</span></button>';
+    }).join('') + '</div>' + (kids.length ? '' : '<p class="small" style="margin:0">Personne : cochez d\'abord les présents de la séance, ou choisissez « Tous ».</p>');
+    return '<p class="small" style="margin:0;color:var(--soft)">« ' + esc(sd.phrase) + ' »</p><p class="small" style="margin:0"><b>Ce qu\'on regarde</b> : ' + esc(sd.repere) + '</p>' +
+      '<div class="between"><span class="mlab" style="margin:0">Pour qui ? · ' + DON.ids.length + '</span>' + (libres.length ? '<button type="button" class="lnk" data-don="tous">' + (tous ? 'Tout décocher' : 'Tout cocher') + '</button>' : '') + '</div>' + filtres + liste;
+  }
+  function donBtns(host) {
+    var n = DON.ids.length, b = host.querySelectorAll('.mbtns button[data-i]');
+    if (b[0]) { b[0].disabled = !n || !!DON.busy; b[0].innerHTML = icon('target', 16) + ' En mission' + (n ? ' · ' + n : ''); }
+    if (b[1]) { b[1].disabled = !n || !!DON.busy; b[1].innerHTML = icon('star', 16) + ' Acquise' + (n ? ' · ' + n : ''); }
+  }
+  MC.act.skDonner = function (b) {
+    var gr = G(), D = SK.dom(b.getAttribute('data-d')), sd = D && SK.star(D.id, b.getAttribute('data-e'));
+    if (!sd) return;
+    var ej = evtDuJour();
+    DON = { d: D.id, e: sd.id, ids: [], filtre: ej && presentsDe(ej, gr).length ? 'presents' : 'tous', busy: false };
+    ui.modal({
+      title: '<span style="color:' + D.color + '">' + esc(D.nom) + '</span> · ★ ' + esc(sd.nom),
+      body: '<div class="sec skdon" style="gap:10px">' + donBody(gr) + '</div>',
+      actions: [
+        { label: 'En mission', cls: 'btn2', onClick: function (host, close) {
+          if (!DON.ids.length || DON.busy) return;
+          NM = null; var st = nmInit('perso'); st.joueurs = DON.ids.slice(); st.d = DON.d; st.etoiles = [DON.e]; st.depuis = ''; st.retour = '#/educ/skills';
+          close(null); app.go('#/educ/missions/nouvelle?type=perso');
+        } },
+        { label: 'Acquise', cls: 'btn gold', onClick: function (host, close) {
+          if (!DON.ids.length || DON.busy) return;
+          var list = DON.ids.map(function (id) { return { joueurId: id, domaine: DON.d, etoile: DON.e }; });
+          DON.busy = true; donBtns(host);
+          // l'occasion : l'entraînement du jour si on a choisi parmi ses présents
+          valider(list, DON.filtre === 'presents' ? '' : null).then(function (r) {
+            DON.busy = false; close(null);
+            if (r && r.deja) MC.loadGroup(true).then(function () { app.rerender(); }).catch(function () { app.rerender(); }); else app.rerender();
+          }).catch(function () { DON.busy = false; var c = host.querySelector('.skdon'); if (c) c.innerHTML = donBody(G()); donBtns(host); });
+        } }
+      ],
+      onOpen: function (host) {
+        donBtns(host);
+        host.addEventListener('click', function (ev) {
+          var x = ev.target.closest('[data-don]'); if (!x || DON.busy) return;
+          var k = x.getAttribute('data-don'), v = x.getAttribute('data-v');
+          if (k === 'kid') { var i = DON.ids.indexOf(v); if (i >= 0) DON.ids.splice(i, 1); else DON.ids.push(v); }
+          else if (k === 'filtre') DON.filtre = v;
+          else if (k === 'tous') {
+            var ids = Array.prototype.map.call(host.querySelectorAll('[data-don="kid"]'), function (y) { return y.getAttribute('data-v'); });
+            var t = ids.every(function (id) { return DON.ids.indexOf(id) >= 0; });
+            if (t) DON.ids = DON.ids.filter(function (id) { return ids.indexOf(id) < 0; }); else ids.forEach(function (id) { if (DON.ids.indexOf(id) < 0) DON.ids.push(id); });
+          }
+          var c = host.querySelector('.skdon'); if (c) c.innerHTML = donBody(G());
+          donBtns(host);
+          // le focus revient sur ce qu'on vient de toucher (clavier, lecteur d'écran)
+          var f = host.querySelector('[data-don="' + k + '"]' + (v ? '[data-v="' + v + '"]' : '')); if (f) f.focus({ preventScroll: true });
+        });
+      }
+    });
+  };
 
   // ======================================================================
   // Progrès › Missions
@@ -641,8 +755,8 @@ window.MC = window.MC || {};
     });
   }
   function paintNouvellePerso(gr, st, q) {
-    var back = st.depuis ? '#/educ/joueur/' + st.depuis + '?t=missions' : '#/educ/missions';
-    var bar = MC.educBar(gr, 'Mission principale', back, st.depuis ? nomDe(gr, st.depuis) : 'Missions');
+    var back = st.retour || (st.depuis ? '#/educ/joueur/' + st.depuis + '?t=missions' : '#/educ/missions');
+    var bar = MC.educBar(gr, 'Mission principale', back, st.retour ? 'Skills' : st.depuis ? nomDe(gr, st.depuis) : 'Missions');
     var head = '<div class="head"><span class="kicker" style="color:var(--gold)">Mission principale</span><h1 class="big sm">Donner une mission principale</h1><p class="small" style="margin:0">1 à 3 étoiles d\'une même carte, jusqu\'à une date. L\'enfant la voit en haut de ses Missions et sur sa carte Skills, avec vos encouragements. Une seule à la fois : la nouvelle remplace celle en cours.</p></div>';
     // 1. les enfants
     var ev = evtDuJour(), pres = ev ? presentsDe(ev, gr) : [];
@@ -715,7 +829,7 @@ window.MC = window.MC || {};
       var rm = r.remplacees || [];
       gr.defmissions = (gr.defmissions || []).filter(function (x) { return rm.indexOf(x.id) < 0; }).concat(r.missions || []);
       persist();
-      var n = (r.missions || []).length, back = st.depuis ? '#/educ/joueur/' + st.depuis + '?t=missions' : '#/educ/missions';
+      var n = (r.missions || []).length, back = st.retour || (st.depuis ? '#/educ/joueur/' + st.depuis + '?t=missions' : '#/educ/missions');
       // les enfants que le serveur a laissés de côté (données du téléphone pas à jour : un autre éduc vient de lui en donner une…)
       var RAISON = { deja: 'a déjà ces étoiles', encours: 'a déjà une mission en cours', autre: 'a une mission d\'un autre éduc' };
       var ig = (r.ignores || []).map(function (x) { return nomDe(gr, x.joueurId) + ' ' + (RAISON[x.raison] || 'pas changé'); });
@@ -725,10 +839,11 @@ window.MC = window.MC || {};
         MC.loadGroup(true).then(function () { app.rerender(); }).catch(function () { });
         return;
       }
+      var retour = st.retour;
       NM = null;
       ui.toast((n === 1 ? 'Mission donnée à ' + nomDe(gr, r.missions[0].joueurId) + ' : elle la voit dans son appli' : 'Mission donnée à ' + n + ' enfants : ils la voient dans leur appli') +
         (ig.length ? '. Pas changé : ' + ig.join(', ') + '.' : ''), !!ig.length);
-      app.go(back, true);   // le formulaire envoyé est remplacé : Retour ne le rouvre pas
+      if (retour) app.back(retour); else app.go(back, true);   // le formulaire envoyé est remplacé : Retour ne le rouvre pas ; depuis le catalogue : Retour
     }).catch(function (e) { b.disabled = false; ui.toast(e.message, true); });
   };
   function paintNouvelleGroupe(gr, st) {
@@ -795,11 +910,17 @@ window.MC = window.MC || {};
   // ======================================================================
   // La fiche d'un enfant : ses Skills, ses missions et ses encouragements
   // ======================================================================
+  var FSKO = {};   // (v44) les cartes ouvertes sur la fiche (enfant:carte)
+  document.addEventListener('toggle', function (e) { var k = e.target && e.target.getAttribute && e.target.getAttribute('data-fsk'), m = location.hash.match(/^#\/educ\/joueur\/([^?]+)/); if (k && m) FSKO[m[1] + ':' + k] = e.target.open; }, true);
   MC.ficheSkills = function (d, gr) {
     var id = d.joueur.id, m = persoDe(gr, id);
     var cartes = SK.DOMAINES.map(function (D) {
       var c = SK.carte(d, D.id);
-      return '<section class="fsk"><div class="between" style="align-items:center"><h2 class="h2" style="color:' + D.color + '">' + icon(D.icon, 18) + ' ' + esc(D.nom) + '</h2><span class="skcell" style="--gc:' + c.grade.color + '">' + esc(c.grade.nom) + ' · ' + c.n + '/' + c.max + (c.nbBrille ? ' · ' + c.nbBrille + ' brille' + (c.nbBrille > 1 ? 'nt' : '') : '') + '</span></div><ul class="list">' + c.stars.map(function (s) {
+      // (v44) chaque carte repliée de base ; dans l'en-tête : son grade, et si sa mission ou une demande y est
+      var enM = m && !etatDe(gr, m).expiree && m.domaine === D.id, dmD = (d.demandes || []).some(function (x) { return x.statut === 'attente' && x.domaine === D.id; });
+      return '<details class="rpost fsk" data-fsk="' + D.id + '"' + (FSKO[id + ':' + D.id] ? ' open' : '') + '><summary class="rpost-s"><span style="color:' + D.color + ';flex:none;display:flex">' + icon(D.icon, 20) + '</span><span class="grow"><b style="color:' + D.color + '">' + esc(D.nom) + '</b>' +
+        (enM || dmD ? '<small>' + (enM ? '<span style="color:var(--violet)">sa mission principale</span>' : '') + (enM && dmD ? ' · ' : '') + (dmD ? '<span style="color:var(--cyan)">une demande</span>' : '') + '</small>' : '') + '</span>' +
+        '<span class="skcell" style="--gc:' + c.grade.color + '">' + esc(c.grade.nom) + ' · ' + c.n + '/' + c.max + (c.nbBrille ? ' · ' + c.nbBrille + ' brille' + (c.nbBrille > 1 ? 'nt' : '') : '') + '</span>' + icon('down', 16, 'class="rpost-i"') + '</summary><ul class="list rpost-c">' + c.stars.map(function (s) {
         var isM = m && !etatDe(gr, m).expiree && SK.dansMission(m, D.id, s.def.id);
         var dm = (d.demandes || []).filter(function (x) { return x.statut === 'attente' && x.domaine === D.id && x.etoile === s.def.id; })[0];
         var demTxt = dm ? ' · <b style="color:var(--cyan)">' + (dm.sorte === 'briller' ? 'demande à la faire briller' : 'demande l\'étoile') + '</b>' : '';
@@ -810,7 +931,7 @@ window.MC = window.MC || {};
         var n = isM ? p1De(gr, id, m.id).length : 0;
         return '<li class="li skrow' + (isM ? ' mis' : '') + '"><span class="skno">' + icon('star', 14) + '</span><span class="grow"><span class="t1">' + esc(s.def.nom) + '</span><span class="t2">' + (isM ? '<b style="color:var(--violet)">sa mission principale · ' + MC.encTxt(n) + '</b>' : '« ' + esc(s.def.phrase) + ' »') + demTxt + '</span></span>' +
           (isM ? btnPlus1(gr, id, m, '', true) : '') + '<button type="button" class="btn2 sm gold" data-act="valEtoile" data-j="' + esc(id) + '" data-d="' + D.id + '" data-e="' + s.def.id + '" aria-label="Valider l\'étoile ' + esc(s.def.nom) + '">Valider</button></li>';
-      }).join('') + '</ul></section>';
+      }).join('') + '</ul></details>';
     }).join('');
     return '<div class="between"><span class="hud" style="color:var(--gold)">' + SK.total(d) + ' / ' + SK.MAX_TOTAL + ' étoiles' + (SK.totalBrille(d) ? ' · ' + SK.totalBrille(d) + ' brillent' : '') + '</span>' + (m && !etatDe(gr, m).expiree ? '' : '<a class="lnk" href="#/educ/missions/nouvelle?type=perso&joueur=' + esc(id) + '">Lui donner une mission principale</a>') + '</div>' + cartes +
       '<p class="small" style="margin:0">Valider = l\'étoile s\'allume pour lui (+' + C.XP.etoile + ' XP) ; elle brille quand elle est vue au plateau (+' + C.XP.brille + ' XP, depuis Évaluer ouvert sur le plateau). Validée par erreur ? « Retirer » ; allumée par erreur ? « Éteindre ».</p>';

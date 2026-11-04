@@ -115,10 +115,11 @@ var Core = (function () {
     // missions ponctuelles (ex. « Prépare le jeu à 10 ») : une ligne par joueur et par mission
     missions: [['id', 's'], ['joueurId', 's'], ['mission', 's'], ['reponses', 'j'], ['faite', 'b'], ['date', 's'], ['source', 's'], ['cree', 's'], ['maj', 's']],
     // ---- compos d'équipes (éducs seulement) ----
-    // fiche terrain d'un joueur (id = id du joueur) : niveau A/B/C, passerelle vers le niveau voisin, plaquage 0-5, postes compatibles
+    // fiche terrain d'un joueur (id = id du joueur) : niveau A/B/C, passerelle vers le niveau voisin, plaquage, postes compatibles
+    // (v44) le plaquage est noté de 0 à 3 dans la colonne plaquage3 ; l'ancienne colonne plaquage (0 à 5) n'est plus lue : tout le monde repart de 0 (décision de Nicolas, 04/11)
     terrain: [['id', 's'], ['niveau', 's'], ['passerelle', 's'], ['plaquage', 'n'], ['postesOk', 'j'], ['spondId', 's'], ['note', 's'], ['parQui', 's'], ['maj', 's'],
       // (v43) les postes préférés (★, un ou plusieurs, pris dans postesOk) ; vide = l'ancienne règle : le 1er de postesOk
-      ['postesPref', 'j']],
+      ['postesPref', 'j'], ['plaquage3', 'n']],
     // événements (Spond ou ajoutés à la main) et leurs présents (ids des joueurs de l'appli)
     evenements: [['id', 's'], ['source', 's'], ['titre', 's'], ['sorte', 's'], ['debut', 's'], ['fin', 's'], ['lieu', 's'], ['presents', 'j'], ['absents', 'j'],
       ['sansReponse', 'j'], ['ajouts', 'j'], ['retraits', 'j'], ['inconnus', 'j'], ['annule', 'b'], ['parQui', 's'], ['maj', 's'],
@@ -1665,7 +1666,7 @@ var Core = (function () {
   function pubTerrain(t) {
     if (!t) return null;
     var ok = Array.isArray(t.postesOk) ? t.postesOk : [];
-    return { niveau: t.niveau || '', passerelle: t.passerelle || '', plaquage: Number(t.plaquage) || 0, postesOk: ok,
+    return { niveau: t.niveau || '', passerelle: t.passerelle || '', plaquage: Math.max(0, Math.min(3, Math.round(Number(t.plaquage3) || 0))), postesOk: ok,
       // (v43) null = pas encore réglé avec la v43 : le 1er poste de postesOk est le préféré (comme avant)
       postesPref: Array.isArray(t.postesPref) ? t.postesPref.filter(function (p) { return ok.indexOf(p) >= 0; }) : null,
       spondId: t.spondId && t.spondId !== '-' ? t.spondId : '', note: t.note || '', parQui: t.parQui || '', maj: t.maj || '' };
@@ -1675,7 +1676,7 @@ var Core = (function () {
     var row = find(ctx.db.rows('terrain'), joueurId);
     if (row) ctx.db.update('terrain', joueurId, patch);
     else {
-      var o = { id: joueurId, niveau: '', passerelle: '', plaquage: 0, postesOk: [], spondId: '', note: '', parQui: '', maj: '', postesPref: null };
+      var o = { id: joueurId, niveau: '', passerelle: '', plaquage: 0, postesOk: [], spondId: '', note: '', parQui: '', maj: '', postesPref: null, plaquage3: 0 };
       for (var k in patch) o[k] = patch[k];
       ctx.db.insert('terrain', o);
     }
@@ -1695,7 +1696,8 @@ var Core = (function () {
         if (l.passerelle !== undefined) patch.passerelle = NIVS.indexOf(String(l.passerelle)) >= 0 ? String(l.passerelle) : '';
         var niv = patch.niveau !== undefined ? patch.niveau : cur.niveau, pas = patch.passerelle !== undefined ? patch.passerelle : cur.passerelle;
         if (pas && !voisins(niv, pas)) patch.passerelle = '';                         // une passerelle va vers le niveau voisin
-        if (l.plaquage !== undefined) { var p = Math.round(Number(l.plaquage)); patch.plaquage = p >= 0 && p <= 5 ? p : 0; }
+        // (v44) de 0 à 3 ; 4 ou 5 (un site pas encore à jour, l'ancienne échelle) → 3 ; le reste → 0
+        if (l.plaquage !== undefined) { var p = Math.round(Number(l.plaquage)); patch.plaquage3 = p >= 0 && p <= 3 ? p : p === 4 || p === 5 ? 3 : 0; }
         if (l.postesOk !== undefined) {
           if (!Array.isArray(l.postesOk)) fail('invalide', 'Postes invalides.');
           var ps = []; l.postesOk.forEach(function (x) { x = String(x); if (POSTES_ID.indexOf(x) >= 0 && ps.indexOf(x) < 0) ps.push(x); });

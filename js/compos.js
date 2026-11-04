@@ -17,8 +17,10 @@ MC.compos = (function () {
   POSTES10.forEach(function (p) { for (var i = 0; i < p[1]; i++) SLOTS10.push(p[0]); });
   // Étoiles de plaquage attendues pour jouer dans un niveau (proposition, à valider par les éducs) :
   // l'appli prévient, elle n'interdit rien.
-  var SEUIL = { A: 4, B: 3, C: 0 };
-  var BON = 3;                                            // « bon plaqueur » : 3 étoiles ou plus
+  // (v44) le plaquage est noté de 0 à 3 (avant : de 0 à 5, avec 4 pour A et 3 pour B)
+  var SEUIL = { A: 3, B: 2, C: 0 };
+  var BON = 2;                                            // « bon plaqueur » : 2 ou plus
+  var ECART = 0.4;                                        // écart de plaquage moyen signalé entre deux équipes (0,6 sur 5 avant la v44)
   var TAILLE = { 5: { min: 5, ideal: 7 }, 10: { min: 10, ideal: 12 } };
   var FORMATS = [5, 10];
 
@@ -101,7 +103,7 @@ MC.compos = (function () {
       out[p.joueur.id] = {
         id: p.joueur.id, prenom: p.joueur.prenom, couleur: p.joueur.couleur, actif: p.joueur.actif !== false,
         niveau: NIV.indexOf(t.niveau) >= 0 ? t.niveau : '', passerelle: NIV.indexOf(t.passerelle) >= 0 ? t.passerelle : '',
-        plaquage: Math.max(0, Math.min(5, Number(t.plaquage) || 0)),
+        plaquage: Math.max(0, Math.min(3, Number(t.plaquage) || 0)),
         voeux: Array.isArray(r.postes) ? r.postes.slice(0, 3) : [], postesOk: pref.concat(ok.filter(function (x) { return pref.indexOf(x) < 0; })), pref: pref,
         copains: Array.isArray(r.copains) ? r.copains.slice() : [], spondId: t.spondId || ''
       };
@@ -220,11 +222,12 @@ MC.compos = (function () {
 
   // ---------- Score d'une répartition dans un niveau (plus petit = mieux) ----------
   // somme des scores des équipes ; les moyennes du niveau ne changent pas pendant les échanges
-  var W = { taille: 5, plaq: 4, bons: 1.5, copain: 1, seul: 0.75, poste: 1.5 };
+  // (v44) plaquage noté de 0 à 3 : ses poids sont ceux de la note sur 5 × 5/3 (mêmes équilibres qu'avant)
+  var W = { taille: 5, plaq: 4 * 5 / 3, bons: 1.5, copain: 1, seul: 0.75, poste: 1.5 };
   // styles de proposition : « equilibre » (par défaut), « copains » (copains d'abord), « strict » (sans passerelles)
   var STYLES = {
     equilibre: { nom: 'Équilibrée', texte: 'Plaquage équilibré, passerelles à tour de rôle, un copain pour chacun quand c\'est possible.', w: W },
-    copains: { nom: 'Copains d\'abord', texte: 'Chacun avec ses copains en priorité, le plaquage reste équilibré.', w: { taille: 5, plaq: 2, bons: 1, copain: 3, seul: 1.5, poste: 1.5 } },
+    copains: { nom: 'Copains d\'abord', texte: 'Chacun avec ses copains en priorité, le plaquage reste équilibré.', w: { taille: 5, plaq: 2 * 5 / 3, bons: 1, copain: 3, seul: 1.5, poste: 1.5 } },
     strict: { nom: 'Niveaux stricts', texte: 'Chacun dans son niveau (pas de passerelle), plaquage équilibré.', w: W, sansPasserelles: true }
   };
   function niveauCtx(teams, F, w) {
@@ -460,7 +463,7 @@ MC.compos = (function () {
         if (mx - mn >= 2) out.push({ k: 'taille', niveau: 'warn', texte: 'Effectifs déséquilibrés : ' + ts[iMx].id + ' (' + mx + ') et ' + ts[iMn].id + ' (' + mn + ').', fix: bestMove(c, F, H, ts[iMx].id, ts[iMn].id) });
         var hi = 0, lo = 0;
         st.forEach(function (s, i) { if (s.plaq > st[hi].plaq) hi = i; if (s.plaq < st[lo].plaq) lo = i; });
-        if (st[hi].plaq - st[lo].plaq >= 0.6) {
+        if (st[hi].plaq - st[lo].plaq >= ECART) {
           out.push({ k: 'plaquage', niveau: 'warn', texte: 'Écart de plaquage en ' + n + ' : ' + ts[hi].id + ' ' + virg(st[hi].plaq) + ' ★, ' + ts[lo].id + ' ' + virg(st[lo].plaq) + ' ★.', fix: bestSwap(c, F, H, ts[hi].id, ts[lo].id) });
         }
       }
@@ -636,8 +639,8 @@ MC.compos = (function () {
     return teams;
   }
   // poids pour des groupes mélangés (ateliers « équilibrés ») et pour les deux équipes d'un match
-  var WMIX = { taille: 5, plaq: 3, bons: 1, copain: 1, seul: 0.5, poste: 0, niv: 1.5, avar: 1 };
-  var WMATCH = { taille: 5, plaq: 4, bons: 1.5, copain: 0.75, seul: 0.4, poste: 1.2, niv: 1.5, avar: 1.2 };   // (v35) postes : les deux équipes en ont autant de couverts
+  var WMIX = { taille: 5, plaq: 3 * 5 / 3, bons: 1, copain: 1, seul: 0.5, poste: 0, niv: 1.5, avar: 1 };
+  var WMATCH = { taille: 5, plaq: 4 * 5 / 3, bons: 1.5, copain: 0.75, seul: 0.4, poste: 1.2, niv: 1.5, avar: 1.2 };   // (v35) postes : les deux équipes en ont autant de couverts
   // des tranches successives (du plus avancé au moins avancé), coupées à la limite entre deux niveaux quand elle est proche
   // (à un quart de groupe près) : des groupes de niveau d'effectifs voisins
   function tranches(sorted, k, F) {
@@ -782,7 +785,7 @@ MC.compos = (function () {
       if (equi ? mx - mn >= 2 : mx - mn >= 3) out.push({ k: 'taille', niveau: equi ? 'warn' : 'info', texte: ou + 'effectifs déséquilibrés, ' + nomEq(ts[iMx]) + ' ' + mx + ' et ' + nomEq(ts[iMn]) + ' ' + mn + '.', fix: equi ? bestMove(c, F, {}, ts[iMx].id, ts[iMn].id) : null });
       var hi = 0, lo = 0;
       st.forEach(function (s, i) { if (s.plaq > st[hi].plaq) hi = i; if (s.plaq < st[lo].plaq) lo = i; });
-      if (equi && st[hi].n && st[lo].n && st[hi].plaq - st[lo].plaq >= 0.6) out.push({ k: 'plaquage', niveau: 'warn', texte: ou + 'écart de plaquage, ' + nomEq(ts[hi]) + ' ' + virg(st[hi].plaq) + ' ★, ' + nomEq(ts[lo]) + ' ' + virg(st[lo].plaq) + ' ★.', fix: bestSwap(c, F, {}, ts[hi].id, ts[lo].id) });
+      if (equi && st[hi].n && st[lo].n && st[hi].plaq - st[lo].plaq >= ECART) out.push({ k: 'plaquage', niveau: 'warn', texte: ou + 'écart de plaquage, ' + nomEq(ts[hi]) + ' ' + virg(st[hi].plaq) + ' ★, ' + nomEq(ts[lo]) + ' ' + virg(st[lo].plaq) + ' ★.', fix: bestSwap(c, F, {}, ts[hi].id, ts[lo].id) });
       if (match && ts.length === 2 && Math.abs(st[0].av - st[1].av) >= 3) out.push({ k: 'avar', niveau: 'info', texte: ou + st[0].av + ' avants chez les ' + nomEq(ts[0]) + ', ' + st[1].av + ' chez les ' + nomEq(ts[1]) + '.' });
     });
     return out;

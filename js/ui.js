@@ -486,7 +486,7 @@ MC.ui = (function () {
     return '<header class="topbar">' + left + mid + (o.right || '') + bell + help + (o.xp !== undefined ? '<i class="tb-xp" style="width:' + Math.max(2, Math.min(100, o.xp)) + '%" aria-hidden="true"></i>' : '') + '</header>';
   }
   // ---------- Sous-onglets en haut d'un onglet (2 à 4) ----------
-  // nav : l'onglet du bas (pour retenir le dernier sous-onglet choisi) ; items : [[clé, lien, libellé, pastille]] ; on : la clé allumée ; c : couleur
+  // nav : l'onglet du bas (v44 : plus de sous-onglet retenu, rememberTab ne fait plus rien) ; items : [[clé, lien, libellé, pastille]] ; on : la clé allumée ; c : couleur
   function subtabs(nav, items, on, c, label) {
     var cur = items.filter(function (it) { return it[0] === on; })[0];
     if (cur && MC.app && MC.app.rememberTab) MC.app.rememberTab(nav, cur[1]);

@@ -159,7 +159,7 @@ MC.demo = (function () {
     ].forEach(function (t) {
       // (v43) quelques enfants ont plusieurs postes préférés ★ ; les autres : pas encore réglé (le 1er poste)
       var PREF = { Tom: ['centre', 'ailier'], Enzo: ['pilier', 'talonneur'], Nina: ['demi-de-melee', 'ouvreur'] };
-      db.insert('terrain', { id: ids[t[0]], niveau: t[1], passerelle: t[2], plaquage: t[3], postesOk: POSTES[t[0]] || [], spondId: '', note: '', parQui: 'Coach Nico', maj: nowIso, postesPref: PREF[t[0]] || null });
+      db.insert('terrain', { id: ids[t[0]], niveau: t[1], passerelle: t[2], plaquage: 0, plaquage3: [0, 1, 1, 2, 3, 3][t[3]] || 0, postesOk: POSTES[t[0]] || [], spondId: '', note: '', parQui: 'Coach Nico', maj: nowIso, postesPref: PREF[t[0]] || null });
     });
     // copains et postes du reste du groupe (mission « jeu à 10 » faite)
     [['Arthur', ['ailier', 'centre'], ['Gabin', 'Louise']], ['Gabin', ['pilier'], ['Arthur']], ['Jules', ['demi-de-melee'], ['Adam', 'Noah']], ['Adam', ['talonneur', 'pilier'], ['Jules']],
@@ -176,7 +176,7 @@ MC.demo = (function () {
       var t = db.rows('terrain').filter(function (x) { return x.id === j.id; })[0] || {};
       var m = db.rows('missions').filter(function (x) { return x.joueurId === j.id; })[0];
       var r = (m && m.reponses) || {};
-      F[j.id] = { id: j.id, prenom: j.prenom, niveau: t.niveau || '', passerelle: t.passerelle || '', plaquage: t.plaquage || 0, voeux: r.postes || [], postesOk: [], copains: r.copains || [] };
+      F[j.id] = { id: j.id, prenom: j.prenom, niveau: t.niveau || '', passerelle: t.passerelle || '', plaquage: t.plaquage3 || 0, voeux: r.postes || [], postesOk: [], copains: r.copains || [] };
     });
     function sauf(noms) { var out = []; Object.keys(ids).forEach(function (n) { if (noms.indexOf(n) < 0) out.push(ids[n]); }); return out; }
     function evt(o) {
