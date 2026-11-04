@@ -80,7 +80,7 @@ assert.deepStrictEqual(J(K.idsEquipes({ nb: { A: 0, B: 2, C: 1 } })), ['B1', 'B2
 assert.strictEqual(K.idsEquipes({ nb: { A: 1, B: 6, C: 6 }, style: 'aforte' }).length, 10, 'B1…B9 au plus');
 p = K.proposer(tous, F, {}, { format: 5, nb: { A: 1, B: 6, C: 6 } }, '2026-11-04', 'aforte');
 assert.ok(p.equipes.every(t => /^[AB][1-9]$/.test(t.id)), J(p.equipes.map(t => t.id)));
-// « Partir de zéro » : les mêmes équipes
+// « Partir de zéro » et « 2e version › Vide » : les mêmes équipes (le style suit)
 assert.deepStrictEqual(J(K.vide(tous, { nb: { A: 0, B: 1, C: 1 }, style: 'aforte' }).equipes.map(t => t.id)), ['A1', 'B1', 'B2']);
 // aucune équipe B : tout le monde dans l'équipe A, sans raison « meilleurs plaqueurs »
 p = K.proposer(tous, F, {}, { format: 5, nb: { A: 1, B: 0, C: 0 } }, '2026-11-04', 'aforte');
@@ -109,6 +109,18 @@ assert.ok(q.equipes.every(t => /^[A-Za-z0-9]{1,6}$/.test(t.id)), 'des identifian
 // les alertes comparent les groupes B entre eux, pas le groupe fort
 const ae = K.alertesEnt({ reglages: q.reglages, equipes: q.equipes, banc: [] }, F, tous);
 assert.ok(!ae.some(a => /\bA\b/.test(a.texte) && (a.k === 'plaquage' || a.k === 'taille')), JSON.stringify(ae));
+// (relecture) le tour des Confirmés en trop compte aussi aux ateliers : un A placé dans un groupe B mélangé « a joué en B »
+const T5 = groupe([['a1', 'A', 2], ['a2', 'A', 2], ['a3', 'A', 2], ['a4', 'A', 2], ['a5', 'A', 2], ['b1', 'B', 2], ['b2', 'B', 2], ['b3', 'B', 2], ['b4', 'B', 2], ['b5', 'B', 2], ['c1', 'C', 1], ['c2', 'C', 1]]);
+const pub = [], evts = {}, descendus = [];
+for (let s = 0; s < 3; s++) {
+  const eid = 'e' + s, date = '2026-10-0' + (s + 1);
+  const Hs = K.historique(pub, evts, T5, '2026-11-04');
+  const qs = K.proposerEnt(Object.keys(T5), T5, Hs, { partie: 'ateliers', mode: 'aforte', n: 3 }, '2026-11-04');
+  evts[eid] = { id: eid, debut: date, titre: 'Entraînement' };
+  pub.push({ statut: 'publiee', evenementId: eid, partie: 'ateliers', equipes: J(qs.equipes) });
+  descendus.push(qs.equipes.slice(1).flatMap(t => t.joueurs.map(j => j.id)).filter(id => T5[id].niveau === 'A').join(','));
+}
+assert.ok(new Set(descendus).size > 1, 'pas toujours le même Confirmé en B : ' + descendus.join(' | '));
 // avants et arrières séparés : un groupe fort de chaque côté
 q = K.proposerEnt(tous, F, {}, { partie: 'ateliers', mode: 'aforte', separer: true, nAv: 2, nAr: 2 }, '2026-11-04');
 assert.deepStrictEqual(J(q.equipes.map(t => t.nom)), ['Av A', 'Av B1', 'Ar A', 'Ar B1']);

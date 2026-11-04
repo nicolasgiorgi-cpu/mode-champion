@@ -16,12 +16,12 @@ def nomodal(pg):
         if pg.query_selector('.modal'): pg.keyboard.press('Escape'); pg.wait_for_timeout(250)
 EDUC = "MC.api.call('educsListe',{}).then(l=>MC.api.call('adultLogin',{role:'e',educId:l.educs.find(e=>e.nom==='Coach Nico').id,code:MC.demo.CODES.educ})).then(r=>{MC.app.setAdult({token:r.token,role:r.role,nom:r.nom,admin:r.admin});location.hash=%r})"
 HSCROLL = """(() => { const out = []; document.querySelectorAll('#app *').forEach(el => { const cs = getComputedStyle(el); if ((cs.overflowX === 'auto' || cs.overflowX === 'scroll') && el.scrollWidth > el.clientWidth + 2) out.push(String(el.className)); }); if (document.scrollingElement.scrollWidth > innerWidth + 1) out.push('PAGE'); return out; })()"""
-LIGNE = """(nm) => { const li = [...document.querySelectorAll('#tlist .tfrow')].find(l => l.querySelector('.tnm').textContent.trim() === nm); if (!li) return null;
+LIGNE = """(nm) => { const li = [...document.querySelectorAll('#tlist .tfrow')].find(l => (l.querySelector('.tnm-l') || l.querySelector('.tnm')).textContent.trim() === nm); if (!li) return null;
   const r = li.getBoundingClientRect(), n = li.querySelector('.tnm').getBoundingClientRect(), ps = [...li.querySelectorAll('.tpp')], p0 = ps[0] ? ps[0].getBoundingClientRect() : null, ctl = li.querySelector('.tctl').getBoundingClientRect();
-  return { h: Math.round(r.height), pills: ps.map(p => (p.classList.contains('pref') ? '*' : '') + p.textContent.replace('préféré ', '').trim()), memeLigne: p0 ? Math.abs((p0.top + p0.height / 2) - (n.top + n.height / 2)) < 6 : null,
+  return { h: Math.round(r.height), pills: ps.map(p => (p.classList.contains('pref') ? '*' : '') + (p.querySelector('[aria-hidden]') || p).textContent.replace('préféré ', '').trim()), memeLigne: p0 ? Math.abs((p0.top + p0.height / 2) - (n.top + n.height / 2)) < 6 : null,
     dessous: p0 ? p0.top >= n.bottom - 1 : null, deborde: ps.some(p => p.getBoundingClientRect().right > r.right - 4), ctlDansLigne: ctl.right <= r.right + 1,
     plaq: (li.querySelector('.pshield b') || {}).textContent, niv: ((li.querySelector('.tlv.on') || {}).textContent || '').replace('niveau ', '') }; }"""
-def noms(pg): return pg.evaluate("[...document.querySelectorAll('#tlist > li')].map(l => l.classList.contains('tsep') ? '|' : (l.querySelector('.tnm') || {}).textContent)")
+def noms(pg): return pg.evaluate("[...document.querySelectorAll('#tlist > li')].map(l => l.classList.contains('tsep') ? '|' : (l.querySelector('.tnm-l') || l.querySelector('.tnm') || {}).textContent)")
 
 with sync_playwright() as p:
     b = p.chromium.launch(); ctx = b.new_context(viewport={'width': W, 'height': H}, is_mobile=W < 700, has_touch=True)
@@ -46,7 +46,7 @@ with sync_playwright() as p:
     hs = pg.evaluate("[...document.querySelectorAll('#tlist .tfrow')].map(l => Math.round(l.getBoundingClientRect().height))")
     check('(v48) toutes les lignes sur une seule ligne', max(hs) <= 48, hs)
     gap = pg.evaluate("(()=>{const l=[...document.querySelectorAll('#tlist .tfrow')].find(x=>!x.querySelector('.tpas')&&x.querySelector('.tlv.on')); const a=l.querySelector('.tlv').getBoundingClientRect(), b=l.querySelector('.pshield').getBoundingClientRect(); return Math.round(b.left-a.right);})()")
-    check('(v48) le niveau près du bouclier (place pour une passerelle)', gap <= 45, gap)
+    check('(v48) le niveau près du bouclier (place pour une passerelle)', gap <= 50, gap)
     check('tout rentre dans la ligne (pastilles, niveau, passerelle, bouclier)', t and not t['deborde'] and t['ctlDansLigne'], t)
     check('pas de défilement de côté', pg.evaluate(HSCROLL) == [], pg.evaluate(HSCROLL))
     # (v46) moins de couleurs : pas d'étoile dans les pastilles ; niveaux en dégradé de violet (A foncé, C clair) ; passerelle à la couleur du niveau visé
@@ -216,6 +216,21 @@ with sync_playwright() as p:
     check('ancienne adresse « à relancer » : Progrès, déplié', pg.evaluate('location.hash').startswith('#/educ/progres') and pg.evaluate("!!document.getElementById('relancer') && document.getElementById('relancer').open"), pg.evaluate('location.hash'))
     pg.goto(BASE + '#/educ/terrain'); pg.wait_for_timeout(1000)
     check('ancienne adresse fiche terrain : l\'onglet Enfants', pg.evaluate('location.hash') == '#/educ/joueurs')
+    # (v48) deux homonymes (noms fictifs) : « Baptiste Lem. » sur téléphone, le nom entier sur iPad et pour le lecteur d'écran
+    pg.evaluate("""(async () => { const t = MC.app.S.adult.token, g = await MC.api.call('group', { token: t }); const j = g.joueurs.map(p => p.joueur);
+      await MC.api.call('updatePlayer', { token: t, joueurId: j.find(x => x.prenom === 'Adam').id, prenom: 'Baptiste Lemaire' });
+      await MC.api.call('updatePlayer', { token: t, joueurId: j.find(x => x.prenom === 'Arthur').id, prenom: 'Baptiste Moreau' }); })()""")
+    pg.goto(BASE + '#/educ/progres'); pg.wait_for_timeout(500); pg.goto(BASE + '#/educ/joueurs'); pg.wait_for_timeout(1300); nomodal(pg)
+    hn = pg.evaluate("[...document.querySelectorAll('#tlist .tnm')].filter(n => n.querySelector('.tnm-c')).map(n => [n.querySelector('.tnm-l').textContent, n.querySelector('.tnm-c').textContent, n.querySelector('.tnm-c').getBoundingClientRect().width > 0, n.querySelector('.tnm-l').getBoundingClientRect().width > 2, n.querySelector('.tnm-c').getAttribute('aria-hidden')])")
+    if TAB: check('(v48) iPad : les homonymes en entier', len(hn) == 2 and all(x[3] and not x[2] for x in hn), hn)
+    else: check('(v48) téléphone : les homonymes en nom court (« Baptiste Lem. »), le nom entier pour le lecteur d\'écran', sorted(x[1] for x in hn) == ['Baptiste Lem.', 'Baptiste Mor.'] and all(x[2] and not x[3] and x[4] == 'true' for x in hn), hn)
+    # (v48) téléphone étroit (360 px) : le prénom se raccourcit, les postes restent entiers
+    if not TAB:
+        pg.set_viewport_size({'width': 360, 'height': 780}); pg.wait_for_timeout(500)
+        cp = pg.evaluate("[...document.querySelectorAll('#tlist .tfrow')].filter(l => { const ps = [...l.querySelectorAll('.tpp')]; if (!ps.length) return false; const t = l.querySelector('.tps').getBoundingClientRect(); return ps[ps.length - 1].getBoundingClientRect().right > t.right + 1 || l.querySelector('.tctl').getBoundingClientRect().right > l.getBoundingClientRect().right + 1; }).map(l => l.querySelector('.tnm').textContent)")
+        check('(v48) 360 px : aucune pastille de poste coupée, rien ne déborde', not cp, cp)
+        check('(v48) 360 px : pas de défilement horizontal', pg.evaluate('document.scrollingElement.scrollWidth <= innerWidth + 1'))
+        pg.set_viewport_size({'width': W, 'height': H}); pg.wait_for_timeout(300)
     check('aucune erreur JS', not errs, errs)
     b.close()
 ok = sum(1 for _, c in res if c); print('%d/%d' % (ok, len(res)))

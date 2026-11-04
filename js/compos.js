@@ -50,17 +50,22 @@ MC.compos = (function () {
   function niveauDe(f) { return f && NIV.indexOf(f.niveau) >= 0 ? f.niveau : ''; }
   // (v48) les noms courts de la liste Enfants : un homonyme (« Baptiste Lemaire », même premier mot qu'un autre enfant)
   // devient « Baptiste Lem. » (les premières lettres de son nom qui le distinguent, 3 au moins), comme sur l'écran de connexion
+  function cleNom(s) { return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
   function nomsCourts(joueurs) {
     var grp = {}, out = {};
-    joueurs.forEach(function (j) { var m = /^(\S+)\s+(.+)$/.exec(String(j.prenom || '').trim()); if (m) (grp[m[1].toLowerCase()] = grp[m[1].toLowerCase()] || []).push({ id: j.id, p: m[1], n: m[2] }); });
-    joueurs.forEach(function (j) { var w = String(j.prenom || '').trim().split(/\s+/)[0].toLowerCase(); if (grp[w] && !/\s/.test(String(j.prenom).trim())) grp[w].seul = true; });
+    joueurs.forEach(function (j) {
+      var m = /^(\S+)\s+(.+)$/.exec(String(j.prenom || '').trim().replace(/\s+/g, ' '));
+      if (!m) return;
+      var n = m[2].replace(/^((de|du|des|la|le|d'|di|da|van|von)\s+)+/i, '') || m[2];   // « Hugo de la Tour » → Tou.
+      (grp[cleNom(m[1])] = grp[cleNom(m[1])] || []).push({ id: j.id, p: m[1], n: n });
+    });
     Object.keys(grp).forEach(function (k) {
       var g = grp[k];
-      if (g.length < 2 && !g.seul) return;   // pas d'homonyme : le nom tel quel
+      if (g.length < 2) return;   // pas d'homonyme (ex. un prénom composé « Jean Pierre ») : le nom tel quel
       g.forEach(function (x) {
-        var autres = g.filter(function (y) { return y !== x; }).map(function (y) { return y.n.toLowerCase(); });
+        var autres = g.filter(function (y) { return y !== x; }).map(function (y) { return cleNom(y.n); });
         for (var L = 3; L < x.n.length; L++) {
-          var pre = x.n.slice(0, L).toLowerCase();
+          var pre = cleNom(x.n.slice(0, L));
           if (!autres.some(function (a) { return a.indexOf(pre) === 0; })) { out[x.id] = x.p + ' ' + x.n.slice(0, L).trim() + '.'; return; }
         }
       });
@@ -168,7 +173,9 @@ MC.compos = (function () {
           var o = h(j.id), f = F[j.id] || {}, cps = (f.copains || []).filter(function (c) { return c !== j.id && ids.indexOf(c) >= 0; });
           if (sorte === 'plateau') o.plateaux++; else o.entrainements++;
           // hors de son niveau : seulement dans une équipe ou un groupe qui a un niveau (pas dans des groupes mélangés)
-          var autre = !!(j.n && t.niveau && t.niveau !== j.n);
+          // (v48) ateliers « A forte » : un Confirmé dans un groupe B mélangé (sans niveau) a joué en B (tour de rôle des A en trop)
+          var tn = t.niveau || (j.n === 'A' && /FB\d+$/.test(t.id || '') ? 'B' : '');
+          var autre = !!(j.n && tn && tn !== j.n);
           if (autre) { o.autre++; o.dernierAutre = date; }
           if ((f.copains || []).length) {
             if (cps.length) { o.avecCopain++; o.sansCopainSerie = 0; } else o.sansCopainSerie++;
@@ -178,7 +185,7 @@ MC.compos = (function () {
             o.niveaux[t.niveau] = (o.niveaux[t.niveau] || 0) + 1;
             if (j.poste) o.postes[j.poste] = (o.postes[j.poste] || 0) + 1;
           }
-          o.liste.push({ date: date, titre: x.e.titre, evenementId: x.e.id, sorte: sorte, equipe: t.id, nom: t.nom || t.id, niveau: t.niveau || '', poste: j.poste || '',
+          o.liste.push({ date: date, titre: x.e.titre, evenementId: x.e.id, sorte: sorte, equipe: t.id, nom: t.nom || t.id, niveau: tn, poste: j.poste || '',
             autre: autre, copains: cps, avec: ids.filter(function (c) { return c !== j.id; }) });
         });
       });

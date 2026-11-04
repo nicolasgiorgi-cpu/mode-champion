@@ -879,7 +879,7 @@ window.MC = window.MC || {};
       '<span class="row" style="justify-content:space-between;width:100%"><b class="ctid' + (nomT.length > 4 ? ' long' : '') + '">' + esc(nomT) + '</b><span class="cn">' + st.n + '</span></span>' +
       '<span class="cind"><span title="Plaquage moyen">' + icon('star', 12) + ' ' + (st.plaq === null ? '—' : virg(st.plaq)) + '</span><span title="Bons plaqueurs (2 et plus, sur 3)">' + icon('shield', 12) + ' ' + st.bons + '</span>' +
       (st.ontCopains ? '<span title="Avec au moins un copain">' + icon('heart', 12) + ' ' + st.avecCopain + '/' + st.ontCopains + '</span>' : '') + (st.passerelles ? '<span title="Hors de leur niveau (passerelles)">⇅ ' + st.passerelles + '</span>' : '') + '</span>' +
-      avtq + (fmt10 && !petit && !ed && st.manquants.length ? '<span class="cmiss">Manque : ' + st.manquants.map(K.nomPoste).join(', ') + '</span>' : '') +
+      avtq + (fmt10 && !petit && !ed && st.manquants.length ? '<span class="cmiss">Manque : ' + st.manquants.map(function (p) { return COURT[p]; }).join(', ') + '</span>' : '') +
       (dest ? '<span class="cdest">' + icon('down', 12) + ' Ici</span>' : '') + '</button>' +
       corps + '</section>';
   }
@@ -1071,7 +1071,7 @@ window.MC = window.MC || {};
       var ps = K.postesDe(sel);
       var info = '<div class="row" style="gap:10px;align-items:flex-start">' + niveauTag(sel.niveau) + '<span class="grow"><b class="t1" style="display:block;font:700 15px/1.2 var(--f-hud)">' + esc(sel.prenom) + (nv > 1 ? ' <small style="color:var(--dim)">· ' + vName(v) + '</small>' : '') +
         (K.pasDe(sel).length ? ' <small style="color:' + K.COUL_NIV[K.pasDe(sel)[0]] + '">passerelle' + (K.pasDe(sel).length > 1 ? 's' : '') + ' ' + sel.niveau + '↔' + K.pasDe(sel).join('/') + '</small>' : '') + '</b>' +
-        '<span class="small" style="display:block;margin-top:3px">' + starsMini(sel.plaquage) + ' · ' + (ps.length ? ps.map(function (p) { return COURT[p]; }).join(', ') + (sel.postesOk.length ? '' : ' (vœux)') : 'pas encore de poste') +
+        '<span class="small" style="display:block;margin-top:3px">' + starsMini(sel.plaquage) + ' · ' + (ps.length ? ps.map(K.nomPoste).join(', ') + (sel.postesOk.length ? '' : ' (vœux)') : 'pas encore de poste') +
         ' · ' + h.plateaux + ' plateau' + (h.plateaux > 1 ? 'x' : '') + (h.entrainements ? ', ' + h.entrainements + ' groupe' + (h.entrainements > 1 ? 's' : '') + ' d\'entraînement' : '') + (h.autre ? ', ' + h.autre + ' hors niveau' : '') + '</span>' +
         (cpsWhere.length ? '<span class="small" style="display:block;margin-top:3px;color:var(--soft)">' + icon('heart', 11) + ' ' + cpsWhere.join(', ') + '</span>' : '') +
         (d.raisons && d.raisons[sel.id] ? '<span class="small" style="display:block;margin-top:3px;color:var(--gold)">' + esc(d.raisons[sel.id]) + '</span>' : '') + '</span>' +
@@ -1259,7 +1259,7 @@ window.MC = window.MC || {};
         var hors = t.niveau && f.niveau && !K.joueEn(f, t.niveau);
         return '<button type="button" class="cprow' + (w && w.t >= 0 ? ' ailleurs' : '') + '" data-pk="' + esc(id) + '">' +
           '<span class="row" style="gap:8px;min-width:0">' + niveauTag(f.niveau, true) + '<b class="cprn">' + esc(f.prenom) + '</b>' + starsMini(f.plaquage) + '</span>' +
-          '<span class="cprm">' + (ps.length ? ps.map(function (x) { return (S.p === x ? '<b>' : '') + COURT[x] + (f.postesOk && f.postesOk.length && ps.length > 1 && K.lienPoste(f, x) === 'pref' ? '★' : '') + (S.p === x ? '</b>' : ''); }).join(', ') : 'pas encore de poste') +
+          '<span class="cprm">' + (ps.length ? ps.map(function (x) { return (S.p === x ? '<b>' : '') + K.nomPoste(x) + (f.postesOk && f.postesOk.length && ps.length > 1 && K.lienPoste(f, x) === 'pref' ? '★' : '') + (S.p === x ? '</b>' : ''); }).join(', ') : 'pas encore de poste') +
           ' · <span class="' + (w && w.t >= 0 ? 'cpr-ou' : '') + '">' + ou + '</span>' + (ATT && ATT.att[id] ? ' · <span style="color:var(--gold)">pas encore répondu</span>' : '') + (hors ? ' · <span style="color:' + K.COUL_NIV[f.niveau] + '">niveau ' + f.niveau + '</span>' : '') + '</span>' +
           (cps.length ? '<span class="cprm" style="color:var(--pink)">' + icon('heart', 11) + ' avec ' + esc(cps.join(', ')) + '</span>' : '') + '</button>';
       }
@@ -1380,10 +1380,10 @@ window.MC = window.MC || {};
       if (!k) return;
       withC(function (C, e) {
         change(function () {
-          var reg = { format: d0.reglages.format, nb: K.nbOf(d0.reglages) }, d;
+          var reg = { format: d0.reglages.format, nb: K.nbOf(d0.reglages), style: d0.reglages.style === 'aforte' ? 'aforte' : '' }, d;   // (v48) « Vide » en A forte : A1, B1…
           if (P) reg = JSON.parse(JSON.stringify(d0.reglages));
           if (k === 'copie') { d = JSON.parse(JSON.stringify(d0)); d.reglages.style = d0.reglages.style === 'aforte' ? 'aforte' : ''; }   // (v48) « A forte » : gardé (alertes)
-          else if (k === 'vide') { if (P) d = K.videEnt(presentsOf(C, e), C.F, reg, L.today()); else { d = K.vide(presentsOf(C, e), reg); d.reglages = reg; } }
+          else if (k === 'vide') { if (P) d = K.videEnt(presentsOf(C, e), C.F, reg, L.today()); else { d = K.vide(presentsOf(C, e), reg); d.reglages = { format: reg.format, nb: reg.nb, style: reg.style }; } }
           else d = proposition(C, e, reg, k);
           B.vs.push(d);
         });
@@ -1651,7 +1651,7 @@ window.MC = window.MC || {};
     if (!ps.length) return '<span class="tpp none">pas de poste</span>';
     return ps.map(function (p) {
       var pr = pf.indexOf(p) >= 0;
-      return '<span class="tpp' + (pr ? ' pref' : '') + '" style="--c:' + coulPoste(p) + '"' + (pr ? ' title="Poste préféré"' : '') + '>' + (pr ? '<span class="sr-only">préféré </span>' : '') + esc(COURT[p]) + '</span>';
+      return '<span class="tpp' + (pr ? ' pref' : '') + '" style="--c:' + coulPoste(p) + '" title="' + esc(NOMP[p]) + (pr ? ', poste préféré' : '') + '">' + (pr ? '<span class="sr-only">préféré </span>' : '') + '<span aria-hidden="true">' + esc(COURT[p]) + '</span><span class="sr-only">' + esc(NOMP[p]) + '</span></span>';
     }).join('') + (f.postesOk.length ? '' : '<span class="tpp voeu" title="Ses vœux (Choisis ton poste) : postes pas encore réglés">vœux</span>');
   }
   // dans la liste : préféré ★ réglé, ou « peut aussi jouer » (ses vœux tant que rien n'est réglé)
@@ -1664,7 +1664,7 @@ window.MC = window.MC || {};
       : '<span class="tlv none" title="Niveau à renseigner"><span class="sr-only">niveau </span>?</span>';
     var pasB = pas.map(function (n) { return '<span class="tpas on" style="--lc:' + K.COUL_NIV[n] + '" title="Passerelle vers ' + K.NOM_NIV[n] + '"><span class="sr-only">passerelle vers </span><span aria-hidden="true">⇅</span>' + n + '</span>'; }).join('');
     // (v48) sur téléphone, un homonyme a son nom court (« Baptiste Lem. ») ; sur iPad, le nom entier
-    var nm = court ? '<span class="tnm-l">' + esc(f.prenom) + '</span><span class="tnm-c">' + esc(court) + '</span>' : esc(f.prenom);
+    var nm = court ? '<span class="tnm-l">' + esc(f.prenom) + '</span><span class="tnm-c" aria-hidden="true">' + esc(court) + '</span>' : esc(f.prenom);
     return '<li><a class="tfrow" href="#/educ/joueur/' + esc(id) + '"><span class="tnm"' + (court ? ' title="' + esc(f.prenom) + '"' : '') + '>' + nm + '</span><span class="tps">' + pillsPostes(f) + '</span>' +
       '<span class="tctl">' + nv + '<span class="tpasw">' + pasB + '</span>' + bouclier(f.plaquage) + '</span></a></li>';
   }
@@ -1697,7 +1697,7 @@ window.MC = window.MC || {};
     } else rows = lignes(list) + (pas.length ? sep('Passerelle vers ' + nivF) + lignes(pas) : '');
     // (v35) sur une seule ligne ; « Sans niveau » disparaît quand tous les enfants ont le leur
     function fb(v, label, n, col, cls) { return '<button type="button" class="opt' + (cls ? ' ' + cls : '') + (T.filtre === v ? ' on' : '') + '"' + (col ? ' style="--oc:' + col + '"' : '') + ' aria-pressed="' + (T.filtre === v) + '" data-act="tFiltre" data-v="' + v + '"><span>' + label + '</span><small>' + n + '</small></button>'; }
-    function fp(v, label, n) { var on = T.poste === v; return '<button type="button" class="opt' + (v ? '' : ' tf-w') + (on ? ' on' : '') + '"' + (v ? ' style="--oc:' + coulPoste(v) + '"' : '') + ' aria-pressed="' + on + '" data-act="tPoste" data-v="' + v + '"' + (v ? ' title="' + esc(NOMP[v]) + '"' : '') + '><span>' + label + '</span><small>' + n + '</small></button>'; }
+    function fp(v, label, n) { var on = T.poste === v; return '<button type="button" class="opt' + (v ? '' : ' tf-w') + (on ? ' on' : '') + '"' + (v ? ' style="--oc:' + coulPoste(v) + '"' : '') + ' aria-pressed="' + on + '" data-act="tPoste" data-v="' + v + '"' + (v ? ' title="' + esc(NOMP[v]) + '" aria-label="' + esc(NOMP[v]) + ', ' + n + '"' : '') + '><span>' + label + '</span><small>' + n + '</small></button>'; }
     var gNom = T.filtre === 'all' ? 'Tous' : T.filtre === 'none' ? 'Sans niveau' : 'Niveau ' + T.filtre;
     return '<main class="screen">' + MC.educBar(g, 'Enfants · ' + ids.length) +
       '<div class="head"><h1 class="big sm">Fiche terrain</h1>' +
