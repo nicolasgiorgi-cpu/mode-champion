@@ -10,7 +10,8 @@ window.MC = window.MC || {};
 (function () {
   var app = MC.app, ui = MC.ui, L = MC.logic, K = MC.compos, M = MC.missions;
   var esc = ui.esc, icon = ui.icon;
-  var COURT = { pilier: 'Pilier', talonneur: 'Talon.', 'troisieme-ligne': '3e L.', 'demi-de-melee': '9', ouvreur: '10', centre: 'Centre', ailier: 'Ailier' };
+  // (v48) abrégés (choix de Nicolas, 04/11) : la ligne d'un enfant tient sur une ligne
+  var COURT = { pilier: 'Pil', talonneur: 'Tal', 'troisieme-ligne': '3eL', 'demi-de-melee': '9', ouvreur: '10', centre: 'Ctr', ailier: 'Ail' };
   var BG = '#1E1A3A';
 
   // ---------- données ----------
@@ -518,12 +519,12 @@ window.MC = window.MC || {};
     var c = compoOf(C.cd, e.id, P), dr = app.lsGet(draftKey(e.id, P)), t2, pill = '';
     if (c && c.statut === 'vote') { t2 = 'Vote : 2 versions de ' + esc(c.auteurNom); pill = '<span class="pill" style="--pc:var(--violet)">Vote</span>'; }
     else if (c) {
-      var r = c.reglages || {}, m = r.mode === 'equilibre' ? 'équilibré' : 'par niveau', nn = c.equipes.length;
+      var r = c.reglages || {}, m = r.mode === 'equilibre' ? 'équilibré' : r.mode === 'aforte' ? 'avec un groupe A fort' : 'par niveau', nn = c.equipes.length;
       t2 = 'De ' + esc(c.auteurNom) + ' · ' + (P === 'matchs' ? (nn / 2) + ' match' + (nn > 2 ? 's' : '') + ' ' + (r.mode === 'equilibre' ? 'équilibré' : 'par niveau') + (nn > 2 ? 's' : '') :
-        nn + ' groupe' + (nn > 1 ? 's' : '') + ' ' + m + (nn > 1 && r.mode !== 'equilibre' ? '' : '') + (r.separer ? ', avants / arrières à part' : '') + ' (' + c.equipes.map(function (t) { return t.joueurs.length; }).join(', ') + ')');
+        nn + ' groupe' + (nn > 1 ? 's ' : ' ') + m + (r.separer ? ', avants / arrières à part' : '') + ' (' + c.equipes.map(function (t) { return t.joueurs.length; }).join(', ') + ')');
       pill = '<span class="pill" style="--pc:var(--green)">Publiés</span>';
     } else if (dr) { t2 = 'Brouillon en cours'; pill = '<span class="pill" style="--pc:var(--gold)">Brouillon</span>'; }
-    else t2 = past ? 'Pas faits' : P === 'ateliers' ? 'Groupes par niveau ou équilibrés, avants et arrières ensemble ou à part' : 'Par niveau ou équilibrés, 1 ou 2 matchs';
+    else t2 = past ? 'Pas faits' : P === 'ateliers' ? 'Groupes par niveau, équilibrés ou avec un groupe A fort, avants et arrières ensemble ou à part' : 'Par niveau ou équilibrés, 1 ou 2 matchs';
     return '<a class="li cpart' + (c ? ' ok' : '') + '" href="' + lienCompo(esc(e.id), P) + '"><span class="cpnum">' + (c ? icon('check', 14) : n) + '</span><span class="grow"><span class="t1">' + NOM_PARTIE[P] + '</span><span class="t2">' + t2 + '</span></span>' + pill + icon('right', 16) + '</a>';
   }
   MC.act.prToggle = function (b) {
@@ -648,7 +649,7 @@ window.MC = window.MC || {};
   function paintReglages(C, e) {
     var ids = presentsOf(C, e), reg = regOf(C, e), cnt = { A: 0, B: 0, C: 0, '': 0 };
     ids.forEach(function (id) { cnt[(C.F[id] || {}).niveau || '']++; });
-    var tot = reg.nb.A + reg.nb.B + reg.nb.C, sug = K.suggestNb(ids, C.F, reg.format);
+    var af = reg.style === 'aforte' ? K.nbAForte(reg.nb) : null, tot = af ? af.A + af.B : reg.nb.A + reg.nb.B + reg.nb.C, sug = K.suggestNb(ids, C.F, reg.format);
     var per = tot ? Math.round(ids.length / tot * 10) / 10 : 0;
     var noLv = ids.filter(function (id) { return !(C.F[id] || {}).niveau; });
     return '<main class="screen">' + MC.educBar(C.g, 'Compo · ' + e.titre, '#/educ/evt/' + e.id, e.titre) +
@@ -661,7 +662,8 @@ window.MC = window.MC || {};
       '<p class="small" style="margin:0">' + tot + ' équipe' + (tot > 1 ? 's' : '') + (tot ? ', environ ' + virg(per) + ' joueurs par équipe' : '') + '. Un niveau sans équipe joue dans le niveau voisin.</p>' +
       (noLv.length ? '<p class="small" style="margin:0;color:var(--orange)">Sans niveau (placés en B en attendant) : ' + noLv.map(function (id) { return esc(nom(C, id)); }).join(', ') + '. <a href="#/educ/joueurs">Fiche terrain</a></p>' : '') + '</section>' +
       graphePresents(C, ids, 'plateau') +
-      '<section class="sec"><h2 class="h2">La proposition</h2>' + stylesHtml(reg.style, 'data-act="cStyle" data-v') + '</section>' +
+      '<section class="sec"><h2 class="h2">La proposition</h2>' + stylesHtml(reg.style, 'data-act="cStyle" data-v') +
+      (af ? '<p class="small" style="margin:0">A forte : ' + af.A + ' équipe' + (af.A > 1 ? 's' : '') + ' A, ' + af.B + ' équipe' + (af.B > 1 ? 's' : '') + ' B (les équipes C comptent comme des B : Débrouillés et Débutants mélangés' + (reg.nb.B + reg.nb.C > 9 ? ' ; 9 équipes B au plus' : '') + ').</p>' : '') + '</section>' +
       '<div class="sec"><button type="button" class="btn" data-act="cPropose"' + (tot ? '' : ' disabled') + '>' + icon('spark', 18) + ' Proposer une compo</button>' +
       '<button type="button" class="btn2" data-act="cPropose2"' + (tot ? '' : ' disabled') + '>' + icon('swap', 16) + ' Proposer 2 versions côte à côte</button>' +
       '<button type="button" class="btn2 grey" data-act="cZero"' + (tot ? '' : ' disabled') + '>Partir de zéro</button>' +
@@ -676,7 +678,8 @@ window.MC = window.MC || {};
     }).join('') + '</nav>';
   }
   var MODES = {
-    ateliers: { niveau: ['Par niveau', 'Chacun avec son niveau : A, B, C. Un groupe peut réunir deux niveaux voisins quand les effectifs le demandent.'], equilibre: ['Équilibrés', 'Chaque groupe mélange les niveaux : plaquage et avants / arrières équilibrés.'] },
+    ateliers: { niveau: ['Par niveau', 'Chacun avec son niveau : A, B, C. Un groupe peut réunir deux niveaux voisins quand les effectifs le demandent.'], equilibre: ['Équilibrés', 'Chaque groupe mélange les niveaux : plaquage et avants / arrières équilibrés.'],
+      aforte: ['A forte', 'Un groupe A avec les Confirmés (complété par les meilleurs B), les autres mélangent B et C, équilibrés.'] },   // (v48)
     matchs: { niveau: ['Par niveau', 'Le match 1 réunit les plus avancés, le dernier les Débutants.'], equilibre: ['Équilibrés', 'Chaque match mélange tous les niveaux.'] }
   };
   function stepGen(k, label, sub, val, min, max, attr) {
@@ -694,7 +697,7 @@ window.MC = window.MC || {};
   // le contenu des réglages (écran, ou fenêtre « Refaire ») ; attrs : les attributs des boutons
   function regEntHtml(C, reg, ids, A) {
     var at = reg.partie === 'ateliers', M = MODES[reg.partie], co = cotes(C, ids);
-    var html = '<section class="sec"><h2 class="h2">' + (at ? 'Les groupes' : 'Les matchs') + '</h2><div class="cstyles c2">' + ['niveau', 'equilibre'].map(function (m) {
+    var html = '<section class="sec"><h2 class="h2">' + (at ? 'Les groupes' : 'Les matchs') + '</h2><div class="cstyles' + (at ? '' : ' c2') + '">' + Object.keys(M).map(function (m) {
       return '<button type="button" class="opt cstyle' + (reg.mode === m ? ' on' : '') + '" aria-pressed="' + (reg.mode === m) + '" ' + A.mode + '="' + m + '"><b>' + M[m][0] + '</b><small>' + M[m][1] + '</small></button>';
     }).join('') + '</div></section>';
     if (at) html += '<section class="sec"><h2 class="h2">Avants et arrières</h2><div class="cstyles c2">' + [['0', 'Ensemble', 'Tout le monde dans les mêmes groupes.'], ['1', 'Séparés', 'Des groupes d\'avants et des groupes d\'arrières, pour des ateliers à part.']].map(function (o) {
@@ -716,7 +719,7 @@ window.MC = window.MC || {};
   }
   function paintReglagesEnt(C, e) {
     var ids = presentsOf(C, e), reg = regOf(C, e), at = B.partie === 'ateliers', last = derniere(C, e, B.partie);
-    var le = last ? C.evts[last.evenementId] : null, autre = reg.mode === 'niveau' ? 'equilibre' : 'niveau';
+    var le = last ? C.evts[last.evenementId] : null, autre = autreMode(reg.mode);
     var avant = at ? '' : (function () { var ca = compoOf(C.cd, e.id, 'ateliers'); return ca ? '' : '<p class="small" style="margin:0;color:var(--gold)">Les ateliers ne sont pas encore faits : <a href="' + lienCompo(esc(e.id), 'ateliers') + '">commencer par les ateliers</a>, ou faire les matchs d\'abord.</p>'; })();
     return '<main class="screen">' + MC.educBar(C.g, (at ? 'Ateliers' : 'Matchs') + ' · ' + e.titre, '#/educ/evt/' + e.id, e.titre) +
       '<div class="head"><span class="kicker" style="color:var(--gold)">' + esc(quand(e)) + ' · ' + ids.length + ' présents</span><h1 class="big sm">' + NOM_PARTIE[B.partie] + '</h1></div>' +
@@ -725,11 +728,14 @@ window.MC = window.MC || {};
       regEntHtml(C, reg, ids, { mode: 'data-act="cEMode" data-v', sep: 'data-act="cESep" data-v', n: 'data-act="cEN" data-k' }) +
       (at ? '' : graphePresents(C, ids, 'matchs')) +
       '<div class="sec"><button type="button" class="btn" data-act="cPropose">' + icon('spark', 18) + (at ? ' Proposer les groupes' : ' Proposer les matchs') + '</button>' +
-      '<button type="button" class="btn2" data-act="cPropose2">' + icon('swap', 16) + ' 2 versions côte à côte (' + MODES[B.partie][reg.mode][0].toLowerCase() + ' et ' + MODES[B.partie][autre][0].toLowerCase() + ')</button>' +
+      '<button type="button" class="btn2" data-act="cPropose2">' + icon('swap', 16) + ' 2 versions côte à côte (' + minus(MODES[B.partie][reg.mode][0]) + ' et ' + minus(MODES[B.partie][autre][0]) + ')</button>' +
       (last ? '<button type="button" class="btn2" data-act="cReprise">' + icon('refresh', 16) + ' Reprendre ' + (at ? 'les groupes' : 'les équipes') + ' du ' + esc(ui.fmtDate(jour(le))) + '</button>' : '') +
       '<button type="button" class="btn2 grey" data-act="cZero">Partir de zéro</button>' +
       '<p class="small" style="margin:0">Tout se déplace ensuite d\'un geste : touchez un joueur, puis son ' + (at ? 'groupe' : 'équipe') + '. Un éduc publie ; le jour même, tous les éducs peuvent corriger.</p></div></main>');
   }
+  // (v48) la 2e version à côté : par niveau ↔ équilibrés ; A forte ↔ équilibrés
+  function autreMode(m) { return m === 'equilibre' ? 'niveau' : 'equilibre'; }
+  function minus(s) { return /^A /.test(s) ? s : s.toLowerCase(); }   // « A forte » garde sa majuscule
   MC.act.cEMode = function (b) { if (!B || !B.reg) return; B.reg.mode = b.getAttribute('data-v'); app.rerender(); };
   MC.act.cESep = function (b) { if (!B || !B.reg) return; B.reg.separer = b.getAttribute('data-v') === '1'; app.rerender(); };
   MC.act.cEN = function (b) {
@@ -759,14 +765,14 @@ window.MC = window.MC || {};
   }
   function proposition(C, e, reg, style) {
     if (B && B.partie) {
-      var r = JSON.parse(JSON.stringify(reg)); if (style === 'niveau' || style === 'equilibre') r.mode = style;
+      var r = JSON.parse(JSON.stringify(reg)); if (style === 'niveau' || style === 'equilibre' || style === 'aforte') r.mode = style;
       var q = K.proposerEnt(presentsOf(C, e), C.F, C.H, r, L.today());
       return { reglages: q.reglages, equipes: q.equipes, banc: q.banc, raisons: q.raisons };
     }
     var p = K.proposer(presentsOf(C, e), C.F, C.H, reg, L.today(), style);
     return { reglages: { format: K.fmt(reg), nb: K.nbOf(reg), style: style || 'equilibre' }, equipes: p.equipes, banc: p.banc, raisons: p.raisons };
   }
-  function autreStyle(s) { return s === 'copains' ? 'equilibre' : 'copains'; }
+  function autreStyle(s) { return s === 'copains' || s === 'aforte' ? 'equilibre' : 'copains'; }   // (v48) A forte ↔ Équilibrée
   MC.act.cPropose = function () {
     withC(function (C, e) {
       var reg = B.reg;
@@ -780,9 +786,9 @@ window.MC = window.MC || {};
     withC(function (C, e) {
       var reg = B.reg;
       if (B.partie) {
-        var m2 = reg.mode === 'niveau' ? 'equilibre' : 'niveau';
+        var m2 = autreMode(reg.mode);
         B.vs = [proposition(C, e, reg, reg.mode), proposition(C, e, reg, m2)];
-        ui.toast('2 versions : ' + MODES[B.partie][reg.mode][0].toLowerCase() + ' et ' + MODES[B.partie][m2][0].toLowerCase());
+        ui.toast('2 versions : ' + minus(MODES[B.partie][reg.mode][0]) + ' et ' + minus(MODES[B.partie][m2][0]));
       } else {
         B.vs = [proposition(C, e, reg, reg.style), proposition(C, e, reg, autreStyle(reg.style))];
         ui.toast('2 versions proposées : ' + K.STYLES[reg.style].nom + ' et ' + K.STYLES[autreStyle(reg.style)].nom);
@@ -795,7 +801,7 @@ window.MC = window.MC || {};
     withC(function (C, e) {
       var reg = B.reg, d;
       if (B.partie) d = K.videEnt(presentsOf(C, e), C.F, reg, L.today());
-      else { d = K.vide(presentsOf(C, e), reg); d.reglages = { format: reg.format, nb: K.nbOf(reg) }; }
+      else { d = K.vide(presentsOf(C, e), reg); d.reglages = { format: reg.format, nb: K.nbOf(reg), style: reg.style === 'aforte' ? 'aforte' : '' }; }
       B.vs = [d]; B.mode = 'draft'; B.dirty = true; saveDraft(); app.rerender(); window.scrollTo(0, 0);
     });
   };
@@ -807,6 +813,7 @@ window.MC = window.MC || {};
   var COUL_BLOC = { av: '#FF5C8A', ar: '#38E8FF', g: '#4D9BFF' };
   function coulEq(t, d) {
     if (K.COUL_NIV[t.niveau]) return K.COUL_NIV[t.niveau];
+    if (K.COUL_NIV[t.bloc]) return K.COUL_NIV[t.bloc];   // (v48) les groupes B mélangés d'« A forte » (sans niveau)
     var i = d ? d.equipes.indexOf(t) : 0;
     return PAL[(i < 0 ? 0 : i) % PAL.length];
   }
@@ -881,7 +888,9 @@ window.MC = window.MC || {};
     var cps = (f.copains || []).filter(function (x) { return ids.indexOf(x) >= 0; });
     var heart = !(f.copains || []).length ? '' : cps.length ? '<span class="cfl cop-ok" title="Avec un copain">' + icon('heart', 12) + '</span>' : '<span class="cfl cop-no" title="Sans copain">' + icon('heart', 12) + '</span>';
     var lv = t && t.niveau && f.niveau && f.niveau !== t.niveau ? '<span class="cfl cpas" style="color:' + K.COUL_NIV[f.niveau] + '" title="Joue hors de son niveau (' + f.niveau + ')">' + (K.NIV.indexOf(t.niveau) < K.NIV.indexOf(f.niveau) ? '↑' : '↓') + f.niveau + '</span>' : '';
-    var warn = t && (!f.niveau || (!d.reglages.partie && f.plaquage !== null && f.plaquage !== undefined && f.plaquage < (K.SEUIL[t.niveau] || 0)));
+    // (v48) « A forte » : un Débutant dans une équipe B n'est pas marqué sous le repère B (comme dans « À regarder »)
+    var horsAF = d.reglages.style === 'aforte' && t && t.niveau === 'B' && f.niveau !== 'B';
+    var warn = t && (!f.niveau || (!d.reglages.partie && !horsAF && f.plaquage !== null && f.plaquage !== undefined && f.plaquage < (K.SEUIL[t.niveau] || 0)));
     var ty = K.typeDe(f), tag;
     if (t && d.reglages.format === 10) tag = j.poste ? '<span class="cpo">' + COURT[j.poste] + '</span>' : !K.postesDe(f).length ? '<span class="cpo csp" title="Aucun poste sur sa fiche : à régler">Sans poste</span>' : '<span class="cpo none">Remp.</span>';
     else if (t) { var pp = K.posteDefaut(f); tag = pp ? '<span class="cpo ty" title="Poste principal (fiche)' + (ty === 'les2' ? ', joue aussi ' + (K.typePoste(pp) === 'av' ? 'arrière' : 'avant') : '') + '">' + (ty === 'les2' ? '⇄ ' : '') + COURT[pp] + '</span>' : ''; }
@@ -1007,7 +1016,7 @@ window.MC = window.MC || {};
     if (nv === 2) {
       var R = vs.map(function (d) { return resume(C, d, presents); });
       cmp = '<div class="cvcols nv2 ccmp">' + R.map(function (r, v) {
-        var rg = vs[v].reglages, st = rg.partie ? { nom: MODES[rg.partie][rg.mode === 'equilibre' ? 'equilibre' : 'niveau'][0] + (rg.separer ? ', avants / arrières à part' : '') } : rg.style && K.STYLES[rg.style];
+        var rg = vs[v].reglages, st = rg.partie ? { nom: MODES[rg.partie][MODES[rg.partie][rg.mode] ? rg.mode : 'niveau'][0] + (rg.separer ? ', avants / arrières à part' : '') } : rg.style && K.STYLES[rg.style];
         return '<div class="cvsum"><b>' + vName(v) + '</b>' + (st ? '<small>' + esc(st.nom) + '</small>' : '') +
           '<span>' + icon('heart', 11) + ' ' + r.avec + '/' + r.ont + ' avec un copain</span><span>' + icon('star', 11) + ' écart ' + virg(r.gap) + '</span><span' + (r.warn ? ' style="color:var(--orange)"' : '') + '>' + icon('warn', 11) + ' ' + r.al.length + ' à regarder</span>' +
           (editable() ? '<span class="row" style="gap:6px;margin-top:4px"><button type="button" class="lnk sm" data-act="cRegl" data-v="' + v + '">Refaire</button><button type="button" class="lnk sm" data-act="cDelV" data-v="' + v + '">Supprimer</button></span>' : '') + '</div>';
@@ -1062,7 +1071,7 @@ window.MC = window.MC || {};
       var ps = K.postesDe(sel);
       var info = '<div class="row" style="gap:10px;align-items:flex-start">' + niveauTag(sel.niveau) + '<span class="grow"><b class="t1" style="display:block;font:700 15px/1.2 var(--f-hud)">' + esc(sel.prenom) + (nv > 1 ? ' <small style="color:var(--dim)">· ' + vName(v) + '</small>' : '') +
         (K.pasDe(sel).length ? ' <small style="color:' + K.COUL_NIV[K.pasDe(sel)[0]] + '">passerelle' + (K.pasDe(sel).length > 1 ? 's' : '') + ' ' + sel.niveau + '↔' + K.pasDe(sel).join('/') + '</small>' : '') + '</b>' +
-        '<span class="small" style="display:block;margin-top:3px">' + starsMini(sel.plaquage) + ' · ' + (ps.length ? ps.map(function (p) { return COURT[p]; }).join(', ') + (sel.postesOk.length ? '' : ' (vœux)') : 'pas encore de poste') +
+        '<span class="small" style="display:block;margin-top:3px">' + starsMini(sel.plaquage) + ' · ' + (ps.length ? ps.map(K.nomPoste).join(', ') + (sel.postesOk.length ? '' : ' (vœux)') : 'pas encore de poste') +
         ' · ' + h.plateaux + ' plateau' + (h.plateaux > 1 ? 'x' : '') + (h.entrainements ? ', ' + h.entrainements + ' groupe' + (h.entrainements > 1 ? 's' : '') + ' d\'entraînement' : '') + (h.autre ? ', ' + h.autre + ' hors niveau' : '') + '</span>' +
         (cpsWhere.length ? '<span class="small" style="display:block;margin-top:3px;color:var(--soft)">' + icon('heart', 11) + ' ' + cpsWhere.join(', ') + '</span>' : '') +
         (d.raisons && d.raisons[sel.id] ? '<span class="small" style="display:block;margin-top:3px;color:var(--gold)">' + esc(d.raisons[sel.id]) + '</span>' : '') + '</span>' +
@@ -1250,7 +1259,7 @@ window.MC = window.MC || {};
         var hors = t.niveau && f.niveau && !K.joueEn(f, t.niveau);
         return '<button type="button" class="cprow' + (w && w.t >= 0 ? ' ailleurs' : '') + '" data-pk="' + esc(id) + '">' +
           '<span class="row" style="gap:8px;min-width:0">' + niveauTag(f.niveau, true) + '<b class="cprn">' + esc(f.prenom) + '</b>' + starsMini(f.plaquage) + '</span>' +
-          '<span class="cprm">' + (ps.length ? ps.map(function (x) { return (S.p === x ? '<b>' : '') + COURT[x] + (f.postesOk && f.postesOk.length && ps.length > 1 && K.lienPoste(f, x) === 'pref' ? '★' : '') + (S.p === x ? '</b>' : ''); }).join(', ') : 'pas encore de poste') +
+          '<span class="cprm">' + (ps.length ? ps.map(function (x) { return (S.p === x ? '<b>' : '') + K.nomPoste(x) + (f.postesOk && f.postesOk.length && ps.length > 1 && K.lienPoste(f, x) === 'pref' ? '★' : '') + (S.p === x ? '</b>' : ''); }).join(', ') : 'pas encore de poste') +
           ' · <span class="' + (w && w.t >= 0 ? 'cpr-ou' : '') + '">' + ou + '</span>' + (ATT && ATT.att[id] ? ' · <span style="color:var(--gold)">pas encore répondu</span>' : '') + (hors ? ' · <span style="color:' + K.COUL_NIV[f.niveau] + '">niveau ' + f.niveau + '</span>' : '') + '</span>' +
           (cps.length ? '<span class="cprm" style="color:var(--pink)">' + icon('heart', 11) + ' avec ' + esc(cps.join(', ')) + '</span>' : '') + '</button>';
       }
@@ -1361,7 +1370,7 @@ window.MC = window.MC || {};
   MC.act.cAddV = function () {
     if (!B || B.vs.length !== 1) return;
     var d0 = B.vs[0], s0 = d0.reglages.style || 'equilibre', P = B.partie;
-    var opts = P ? [['copie', 'Copie de la version 1', 'Pour la modifier à partir de la même base.']].concat(['niveau', 'equilibre'].filter(function (m) { return m !== d0.reglages.mode; }).map(function (m) { return [m, 'Proposition « ' + MODES[P][m][0] + ' »', MODES[P][m][1]]; })).concat([['vide', 'Vide', 'Tout le monde en « Pas placés ».']]) :
+    var opts = P ? [['copie', 'Copie de la version 1', 'Pour la modifier à partir de la même base.']].concat(Object.keys(MODES[P]).filter(function (m) { return m !== d0.reglages.mode; }).map(function (m) { return [m, 'Proposition « ' + MODES[P][m][0] + ' »', MODES[P][m][1]]; })).concat([['vide', 'Vide', 'Tout le monde en « Pas placés ».']]) :
       [['copie', 'Copie de la version 1', 'Pour la modifier à partir de la même base.']].concat(Object.keys(K.STYLES).filter(function (k) { return k !== s0; }).map(function (k) { return [k, 'Proposition « ' + K.STYLES[k].nom + ' »', K.STYLES[k].texte]; })).concat([['vide', 'Vide', 'Tout le monde en « Pas placés ».']]);
     ui.modal({
       title: 'Version 2', body: '<p class="lead" style="font-size:14px">Elle s\'affiche à côté de la version 1, niveau par niveau.</p><div class="cstyles">' + opts.map(function (o) { return '<button type="button" class="opt cstyle" data-av="' + o[0] + '"><b>' + esc(o[1]) + '</b><small>' + esc(o[2]) + '</small></button>'; }).join('') + '</div>',
@@ -1371,10 +1380,10 @@ window.MC = window.MC || {};
       if (!k) return;
       withC(function (C, e) {
         change(function () {
-          var reg = { format: d0.reglages.format, nb: K.nbOf(d0.reglages) }, d;
+          var reg = { format: d0.reglages.format, nb: K.nbOf(d0.reglages), style: d0.reglages.style === 'aforte' ? 'aforte' : '' }, d;   // (v48) « Vide » en A forte : A1, B1…
           if (P) reg = JSON.parse(JSON.stringify(d0.reglages));
-          if (k === 'copie') { d = JSON.parse(JSON.stringify(d0)); d.reglages.style = ''; }
-          else if (k === 'vide') { if (P) d = K.videEnt(presentsOf(C, e), C.F, reg, L.today()); else { d = K.vide(presentsOf(C, e), reg); d.reglages = reg; } }
+          if (k === 'copie') { d = JSON.parse(JSON.stringify(d0)); d.reglages.style = d0.reglages.style === 'aforte' ? 'aforte' : ''; }   // (v48) « A forte » : gardé (alertes)
+          else if (k === 'vide') { if (P) d = K.videEnt(presentsOf(C, e), C.F, reg, L.today()); else { d = K.vide(presentsOf(C, e), reg); d.reglages = { format: reg.format, nb: reg.nb, style: reg.style }; } }
           else d = proposition(C, e, reg, k);
           B.vs.push(d);
         });
@@ -1419,7 +1428,7 @@ window.MC = window.MC || {};
       withC(function (C, e) {
         change(function () {
           if (r === 'new') { B.vs[v] = proposition(C, e, reg, reg.style); return; }
-          var ids = K.teamIds(reg.nb), keep = [], banc = (d.banc || []).slice();
+          var ids = K.idsEquipes(reg), keep = [], banc = (d.banc || []).slice();   // (v48) « A forte » : A1…, B1…
           d.equipes.forEach(function (t) { if (ids.indexOf(t.id) >= 0) keep.push(t); else t.joueurs.forEach(function (j) { banc.push(j.id); }); });
           ids.forEach(function (id) { if (!keep.some(function (t) { return t.id === id; })) keep.push({ id: id, niveau: id.charAt(0), joueurs: [] }); });
           keep.sort(function (a, c2) { return ids.indexOf(a.id) - ids.indexOf(c2.id); });
@@ -1583,7 +1592,7 @@ window.MC = window.MC || {};
   function paintAvis(C, a, c, e) {
     var moves = a.changements.map(function (m) {
       var de = m.de === 'banc' ? 'pas placé' : m.de || '—', vers = m.vers === 'banc' ? 'pas placé' : m.vers || '—';
-      return '<li class="li"><span class="grow"><span class="t1">' + esc(nom(C, m.id)) + '</span><span class="t2">' + (m.de !== m.vers ? esc(de) + ' → <b style="color:var(--ink)">' + esc(vers) + '</b>' : 'poste : ' + esc(COURT[m.posteDe] || 'remp.') + ' → <b style="color:var(--ink)">' + esc(COURT[m.poste] || 'remp.') + '</b>') + '</span></span></li>';
+      return '<li class="li"><span class="grow"><span class="t1">' + esc(nom(C, m.id)) + '</span><span class="t2">' + (m.de !== m.vers ? esc(de) + ' → <b style="color:var(--ink)">' + esc(vers) + '</b>' : 'poste : ' + esc(m.posteDe ? K.nomPoste(m.posteDe) : 'remp.') + ' → <b style="color:var(--ink)">' + esc(m.poste ? K.nomPoste(m.poste) : 'remp.') + '</b>') + '</span></span></li>';
     }).join('');
     var moved = {}; a.changements.forEach(function (m) { moved[m.id] = true; });
     var att = a.statut === 'attente', me = C.moi;
@@ -1642,19 +1651,21 @@ window.MC = window.MC || {};
     if (!ps.length) return '<span class="tpp none">pas de poste</span>';
     return ps.map(function (p) {
       var pr = pf.indexOf(p) >= 0;
-      return '<span class="tpp' + (pr ? ' pref' : '') + '" style="--c:' + coulPoste(p) + '"' + (pr ? ' title="Poste préféré"' : '') + '>' + (pr ? '<span class="sr-only">préféré </span>' : '') + esc(COURT[p]) + '</span>';
+      return '<span class="tpp' + (pr ? ' pref' : '') + '" style="--c:' + coulPoste(p) + '" title="' + esc(NOMP[p]) + (pr ? ', poste préféré' : '') + '">' + (pr ? '<span class="sr-only">préféré </span>' : '') + '<span aria-hidden="true">' + esc(COURT[p]) + '</span><span class="sr-only">' + esc(NOMP[p]) + '</span></span>';
     }).join('') + (f.postesOk.length ? '' : '<span class="tpp voeu" title="Ses vœux (Choisis ton poste) : postes pas encore réglés">vœux</span>');
   }
   // dans la liste : préféré ★ réglé, ou « peut aussi jouer » (ses vœux tant que rien n'est réglé)
   function lienListe(f, p) { return f.postesOk.length ? K.lienPoste(f, p) : (f.voeux.indexOf(p) >= 0 ? 'sec' : ''); }
   // (v46) une ligne = un lien vers la fiche de l'enfant (toute la ligne) ; on n'y change plus rien : niveau, passerelles et plaquage
   // se règlent sur sa fiche (décision de Nicolas, 04/11)
-  function rowTerrain(F, id) {
-    var f = F[id], niv = f.niveau, pas = K.pasDe(f);
+  function rowTerrain(F, id, courts) {
+    var f = F[id], niv = f.niveau, pas = K.pasDe(f), court = courts && courts[id];
     var nv = niv ? '<span class="tlv on" style="--lc:' + K.COUL_NIV[niv] + '" title="Niveau ' + niv + ' · ' + K.NOM_NIV[niv] + '"><span class="sr-only">niveau </span>' + niv + '</span>'
       : '<span class="tlv none" title="Niveau à renseigner"><span class="sr-only">niveau </span>?</span>';
     var pasB = pas.map(function (n) { return '<span class="tpas on" style="--lc:' + K.COUL_NIV[n] + '" title="Passerelle vers ' + K.NOM_NIV[n] + '"><span class="sr-only">passerelle vers </span><span aria-hidden="true">⇅</span>' + n + '</span>'; }).join('');
-    return '<li><a class="tfrow" href="#/educ/joueur/' + esc(id) + '"><span class="tnm">' + esc(f.prenom) + '</span><span class="tps">' + pillsPostes(f) + '</span>' +
+    // (v48) sur téléphone, un homonyme a son nom court (« Baptiste Lem. ») ; sur iPad, le nom entier
+    var nm = court ? '<span class="tnm-l">' + esc(f.prenom) + '</span><span class="tnm-c" aria-hidden="true">' + esc(court) + '</span>' : esc(f.prenom);
+    return '<li><a class="tfrow" href="#/educ/joueur/' + esc(id) + '"><span class="tnm"' + (court ? ' title="' + esc(f.prenom) + '"' : '') + '>' + nm + '</span><span class="tps">' + pillsPostes(f) + '</span>' +
       '<span class="tctl">' + nv + '<span class="tpasw">' + pasB + '</span>' + bouclier(f.plaquage) + '</span></a></li>';
   }
   function paintTerrain(g) {
@@ -1674,7 +1685,8 @@ window.MC = window.MC || {};
     var nivF = T.filtre !== 'all' && T.filtre !== 'none' ? T.filtre : '';
     var pas = nivF ? ids.filter(function (id) { return !okNiv(id) && F[id].niveau && K.pasDe(F[id]).indexOf(nivF) >= 0 && (!q || F[id].prenom.toLowerCase().indexOf(q) >= 0); }) : [];
     function sep(t) { return '<li class="tsep"><span>' + esc(t) + '</span></li>'; }
-    function lignes(l) { return l.map(function (id) { return rowTerrain(F, id); }).join(''); }
+    var courts = K.nomsCourts(ids.map(function (id) { return { id: id, prenom: F[id].prenom }; }));
+    function lignes(l) { return l.map(function (id) { return rowTerrain(F, id, courts); }).join(''); }
     var rows;
     if (T.poste) {
       var pr = list.filter(function (id) { return lienListe(F[id], T.poste) === 'pref'; }), se = list.filter(function (id) { return lienListe(F[id], T.poste) === 'sec'; });
@@ -1685,7 +1697,7 @@ window.MC = window.MC || {};
     } else rows = lignes(list) + (pas.length ? sep('Passerelle vers ' + nivF) + lignes(pas) : '');
     // (v35) sur une seule ligne ; « Sans niveau » disparaît quand tous les enfants ont le leur
     function fb(v, label, n, col, cls) { return '<button type="button" class="opt' + (cls ? ' ' + cls : '') + (T.filtre === v ? ' on' : '') + '"' + (col ? ' style="--oc:' + col + '"' : '') + ' aria-pressed="' + (T.filtre === v) + '" data-act="tFiltre" data-v="' + v + '"><span>' + label + '</span><small>' + n + '</small></button>'; }
-    function fp(v, label, n) { var on = T.poste === v; return '<button type="button" class="opt' + (v ? '' : ' tf-w') + (on ? ' on' : '') + '"' + (v ? ' style="--oc:' + coulPoste(v) + '"' : '') + ' aria-pressed="' + on + '" data-act="tPoste" data-v="' + v + '"' + (v ? ' title="' + esc(NOMP[v]) + '"' : '') + '><span>' + label + '</span><small>' + n + '</small></button>'; }
+    function fp(v, label, n) { var on = T.poste === v; return '<button type="button" class="opt' + (v ? '' : ' tf-w') + (on ? ' on' : '') + '"' + (v ? ' style="--oc:' + coulPoste(v) + '"' : '') + ' aria-pressed="' + on + '" data-act="tPoste" data-v="' + v + '"' + (v ? ' title="' + esc(NOMP[v]) + '" aria-label="' + esc(NOMP[v]) + ', ' + n + '"' : '') + '><span>' + label + '</span><small>' + n + '</small></button>'; }
     var gNom = T.filtre === 'all' ? 'Tous' : T.filtre === 'none' ? 'Sans niveau' : 'Niveau ' + T.filtre;
     return '<main class="screen">' + MC.educBar(g, 'Enfants · ' + ids.length) +
       '<div class="head"><h1 class="big sm">Fiche terrain</h1>' +
