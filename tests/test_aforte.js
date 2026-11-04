@@ -64,14 +64,45 @@ p = K.proposer(Object.keys(R), R, HR, { format: 5, nb: { A: 1, B: 2, C: 0 } }, '
 assert.strictEqual(ou(p).b2, 'A1', 'une seule place (8 / 3 ≈ 3) : b2, qui n\'a jamais joué en A');
 assert.strictEqual(ou(p).b1[0], 'B');
 // jeu à 10 : des postes dans chaque équipe ; « 2 versions » : A forte ↔ Équilibrée
-p = K.proposer(tous, F, {}, { format: 10, nb: { A: 1, B: 1, C: 0 } }, '2026-11-04', 'aforte');
+const PO = ['pilier', 'talonneur', 'troisieme-ligne', 'demi-de-melee', 'ouvreur', 'centre', 'ailier'];
+const F10 = JSON.parse(JSON.stringify(F)); tous.forEach((id, i) => { F10[id].postesOk = [PO[i % PO.length]]; F10[id].postesPref = [PO[i % PO.length]]; });
+p = K.proposer(tous, F10, {}, { format: 10, nb: { A: 1, B: 1, C: 0 } }, '2026-11-04', 'aforte');
 assert.deepStrictEqual(J(p.equipes.map(t => t.id)), ['A1', 'B1']);
 assert.strictEqual(p.equipes[0].joueurs.length + p.equipes[1].joueurs.length, tous.length, 'tout le monde est placé');
+assert.ok(p.equipes.every(t => t.joueurs.some(j => j.poste)), 'jeu à 10 : des postes dans chaque équipe');
+
+// ----- (relecture) cas limites -----
+// pas d'équipe A demandée : une équipe A quand même ; les équipes C comptent comme des B, 9 au plus
+p = K.proposer(tous, F, {}, { format: 5, nb: { A: 0, B: 2, C: 1 } }, '2026-11-04', 'aforte');
+assert.deepStrictEqual(J(p.equipes.map(t => t.id)), ['A1', 'B1', 'B2', 'B3']);
+assert.deepStrictEqual(J(K.idsEquipes({ nb: { A: 0, B: 2, C: 1 }, style: 'aforte' })), ['A1', 'B1', 'B2', 'B3'], 'les équipes d\'un plateau « A forte »');
+assert.deepStrictEqual(J(K.idsEquipes({ nb: { A: 0, B: 2, C: 1 } })), ['B1', 'B2', 'C1'], 'sans « A forte » : comme avant');
+assert.strictEqual(K.idsEquipes({ nb: { A: 1, B: 6, C: 6 }, style: 'aforte' }).length, 10, 'B1…B9 au plus');
+p = K.proposer(tous, F, {}, { format: 5, nb: { A: 1, B: 6, C: 6 } }, '2026-11-04', 'aforte');
+assert.ok(p.equipes.every(t => /^[AB][1-9]$/.test(t.id)), J(p.equipes.map(t => t.id)));
+// « Partir de zéro » : les mêmes équipes
+assert.deepStrictEqual(J(K.vide(tous, { nb: { A: 0, B: 1, C: 1 }, style: 'aforte' }).equipes.map(t => t.id)), ['A1', 'B1', 'B2']);
+// aucune équipe B : tout le monde dans l'équipe A, sans raison « meilleurs plaqueurs »
+p = K.proposer(tous, F, {}, { format: 5, nb: { A: 1, B: 0, C: 0 } }, '2026-11-04', 'aforte');
+assert.strictEqual(p.equipes.length, 1); assert.strictEqual(p.equipes[0].joueurs.length, tous.length);
+assert.ok(!Object.keys(p.raisons).some(id => /plaqueurs/.test(p.raisons[id])), J(p.raisons));
+// aucun Confirmé : l'équipe A = les B avec ⇅A, puis les meilleurs plaqueurs
+const N = groupe([['b1', 'B', 3], ['b2', 'B', 1, 'A'], ['b3', 'B', 2], ['b4', 'B', 1], ['c1', 'C', 3], ['c2', 'C', 0]]);
+p = K.proposer(Object.keys(N), N, {}, { format: 5, nb: { A: 1, B: 1, C: 0 } }, '2026-11-04', 'aforte');
+assert.deepStrictEqual(J(ids(p.equipes[0]).sort()), ['b1', 'b2', 'b3'], 'b2 (⇅A), puis les meilleurs plaqueurs B (b1, b3), pas c1');
+// Confirmés en trop, à plaquage égal : chacun son tour (celui qui est descendu en B la dernière fois reste en A)
+const T = groupe([['a1', 'A', 2], ['a2', 'A', 2], ['a3', 'A', 2], ['b1', 'B', 2], ['b2', 'B', 2], ['b3', 'B', 2]]);
+const HT = { a1: { plateaux: 1, autre: 1, dernierAutre: '2026-10-25', avecCopain: 0, sansCopainSerie: 0, vus: {}, niveaux: {}, postes: {}, liste: [{ date: '2026-10-25', niveau: 'B', autre: true }] } };
+p = K.proposer(Object.keys(T), T, HT, { format: 5, nb: { A: 1, B: 2, C: 0 } }, '2026-11-04', 'aforte');
+assert.strictEqual(ou(p).a1, 'A1', 'a1 est descendu la dernière fois : il reste en A');
 
 // ----- ateliers : un groupe A fort, les autres groupes mélangés et équilibrés -----
 let q = K.proposerEnt(tous, F, {}, { partie: 'ateliers', mode: 'aforte', n: 4 }, '2026-11-04');
 assert.strictEqual(q.reglages.mode, 'aforte');
-assert.deepStrictEqual(J(q.equipes.map(t => [t.nom, t.bloc, t.niveau])), [['A', 'A', 'A'], ['B1', 'B', 'B'], ['B2', 'B', 'B'], ['B3', 'B', 'B']]);
+assert.deepStrictEqual(J(q.equipes.map(t => [t.nom, t.bloc, t.niveau])), [['A', 'A', 'A'], ['B1', 'B', ''], ['B2', 'B', ''], ['B3', 'B', '']], 'les groupes B mélangés n\'ont pas de niveau');
+// l'historique : un Débutant dans un groupe B mélangé n'a pas joué « hors de son niveau » ; un B dans le groupe A, si
+const Hq = K.historique([{ statut: 'publiee', evenementId: 'e1', partie: 'ateliers', equipes: q.equipes }], { e1: { id: 'e1', debut: '2026-11-01', titre: 'Entraînement' } }, F, '2026-11-04');
+assert.strictEqual(Hq.c1.autre, 0, 'c1 : pas « hors niveau »'); assert.strictEqual(Hq.b8.autre, 1, 'b8 a joué en A');
 assert.ok(['a1', 'a2', 'a3', 'a4', 'b8'].every(id => ids(q.equipes[0]).indexOf(id) >= 0), 'le groupe A : les A et le B avec ⇅A');
 assert.ok(/groupe A/.test(q.raisons.b8), q.raisons.b8);
 assert.ok(q.equipes.every(t => /^[A-Za-z0-9]{1,6}$/.test(t.id)), 'des identifiants que le serveur garde');
@@ -86,6 +117,7 @@ assert.ok(q.equipes.every(t => /^[A-Za-z0-9]{1,6}$/.test(t.id)), q.equipes.map(t
 // un seul groupe : pas de groupe fort (tout le monde ensemble)
 q = K.proposerEnt(tous, F, {}, { partie: 'ateliers', mode: 'aforte', n: 1 }, '2026-11-04');
 assert.strictEqual(q.equipes.length, 1);
+assert.strictEqual(q.reglages.mode, 'equilibre', 'un seul groupe : des groupes équilibrés (pas « 1 groupe avec un groupe A fort »)');
 // les matchs n'ont pas ce mode
 assert.strictEqual(K.regEnt({ partie: 'matchs', mode: 'aforte' }, tous, F).mode, 'niveau');
 

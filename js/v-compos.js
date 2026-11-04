@@ -648,7 +648,7 @@ window.MC = window.MC || {};
   function paintReglages(C, e) {
     var ids = presentsOf(C, e), reg = regOf(C, e), cnt = { A: 0, B: 0, C: 0, '': 0 };
     ids.forEach(function (id) { cnt[(C.F[id] || {}).niveau || '']++; });
-    var tot = reg.nb.A + reg.nb.B + reg.nb.C, sug = K.suggestNb(ids, C.F, reg.format);
+    var af = reg.style === 'aforte' ? K.nbAForte(reg.nb) : null, tot = af ? af.A + af.B : reg.nb.A + reg.nb.B + reg.nb.C, sug = K.suggestNb(ids, C.F, reg.format);
     var per = tot ? Math.round(ids.length / tot * 10) / 10 : 0;
     var noLv = ids.filter(function (id) { return !(C.F[id] || {}).niveau; });
     return '<main class="screen">' + MC.educBar(C.g, 'Compo · ' + e.titre, '#/educ/evt/' + e.id, e.titre) +
@@ -662,7 +662,7 @@ window.MC = window.MC || {};
       (noLv.length ? '<p class="small" style="margin:0;color:var(--orange)">Sans niveau (placés en B en attendant) : ' + noLv.map(function (id) { return esc(nom(C, id)); }).join(', ') + '. <a href="#/educ/joueurs">Fiche terrain</a></p>' : '') + '</section>' +
       graphePresents(C, ids, 'plateau') +
       '<section class="sec"><h2 class="h2">La proposition</h2>' + stylesHtml(reg.style, 'data-act="cStyle" data-v') +
-      (reg.style === 'aforte' ? '<p class="small" style="margin:0">A forte : ' + Math.max(1, reg.nb.A) + ' équipe' + (reg.nb.A > 1 ? 's' : '') + ' A, ' + (reg.nb.B + reg.nb.C) + ' équipe' + (reg.nb.B + reg.nb.C > 1 ? 's' : '') + ' B (les équipes C comptent comme des B : Débrouillés et Débutants mélangés).</p>' : '') + '</section>' +
+      (af ? '<p class="small" style="margin:0">A forte : ' + af.A + ' équipe' + (af.A > 1 ? 's' : '') + ' A, ' + af.B + ' équipe' + (af.B > 1 ? 's' : '') + ' B (les équipes C comptent comme des B : Débrouillés et Débutants mélangés' + (reg.nb.B + reg.nb.C > 9 ? ' ; 9 équipes B au plus' : '') + ').</p>' : '') + '</section>' +
       '<div class="sec"><button type="button" class="btn" data-act="cPropose"' + (tot ? '' : ' disabled') + '>' + icon('spark', 18) + ' Proposer une compo</button>' +
       '<button type="button" class="btn2" data-act="cPropose2"' + (tot ? '' : ' disabled') + '>' + icon('swap', 16) + ' Proposer 2 versions côte à côte</button>' +
       '<button type="button" class="btn2 grey" data-act="cZero"' + (tot ? '' : ' disabled') + '>Partir de zéro</button>' +
@@ -727,13 +727,14 @@ window.MC = window.MC || {};
       regEntHtml(C, reg, ids, { mode: 'data-act="cEMode" data-v', sep: 'data-act="cESep" data-v', n: 'data-act="cEN" data-k' }) +
       (at ? '' : graphePresents(C, ids, 'matchs')) +
       '<div class="sec"><button type="button" class="btn" data-act="cPropose">' + icon('spark', 18) + (at ? ' Proposer les groupes' : ' Proposer les matchs') + '</button>' +
-      '<button type="button" class="btn2" data-act="cPropose2">' + icon('swap', 16) + ' 2 versions côte à côte (' + MODES[B.partie][reg.mode][0].toLowerCase() + ' et ' + MODES[B.partie][autre][0].toLowerCase() + ')</button>' +
+      '<button type="button" class="btn2" data-act="cPropose2">' + icon('swap', 16) + ' 2 versions côte à côte (' + minus(MODES[B.partie][reg.mode][0]) + ' et ' + minus(MODES[B.partie][autre][0]) + ')</button>' +
       (last ? '<button type="button" class="btn2" data-act="cReprise">' + icon('refresh', 16) + ' Reprendre ' + (at ? 'les groupes' : 'les équipes') + ' du ' + esc(ui.fmtDate(jour(le))) + '</button>' : '') +
       '<button type="button" class="btn2 grey" data-act="cZero">Partir de zéro</button>' +
       '<p class="small" style="margin:0">Tout se déplace ensuite d\'un geste : touchez un joueur, puis son ' + (at ? 'groupe' : 'équipe') + '. Un éduc publie ; le jour même, tous les éducs peuvent corriger.</p></div></main>');
   }
   // (v48) la 2e version à côté : par niveau ↔ équilibrés ; A forte ↔ équilibrés
   function autreMode(m) { return m === 'equilibre' ? 'niveau' : 'equilibre'; }
+  function minus(s) { return /^A /.test(s) ? s : s.toLowerCase(); }   // « A forte » garde sa majuscule
   MC.act.cEMode = function (b) { if (!B || !B.reg) return; B.reg.mode = b.getAttribute('data-v'); app.rerender(); };
   MC.act.cESep = function (b) { if (!B || !B.reg) return; B.reg.separer = b.getAttribute('data-v') === '1'; app.rerender(); };
   MC.act.cEN = function (b) {
@@ -786,7 +787,7 @@ window.MC = window.MC || {};
       if (B.partie) {
         var m2 = autreMode(reg.mode);
         B.vs = [proposition(C, e, reg, reg.mode), proposition(C, e, reg, m2)];
-        ui.toast('2 versions : ' + MODES[B.partie][reg.mode][0].toLowerCase() + ' et ' + MODES[B.partie][m2][0].toLowerCase());
+        ui.toast('2 versions : ' + minus(MODES[B.partie][reg.mode][0]) + ' et ' + minus(MODES[B.partie][m2][0]));
       } else {
         B.vs = [proposition(C, e, reg, reg.style), proposition(C, e, reg, autreStyle(reg.style))];
         ui.toast('2 versions proposées : ' + K.STYLES[reg.style].nom + ' et ' + K.STYLES[autreStyle(reg.style)].nom);
@@ -799,7 +800,7 @@ window.MC = window.MC || {};
     withC(function (C, e) {
       var reg = B.reg, d;
       if (B.partie) d = K.videEnt(presentsOf(C, e), C.F, reg, L.today());
-      else { d = K.vide(presentsOf(C, e), reg); d.reglages = { format: reg.format, nb: K.nbOf(reg) }; }
+      else { d = K.vide(presentsOf(C, e), reg); d.reglages = { format: reg.format, nb: K.nbOf(reg), style: reg.style === 'aforte' ? 'aforte' : '' }; }
       B.vs = [d]; B.mode = 'draft'; B.dirty = true; saveDraft(); app.rerender(); window.scrollTo(0, 0);
     });
   };
@@ -811,6 +812,7 @@ window.MC = window.MC || {};
   var COUL_BLOC = { av: '#FF5C8A', ar: '#38E8FF', g: '#4D9BFF' };
   function coulEq(t, d) {
     if (K.COUL_NIV[t.niveau]) return K.COUL_NIV[t.niveau];
+    if (K.COUL_NIV[t.bloc]) return K.COUL_NIV[t.bloc];   // (v48) les groupes B mélangés d'« A forte » (sans niveau)
     var i = d ? d.equipes.indexOf(t) : 0;
     return PAL[(i < 0 ? 0 : i) % PAL.length];
   }
@@ -885,7 +887,9 @@ window.MC = window.MC || {};
     var cps = (f.copains || []).filter(function (x) { return ids.indexOf(x) >= 0; });
     var heart = !(f.copains || []).length ? '' : cps.length ? '<span class="cfl cop-ok" title="Avec un copain">' + icon('heart', 12) + '</span>' : '<span class="cfl cop-no" title="Sans copain">' + icon('heart', 12) + '</span>';
     var lv = t && t.niveau && f.niveau && f.niveau !== t.niveau ? '<span class="cfl cpas" style="color:' + K.COUL_NIV[f.niveau] + '" title="Joue hors de son niveau (' + f.niveau + ')">' + (K.NIV.indexOf(t.niveau) < K.NIV.indexOf(f.niveau) ? '↑' : '↓') + f.niveau + '</span>' : '';
-    var warn = t && (!f.niveau || (!d.reglages.partie && f.plaquage !== null && f.plaquage !== undefined && f.plaquage < (K.SEUIL[t.niveau] || 0)));
+    // (v48) « A forte » : un Débutant dans une équipe B n'est pas marqué sous le repère B (comme dans « À regarder »)
+    var horsAF = d.reglages.style === 'aforte' && t && t.niveau === 'B' && f.niveau !== 'B';
+    var warn = t && (!f.niveau || (!d.reglages.partie && !horsAF && f.plaquage !== null && f.plaquage !== undefined && f.plaquage < (K.SEUIL[t.niveau] || 0)));
     var ty = K.typeDe(f), tag;
     if (t && d.reglages.format === 10) tag = j.poste ? '<span class="cpo">' + COURT[j.poste] + '</span>' : !K.postesDe(f).length ? '<span class="cpo csp" title="Aucun poste sur sa fiche : à régler">Sans poste</span>' : '<span class="cpo none">Remp.</span>';
     else if (t) { var pp = K.posteDefaut(f); tag = pp ? '<span class="cpo ty" title="Poste principal (fiche)' + (ty === 'les2' ? ', joue aussi ' + (K.typePoste(pp) === 'av' ? 'arrière' : 'avant') : '') + '">' + (ty === 'les2' ? '⇄ ' : '') + COURT[pp] + '</span>' : ''; }
@@ -1365,7 +1369,7 @@ window.MC = window.MC || {};
   MC.act.cAddV = function () {
     if (!B || B.vs.length !== 1) return;
     var d0 = B.vs[0], s0 = d0.reglages.style || 'equilibre', P = B.partie;
-    var opts = P ? [['copie', 'Copie de la version 1', 'Pour la modifier à partir de la même base.']].concat(['niveau', 'equilibre'].filter(function (m) { return m !== d0.reglages.mode; }).map(function (m) { return [m, 'Proposition « ' + MODES[P][m][0] + ' »', MODES[P][m][1]]; })).concat([['vide', 'Vide', 'Tout le monde en « Pas placés ».']]) :
+    var opts = P ? [['copie', 'Copie de la version 1', 'Pour la modifier à partir de la même base.']].concat(Object.keys(MODES[P]).filter(function (m) { return m !== d0.reglages.mode; }).map(function (m) { return [m, 'Proposition « ' + MODES[P][m][0] + ' »', MODES[P][m][1]]; })).concat([['vide', 'Vide', 'Tout le monde en « Pas placés ».']]) :
       [['copie', 'Copie de la version 1', 'Pour la modifier à partir de la même base.']].concat(Object.keys(K.STYLES).filter(function (k) { return k !== s0; }).map(function (k) { return [k, 'Proposition « ' + K.STYLES[k].nom + ' »', K.STYLES[k].texte]; })).concat([['vide', 'Vide', 'Tout le monde en « Pas placés ».']]);
     ui.modal({
       title: 'Version 2', body: '<p class="lead" style="font-size:14px">Elle s\'affiche à côté de la version 1, niveau par niveau.</p><div class="cstyles">' + opts.map(function (o) { return '<button type="button" class="opt cstyle" data-av="' + o[0] + '"><b>' + esc(o[1]) + '</b><small>' + esc(o[2]) + '</small></button>'; }).join('') + '</div>',
@@ -1377,7 +1381,7 @@ window.MC = window.MC || {};
         change(function () {
           var reg = { format: d0.reglages.format, nb: K.nbOf(d0.reglages) }, d;
           if (P) reg = JSON.parse(JSON.stringify(d0.reglages));
-          if (k === 'copie') { d = JSON.parse(JSON.stringify(d0)); d.reglages.style = ''; }
+          if (k === 'copie') { d = JSON.parse(JSON.stringify(d0)); d.reglages.style = d0.reglages.style === 'aforte' ? 'aforte' : ''; }   // (v48) « A forte » : gardé (alertes)
           else if (k === 'vide') { if (P) d = K.videEnt(presentsOf(C, e), C.F, reg, L.today()); else { d = K.vide(presentsOf(C, e), reg); d.reglages = reg; } }
           else d = proposition(C, e, reg, k);
           B.vs.push(d);
@@ -1423,7 +1427,7 @@ window.MC = window.MC || {};
       withC(function (C, e) {
         change(function () {
           if (r === 'new') { B.vs[v] = proposition(C, e, reg, reg.style); return; }
-          var ids = K.teamIds(reg.nb), keep = [], banc = (d.banc || []).slice();
+          var ids = K.idsEquipes(reg), keep = [], banc = (d.banc || []).slice();   // (v48) « A forte » : A1…, B1…
           d.equipes.forEach(function (t) { if (ids.indexOf(t.id) >= 0) keep.push(t); else t.joueurs.forEach(function (j) { banc.push(j.id); }); });
           ids.forEach(function (id) { if (!keep.some(function (t) { return t.id === id; })) keep.push({ id: id, niveau: id.charAt(0), joueurs: [] }); });
           keep.sort(function (a, c2) { return ids.indexOf(a.id) - ids.indexOf(c2.id); });

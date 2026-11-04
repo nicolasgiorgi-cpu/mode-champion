@@ -1035,10 +1035,10 @@ body:has(.cdock .cselp) .toast{top:calc(74px + var(--safe-t));bottom:auto}
 .calertw[open]>summary{margin-bottom:8px}
 .ccol{display:flex;flex-direction:column;gap:6px;min-width:0;background:linear-gradient(180deg,color-mix(in srgb,var(--lc) 10%,transparent),rgba(10,15,31,.4) 120px);border:1px solid color-mix(in srgb,var(--lc) 45%,transparent);border-top:3px solid var(--lc);padding:8px}
 .ccol.banc{--lc:#8A93AD;border-style:dashed}
-/* (v48) une équipe assez large (seule sur sa rangée) : ses joueurs sur deux colonnes, pour la voir d'un coup d'œil ;
+/* (v48) une équipe assez large (seule dans son niveau, ou « Pas placés ») : ses joueurs sur deux colonnes, pour la voir d'un coup d'œil ;
    sur iPad, une équipe seule dans son niveau prend deux places de la grille */
 .ccol{container-type:inline-size}
-@container (min-width:320px){.ccol .cpl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}.ccol .cpj .cpn{white-space:normal;overflow-wrap:anywhere}}
+@container (min-width:320px){.ccol .cpl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}.ccol .cpj .cpn{white-space:normal;overflow-wrap:break-word}}
 .chd{display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:4px 4px 8px;border:0;border-bottom:1px solid var(--line);background:none;color:var(--ink);text-align:left;width:100%;cursor:default}
 .chd.dest{cursor:pointer;background:color-mix(in srgb,var(--lc) 16%,transparent);outline:1.5px dashed var(--lc);outline-offset:-2px}
 .ctid{font:italic 900 26px/.9 var(--f-title);color:var(--lc)}
@@ -1224,7 +1224,7 @@ span.tlv,span.tpas{display:inline-flex;align-items:center;justify-content:center
   .cvcols.nv2 .cvlab{grid-column:1/-1}
   .cvcols.nv1 .cvcol>.ccol:only-of-type{grid-column:span 2}
   .cvcols.nv2 .cvcol>.ccol:only-of-type{grid-column:1/-1}
-  .cstyles{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .cstyles{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
   .tfrow{grid-template-columns:minmax(0,max-content) minmax(0,1fr) auto;grid-template-areas:"nm ps ctl";gap:10px;padding:5px 8px 5px 12px}
   .tnm{max-width:240px}
   .tctl{gap:8px}

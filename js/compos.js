@@ -43,6 +43,10 @@ MC.compos = (function () {
     NIV.forEach(function (n) { for (var i = 1; i <= (nb[n] || 0); i++) out.push(n + i); });
     return out;
   }
+  // (v48) « A forte » : au moins une équipe A ; les équipes C comptent comme des B (9 au plus : B1…B9)
+  function nbAForte(nb) { return { A: Math.max(1, nb.A || 0), B: Math.min(9, (nb.B || 0) + (nb.C || 0)), C: 0 }; }
+  // les équipes d'un plateau d'après ses réglages (style compris)
+  function idsEquipes(reglages) { var nb = nbOf(reglages); return teamIds(reglages && reglages.style === 'aforte' ? nbAForte(nb) : nb); }
   function niveauDe(f) { return f && NIV.indexOf(f.niveau) >= 0 ? f.niveau : ''; }
   // Les postes d'un joueur, dans l'ordre : ceux de sa fiche (ses postes préférés ★ d'abord, réglés par les éducs),
   // sinon les vœux de l'enfant (mission « jeu à 10 »).
@@ -325,9 +329,9 @@ MC.compos = (function () {
   // renvoie { equipes: [{ id, niveau, joueurs: [{ id, poste, n }] }], banc: [], raisons: { id: texte } }
   function proposer(ids, F, H, reglages, today, style) {
     var format = fmt(reglages), nb = nbOf(reglages), raisons = {}, S = STYLES[style] || STYLES.equilibre;
+    if (S.aforte) return proposerAForte(ids, F, H, reglages);   // (v48) toujours au moins une équipe A
     var tids = teamIds(nb);
     if (!tids.length) return { equipes: [], banc: ids.slice(), raisons: {} };
-    if (S.aforte) return proposerAForte(ids, F, H, reglages);
     function ok(n) { return nb[n] > 0; }
     // 1. chacun dans son niveau principal (s'il n'y a pas d'équipe de ce niveau : le niveau voisin)
     var lv = {}, princ = {};
@@ -427,8 +431,9 @@ MC.compos = (function () {
     var As = ids.filter(function (id) { return niveauDe(F[id]) === 'A'; }), fort;
     if (As.length >= taille) {
       As.sort(function (a, b) {
-        var pa = pasDe(F[a]).length ? 1 : 0, pb = pasDe(F[b]).length ? 1 : 0;
-        return pa - pb || plq(F, b) - plq(F, a) || (a < b ? -1 : 1);
+        var pa = pasDe(F[a]).length ? 1 : 0, pb = pasDe(F[b]).length ? 1 : 0, da = dernierEn(H, a, 'B'), db = dernierEn(H, b, 'B');
+        // à plaquage égal, chacun son tour : celui qui a joué en B le plus récemment reste en A
+        return pa - pb || plq(F, b) - plq(F, a) || (da !== db ? (da > db ? -1 : 1) : 0) || (a < b ? -1 : 1);
       });
       fort = As.slice(0, taille);
       As.slice(taille).forEach(function (id) { raisons[id] = quoi[0].toUpperCase() + quoi.slice(1) + ' au complet : joue avec les autres.'; });
@@ -460,10 +465,10 @@ MC.compos = (function () {
   }
   // plateau : nb.A équipes fortes (au moins 1), nb.B + nb.C équipes « B » mélangées
   function proposerAForte(ids, F, H, reglages) {
-    var format = fmt(reglages), nb = nbOf(reglages), raisons = {}, equipes = [];
-    var kA = Math.max(1, Math.min(9, nb.A)), kB = Math.min(9, nb.B + nb.C);
-    var taille = kB ? Math.round(ids.length / (kA + kB) * kA) : ids.length;
-    var x = forte(ids, F, H, taille, raisons, 'l\'équipe A');
+    var format = fmt(reglages), k = nbAForte(nbOf(reglages)), raisons = {}, equipes = [];
+    var kA = k.A, kB = k.B;
+    // sans équipe B : tout le monde dans les équipes A (pas d'équipe « forte » à part)
+    var x = kB ? forte(ids, F, H, Math.round(ids.length / (kA + kB) * kA), raisons, 'l\'équipe A') : { fort: ids.slice(), reste: [] };
     x.reste.forEach(function (id) { if (!niveauDe(F[id])) raisons[id] = 'Niveau à renseigner : placé en B.'; });
     function pose(list, k, n, w, tri) {
       if (!k) return;
@@ -784,7 +789,8 @@ MC.compos = (function () {
       var rest = serpentin(x.reste.slice().sort(triForce(F)), k - 1);
       ameliorer(rest, F, H, 5, WMIX);
       return { equipes: [{ id: pre + 'FA', nom: pn + 'A', niveau: 'A', bloc: side || 'A', joueurs: x.fort.map(function (id) { return entree(id, F); }) }].concat(rest.map(function (t, i) {
-        return { id: pre + 'FB' + (i + 1), nom: pn + 'B' + (i + 1), niveau: 'B', bloc: side || 'B', joueurs: t.map(function (id) { return entree(id, F); }) };
+        // pas de niveau (comme les groupes équilibrés) : l'historique ne compte pas les Débutants « hors de leur niveau »
+        return { id: pre + 'FB' + (i + 1), nom: pn + 'B' + (i + 1), niveau: '', bloc: side || 'B', joueurs: t.map(function (id) { return entree(id, F); }) };
       })), raisons: rs };
     }
     var teams = serpentin(ids.slice().sort(triForce(F)), k);
@@ -844,6 +850,8 @@ MC.compos = (function () {
       [A.raisons, R.raisons].forEach(function (x) { for (var k in x) if (!raisons[k]) raisons[k] = x[k]; });
       out = { equipes: A.equipes.concat(R.equipes), raisons: raisons };
     }
+    // (v48) « A forte » sans groupe fort (un seul groupe) : ce sont des groupes équilibrés
+    if (r.mode === 'aforte' && !out.equipes.some(function (t) { return /FA$/.test(t.id); })) r.mode = 'equilibre';
     return { equipes: out.equipes, banc: [], raisons: out.raisons || {}, reglages: r };
   }
   // la même organisation, vide : tout le monde en « Pas placés »
@@ -919,7 +927,7 @@ MC.compos = (function () {
 
   // ---------- Compo vide (départ de zéro) ----------
   function vide(ids, reglages) {
-    return { equipes: teamIds(nbOf(reglages)).map(function (id) { return { id: id, niveau: id.charAt(0), joueurs: [] }; }), banc: ids.slice(), raisons: {} };
+    return { equipes: idsEquipes(reglages).map(function (id) { return { id: id, niveau: id.charAt(0), joueurs: [] }; }), banc: ids.slice(), raisons: {} };
   }
   // les présents d'un événement : réponses Spond + ajouts à la main − retraits
   function presents(e) {
@@ -951,7 +959,7 @@ MC.compos = (function () {
 
   return {
     NIV: NIV, NOM_NIV: NOM_NIV, COUL_NIV: COUL_NIV, POSTES10: POSTES10, SEUIL: SEUIL, BON: BON, TAILLE: TAILLE, FORMATS: FORMATS,
-    fiches: fiches, historique: historique, hOf: hOf, suggestNb: suggestNb, teamIds: teamIds, nbOf: nbOf, fmt: fmt,
+    fiches: fiches, historique: historique, hOf: hOf, suggestNb: suggestNb, teamIds: teamIds, idsEquipes: idsEquipes, nbAForte: nbAForte, nbOf: nbOf, fmt: fmt,
     pasDe: pasDe, lettresPas: lettresPas, joueEn: joueEn,
     proposer: proposer, vide: vide, stats: stats, alertes: alertes, apparier: apparier, scoreNiveau: scoreNiveau,
     moveTo: moveTo, swap: swap, setPoste: setPoste, where: where, diff: diff, presents: presents, attente: attente, retirer: retirer, sorteDuTitre: sorteDuTitre,
