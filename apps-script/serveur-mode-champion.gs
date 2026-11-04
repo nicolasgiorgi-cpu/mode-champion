@@ -2598,6 +2598,9 @@ var CACHE_PART = 24000;    // caractères par morceau (une valeur du cache est l
 var CACHE_MAX_PARTS = 90;  // au-delà, l'onglet est lu dans la feuille à chaque fois
 
 /** Petit adaptateur : les onglets de la feuille servent de tables. Tout est stocké en texte. */
+// (v46) les clés du cache portent la version du schéma : un serveur dont le schéma change ne relit jamais l'ancien cache
+// (ex. plaquage3 lu en nombre jusqu'à la v45, en texte depuis la v46)
+var CK_ = 't46:';
 function SheetDB_() {
   this.ss = null;           // la feuille n'est ouverte que si on en a besoin
   this.cache = {};          // onglets lus pendant cette demande
@@ -2648,10 +2651,10 @@ SheetDB_.prototype.readSheet_ = function (table) {
 };
 SheetDB_.prototype.cacheGet_ = function (table) {
   try {
-    var meta = this.cs.get('t:' + table);
+    var meta = this.cs.get(CK_ + table);
     if (!meta) return null;
     var n = Number(meta), keys = [], i;
-    for (i = 0; i < n; i++) keys.push('t:' + table + ':' + i);
+    for (i = 0; i < n; i++) keys.push(CK_ + table + ':' + i);
     var got = this.cs.getAll(keys), s = '';
     for (i = 0; i < n; i++) { if (typeof got[keys[i]] !== 'string') return null; s += got[keys[i]]; }
     return JSON.parse(s);
@@ -2660,20 +2663,20 @@ SheetDB_.prototype.cacheGet_ = function (table) {
 SheetDB_.prototype.cachePut_ = function (table, rows) {
   try {
     var s = JSON.stringify(rows), n = Math.ceil(s.length / CACHE_PART) || 1;
-    if (n > CACHE_MAX_PARTS) { this.cs.remove('t:' + table); return; }
+    if (n > CACHE_MAX_PARTS) { this.cs.remove(CK_ + table); return; }
     var parts = {}, k = 0;
     for (var i = 0; i < n; i++) {
-      parts['t:' + table + ':' + i] = s.slice(i * CACHE_PART, (i + 1) * CACHE_PART);
+      parts[CK_ + table + ':' + i] = s.slice(i * CACHE_PART, (i + 1) * CACHE_PART);
       if (++k === 30 || i === n - 1) { this.cs.putAll(parts, CACHE_TTL); parts = {}; k = 0; }
     }
-    this.cs.put('t:' + table, String(n), CACHE_TTL);
-  } catch (e) { try { this.cs.remove('t:' + table); } catch (e2) { /* rien */ } }
+    this.cs.put(CK_ + table, String(n), CACHE_TTL);
+  } catch (e) { try { this.cs.remove(CK_ + table); } catch (e2) { /* rien */ } }
 };
 /** À la fin de chaque demande : le cache reprend l'état des onglets modifiés. */
 SheetDB_.prototype.flush_ = function () {
   for (var t in this.dirty) {
     if (this.cache[t]) this.cachePut_(t, this.cache[t]);
-    else { try { this.cs.remove('t:' + t); } catch (e) { /* rien */ } }
+    else { try { this.cs.remove(CK_ + t); } catch (e) { /* rien */ } }
   }
   this.dirty = {};
 };
@@ -2730,7 +2733,7 @@ SheetDB_.prototype.remove = function (table, id) {
     if (rows[i].id === id) {
       this.sheet(table).deleteRow(rows[i]._row);
       delete this.cache[table];
-      try { this.cs.remove('t:' + table); } catch (e) { /* la prochaine lecture relira la feuille */ }
+      try { this.cs.remove(CK_ + table); } catch (e) { /* la prochaine lecture relira la feuille */ }
       this.dirty[table] = true;
       return;
     }
@@ -2949,6 +2952,7 @@ function doPost(e) {
   } catch (err) {
     return json_({ ok: false, error: 'occupe', message: 'Le serveur est occupé, réessaie dans un instant.' });
   }
+  try { plaquageVideV46_(); } catch (err) { /* réessayée au prochain appel */ }
   var db = new SheetDB_(), out;
   PUSH_FILE_ = [];
   try {
@@ -3042,8 +3046,27 @@ function nouveauxCodesAdultes() {
 }
 
 /** Après une modification faite à la main dans la feuille : lance cette fonction pour que le site la voie tout de suite. */
+/** (v46) Une fois : les « 0 » de plaquage3 écrits par défaut par les serveurs v44 et v45 (case vide lue comme 0, ligne réécrite)
+ *  redeviennent vides = pas encore évalué (décision de Nicolas, 04/11 : tout le monde est reparti de zéro, et 0 est maintenant un niveau). */
+function plaquageVideV46_() {
+  var props = PropertiesService.getScriptProperties();
+  if (props.getProperty('PLAQ3_V46')) return;
+  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('terrain'), n = 0;
+  if (sh && sh.getLastRow() > 1) {
+    var head = sh.getRange(1, 1, 1, sh.getLastColumn()).getDisplayValues()[0], c = head.indexOf('plaquage3');
+    if (c >= 0) {
+      var rg = sh.getRange(2, c + 1, sh.getLastRow() - 1, 1), v = rg.getDisplayValues();
+      for (var i = 0; i < v.length; i++) if (String(v[i][0]).trim() === '0') { v[i][0] = ''; n++; }
+      if (n) rg.setValues(v);
+    }
+  }
+  props.setProperty('PLAQ3_V46', new Date().toISOString() + ' · ' + n);
+  var cs = CacheService.getScriptCache();
+  TABLES.forEach(function (t) { cs.remove('t:' + t); cs.remove(CK_ + t); });
+  Logger.log('Plaquage : ' + n + ' case(s) « 0 » remise(s) à vide (pas encore évalué).');
+}
 function viderCache() {
   var cs = CacheService.getScriptCache();
-  TABLES.forEach(function (t) { cs.remove('t:' + t); });
+  TABLES.forEach(function (t) { cs.remove(CK_ + t); cs.remove('t:' + t); });
   Logger.log('Cache vidé : le site relit la feuille.');
 }

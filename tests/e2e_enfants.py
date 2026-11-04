@@ -20,7 +20,7 @@ LIGNE = """(nm) => { const li = [...document.querySelectorAll('#tlist .tfrow')].
   const r = li.getBoundingClientRect(), n = li.querySelector('.tnm').getBoundingClientRect(), ps = [...li.querySelectorAll('.tpp')], p0 = ps[0] ? ps[0].getBoundingClientRect() : null, ctl = li.querySelector('.tctl').getBoundingClientRect();
   return { h: Math.round(r.height), pills: ps.map(p => (p.classList.contains('pref') ? '*' : '') + p.textContent.replace('préféré ', '').trim()), memeLigne: p0 ? Math.abs((p0.top + p0.height / 2) - (n.top + n.height / 2)) < 6 : null,
     dessous: p0 ? p0.top >= n.bottom - 1 : null, deborde: ps.some(p => p.getBoundingClientRect().right > r.right - 4), ctlDansLigne: ctl.right <= r.right + 1,
-    plaq: (li.querySelector('.pshield b') || {}).textContent, niv: (li.querySelector('.tlv.on') || {}).textContent || '' }; }"""
+    plaq: (li.querySelector('.pshield b') || {}).textContent, niv: ((li.querySelector('.tlv.on') || {}).textContent || '').replace('niveau ', '') }; }"""
 def noms(pg): return pg.evaluate("[...document.querySelectorAll('#tlist > li')].map(l => l.classList.contains('tsep') ? '|' : (l.querySelector('.tnm') || {}).textContent)")
 
 with sync_playwright() as p:
@@ -37,7 +37,7 @@ with sync_playwright() as p:
     check('pas de bouton Enregistrer', not pg.query_selector('[data-act="tSave"], [data-act="tkSave"]'))
     # une ligne : pastilles (★ d'abord), bouclier
     t = pg.evaluate(LIGNE, 'Tom')
-    check('Tom : ses postes préférés ★ d\'abord, puis les autres', t and t['pills'][:2] == ['*Centre', '*Ailier'] and t['pills'][2] == '3e L.', t)
+    check('(v46) Tom : ses postes dans l\'ordre des postes (3e ligne, centre, ailier), les préférés en pastille pleine', t and t['pills'] == ['3e L.', '*Centre', '*Ailier'], t)
     check('pastille préférée : « préféré » lu par le lecteur d\'écran', pg.locator('#tlist .tpp.pref .sr-only').count() >= 2)
     check('Tom : le bouclier de plaquage avec son niveau (2, sur 3)', t and t['plaq'] == '2', t)
     check('Tom : niveau B allumé', t and t['niv'] == 'B', t)
@@ -47,12 +47,15 @@ with sync_playwright() as p:
     check('pas de défilement de côté', pg.evaluate(HSCROLL) == [], pg.evaluate(HSCROLL))
     # (v46) moins de couleurs : pas d'étoile dans les pastilles ; niveaux en dégradé de violet (A foncé, C clair) ; passerelle à la couleur du niveau visé
     check('(v46) pastilles sans étoile', pg.locator('#tlist .tpp svg').count() == 0 and pg.locator('#tlist .tpp.pref').count() >= 5)
-    cols = pg.evaluate("['A','B','C'].map(n => getComputedStyle(document.querySelector('#tlist .tlv[data-v=' + n + ']:not(.on)')).color)")
-    check('(v46) niveaux : violet foncé A, violet B, violet clair C', cols == ['rgb(138, 92, 255)', 'rgb(179, 155, 255)', 'rgb(220, 210, 255)'], cols)
-    pc = pg.evaluate("(() => { const b = document.querySelector('#tlist .tpas.on'); return b ? [b.getAttribute('data-v'), getComputedStyle(b).color] : null; })()")
-    check('(v46) une passerelle allumée a la couleur de son niveau', pc and pc[1] == {'A': 'rgb(138, 92, 255)', 'B': 'rgb(179, 155, 255)', 'C': 'rgb(220, 210, 255)'}[pc[0]], pc)
+    cols = pg.evaluate("['A','B','C'].map(n => { const el = [...document.querySelectorAll('#tlist .tlv.on')].find(e => e.textContent.replace('niveau ', '') === n); return el ? getComputedStyle(el).backgroundColor : null; })")
+    check('(v46) niveaux : violet foncé A, violet B, violet clair C', cols == ['rgb(148, 102, 255)', 'rgb(179, 155, 255)', 'rgb(220, 210, 255)'], cols)
+    pc = pg.evaluate("(() => { const b = document.querySelector('#tlist .tpas.on'); return b ? [b.textContent.slice(-1), getComputedStyle(b).color] : null; })()")
+    check('(v46) une passerelle a la couleur de son niveau', pc and pc[1] == {'A': 'rgb(148, 102, 255)', 'B': 'rgb(179, 155, 255)', 'C': 'rgb(220, 210, 255)'}[pc[0]], pc)
     cv = pg.evaluate("(() => { const li = [...document.querySelectorAll('#tlist .tfrow')].find(l => l.querySelector('.tnm').textContent.trim() === 'Côme'); const sh = li && li.querySelector('.pshield'); return sh ? [sh.classList.contains('vide'), sh.querySelector('b').textContent, sh.getAttribute('aria-label')] : null; })()")
     check('(v46) plaquage pas encore évalué : bouclier vide, sans chiffre (≠ 0)', cv and cv[0] and cv[1] == '' and 'pas encore évalué' in cv[2], cv)
+    m0 = pg.evaluate("(() => { const li = [...document.querySelectorAll('#tlist .tfrow')].find(l => l.querySelector('.tnm').textContent.trim() === 'Maël'); const sh = li && li.querySelector('.pshield'); return sh ? [sh.className, sh.querySelector('b').textContent] : null; })()")
+    check('(v46) plaquage 0 : le bouclier rose avec 0 (pas grisé, pas vide)', m0 and m0[1] == '0' and 'vide' not in m0[0] and 'zero' not in m0[0], m0)
+    check('(v46) le filtre de tous les postes s\'appelle « Tous »', pg.inner_text('.tfp button[data-v=""] span').strip().upper() == 'TOUS')
     # le graphique : replié, lignes simples (pas de prénoms au toucher), pas de texte dessous
     check('répartition des postes repliée', pg.evaluate("!document.querySelector('details.rpost[data-rp=\"terrain\"]').open"))
     pg.click('details.rpost[data-rp="terrain"] summary'); pg.wait_for_timeout(300)
@@ -82,41 +85,37 @@ with sync_playwright() as p:
     check('(v46) filtre Tous : pas de section passerelle', pg.locator('#tlist .tsep').count() == 0)
     pg.click('.tfp button[data-v="centre"]'); pg.click('.tfp button[data-v="centre"]'); pg.wait_for_timeout(300)
     check('retoucher le poste : tous les postes', pg.locator('#tlist .tsep').count() == 0 and len(noms(pg)) >= 20)
-    # enregistré au toucher
-    pg.evaluate("window.__calls=[]; const c0 = MC.api.call; MC.api.call = function (a, p) { window.__calls.push([a, JSON.stringify(p && p.lignes || '')]); return c0.apply(this, arguments) }; 1")
-    pg.click('#tlist .tfrow:has(.tnm:text-is("Tom")) .tlv[data-v="C"]'); pg.wait_for_timeout(1300)
+    # (v46) la liste ne se règle plus : toute la ligne mène à la fiche (niveau, passerelles, plaquage se règlent sur la fiche)
+    check('(v46) la liste : aucun bouton dans les lignes, chaque ligne est un lien', pg.locator('#tlist button').count() == 0 and pg.locator('#tlist a.tfrow').count() >= 20)
+    pg.click('#tlist a.tfrow:has(.tnm:text-is("Tom")) .pshield'); pg.wait_for_timeout(1200); nomodal(pg)
+    check('(v46) toucher la ligne (ici le bouclier, pas le prénom) ouvre sa fiche, sur Terrain', pg.evaluate('location.hash').startswith('#/educ/joueur/') and pg.inner_text('.ftabs a.on').strip().upper() == 'TERRAIN', pg.evaluate('location.hash'))
+    # enregistré au toucher, sur la fiche
+    pg.evaluate("window.__calls=[]; window.__c0 = MC.api.call; MC.api.call = function (a, p) { window.__calls.push([a, JSON.stringify(p && p.lignes || '')]); return window.__c0.apply(this, arguments) }; 1")
+    pg.click('[data-act="tkNiv"][data-v="C"]'); pg.wait_for_timeout(1300)
     calls = pg.evaluate('window.__calls')
-    check('toucher un niveau : enregistré tout de suite (sans bouton)', any(c[0] == 'setTerrain' and '"niveau":"C"' in c[1] for c in calls), calls)
-    t = pg.evaluate(LIGNE, 'Tom')
-    check('(v45) … la ligne change, la passerelle vers A reste (n\'importe quel autre niveau)', t['niv'] == 'C' and pg.query_selector('#tlist .tfrow:has(.tnm:text-is("Tom")) .tpas.on[data-v="A"]') is not None and pg.locator('#tlist .tfrow:has(.tnm:text-is("Tom")) .tpas').count() == 2, t)
+    check('fiche : toucher un niveau, enregistré tout de suite (sans bouton)', any(c[0] == 'setTerrain' and '"niveau":"C"' in c[1] for c in calls), calls)
+    check('(v45) … la passerelle vers A reste (n\'importe quel autre niveau)', pg.query_selector('[data-act="tkPas"].on[data-v="A"]') is not None and pg.locator('[data-act="tkPas"]').count() == 2)
     pg.reload(); pg.wait_for_timeout(1500); nomodal(pg)
-    check('… et c\'est gardé (rechargé)', pg.evaluate(LIGNE, 'Tom')['niv'] == 'C')
-    pg.click('#tlist .tfrow:has(.tnm:text-is("Tom")) .tlv[data-v="B"]'); pg.wait_for_timeout(1200)
-    # (v45) deux passerelles : Tom (B, passerelle A) prend aussi C ; les deux restent allumées et partent au serveur
-    pg.click('#tlist .tfrow:has(.tnm:text-is("Tom")) .tpas[data-v="C"]'); pg.wait_for_timeout(1300)
-    check('(v45) deux passerelles : ⇅A et ⇅C allumées', pg.locator('#tlist .tfrow:has(.tnm:text-is("Tom")) .tpas.on').count() == 2)
-    check('(v45) … enregistrées « AC »', pg.evaluate("MC.api.call('group', { token: MC.app.S.adult.token }).then(g => g.joueurs.find(p => p.joueur.prenom === 'Tom').terrain.passerelle)") == 'AC')
-    pg.click('#tlist .tfrow:has(.tnm:text-is("Tom")) .tpas[data-v="C"]'); pg.wait_for_timeout(1300)
-    check('(v45) retoucher ⇅C l\'éteint, ⇅A reste', pg.evaluate("MC.api.call('group', { token: MC.app.S.adult.token }).then(g => g.joueurs.find(p => p.joueur.prenom === 'Tom').terrain.passerelle)") == 'A')
+    check('… et c\'est gardé (rechargé)', pg.query_selector('[data-act="tkNiv"].on[data-v="C"]') is not None)
     # (relecture) retoucher le niveau allumé ne l'efface pas (ni la passerelle)
     pg.evaluate("window.__calls=[]; window.__c0 = MC.api.call; MC.api.call = function (a, p) { window.__calls.push([a, JSON.stringify(p && p.lignes || '')]); return window.__c0.apply(this, arguments) }; 1")
-    pg.click('#tlist .tfrow:has(.tnm:text-is("Tom")) .tlv[data-v="B"]'); pg.wait_for_timeout(900)
-    check('retoucher le niveau allumé : rien ne change, rien ne part', pg.evaluate(LIGNE, 'Tom')['niv'] == 'B' and not any(c[0] == 'setTerrain' for c in pg.evaluate('window.__calls')), pg.evaluate('window.__calls'))
-    # (relecture) une réponse du serveur ne ferme pas le clavier de « Chercher un prénom »
-    pg.click('#tlist .tfrow:has(.tnm:text-is("Tom")) .tlv[data-v="A"]'); pg.wait_for_timeout(100)
-    pg.click('#tq'); pg.keyboard.type('To', delay=450); pg.wait_for_timeout(900)
-    check('après un toucher, la recherche garde le clavier (pas redessinée)', pg.evaluate("document.activeElement && document.activeElement.id === 'tq' && document.activeElement.value === 'To'") and any(c[0] == 'setTerrain' and '"niveau":"A"' in c[1] for c in pg.evaluate('window.__calls')), pg.evaluate("[document.activeElement && document.activeElement.id, document.getElementById('tq').value]"))
-    pg.fill('#tq', ''); pg.wait_for_timeout(400)
-    # (relecture) pas de réseau : la ligne revient à ce qui était enregistré, avec un message
+    pg.click('[data-act="tkNiv"][data-v="C"]'); pg.wait_for_timeout(900)
+    check('retoucher le niveau allumé : rien ne change, rien ne part', pg.query_selector('[data-act="tkNiv"].on[data-v="C"]') is not None and not any(c[0] == 'setTerrain' for c in pg.evaluate('window.__calls')), pg.evaluate('window.__calls'))
+    # (relecture) pas de réseau : la fiche revient à ce qui était enregistré, avec un message
     pg.evaluate("MC.api.call = function (a, p) { if (a === 'setTerrain') return Promise.reject(Object.assign(new Error('Pas de réseau'), { code: 'reseau' })); return window.__c0.apply(this, arguments) }; 1")
-    pg.click('#tlist .tfrow:has(.tnm:text-is("Tom")) .tlv[data-v="C"]'); pg.wait_for_timeout(150)
-    tout = pg.evaluate(LIGNE, 'Tom')['niv']
+    pg.click('[data-act="tkNiv"][data-v="A"]'); pg.wait_for_timeout(150)
+    tout = pg.evaluate("(document.querySelector('[data-act=tkNiv].on') || {}).getAttribute ? document.querySelector('[data-act=tkNiv].on').getAttribute('data-v') : ''")
     pg.wait_for_timeout(1200)
-    check('pas de réseau : C tout de suite, puis retour à A et « pas enregistré »', tout == 'C' and pg.evaluate(LIGNE, 'Tom')['niv'] == 'A' and 'pas enregistré' in pg.inner_text('#toast'), [tout, pg.evaluate(LIGNE, 'Tom')['niv'], pg.inner_text('#toast')])
+    apres = pg.evaluate("document.querySelector('[data-act=tkNiv].on').getAttribute('data-v')")
+    check('pas de réseau : A tout de suite, puis retour à C et « pas enregistré »', tout == 'A' and apres == 'C' and 'pas enregistré' in pg.inner_text('#toast'), [tout, apres, pg.inner_text('#toast')])
     pg.evaluate("MC.api.call = window.__c0; 1")
-    pg.click('#tlist .tfrow:has(.tnm:text-is("Tom")) .tlv[data-v="B"]'); pg.wait_for_timeout(1200)
+    pg.click('[data-act="tkNiv"][data-v="B"]'); pg.wait_for_timeout(1200)
+    # retour à la liste : la ligne suit (niveau, passerelle affichés)
+    pg.click('#nav a:has-text("Enfants")'); pg.wait_for_timeout(1200); nomodal(pg)
+    t = pg.evaluate(LIGNE, 'Tom')
+    check('(v46) la liste montre le niveau (B) et la passerelle ⇅A réglés sur la fiche', t['niv'] == 'B' and pg.locator('#tlist a.tfrow:has(.tnm:text-is("Tom")) .tpas').count() == 1, t)
     # la fiche : postes préférés multiples, plaquage, tout au toucher
-    pg.click('#tlist a.tnm:text-is("Tom")'); pg.wait_for_timeout(1200); nomodal(pg)
+    pg.click('#tlist a.tfrow:has(.tnm:text-is("Tom"))'); pg.wait_for_timeout(1200); nomodal(pg)
     if pg.query_selector('.ftabs a[href$="t=terrain"]:not(.on)'): pg.click('.ftabs a[href$="t=terrain"]'); pg.wait_for_timeout(800)
     check('fiche : ni Modifier ni Enregistrer', not pg.query_selector('[data-act="tkEdit"], [data-act="tkSave"]'))
     # (v45) la fiche : les deux autres niveaux en passerelle
@@ -140,11 +139,16 @@ with sync_playwright() as p:
     # (v46) l'aide discrète du plaquage : tenir le doigt sur « ? » montre les niveaux, relâcher la cache
     q = pg.locator('.tplq-l .aide-q'); q.scroll_into_view_if_needed(); bb = q.bounding_box()
     check('(v46) « ? » discret à côté de Plaquage', q.count() == 1 and bb and bb['width'] <= 26 and bb['height'] <= 26, bb)
-    pg.mouse.move(bb['x'] + bb['width'] / 2, bb['y'] + bb['height'] / 2); pg.mouse.down(); pg.wait_for_timeout(300)
+    pg.mouse.move(bb['x'] + bb['width'] / 2, bb['y'] + bb['height'] / 2); pg.mouse.down(); pg.wait_for_timeout(600)
     t1 = pg.inner_text('.aide-bulle') if pg.query_selector('.aide-bulle') else ''
     pg.mouse.up(); pg.wait_for_timeout(200)
     check('(v46) doigt posé : les 4 niveaux de plaquage décrits', 'engage l\'épaule et fait tomber' in t1 and 'pas encore d\'engagement' in t1 and 'vide' in t1.lower(), t1[:200])
-    check('(v46) doigt levé : l\'aide se cache', pg.query_selector('.aide-bulle') is None)
+    check('(v46) doigt levé après un appui long : l\'aide se cache', pg.query_selector('.aide-bulle') is None)
+    pg.mouse.down(); pg.wait_for_timeout(80); pg.mouse.up(); pg.wait_for_timeout(200)
+    check('(v46) toucher court : l\'aide reste ouverte', pg.query_selector('.aide-bulle') is not None)
+    pg.mouse.click(5, bb['y'] + 200); pg.wait_for_timeout(200)
+    check('(v46) toucher ailleurs : l\'aide se ferme', pg.query_selector('.aide-bulle') is None)
+    check('(v46) l\'aide est aussi lue par le lecteur d\'écran', pg.evaluate("(() => { const q = document.querySelector('.tplq-l .aide-q'); const t = document.getElementById(q.getAttribute('aria-describedby')); return !!t && /fait tomber/.test(t.textContent); })()"))
     check('(v46) l\'aide tient dans l\'écran', pg.evaluate(HSCROLL) == [])
     check('règle d\'interface : aucun texte doublé sur les boucliers et les pastilles', pg.evaluate("[...document.querySelectorAll('.pshield, .pshield b, .tpp')].every(e => getComputedStyle(e).textShadow === 'none')"))
     pg.click('[data-act="tkPref"][data-v="troisieme-ligne"]'); pg.wait_for_timeout(1200)
@@ -182,8 +186,8 @@ with sync_playwright() as p:
     pg.click('.ftabs a:text-is("Skills")'); pg.wait_for_timeout(900)
     # retour à la liste : les pastilles suivent
     pg.click('#nav a:has-text("Enfants")'); pg.wait_for_timeout(1200); nomodal(pg)
-    check('liste : Tom avec 3e L. en « peut aussi jouer »', pg.evaluate(LIGNE, 'Tom')['pills'] == ['*Centre', '*Ailier', '3e L.'], pg.evaluate(LIGNE, 'Tom'))
-    pg.click('#tlist a.tnm:text-is("Arthur")'); pg.wait_for_timeout(1200); nomodal(pg)
+    check('liste : Tom avec 3e L. en « peut aussi jouer »', pg.evaluate(LIGNE, 'Tom')['pills'] == ['3e L.', '*Centre', '*Ailier'], pg.evaluate(LIGNE, 'Tom'))
+    pg.click('#tlist a.tfrow:has(.tnm:text-is("Arthur"))'); pg.wait_for_timeout(1200); nomodal(pg)
     check('(v44) un enfant touché dans la liste : sa fiche s\'ouvre sur Terrain (pas sur le dernier onglet vu)', pg.query_selector('.ftabs a.on') is not None and pg.inner_text('.ftabs a.on').strip().upper() == 'TERRAIN' and pg.query_selector('#sur-le-terrain') is not None, pg.evaluate('location.hash'))
     pg.click('#nav a:has-text("Enfants")'); pg.wait_for_timeout(1000)
     # (v44) les vœux d'un enfant sur leur propre ligne : tous visibles sur sa fiche (le vœu 1 n'est plus coupé par un nom de poste long)

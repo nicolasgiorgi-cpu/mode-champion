@@ -10,7 +10,7 @@ MC.compos = (function () {
   var NIV = ['A', 'B', 'C'];
   var NOM_NIV = { A: 'Confirmés', B: 'Débrouillés', C: 'Débutants' };
   // (v46) les niveaux en dégradé de violet : foncé pour A (Confirmés), clair pour C (Débutants) ; repris partout (décision de Nicolas, 04/11)
-  var COUL_NIV = { A: '#8A5CFF', B: '#B39BFF', C: '#DCD2FF' };
+  var COUL_NIV = { A: '#9466FF', B: '#B39BFF', C: '#DCD2FF' };
   // Jeu à 10 (règlement FFR M12) : mêlée 3 + 2 (les avants), puis 5 arrières (dans l'appli, « arrières » = les lignes arrières : 9, 10, centres, ailiers).
   // Derrière la charnière (9 et 10) : 1 centre et 2 ailiers (décidé par Nicolas le 20/10 ; à ajuster ici si le club joue autrement).
   var POSTES10 = [['pilier', 2], ['talonneur', 1], ['troisieme-ligne', 2], ['demi-de-melee', 1], ['ouvreur', 1], ['centre', 1], ['ailier', 2]];
@@ -440,8 +440,8 @@ MC.compos = (function () {
       if (t.niveau && f.niveau && f.niveau !== t.niveau) pass++;
       if (ev && p < (SEUIL[t.niveau] || 0)) sousSeuil.push(id);   // (v46) pas encore évalué : pas signalé
     });
-    // (v46) le plaquage moyen : sur ceux qui sont évalués
-    var o = { n: n, plaq: ne ? Math.round(sp / ne * 10) / 10 : 0, bons: bons, avecCopain: avec, ontCopains: avecCps, passerelles: pass, sousSeuil: sousSeuil, manquants: [] };
+    // (v46) le plaquage moyen : sur ceux qui sont évalués (null : personne n'est évalué dans l'équipe)
+    var o = { n: n, plaq: ne ? Math.round(sp / ne * 10) / 10 : null, bons: bons, avecCopain: avec, ontCopains: avecCps, passerelles: pass, sousSeuil: sousSeuil, manquants: [] };
     // avants / arrières, comme les sections de l'équipe (voir sections) : au jeu à 10, d'après le poste du plateau,
     // les remplaçants à part (o.remplTypes : le type de leur fiche) ; au jeu à 5, d'après le poste principal de la fiche
     // (« les2 » = combien peuvent jouer avant et arrière, « inconnus » = pas encore de poste)
@@ -488,9 +488,10 @@ MC.compos = (function () {
         var mx = 0, mn = 99, iMx = 0, iMn = 0;
         st.forEach(function (s, i) { if (s.n > mx) { mx = s.n; iMx = i; } if (s.n < mn) { mn = s.n; iMn = i; } });
         if (mx - mn >= 2) out.push({ k: 'taille', niveau: 'warn', texte: 'Effectifs déséquilibrés : ' + ts[iMx].id + ' (' + mx + ') et ' + ts[iMn].id + ' (' + mn + ').', fix: bestMove(c, F, H, ts[iMx].id, ts[iMn].id) });
-        var hi = 0, lo = 0;
-        st.forEach(function (s, i) { if (s.plaq > st[hi].plaq) hi = i; if (s.plaq < st[lo].plaq) lo = i; });
-        if (st[hi].plaq - st[lo].plaq >= ECART) {
+        // (v46) l'écart de plaquage : seulement entre équipes qui ont des enfants évalués
+        var hi = -1, lo = -1;
+        st.forEach(function (s, i) { if (s.plaq === null) return; if (hi < 0 || s.plaq > st[hi].plaq) hi = i; if (lo < 0 || s.plaq < st[lo].plaq) lo = i; });
+        if (hi >= 0 && lo >= 0 && st[hi].plaq - st[lo].plaq >= ECART) {
           out.push({ k: 'plaquage', niveau: 'warn', texte: 'Écart de plaquage en ' + n + ' : ' + ts[hi].id + ' ' + virg(st[hi].plaq) + ' ★, ' + ts[lo].id + ' ' + virg(st[lo].plaq) + ' ★.', fix: bestSwap(c, F, H, ts[hi].id, ts[lo].id) });
         }
       }
@@ -812,9 +813,9 @@ MC.compos = (function () {
       st.forEach(function (s, i) { if (s.n > mx) { mx = s.n; iMx = i; } if (s.n < mn) { mn = s.n; iMn = i; } });
       // groupes de niveau : les effectifs suivent les niveaux (simple info) et l'écart de plaquage est voulu
       if (equi ? mx - mn >= 2 : mx - mn >= 3) out.push({ k: 'taille', niveau: equi ? 'warn' : 'info', texte: ou + 'effectifs déséquilibrés, ' + nomEq(ts[iMx]) + ' ' + mx + ' et ' + nomEq(ts[iMn]) + ' ' + mn + '.', fix: equi ? bestMove(c, F, {}, ts[iMx].id, ts[iMn].id) : null });
-      var hi = 0, lo = 0;
-      st.forEach(function (s, i) { if (s.plaq > st[hi].plaq) hi = i; if (s.plaq < st[lo].plaq) lo = i; });
-      if (equi && st[hi].n && st[lo].n && st[hi].plaq - st[lo].plaq >= ECART) out.push({ k: 'plaquage', niveau: 'warn', texte: ou + 'écart de plaquage, ' + nomEq(ts[hi]) + ' ' + virg(st[hi].plaq) + ' ★, ' + nomEq(ts[lo]) + ' ' + virg(st[lo].plaq) + ' ★.', fix: bestSwap(c, F, {}, ts[hi].id, ts[lo].id) });
+      var hi = -1, lo = -1;
+      st.forEach(function (s, i) { if (s.plaq === null) return; if (hi < 0 || s.plaq > st[hi].plaq) hi = i; if (lo < 0 || s.plaq < st[lo].plaq) lo = i; });
+      if (equi && hi >= 0 && lo >= 0 && st[hi].n && st[lo].n && st[hi].plaq - st[lo].plaq >= ECART) out.push({ k: 'plaquage', niveau: 'warn', texte: ou + 'écart de plaquage, ' + nomEq(ts[hi]) + ' ' + virg(st[hi].plaq) + ' ★, ' + nomEq(ts[lo]) + ' ' + virg(st[lo].plaq) + ' ★.', fix: bestSwap(c, F, {}, ts[hi].id, ts[lo].id) });
       if (match && ts.length === 2 && Math.abs(st[0].av - st[1].av) >= 3) out.push({ k: 'avar', niveau: 'info', texte: ou + st[0].av + ' avants chez les ' + nomEq(ts[0]) + ', ' + st[1].av + ' chez les ' + nomEq(ts[1]) + '.' });
     });
     return out;

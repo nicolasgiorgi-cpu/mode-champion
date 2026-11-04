@@ -53,6 +53,18 @@ assert.strictEqual(terr(P.Hugo).plaquage, 0, '0 relu comme 0, pas comme vide');
   r = g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P.Hugo, plaquage: v }] });
   assert.strictEqual(terr(P.Hugo).plaquage, 0, 'plaquage ' + v + ' : ignoré');
 });
+// (v46) une fois, au 1er appel du serveur v46 : les « 0 » écrits par défaut par les serveurs v44/v45 redeviennent vides ; le cache v45 n'est pas relu
+const sh = g._sheets.terrain, head = sh.data[0], cP = head.indexOf('plaquage3'), cN = head.indexOf('niveau');
+const lig = sh.data.findIndex((r, i) => i > 0 && r && r[0] === P.Hugo);
+assert.ok(cP >= 0 && lig > 0, 'colonne plaquage3 et ligne de Hugo');
+sh.data[lig][cP] = '0'; sh.data[lig][cN] = 'C';                                  // comme l'aurait écrit un serveur v45
+g._cache['t:terrain'] = '1'; g._cache['t:terrain:0'] = JSON.stringify([]);     // un vieux cache v45
+delete g._props.PLAQ3_V46;
+assert.strictEqual(terr(P.Hugo).plaquage, null, 'le « 0 » par défaut redevient : pas encore évalué');
+assert.strictEqual(terr(P.Hugo).niveau, 'C', 'la feuille est relue (pas le vieux cache)');
+assert.ok(/ · 1$/.test(g._props.PLAQ3_V46), 'une seule fois, une case : ' + g._props.PLAQ3_V46);
+r = g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P.Hugo, plaquage: 0 }] });
+assert.strictEqual(terr(P.Hugo).plaquage, 0, 'ensuite, un 0 choisi reste 0 (la migration ne repasse pas)');
 // un enfant qui reçoit sa fiche (niveau seul) : plaquage pas encore évalué
 r = g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P['Léa'], niveau: 'B' }] });
 assert.strictEqual(terr(P['Léa']).plaquage, null);
