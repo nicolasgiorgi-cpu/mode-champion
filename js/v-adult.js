@@ -711,7 +711,7 @@
     var pnom = { pilier: 'pilier', talonneur: 'talonneur', 'troisieme-ligne': '3e ligne', 'demi-de-melee': 'demi de mêlée', ouvreur: 'ouvreur', centre: 'centre', ailier: 'ailier' };
     // (v43) ses postes préférés ★ (un ou plusieurs ; avant la v43 : le 1er de ses postes)
     var pref = Array.isArray(tr.postesPref) ? tr.postesPref : (tr.postesOk || []).slice(0, 1);
-    var resume = [tr.niveau ? NIVN[tr.niveau] : 'niveau à renseigner', pref.map(function (x) { return pnom[x]; }).filter(Boolean).join(', '), tr.passerelle ? 'passerelle vers ' + tr.passerelle : ''].filter(Boolean).join(' · ');
+    var resume = [tr.niveau ? NIVN[tr.niveau] : 'niveau à renseigner', pref.map(function (x) { return pnom[x]; }).filter(Boolean).join(', '), tr.passerelle ? (String(tr.passerelle).length > 1 ? 'passerelles vers ' : 'passerelle vers ') + String(tr.passerelle).split('').join(' et ') : ''].filter(Boolean).join(' · ');
     var head = '<div class="fhead">' + (tr.niveau ? '<span class="cniv big" style="--lc:' + NIVC[tr.niveau] + '">' + tr.niveau + '</span>' : '<span class="cniv none big">?</span>') +
       '<div class="grow"><h1 class="big sm" style="margin:0">' + esc(k.prenom) + (mine ? ' <span class="pill" style="--pc:var(--cyan);vertical-align:8px">Mon enfant</span>' : '') + '</h1><span class="small" style="color:var(--soft)">' + esc(resume) + (k.actif ? '' : ' · <b style="color:var(--orange)">désactivé</b>') + '</span></div></div>';
     var tabs = '<nav class="ftabs" aria-label="La fiche de ' + esc(k.prenom) + '">' + FTABS.map(function (t) {

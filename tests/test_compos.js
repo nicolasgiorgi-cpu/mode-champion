@@ -54,7 +54,8 @@ let lv = {}; p.equipes.forEach(t => t.joueurs.forEach(j => { lv[j.id] = t.niveau
 assert.strictEqual(lv.b1, 'A'); assert.strictEqual(lv.b2, 'A');
 assert.ok(/passerelle/.test(p.raisons.b1), p.raisons.b1);
 // b1 est déjà monté au dernier plateau, b2 jamais : avec une seule place, c'est le tour de b2
-H = { b1: { plateaux: 1, autre: 1, dernierAutre: '2026-10-10', avecCopain: 0, sansCopainSerie: 0, vus: {}, liste: [] } };
+// (v45) la rotation se lit par niveau dans la liste des passages (comme K.historique la remplit)
+H = { b1: { plateaux: 1, autre: 1, dernierAutre: '2026-10-10', avecCopain: 0, sansCopainSerie: 0, vus: {}, liste: [{ date: '2026-10-10', niveau: 'A', autre: true }] } };
 const ids3 = ids2.filter(x => x !== 'b12' && x !== 'b11');   // 7 A + 10 B, 1 équipe A et 2 équipes B : A a besoin d'environ 1 joueur de moins → personne ne monte
 p = K.proposer(ids2, F, H, { format: 5, nb: { A: 1, B: 1, C: 0 } });
 lv = {}; p.equipes.forEach(t => t.joueurs.forEach(j => { lv[j.id] = t.niveau; }));

@@ -112,7 +112,8 @@ var Core = (function () {
     // missions ponctuelles (ex. « Prépare le jeu à 10 ») : une ligne par joueur et par mission
     missions: [['id', 's'], ['joueurId', 's'], ['mission', 's'], ['reponses', 'j'], ['faite', 'b'], ['date', 's'], ['source', 's'], ['cree', 's'], ['maj', 's']],
     // ---- compos d'équipes (éducs seulement) ----
-    // fiche terrain d'un joueur (id = id du joueur) : niveau A/B/C, passerelle vers le niveau voisin, plaquage, postes compatibles
+    // fiche terrain d'un joueur (id = id du joueur) : niveau A/B/C, passerelles (v45 : une ou deux, vers n'importe quel autre niveau,
+    // les lettres dans l'ordre A, B, C : '', 'A', 'AC'…), plaquage, postes compatibles
     // (v44) le plaquage est noté de 0 à 3 dans la colonne plaquage3 ; l'ancienne colonne plaquage (0 à 5) n'est plus lue : tout le monde repart de 0 (décision de Nicolas, 04/11)
     terrain: [['id', 's'], ['niveau', 's'], ['passerelle', 's'], ['plaquage', 'n'], ['postesOk', 'j'], ['spondId', 's'], ['note', 's'], ['parQui', 's'], ['maj', 's'],
       // (v43) les postes préférés (★, un ou plusieurs, pris dans postesOk) ; vide = l'ancienne règle : le 1er de postesOk
@@ -1663,12 +1664,13 @@ var Core = (function () {
   function pubTerrain(t) {
     if (!t) return null;
     var ok = Array.isArray(t.postesOk) ? t.postesOk : [];
-    return { niveau: t.niveau || '', passerelle: t.passerelle || '', plaquage: Math.max(0, Math.min(3, Math.round(Number(t.plaquage3) || 0))), postesOk: ok,
+    return { niveau: t.niveau || '', passerelle: normPas(t.passerelle, t.niveau || ''), plaquage: Math.max(0, Math.min(3, Math.round(Number(t.plaquage3) || 0))), postesOk: ok,
       // (v43) null = pas encore réglé avec la v43 : le 1er poste de postesOk est le préféré (comme avant)
       postesPref: Array.isArray(t.postesPref) ? t.postesPref.filter(function (p) { return ok.indexOf(p) >= 0; }) : null,
       spondId: t.spondId && t.spondId !== '-' ? t.spondId : '', note: t.note || '', parQui: t.parQui || '', maj: t.maj || '' };
   }
-  function voisins(a, b) { return NIVS.indexOf(a) >= 0 && NIVS.indexOf(b) >= 0 && Math.abs(NIVS.indexOf(a) - NIVS.indexOf(b)) === 1; }
+  // (v45) les passerelles : les autres niveaux (un ou deux), dans l'ordre A, B, C ; aucune sans niveau
+  function normPas(s, niv) { var o = ''; if (!niv) return ''; NIVS.forEach(function (n) { if (n !== niv && String(s || '').indexOf(n) >= 0) o += n; }); return o; }
   function terrainRow(ctx, joueurId, patch) {
     var row = find(ctx.db.rows('terrain'), joueurId);
     if (row) ctx.db.update('terrain', joueurId, patch);
@@ -1690,9 +1692,13 @@ var Core = (function () {
         var cur = pubTerrain(find(ctx.db.rows('terrain'), j.id)) || { niveau: '', passerelle: '', plaquage: 0, postesOk: [], postesPref: null, spondId: '', note: '' };
         var patch = {};
         if (l.niveau !== undefined) patch.niveau = NIVS.indexOf(String(l.niveau)) >= 0 ? String(l.niveau) : '';
-        if (l.passerelle !== undefined) patch.passerelle = NIVS.indexOf(String(l.passerelle)) >= 0 ? String(l.passerelle) : '';
+        // (v45) le site envoie « passerelles » (une ou deux lettres) ; « passerelle » vient d'un site plus ancien resté ouvert : appliquée
+        // seulement si la fiche est encore lisible par lui (vide, ou une seule passerelle vers le niveau voisin), sinon il effacerait
+        // des passerelles qu'il ne voit pas
+        if (l.passerelles !== undefined) patch.passerelle = String(l.passerelles || '');
+        else if (l.passerelle !== undefined && (!cur.passerelle || (cur.passerelle.length === 1 && Math.abs(NIVS.indexOf(cur.passerelle) - NIVS.indexOf(cur.niveau)) === 1))) patch.passerelle = String(l.passerelle || '');
         var niv = patch.niveau !== undefined ? patch.niveau : cur.niveau, pas = patch.passerelle !== undefined ? patch.passerelle : cur.passerelle;
-        if (pas && !voisins(niv, pas)) patch.passerelle = '';                         // une passerelle va vers le niveau voisin
+        if (normPas(pas, niv) !== pas) patch.passerelle = normPas(pas, niv);           // (v45) vers un ou deux autres niveaux, jamais le sien
         // (v44) de 0 à 3 ; 4 ou 5 (un site pas encore à jour, l'ancienne échelle) → 3 ; le reste → 0
         if (l.plaquage !== undefined) { var p = Math.round(Number(l.plaquage)); patch.plaquage3 = p >= 0 && p <= 3 ? p : p === 4 || p === 5 ? 3 : 0; }
         if (l.postesOk !== undefined) {
