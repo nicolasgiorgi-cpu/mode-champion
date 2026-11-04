@@ -31,8 +31,8 @@ img{display:block;max-width:100%}
 :focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 
 /* ---------- fond et écran ---------- */
-/* fond uni : plus de halo coloré en haut de l'écran (il donnait un effet de flou derrière le haut des pages) */
-.bgfx{position:fixed;inset:0;z-index:-1;background:var(--bg)}
+/* fond uni : plus de halo coloré en haut de l'écran (il donnait un effet de flou derrière le haut des pages) ; plus de
+   calque de fond fixe (.bgfx) depuis la v42 : la page (#app) porte elle-même le fond, voir plus bas */
 .screen{max-width:560px;margin:0 auto;padding:calc(16px + var(--safe-t)) 16px calc(var(--nav-h) + 28px + var(--safe-b));display:flex;flex-direction:column;gap:20px}
 .screen.nonav{padding-bottom:calc(28px + var(--safe-b))}
 .kicker{font:600 11px/1.2 var(--f-hud);letter-spacing:.18em;color:var(--cyan);text-transform:uppercase}
@@ -370,12 +370,11 @@ label.lab{font:600 11px/1.2 var(--f-hud);letter-spacing:.14em;color:var(--dim);t
 .ptr.err .ptr-i{border-color:var(--yellow);color:var(--yellow)}
 .ptr.err .ptr-t{color:var(--yellow)}
 .ptr.ptr-back,#app.ptr-back{transition:transform .25s ease,opacity .25s ease}
-/* (03/11, v41) tablette : la page ne bouge plus quand on tire (sur iPad, elle apparaissait en double) ; le repère descend
-   seul, par-dessus le haut de l'écran, centré sur la page (--x posé par js/app.js) */
-.ptr.fixe{left:var(--x,50%);z-index:16;transform:translate(-50%,calc(var(--d,0px) * .8 - 28px));box-shadow:0 8px 24px rgba(0,0,0,.55)}
 /* (v33) rebond en fin de défilement : la page est décalée le temps du ressort (js/app.js), la barre du haut reste en place */
-/* (31/10) le rebond : la page sur sa propre couche juste avant (js/app.js, ebPrep) ; la barre du haut est retenue par js */
-#app.eb-prep{will-change:transform}
+/* (04/11, v42) la page en permanence sur sa propre couche graphique, et OPAQUE (le fond de l'appli), au moins de la hauteur
+   de l'écran : sur iPad (iPadOS 26), quand elle n'y passait que le temps d'un geste, l'ancienne image de la page restait
+   dans le fond de l'écran et se voyait à travers pendant les rebonds et le tirer pour actualiser (page « en double »). */
+#app{background:var(--bg);min-height:100vh;will-change:transform}
 @keyframes ptrspin{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.ptr.spin .ptr-i svg{animation-duration:2s}}
 .cbtn.tb-back.off{--cbc:#2A3350;--cbt:#4A5577;cursor:default;pointer-events:none}

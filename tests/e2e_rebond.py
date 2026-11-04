@@ -42,7 +42,7 @@ with sync_playwright() as p:
             check('en bas, on tire vers le haut : la page monte avec résistance', -150 <= d < -20, d)
             check('la barre du haut reste en place', abs(tb + d) < 1.5, (d, tb))
             # (31/10, plus fluide) la page est sur sa propre couche, sans variable CSS recalculée pour toute la page
-            check('pendant le rebond : la page sur sa couche (eb-prep, will-change)', pg.evaluate("document.getElementById('app').classList.contains('eb-prep') && getComputedStyle(document.getElementById('app')).willChange === 'transform'"))
+            check('pendant le rebond : la page sur sa couche (will-change, en permanence depuis la v42) et opaque', pg.evaluate("(() => { const cs = getComputedStyle(document.getElementById('app')); return cs.willChange === 'transform' && cs.backgroundColor === 'rgb(7, 10, 18)'; })()"))
             check('pendant le rebond : plus de variable --eb sur la page', pg.evaluate("document.getElementById('app').style.getPropertyValue('--eb')") == '')
             touch(cdp, 'touchEnd', W // 2, int(H * 0.3)); pg.wait_for_timeout(150)
             mid = ty(pg, '#app')
