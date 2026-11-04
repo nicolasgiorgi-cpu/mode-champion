@@ -116,7 +116,9 @@ var Core = (function () {
     missions: [['id', 's'], ['joueurId', 's'], ['mission', 's'], ['reponses', 'j'], ['faite', 'b'], ['date', 's'], ['source', 's'], ['cree', 's'], ['maj', 's']],
     // ---- compos d'équipes (éducs seulement) ----
     // fiche terrain d'un joueur (id = id du joueur) : niveau A/B/C, passerelle vers le niveau voisin, plaquage 0-5, postes compatibles
-    terrain: [['id', 's'], ['niveau', 's'], ['passerelle', 's'], ['plaquage', 'n'], ['postesOk', 'j'], ['spondId', 's'], ['note', 's'], ['parQui', 's'], ['maj', 's']],
+    terrain: [['id', 's'], ['niveau', 's'], ['passerelle', 's'], ['plaquage', 'n'], ['postesOk', 'j'], ['spondId', 's'], ['note', 's'], ['parQui', 's'], ['maj', 's'],
+      // (v43) les postes préférés (★, un ou plusieurs, pris dans postesOk) ; vide = l'ancienne règle : le 1er de postesOk
+      ['postesPref', 'j']],
     // événements (Spond ou ajoutés à la main) et leurs présents (ids des joueurs de l'appli)
     evenements: [['id', 's'], ['source', 's'], ['titre', 's'], ['sorte', 's'], ['debut', 's'], ['fin', 's'], ['lieu', 's'], ['presents', 'j'], ['absents', 'j'],
       ['sansReponse', 'j'], ['ajouts', 'j'], ['retraits', 'j'], ['inconnus', 'j'], ['annule', 'b'], ['parQui', 's'], ['maj', 's'],
@@ -1662,14 +1664,18 @@ var Core = (function () {
   var POSTES_ID = MISSIONS.jeu10.postes;
   function pubTerrain(t) {
     if (!t) return null;
-    return { niveau: t.niveau || '', passerelle: t.passerelle || '', plaquage: Number(t.plaquage) || 0, postesOk: Array.isArray(t.postesOk) ? t.postesOk : [], spondId: t.spondId && t.spondId !== '-' ? t.spondId : '', note: t.note || '', parQui: t.parQui || '', maj: t.maj || '' };
+    var ok = Array.isArray(t.postesOk) ? t.postesOk : [];
+    return { niveau: t.niveau || '', passerelle: t.passerelle || '', plaquage: Number(t.plaquage) || 0, postesOk: ok,
+      // (v43) null = pas encore réglé avec la v43 : le 1er poste de postesOk est le préféré (comme avant)
+      postesPref: Array.isArray(t.postesPref) ? t.postesPref.filter(function (p) { return ok.indexOf(p) >= 0; }) : null,
+      spondId: t.spondId && t.spondId !== '-' ? t.spondId : '', note: t.note || '', parQui: t.parQui || '', maj: t.maj || '' };
   }
   function voisins(a, b) { return NIVS.indexOf(a) >= 0 && NIVS.indexOf(b) >= 0 && Math.abs(NIVS.indexOf(a) - NIVS.indexOf(b)) === 1; }
   function terrainRow(ctx, joueurId, patch) {
     var row = find(ctx.db.rows('terrain'), joueurId);
     if (row) ctx.db.update('terrain', joueurId, patch);
     else {
-      var o = { id: joueurId, niveau: '', passerelle: '', plaquage: 0, postesOk: [], spondId: '', note: '', parQui: '', maj: '' };
+      var o = { id: joueurId, niveau: '', passerelle: '', plaquage: 0, postesOk: [], spondId: '', note: '', parQui: '', maj: '', postesPref: null };
       for (var k in patch) o[k] = patch[k];
       ctx.db.insert('terrain', o);
     }
@@ -1683,7 +1689,7 @@ var Core = (function () {
         if (!l || typeof l !== 'object') return;
         var j = find(joueurs, String(l.joueurId || ''));
         if (!j) return;
-        var cur = pubTerrain(find(ctx.db.rows('terrain'), j.id)) || { niveau: '', passerelle: '', plaquage: 0, postesOk: [], spondId: '', note: '' };
+        var cur = pubTerrain(find(ctx.db.rows('terrain'), j.id)) || { niveau: '', passerelle: '', plaquage: 0, postesOk: [], postesPref: null, spondId: '', note: '' };
         var patch = {};
         if (l.niveau !== undefined) patch.niveau = NIVS.indexOf(String(l.niveau)) >= 0 ? String(l.niveau) : '';
         if (l.passerelle !== undefined) patch.passerelle = NIVS.indexOf(String(l.passerelle)) >= 0 ? String(l.passerelle) : '';
@@ -1694,6 +1700,16 @@ var Core = (function () {
           if (!Array.isArray(l.postesOk)) fail('invalide', 'Postes invalides.');
           var ps = []; l.postesOk.forEach(function (x) { x = String(x); if (POSTES_ID.indexOf(x) >= 0 && ps.indexOf(x) < 0) ps.push(x); });
           patch.postesOk = ps;
+        }
+        // (v43) les postes préférés : un ou plusieurs, toujours parmi ses postes ; un poste retiré n'est plus préféré
+        var okF = patch.postesOk !== undefined ? patch.postesOk : cur.postesOk;
+        if (l.postesPref !== undefined) {
+          if (l.postesPref !== null && !Array.isArray(l.postesPref)) fail('invalide', 'Postes préférés invalides.');
+          var pf = [];
+          (l.postesPref || []).forEach(function (x) { x = String(x); if (okF.indexOf(x) >= 0 && pf.indexOf(x) < 0) pf.push(x); });
+          patch.postesPref = pf;
+        } else if (patch.postesOk !== undefined && Array.isArray(cur.postesPref)) {
+          patch.postesPref = cur.postesPref.filter(function (x) { return okF.indexOf(x) >= 0; });
         }
         if (l.note !== undefined) patch.note = cleanText(l.note, 200);
         // le lien Spond, seulement s'il change (l'écran renvoie le lien à chaque enregistrement de la fiche)

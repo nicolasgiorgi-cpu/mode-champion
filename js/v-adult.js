@@ -402,7 +402,6 @@
   // ======================================================================
   // ÉDUC : 5 onglets (Vestiaire · Joueurs · Compos · Classement · Outils) ; Compos : voir v-compos.js
   // ======================================================================
-  var edFilter = 'all', edQ = '';
   MC.loadGroup = function (force) { return loadGroup(force); };
   function loadGroup(force) {
     if (app.S.cache.group && !force) return Promise.resolve(app.S.cache.group);
@@ -425,12 +424,6 @@
   // Progrès : Prépa physique · Skills · Missions
   function progresTabs(on) { return ui.subtabs('e:progres', [['prepa', '#/educ/progres', 'Prépa physique'], ['skills', '#/educ/skills', 'Skills'], ['missions', '#/educ/missions', 'Missions']], on, '#3DFFB0', 'Progrès'); }
   MC.progresTabs = progresTabs;
-  // Enfants : Tous · À relancer · Niveaux et postes
-  function enfantsTabs(on, g) {
-    var G = g ? groupStats(g) : null;
-    return ui.subtabs('e:enfants', [['all', '#/educ/joueurs', 'Tous' + (G ? ' · ' + G.players.length : '')], ['late', '#/educ/joueurs?filtre=late', 'À relancer' + (G ? ' · ' + G.late.length : '')], ['terrain', '#/educ/terrain', 'Niveaux et postes']], on, '#C9AEFF', 'Enfants');
-  }
-  MC.enfantsTabs = enfantsTabs;
   function mesEnfants(g) { return (g.moi.enfants || []).map(function (id) { return g.joueurs.filter(function (p) { return p.joueur.id === id; })[0]; }).filter(Boolean); }
   MC.mesEnfants = mesEnfants;
   function groupStats(g) {
@@ -495,62 +488,39 @@
       (MC.api.DEMO ? '<p class="small" style="margin:0;color:var(--yellow)">Mode démo : joueurs fictifs.</p>' : '') +
       '<div class="grid3"><div class="tile"><span class="v">' + G.sessionsWeek + '</span><span class="l" style="text-transform:none;font-family:var(--f-body);letter-spacing:0;font-size:12px">séances cette semaine</span></div>' +
       '<div class="tile"><span class="v" style="color:var(--green)">' + G.active + '<small style="font-size:13px;color:var(--dim)"> / ' + G.players.length + '</small></span><span class="l" style="text-transform:none;font-family:var(--f-body);letter-spacing:0;font-size:12px">actifs sur 7 jours</span></div>' +
-      '<a class="tile" href="#/educ/joueurs?filtre=late" style="text-decoration:none;border-color:rgba(255,138,61,.5);background:rgba(255,138,61,.08)"><span class="v" style="color:var(--orange)">' + G.late.length + '</span><span class="l" style="text-transform:none;font-family:var(--f-body);letter-spacing:0;font-size:12px;color:var(--soft)">à relancer ›</span></a></div>' +
+      '<button type="button" class="tile" data-act="relancerOuvrir" style="border-color:rgba(255,138,61,.5);background:rgba(255,138,61,.08);color:inherit;text-align:left;font:inherit"><span class="v" style="color:var(--orange)">' + G.late.length + '</span><span class="l" style="text-transform:none;font-family:var(--f-body);letter-spacing:0;font-size:12px;color:var(--soft)">à relancer ' + icon('down', 11) + '</span></button></div>' +
       '<div class="cols2"><section class="sec">' + aConfirmer(g, pending, pend) + '</section>' +
       '<section class="sec"><div class="between"><h2 class="h2">Ça bouge</h2><a class="lnk" href="#/educ/joueurs">Les enfants</a></div>' + (feed || '<div class="empty">Pas encore de séance notée.</div>') + '</section></div>' +
+      relancer(G) +
       '<div class="grid2"><a class="li" href="#/educ/classement">' + icon('podium', 20, 'style="color:var(--pink);flex:none"') + '<span class="grow"><span class="t1">Le classement</span><span class="t2">L\'arène, par ligue</span></span>' + icon('right', 16) + '</a>' +
       '<a class="li" href="#/educ/progres/bilans">' + icon('up', 20, 'style="color:var(--green);flex:none"') + '<span class="grow"><span class="t1">Progrès aux bilans</span><span class="t2">Test par test</span></span>' + icon('right', 16) + '</a></div>' +
       '</main>';
   }
 
-  // ----- Joueurs -----
-  app.route('/educ/joueurs', function (p, q) {
-    edFilter = q.filtre === 'late' ? 'late' : 'all';
-    return loadGroup().then(function (g) { app.refreshNav(); return paintJoueurs(g); });
-  }, { adult: 'e', nav: 'e:enfants', bg: '#2A1640' });
-  function paintJoueurs(g) {
-    var G = groupStats(g), t = G.today;
-    var list = edFilter === 'late' ? G.late : G.players;
-    var q = edQ.toLowerCase();
-    list = list.filter(function (p) { return !q || p.joueur.prenom.toLowerCase().indexOf(q) >= 0; }).sort(function (a, b) { return a.joueur.prenom.localeCompare(b.joueur.prenom, 'fr'); });
-    var mine = g.moi.enfants || [], NIVC = { A: '#FFC23D', B: '#38E8FF', C: '#3DFFB0' };
-    var pnom = { pilier: 'Pilier', talonneur: 'Talonneur', 'troisieme-ligne': '3e ligne', 'demi-de-melee': 'Demi de mêlée', ouvreur: 'Ouvreur', centre: 'Centre', ailier: 'Ailier' };
-    // mes enfants d'abord
-    list.sort(function (a, b) { var am = mine.indexOf(a.joueur.id) >= 0, bm = mine.indexOf(b.joueur.id) >= 0; return am === bm ? 0 : am ? -1 : 1; });
-    var rows = list.map(function (p) {
-      var lastTxt = p._last ? (p._last > G.weekAgo ? 'Dernière séance : ' + ui.fmtDate(p._last) : 'Rien depuis ' + L.daysBetween(p._last, t) + ' jours') : (p.joueur.aUnCode ? 'Pas encore de séance' : 'Pas encore connecté');
-      var att = p.records.filter(function (r) { return r.statut === 'attente'; }).length;
-      var tr = p.terrain || {}, po = tr.postesOk && tr.postesOk[0] ? pnom[tr.postesOk[0]] : '';
-      var mp = MC.SK ? MC.SK.missionPerso({ defmissions: (g.defmissions || []).filter(function (m) { return m.joueurId === p.joueur.id; }) }) : null;
-      if (mp && mp.fin && mp.fin < t) mp = null;   // mission terminée par la date : plus « en cours »
-      var n1 = mp ? (p.encouragements || []).filter(function (x) { return x.missionId === mp.id; }).length : 0;
-      var info = [po, tr.passerelle ? 'passerelle vers ' + tr.passerelle : '', mp ? '★ ' + MC.SK.titreMission(mp) + (n1 ? ' · ' + n1 + ' encouragement' + (n1 > 1 ? 's' : '') : '') : ''].filter(Boolean).join(' · ');
-      var isMine = mine.indexOf(p.joueur.id) >= 0;
-      return '<li><a class="li" href="#/educ/joueur/' + esc(p.joueur.id) + '">' + (tr.niveau ? '<span class="cniv" style="--lc:' + NIVC[tr.niveau] + '" title="Niveau ' + tr.niveau + '">' + tr.niveau + '</span>' : '<span class="cniv none" title="Niveau à renseigner">?</span>') +
-        '<span class="grow"><span class="t1">' + esc(p.joueur.prenom.toUpperCase()) + (isMine ? ' <span class="pill" style="--pc:var(--cyan)">Mon enfant</span>' : '') + (att && isMine ? ' <span class="nbi">' + att + '</span>' : '') + '</span>' +
-        (info ? '<span class="t2">' + esc(info) + '</span>' : '') +
-        '<span class="t2" style="color:' + (p._last && p._last > G.weekAgo ? 'var(--dim)' : 'var(--orange)') + '">' + esc(lastTxt) + '</span></span>' + icon('right', 16) + '</a></li>';
-    }).join('');
-    return '<main class="screen">' + educBar(g, 'Enfants · ' + G.players.length) + enfantsTabs(edFilter, g) +
-      '<label class="sr-only" for="edq">Chercher un prénom</label><input id="edq" class="search" type="search" placeholder="Chercher un prénom…" value="' + esc(edQ) + '">' +
-      (edFilter === 'late' ? '<p class="small" style="margin:0">Aucune séance notée depuis 7 jours, ou jamais connecté. Un petit mot à l\'entraînement suffit souvent !</p>' : '') +
-      '<ul class="list" id="edlist">' + (rows || '<li class="empty">Personne.</li>') + '</ul>' +
-      '<a class="btn2" href="#/educ/ajouter">' + icon('plus', 16) + ' Ajouter des enfants (depuis Spond)</a></main>';
+  // (v43) « À relancer » : rien noté depuis 7 jours, ou jamais connecté ; replié, dans Progrès › Prépa physique
+  var relOuvert = false;
+  function relancer(G) {
+    if (!G.late.length) return '';
+    var l = G.late.slice().sort(function (a, b) { return (a._last || '') < (b._last || '') ? -1 : (a._last || '') > (b._last || '') ? 1 : a.joueur.prenom.localeCompare(b.joueur.prenom, 'fr'); });
+    return '<details class="rpost relancer" id="relancer"' + (relOuvert ? ' open' : '') + '><summary class="rpost-s">' + icon('clock', 18, 'style="color:var(--orange);flex:none"') +
+      '<span class="grow"><b>À relancer · ' + G.late.length + '</b><small>Rien noté depuis 7 jours, ou jamais connecté : un petit mot à l\'entraînement suffit souvent</small></span>' + icon('down', 16, 'class="rpost-i"') + '</summary>' +
+      '<ul class="rel-l">' + l.map(function (p) {
+        var t = p._last ? 'rien depuis ' + L.daysBetween(p._last, G.today) + ' j' : (p.joueur.aUnCode ? 'pas encore de séance' : 'pas encore connecté');
+        return '<li><a href="#/educ/joueur/' + esc(p.joueur.id) + '?t=prepa"><span class="grow">' + esc(p.joueur.prenom) + '</span><small>' + esc(t) + '</small>' + icon('right', 14) + '</a></li>';
+      }).join('') + '</ul></details>';
   }
-  MC.act.edFilter = function (b) { app.go(b.getAttribute('data-v') === 'late' ? '#/educ/joueurs?filtre=late' : '#/educ/joueurs'); };
-  var edTimer = null;
-  document.addEventListener('input', function (e) {
-    if (e.target && e.target.id === 'edq') {
-      edQ = e.target.value;
-      clearTimeout(edTimer);
-      edTimer = setTimeout(function () {
-        var html = paintJoueurs(app.S.cache.group);
-        var tmp = document.createElement('div'); tmp.innerHTML = html;
-        var nl = tmp.querySelector('#edlist'), ol = document.getElementById('edlist');
-        if (nl && ol) ol.innerHTML = nl.innerHTML;
-      }, 150);
-    }
-  });
+  MC.act.relancerOuvrir = function () {
+    relOuvert = true;
+    var d = document.getElementById('relancer');
+    if (d) { d.open = true; d.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+  };
+  document.addEventListener('toggle', function (e) { if (e.target && e.target.id === 'relancer') relOuvert = e.target.open; }, true);
+
+  // ----- Enfants (v43) : directement la fiche terrain du groupe (niveaux, passerelles, plaquage, postes : js/v-compos.js) -----
+  app.route('/educ/joueurs', function (p, q) {
+    if (q.filtre === 'late') { relOuvert = true; app.go('#/educ/progres', true); return null; }   // ancienne adresse : « À relancer » est dans Progrès
+    return loadGroup().then(function (g) { app.refreshNav(); return MC.paintEnfants(g); });
+  }, { adult: 'e', nav: 'e:enfants', bg: '#2A1640' });
 
   // ----- L'engrenage : réglages et gestion (mon enfant, les éducs, les familles et leurs codes, Spond, cet appareil, l'aide) -----
   app.route('/educ/outils', function () { app.go('#/educ/reglages', true); return null; }, { adult: 'e', nav: 'e:gear' });
@@ -720,7 +690,8 @@
     return o;
   }
   MC.dossierGroupe = dossierGroupe;
-  var FTABS = [['terrain', 'Terrain'], ['skills', 'Skills'], ['missions', 'Missions'], ['prepa', 'Prépa'], ['hist', 'Historique'], ['famille', 'Famille']];
+  // (v43) le dernier onglet s'appelle « Réglages » (famille, son compte, et en bas le lien Spond) ; la clé reste « famille »
+  var FTABS = [['terrain', 'Terrain'], ['skills', 'Skills'], ['missions', 'Missions'], ['prepa', 'Prépa'], ['hist', 'Historique'], ['famille', 'Réglages']];
   function paintKid(d0, g, tab) {
     var d = dossierGroupe(g, d0), k = d.joueur;
     if (!FTABS.some(function (t) { return t[0] === tab; })) tab = 'terrain';
@@ -729,7 +700,9 @@
     var gp = g.joueurs.filter(function (x) { return x.joueur.id === k.id; })[0] || {}, tr = gp.terrain || {};
     var NIVN = { A: 'Confirmé', B: 'Débrouillé', C: 'Débutant' }, NIVC = { A: '#FFC23D', B: '#38E8FF', C: '#3DFFB0' };
     var pnom = { pilier: 'pilier', talonneur: 'talonneur', 'troisieme-ligne': '3e ligne', 'demi-de-melee': 'demi de mêlée', ouvreur: 'ouvreur', centre: 'centre', ailier: 'ailier' };
-    var resume = [tr.niveau ? NIVN[tr.niveau] : 'niveau à renseigner', tr.postesOk && tr.postesOk[0] ? pnom[tr.postesOk[0]] : '', tr.passerelle ? 'passerelle vers ' + tr.passerelle : ''].filter(Boolean).join(' · ');
+    // (v43) ses postes préférés ★ (un ou plusieurs ; avant la v43 : le 1er de ses postes)
+    var pref = Array.isArray(tr.postesPref) && tr.postesPref.length ? tr.postesPref : (tr.postesOk || []).slice(0, 1);
+    var resume = [tr.niveau ? NIVN[tr.niveau] : 'niveau à renseigner', pref.map(function (x) { return pnom[x]; }).filter(Boolean).join(', '), tr.passerelle ? 'passerelle vers ' + tr.passerelle : ''].filter(Boolean).join(' · ');
     var head = '<div class="fhead">' + (tr.niveau ? '<span class="cniv big" style="--lc:' + NIVC[tr.niveau] + '">' + tr.niveau + '</span>' : '<span class="cniv none big">?</span>') +
       '<div class="grow"><h1 class="big sm" style="margin:0">' + esc(k.prenom) + (mine ? ' <span class="pill" style="--pc:var(--cyan);vertical-align:8px">Mon enfant</span>' : '') + '</h1><span class="small" style="color:var(--soft)">' + esc(resume) + (k.actif ? '' : ' · <b style="color:var(--orange)">désactivé</b>') + '</span></div></div>';
     var tabs = '<nav class="ftabs" aria-label="La fiche de ' + esc(k.prenom) + '">' + FTABS.map(function (t) {
@@ -757,7 +730,8 @@
         '<section class="sec"><h2 class="h2">Son compte</h2>' +
         '<button type="button" class="switch" data-act="kidCode" data-id="' + esc(k.id) + '" data-p="' + esc(k.prenom) + '"><span><span class="t1" style="display:block">' + (k.aUnCode ? 'Nouveau code provisoire' : 'Code provisoire (1re connexion)') + '</span><span class="t2" style="display:block">Pour un code oublié ou une 1re connexion</span></span>' + icon('right', 18) + '</button>' +
         '<button type="button" class="switch" role="switch" aria-checked="' + !!k.visible + '" data-act="kidVisible" data-id="' + esc(k.id) + '"><span><span class="t1" style="display:block">Visible au classement</span><span class="t2" style="display:block">Les parents peuvent aussi le régler</span></span><span class="k"></span></button>' +
-        '<button type="button" class="btn2 ' + (k.actif ? 'grey' : '') + '" data-act="kidActive" data-id="' + esc(k.id) + '" data-on="' + (k.actif ? 0 : 1) + '">' + (k.actif ? 'Désactiver (a quitté le groupe)' : 'Réactiver') + '</button></section>';
+        '<button type="button" class="btn2 ' + (k.actif ? 'grey' : '') + '" data-act="kidActive" data-id="' + esc(k.id) + '" data-on="' + (k.actif ? 0 : 1) + '">' + (k.actif ? 'Désactiver (a quitté le groupe)' : 'Réactiver') + '</button></section>' +
+        (MC.spondKid ? MC.spondKid(g, k.id) : '');
     }
     return '<main class="screen">' + educBar(g, (mine ? 'Mon enfant · ' : '') + k.prenom, '#/educ/joueurs', 'Enfants') + head + tabs + body + '</main>';
   }

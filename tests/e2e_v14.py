@@ -126,7 +126,7 @@ with sync_playwright() as p:
     for h,nm in [('#/educ/joueurs','e05-joueurs'),('#/educ/classement','e06-classement'),('#/educ/reglages','e07-reglages'),('#/educ/progres','e08-progres'),('#/educ/progres/bilans','e08b-bilans'),('#/educ/familles','e09-familles')]:
         pg.goto(BASE+h); pg.wait_for_timeout(700); shot(pg,nm)
         check('éduc '+h, pg.query_selector('.topbar') is not None)
-    pg.goto(BASE+'#/educ/joueurs'); pg.wait_for_timeout(500); pg.click('#edlist a >> nth=0'); pg.wait_for_timeout(900); shot(pg,'e10-fiche')
+    pg.goto(BASE+'#/educ/joueurs'); pg.wait_for_timeout(500); pg.click('#tlist a.tnm >> nth=0'); pg.wait_for_timeout(900); shot(pg,'e10-fiche')
     check('fiche : Retour vers Les joueurs + onglet Joueurs', pg.get_attribute('.topbar [data-back]','href')=='#/educ/joueurs' and pg.query_selector('#nav a.on[href="#/educ/joueurs"]') is not None)
     pg.goto(BASE+'#/guide?pour=educ&de=educ%2Foutils'); pg.wait_for_timeout(500)
     check('guide : Retour vers l\'écran d\'avant', pg.get_attribute('.topbar [data-back]','href')=='#/educ/outils')

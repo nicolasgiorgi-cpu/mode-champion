@@ -157,7 +157,9 @@ MC.demo = (function () {
       ['Zoé', 'B', '', 3], ['Hugo', 'B', '', 2], ['Lucas', 'B', '', 2],
       ['Lou', 'C', 'B', 1], ['Jade', 'C', '', 1], ['Maël', 'C', '', 0], ['Raphaël', 'C', '', 1], ['Malo', 'C', 'B', 2], ['Elio', 'C', '', 0], ['Mila', 'C', '', 1]
     ].forEach(function (t) {
-      db.insert('terrain', { id: ids[t[0]], niveau: t[1], passerelle: t[2], plaquage: t[3], postesOk: POSTES[t[0]] || [], spondId: '', note: '', parQui: 'Coach Nico', maj: nowIso });
+      // (v43) quelques enfants ont plusieurs postes préférés ★ ; les autres : pas encore réglé (le 1er poste)
+      var PREF = { Tom: ['centre', 'ailier'], Enzo: ['pilier', 'talonneur'], Nina: ['demi-de-melee', 'ouvreur'] };
+      db.insert('terrain', { id: ids[t[0]], niveau: t[1], passerelle: t[2], plaquage: t[3], postesOk: POSTES[t[0]] || [], spondId: '', note: '', parQui: 'Coach Nico', maj: nowIso, postesPref: PREF[t[0]] || null });
     });
     // copains et postes du reste du groupe (mission « jeu à 10 » faite)
     [['Arthur', ['ailier', 'centre'], ['Gabin', 'Louise']], ['Gabin', ['pilier'], ['Arthur']], ['Jules', ['demi-de-melee'], ['Adam', 'Noah']], ['Adam', ['talonneur', 'pilier'], ['Jules']],

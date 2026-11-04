@@ -101,11 +101,15 @@ window.MC = window.MC || {};
     if (!n) return '<span class="cniv none"' + (small ? ' style="--s:20px"' : '') + ' title="Niveau à renseigner">?</span>';
     return '<span class="cniv" style="--lc:' + K.COUL_NIV[n] + (small ? ';--s:20px' : '') + '" title="' + K.NOM_NIV[n] + '">' + n + '</span>';
   }
-  function starsMini(n) {
-    var s = '';
-    for (var i = 1; i <= 5; i++) s += '<i class="' + (i <= n ? 'on' : '') + '"></i>';
-    return '<span class="cstars" aria-label="Plaquage : ' + n + ' étoile' + (n > 1 ? 's' : '') + ' sur 5">' + s + '</span>';
+  // (v43) le plaquage : un bouclier (la forme de l'icône de la carte Skills « Plaquage ») avec le niveau, de 0 à 5, dedans
+  // (avant : 5 étoiles). big : la fiche d'un enfant.
+  function bouclier(n, big) {
+    n = Math.max(0, Math.min(5, Math.round(Number(n) || 0)));
+    return '<span class="pshield' + (n ? '' : ' zero') + (big ? ' big' : '') + '" role="img" aria-label="Plaquage : ' + n + ' sur 5" title="Plaquage : ' + n + ' sur 5">' +
+      '<svg viewBox="14 4 72 88" aria-hidden="true"><path class="ps-a" d="M50 8 82 21V48Q80 71 50 87Q20 71 18 48V21Z"/><path class="ps-b" d="M50 8 82 21V48Q80 71 50 87Z"/><path class="ps-c" d="M50 8 82 21V48Q80 71 50 87Q20 71 18 48V21Z"/></svg><b>' + n + '</b></span>';
   }
+  MC.bouclier = bouclier;
+  function starsMini(n) { return bouclier(n); }
   function virg(x) { return String(x).replace('.', ','); }
   // jour (local) d'un horodatage ISO
   function localDay(iso) {
@@ -233,7 +237,7 @@ window.MC = window.MC || {};
       '<div class="head"><span class="kicker" style="color:var(--gold)">Plateaux et entraînements</span><h1 class="big md">Les compos</h1>' + spond + '</div>' +
       (pend.length ? '<a class="li calert-top" href="#/educ/avis/' + esc(pend[0].id) + '">' + icon('swap', 20, 'style="color:var(--pink);flex:none"') + '<span class="grow"><span class="t1">' + pend.length + ' contre-proposition' + (pend.length > 1 ? 's' : '') + ' en attente</span><span class="t2">De ' + esc(pend.map(function (a) { return a.auteurNom; }).join(', ')) + '</span></span>' + icon('right', 16) + '</a>' : '') +
       avoter.map(function (c) { var e = C.evts[c.evenementId]; return '<a class="li calert-top vote" href="' + lienCompo(esc(c.evenementId), c.partie) + '">' + icon('podium', 20, 'style="color:var(--violet);flex:none"') + '<span class="grow"><span class="t1">À voter : ' + esc(e ? e.titre : 'un plateau') + (c.partie ? ' · ' + (c.partie === 'ateliers' ? 'ateliers' : 'matchs') : '') + '</span><span class="t2">' + esc(c.auteurNom) + ' propose 2 versions</span></span>' + icon('right', 16) + '</a>'; }).join('') +
-      '<a class="li cterr" href="#/educ/terrain">' + icon('shield', 22, 'style="color:var(--cyan);flex:none"') + '<span class="grow"><span class="t1">Fiche terrain du groupe</span><span class="t2">Niveaux, passerelles, plaquage</span>' +
+      '<a class="li cterr" href="#/educ/joueurs">' + icon('shield', 22, 'style="color:var(--cyan);flex:none"') + '<span class="grow"><span class="t1">Fiche terrain du groupe</span><span class="t2">Niveaux, passerelles, plaquage</span>' +
       '<span class="row" style="gap:6px;margin-top:6px">' + ['A', 'B', 'C'].map(function (n) { return niveauTag(n, true) + '<b class="cnum">' + cnt[n] + '</b>'; }).join('') +
       (cnt[''] ? '<span class="cmeta" style="color:var(--orange)">' + cnt[''] + ' sans niveau</span>' : '') + '</span></span>' + icon('right', 16) + '</a>' +
       '<div class="cols2"><section class="sec"><div class="between"><h2 class="h2">À venir</h2><a class="lnk" href="#/educ/evt-nouveau">' + icon('plus', 14) + ' Ajouter</a></div>' +
@@ -652,7 +656,7 @@ window.MC = window.MC || {};
       }).join('') + '</div><p class="small" style="margin:0">' + (reg.format === 10 ? 'Jeu à 10 : chaque joueur a son poste du plateau, par défaut celui de sa fiche (mêlée 3 + 2, demi de mêlée, ouvreur, 1 centre, 2 ailiers).' : 'Jeu à 5 : pas de postes dans la compo ; l\'appli range quand même chaque équipe en avants et arrières, d\'après le poste principal de leur fiche.') + '</p></section>' +
       '<section class="sec"><h2 class="h2">Équipes par niveau</h2>' + stepperHtml('A', reg, cnt, sug, 'data-act="cNb" data-n') + stepperHtml('B', reg, cnt, sug, 'data-act="cNb" data-n') + stepperHtml('C', reg, cnt, sug, 'data-act="cNb" data-n') +
       '<p class="small" style="margin:0">' + tot + ' équipe' + (tot > 1 ? 's' : '') + (tot ? ', environ ' + virg(per) + ' joueurs par équipe' : '') + '. Un niveau sans équipe joue dans le niveau voisin.</p>' +
-      (noLv.length ? '<p class="small" style="margin:0;color:var(--orange)">Sans niveau (placés en B en attendant) : ' + noLv.map(function (id) { return esc(nom(C, id)); }).join(', ') + '. <a href="#/educ/terrain">Fiche terrain</a></p>' : '') + '</section>' +
+      (noLv.length ? '<p class="small" style="margin:0;color:var(--orange)">Sans niveau (placés en B en attendant) : ' + noLv.map(function (id) { return esc(nom(C, id)); }).join(', ') + '. <a href="#/educ/joueurs">Fiche terrain</a></p>' : '') + '</section>' +
       graphePresents(C, ids, 'plateau') +
       '<section class="sec"><h2 class="h2">La proposition</h2>' + stylesHtml(reg.style, 'data-act="cStyle" data-v') + '</section>' +
       '<div class="sec"><button type="button" class="btn" data-act="cPropose"' + (tot ? '' : ' disabled') + '>' + icon('spark', 18) + ' Proposer une compo</button>' +
@@ -1181,6 +1185,9 @@ window.MC = window.MC || {};
     R.postes.forEach(function (p) { max = Math.max(max, p.princ.length + p.autres.length); });
     var bars = R.postes.map(function (p) {
       var a = p.princ.length, b = p.autres.length, col = coulPoste(p.id);
+      if (o.simple) return '<div class="pbar"><span style="color:' + col + ';font-weight:600">' + NOMP[p.id] + '</span>' +
+        '<span class="tr"><i style="width:' + (a / max * 100) + '%;background:' + col + '"></i><i style="width:' + (b / max * 100) + '%;background:' + pale(col) + '"></i></span>' +
+        '<span class="n" style="color:' + col + '">' + a + (b ? '+' + b : '') + '</span></div>';
       return '<details class="pbarw"><summary class="pbar"><span style="color:' + col + ';font-weight:600">' + NOMP[p.id] + '</span>' +
         '<span class="tr"><i style="width:' + (a / max * 100) + '%;background:' + col + '"></i><i style="width:' + (b / max * 100) + '%;background:' + pale(col) + '"></i></span>' +
         '<span class="n" style="color:' + col + '">' + a + (b ? '+' + b : '') + '</span></summary>' +
@@ -1189,7 +1196,7 @@ window.MC = window.MC || {};
     var sans = R.sans.length ? '<p class="small" style="margin:0;color:var(--orange)">Pas encore de poste réglé (' + R.sans.length + ') : ' + noms(R.sans) + '. Les postes se règlent sur la fiche de chaque joueur.</p>' : '';
     return '<details class="rpost" data-rp="' + o.cle + '"' + (RP.ouvert[o.cle] ? ' open' : '') + '><summary class="rpost-s">' + icon('kids', 18, 'style="color:var(--cyan);flex:none"') +
       '<span class="grow"><b>Répartition des postes</b><small>' + esc(o.resume) + '</small></span>' + icon('down', 16, 'class="rpost-i"') + '</summary>' +
-      '<div class="rpost-c">' + (o.filtre || '') + (ids.length ? '<div class="pbars">' + bars + '</div><p class="small" style="margin:0">Barre pleine = poste principal · pâle = peut aussi jouer. Touchez un poste pour voir les prénoms.</p>' + sans : '<p class="small" style="margin:0">Personne.</p>') + '</div></details>';
+      '<div class="rpost-c">' + (o.filtre || '') + (ids.length ? '<div class="pbars' + (o.simple ? ' serre' : '') + '">' + bars + '</div>' + (o.simple ? '' : '<p class="small" style="margin:0">Barre pleine = poste principal · pâle = peut aussi jouer. Touchez un poste pour voir les prénoms.</p>' + sans) : '<p class="small" style="margin:0">Personne.</p>') + '</div></details>';
   }
   // les présents d'un plateau ou d'un match, avec Tous / A / B / C
   function graphePresents(C, ids, cle) {
@@ -1613,80 +1620,118 @@ window.MC = window.MC || {};
   // ======================================================================
   // Fiche terrain du groupe : niveaux, passerelles, plaquage (réglés par les éducs)
   // ======================================================================
-  var T = { chg: {}, filtre: 'all', q: '' };
-  app.route('/educ/terrain', function () {
-    return MC.loadGroup().then(function (g) { return paintTerrain(g); });
-  }, { adult: 'e', nav: 'e:enfants', bg: BG });
-  function tVal(F, id, k) { var c = T.chg[id]; return c && c[k] !== undefined ? c[k] : (F[id] || {})[k]; }
-  function tSet(id, k, v, F) {
-    var c = T.chg[id] || (T.chg[id] = {});
-    c[k] = v;
-    if (k === 'niveau') { var p = tVal(F, id, 'passerelle'); if (p && (!v || Math.abs(K.NIV.indexOf(p) - K.NIV.indexOf(v)) !== 1)) c.passerelle = ''; }
-    // rien de changé au final : on retire
-    var f = F[id] || {};
-    Object.keys(c).forEach(function (x) { if (c[x] === f[x]) delete c[x]; });
-    if (!Object.keys(c).length) delete T.chg[id];
+  // ======================================================================
+  // (v43) Onglet Enfants = la fiche terrain du groupe : niveau, passerelle, plaquage, postes.
+  // Plus d'onglets en haut (Tous / À relancer / Niveaux et postes) : « À relancer » est dans Progrès › Prépa physique.
+  // Toucher un niveau ou une passerelle enregistre tout de suite (plus de bouton Enregistrer). Filtres : niveau, puis poste ;
+  // avec un poste, ceux qui l'ont en préféré ★ d'abord, puis ceux qui peuvent aussi le jouer.
+  // ======================================================================
+  var T = { filtre: 'all', poste: '', q: '', vus: {} };   // vus : enfants modifiés ici (ils restent dans la liste filtrée)
+  app.route('/educ/terrain', function () { app.go('#/educ/joueurs', true); return null; }, { adult: 'e', nav: 'e:enfants', bg: BG });
+  MC.paintEnfants = function (g) { return paintTerrain(g); };
+  // les pastilles des postes : les préférés ★ (pleins) puis les autres (contour)
+  function pillsPostes(f) {
+    var ps = K.postesDe(f), pf = K.prefDe(f);
+    if (!ps.length) return '<span class="tpp none">pas de poste</span>';
+    return ps.map(function (p) {
+      var pr = pf.indexOf(p) >= 0;
+      return '<span class="tpp' + (pr ? ' pref' : '') + '" style="--c:' + coulPoste(p) + '"' + (pr ? ' title="Poste préféré"' : '') + '>' + (pr ? icon('star', 10) : '') + esc(COURT[p]) + '</span>';
+    }).join('') + (f.postesOk.length ? '' : '<span class="tpp voeu" title="Ses vœux (Choisis ton poste) : postes pas encore réglés">vœux</span>');
   }
   function rowTerrain(F, id) {
-    var f = F[id], niv = tVal(F, id, 'niveau'), pas = tVal(F, id, 'passerelle'), pl = tVal(F, id, 'plaquage') || 0;
+    var f = F[id], niv = f.niveau, pas = f.passerelle;
     var segs = K.NIV.map(function (n) { return '<button type="button" class="tlv' + (niv === n ? ' on' : '') + '" style="--lc:' + K.COUL_NIV[n] + '" aria-pressed="' + (niv === n) + '" data-act="tNiv" data-id="' + esc(id) + '" data-v="' + n + '" title="' + K.NOM_NIV[n] + '">' + n + '</button>'; }).join('');
     var pasOpts = niv ? K.NIV.filter(function (n) { return Math.abs(K.NIV.indexOf(n) - K.NIV.indexOf(niv)) === 1; }) : [];
-    var pasB = pasOpts.map(function (n) { return '<button type="button" class="tpas' + (pas === n ? ' on' : '') + '" aria-pressed="' + (pas === n) + '" data-act="tPas" data-id="' + esc(id) + '" data-v="' + n + '" title="Passerelle vers ' + K.NOM_NIV[n] + '">⇅ ' + n + '</button>'; }).join('');
-    var st = '';
-    for (var i = 1; i <= 5; i++) st += '<button type="button" class="tst' + (i <= pl ? ' on' : '') + '" data-act="tPl" data-id="' + esc(id) + '" data-v="' + i + '" aria-label="' + i + ' étoile' + (i > 1 ? 's' : '') + '">' + icon('star', 16) + '</button>';
-    return '<li class="tfrow' + (T.chg[id] ? ' changed' : '') + '"><a class="tnm" href="#/educ/joueur/' + esc(id) + '">' + esc(f.prenom) + (K.postesDe(f).length ? '<small>' + (f.postesOk.length ? '' : 'vœux : ') + esc(K.postesDe(f).map(function (p) { return COURT[p]; }).join(' · ')) + '</small>' : '<small>pas de poste</small>') + '</a>' +
-      '<span class="tseg" role="group" aria-label="Niveau de ' + esc(f.prenom) + '">' + segs + '</span><span class="tpasw">' + (pasB || '<span class="small" style="color:var(--faint)">—</span>') + '</span>' +
-      '<span class="tstars" role="group" aria-label="Plaquage de ' + esc(f.prenom) + '">' + st + '</span></li>';
+    var pasB = pasOpts.map(function (n) { return '<button type="button" class="tpas' + (pas === n ? ' on' : '') + '" aria-pressed="' + (pas === n) + '" data-act="tPas" data-id="' + esc(id) + '" data-v="' + n + '" title="Passerelle vers ' + K.NOM_NIV[n] + '">⇅' + n + '</button>'; }).join('');
+    return '<li class="tfrow"><a class="tnm" href="#/educ/joueur/' + esc(id) + '">' + esc(f.prenom) + '</a><span class="tps">' + pillsPostes(f) + '</span>' +
+      '<span class="tctl"><span class="tseg" role="group" aria-label="Niveau de ' + esc(f.prenom) + '">' + segs + '</span><span class="tpasw">' + pasB + '</span>' + bouclier(f.plaquage) + '</span></li>';
   }
   function paintTerrain(g) {
     var F = K.fiches(g);
     var ids = Object.keys(F).filter(function (id) { return F[id].actif && !/^test$/i.test(F[id].prenom); }).sort(function (a, b) { return F[a].prenom.localeCompare(F[b].prenom, 'fr'); });
     var cnt = { all: ids.length, '': 0, A: 0, B: 0, C: 0 };
-    ids.forEach(function (id) { cnt[tVal(F, id, 'niveau') || '']++; });
-    if (T.filtre === 'none' && !cnt[''] && !Object.keys(T.chg).length) T.filtre = 'all';   // tout le monde a son niveau
+    ids.forEach(function (id) { cnt[F[id].niveau || '']++; });
+    if (T.filtre === 'none' && !cnt['']) T.filtre = 'all';   // tout le monde a son niveau
+    function okNiv(id) { var n = F[id].niveau || ''; return T.filtre === 'all' || n === (T.filtre === 'none' ? '' : T.filtre) || T.vus[id]; }
     var q = T.q.toLowerCase();
-    var list = ids.filter(function (id) {
-      var n = (T.chg[id] ? F[id].niveau : tVal(F, id, 'niveau')) || '';   // un joueur qu'on vient de modifier reste dans la liste filtrée
-      if (T.filtre !== 'all' && n !== (T.filtre === 'none' ? '' : T.filtre)) return false;
-      return !q || F[id].prenom.toLowerCase().indexOf(q) >= 0;
-    });
-    var nchg = Object.keys(T.chg).length;
+    var parNiv = ids.filter(okNiv), list = parNiv.filter(function (id) { return !q || F[id].prenom.toLowerCase().indexOf(q) >= 0; });
+    // le filtre de poste : les préférés ★ d'abord, puis ceux qui peuvent aussi le jouer
+    var cntP = {}; K.ORDRE.forEach(function (p) { cntP[p] = 0; });
+    parNiv.forEach(function (id) { K.postesDe(F[id]).forEach(function (p) { if (cntP[p] !== undefined) cntP[p]++; }); });
+    var rows;
+    if (T.poste) {
+      var pr = list.filter(function (id) { return K.lienPoste(F[id], T.poste) === 'pref'; }), se = list.filter(function (id) { return K.lienPoste(F[id], T.poste) === 'sec'; });
+      rows = pr.map(function (id) { return rowTerrain(F, id); }).join('') +
+        (se.length ? '<li class="tsep"><span>Peuvent aussi jouer ' + esc(NOMP[T.poste].toLowerCase()) + '</span></li>' + se.map(function (id) { return rowTerrain(F, id); }).join('') : '') ;
+      if (!pr.length && !se.length) rows = '';
+    } else rows = list.map(function (id) { return rowTerrain(F, id); }).join('');
     // (v35) sur une seule ligne ; « Sans niveau » disparaît quand tous les enfants ont le leur
     function fb(v, label, n, col, cls) { return '<button type="button" class="opt' + (cls ? ' ' + cls : '') + (T.filtre === v ? ' on' : '') + '"' + (col ? ' style="--oc:' + col + '"' : '') + ' aria-pressed="' + (T.filtre === v) + '" data-act="tFiltre" data-v="' + v + '"><span>' + label + '</span><small>' + n + '</small></button>'; }
-    var gIds = ids.filter(function (id) { var n = tVal(F, id, 'niveau') || ''; return T.filtre === 'all' || n === (T.filtre === 'none' ? '' : T.filtre); });
+    function fp(v, label, n) { var on = T.poste === v; return '<button type="button" class="opt' + (v ? '' : ' tf-w') + (on ? ' on' : '') + '"' + (v ? ' style="--oc:' + coulPoste(v) + '"' : '') + ' aria-pressed="' + on + '" data-act="tPoste" data-v="' + v + '"' + (v ? ' title="' + esc(NOMP[v]) + '"' : '') + '><span>' + label + '</span><small>' + n + '</small></button>'; }
     var gNom = T.filtre === 'all' ? 'Tous' : T.filtre === 'none' ? 'Sans niveau' : 'Niveau ' + T.filtre;
-    return '<main class="screen">' + MC.educBar(g, 'Enfants') + (MC.enfantsTabs ? MC.enfantsTabs('terrain', g) : '') +
-      '<div class="head"><span class="kicker" style="color:var(--cyan)">Réglée par les éducs · pour les compos</span><h1 class="big sm">Fiche terrain</h1>' +
-      '<p class="small" style="margin:0"><b>A</b> Confirmés · <b>B</b> Débrouillés · <b>C</b> Débutants. <b>⇅</b> passerelle : peut jouer aussi dans le niveau voisin, à tour de rôle. ' + icon('star', 11) + ' plaquage sur 5 (repères provisoires : ' + K.SEUIL.B + ' pour jouer en B, ' + K.SEUIL.A + ' en A ; l\'appli prévient, elle n\'interdit rien). Les postes compatibles se règlent sur la fiche du joueur.</p></div>' +
+    return '<main class="screen">' + MC.educBar(g, 'Enfants · ' + ids.length) +
+      '<div class="head"><h1 class="big sm">Fiche terrain</h1>' +
+      '<p class="small tleg"><span><b>A</b> Confirmés · <b>B</b> Débrouillés · <b>C</b> Débutants</span><span><b>⇅</b> Passerelle : peut aussi jouer dans le niveau voisin</span><span>' + bouclier(3) + ' Plaquage (sur 5)</span></p></div>' +
+      graphePostes(F, parNiv, { cle: 'terrain', resume: gNom + ' · ' + parNiv.length + ' enfant' + (parNiv.length > 1 ? 's' : ''), niv: T.filtre === 'all', simple: true }) +
       '<label class="sr-only" for="tq">Chercher un joueur</label><input id="tq" class="search" type="search" placeholder="Chercher un prénom…" value="' + esc(T.q) + '">' +
-      '<div class="tfil">' + fb('all', 'Tous', cnt.all, '', 'tf-w') + (cnt[''] || T.filtre === 'none' ? fb('none', 'Sans niveau', cnt[''], 'var(--orange)', 'tf-w') : '') + fb('A', 'A', cnt.A, K.COUL_NIV.A) + fb('B', 'B', cnt.B, K.COUL_NIV.B) + fb('C', 'C', cnt.C, K.COUL_NIV.C) + '</div>' +
-      graphePostes(F, gIds, { cle: 'terrain', resume: gNom + ' · ' + gIds.length + ' enfant' + (gIds.length > 1 ? 's' : ''), niv: T.filtre === 'all' }) +
-      '<div class="thead small"><span>Joueur</span><span>Niveau</span><span>Passerelle</span><span>Plaquage</span></div>' +
-      '<ul class="list tlist" id="tlist">' + (list.map(function (id) { return rowTerrain(F, id); }).join('') || '<li class="empty">Personne.</li>') + '</ul>' +
-      (nchg ? '<div class="cp-bar cdock"><div class="row cacts"><span class="grow small" style="color:var(--soft)">' + nchg + ' joueur' + (nchg > 1 ? 's' : '') + ' modifié' + (nchg > 1 ? 's' : '') + '</span><button type="button" class="btn2 sm grey" data-act="tCancel">Annuler</button><button type="button" class="btn sm" data-act="tSave">' + icon('check', 16) + ' Enregistrer</button></div></div>' : '') +
+      '<div class="tfils"><div class="tfil">' + fb('all', 'Tous', cnt.all, '', 'tf-w') + (cnt[''] || T.filtre === 'none' ? fb('none', 'Sans niveau', cnt[''], 'var(--orange)', 'tf-w') : '') + fb('A', 'A', cnt.A, K.COUL_NIV.A) + fb('B', 'B', cnt.B, K.COUL_NIV.B) + fb('C', 'C', cnt.C, K.COUL_NIV.C) + '</div>' +
+      '<div class="tfil tfp" role="group" aria-label="Filtrer par poste">' + fp('', 'Postes', parNiv.length) + K.ORDRE.map(function (p) { return fp(p, COURT[p], cntP[p]); }).join('') + '</div></div>' +
+      '<ul class="list tlist" id="tlist">' + (rows || '<li class="empty">Personne.</li>') + '</ul>' +
+      '<a class="btn2" href="#/educ/ajouter">' + icon('plus', 16) + ' Ajouter des enfants (depuis Spond)</a>' +
       '</main>';
   }
-  function tRepaint() { app.rerender(); }
-  MC.act.tNiv = function (b) { var F = K.fiches(app.S.cache.group), id = b.getAttribute('data-id'), v = b.getAttribute('data-v'); tSet(id, 'niveau', tVal(F, id, 'niveau') === v ? '' : v, F); tRepaint(); };
-  MC.act.tPas = function (b) { var F = K.fiches(app.S.cache.group), id = b.getAttribute('data-id'), v = b.getAttribute('data-v'); tSet(id, 'passerelle', tVal(F, id, 'passerelle') === v ? '' : v, F); tRepaint(); };
-  MC.act.tPl = function (b) { var F = K.fiches(app.S.cache.group), id = b.getAttribute('data-id'), v = Number(b.getAttribute('data-v')); tSet(id, 'plaquage', (tVal(F, id, 'plaquage') || 0) === v ? v - 1 : v, F); tRepaint(); };
-  MC.act.tFiltre = function (b) { T.filtre = b.getAttribute('data-v'); app.rerender(); };
-  MC.act.tCancel = function () { T.chg = {}; app.rerender(); };
-  MC.act.tSave = function (b) {
-    var lignes = Object.keys(T.chg).map(function (id) { var o = { joueurId: id }; for (var k in T.chg[id]) o[k] = T.chg[id][k]; return o; });
-    if (!lignes.length) return;
-    b.disabled = true;
-    app.adultCall('setTerrain', { lignes: lignes }).then(function (r) {
-      patchTerrain(r.terrain);
-      T.chg = {}; ui.toast('Fiche terrain enregistrée (' + Object.keys(r.terrain).length + ')'); app.rerender();
-    }).catch(function (e) { b.disabled = false; ui.toast(e.message, true); });
-  };
-  function patchTerrain(map) {
+  MC.act.tNiv = function (b) { var F = K.fiches(app.S.cache.group), id = b.getAttribute('data-id'), v = b.getAttribute('data-v'); T.vus[id] = 1; terrainSave(id, { niveau: (F[id] || {}).niveau === v ? '' : v }); };
+  MC.act.tPas = function (b) { var F = K.fiches(app.S.cache.group), id = b.getAttribute('data-id'), v = b.getAttribute('data-v'); T.vus[id] = 1; terrainSave(id, { passerelle: (F[id] || {}).passerelle === v ? '' : v }); };
+  MC.act.tFiltre = function (b) { T.filtre = b.getAttribute('data-v'); T.vus = {}; app.rerender(); };
+  MC.act.tPoste = function (b) { var v = b.getAttribute('data-v'); T.poste = T.poste === v ? '' : v; T.vus = {}; app.rerender(); };
+  function patchTerrain(map, garder) {
     var g = app.S.cache.group;
     if (!g) return;
-    g.joueurs.forEach(function (p) { if (map[p.joueur.id]) p.terrain = map[p.joueur.id]; });
+    g.joueurs.forEach(function (p) { if (map[p.joueur.id] && !(garder && garder[p.joueur.id])) p.terrain = map[p.joueur.id]; });
     app.lsSet('mc-group', { tok: app.S.adult.token, data: g });
   }
+  // ---------- (v43) enregistrer tout de suite : la fiche terrain change à l'écran, puis part au serveur ----------
+  // Les touchers rapprochés partent ensemble (0,5 s) ; une erreur remet ce qui était enregistré avant.
+  var TS = { pend: {}, avant: {}, timer: 0, busy: false };
+  function terrainSave(id, patch) {
+    var g = app.S.cache.group, p = g && g.joueurs.filter(function (x) { return x.joueur.id === id; })[0];
+    if (!p) return;
+    var t = p.terrain || { niveau: '', passerelle: '', plaquage: 0, postesOk: [], postesPref: null, spondId: '', note: '' }, nt = {}, k;
+    if (!TS.avant[id]) TS.avant[id] = JSON.parse(JSON.stringify(p.terrain || null));
+    for (k in t) nt[k] = t[k];
+    for (k in patch) nt[k] = patch[k];
+    // une passerelle va vers le niveau voisin
+    if (nt.passerelle && (!nt.niveau || Math.abs(K.NIV.indexOf(nt.passerelle) - K.NIV.indexOf(nt.niveau)) !== 1)) { nt.passerelle = ''; patch.passerelle = ''; }
+    p.terrain = nt;
+    var c = TS.pend[id] || (TS.pend[id] = {});
+    for (k in patch) c[k] = patch[k];
+    app.rerender();
+    clearTimeout(TS.timer); TS.timer = setTimeout(terrainFlush, 500);
+  }
+  MC.terrainSave = terrainSave;
+  function terrainFlush() {
+    clearTimeout(TS.timer);
+    if (TS.busy) { TS.timer = setTimeout(terrainFlush, 300); return; }
+    var ids = Object.keys(TS.pend);
+    if (!ids.length) return;
+    var lignes = ids.map(function (id) { var o = { joueurId: id }; for (var k in TS.pend[id]) o[k] = TS.pend[id][k]; return o; });
+    var avant = TS.avant;
+    TS.pend = {}; TS.avant = {}; TS.busy = true;
+    app.adultCall('setTerrain', { lignes: lignes }).then(function (r) {
+      TS.busy = false;
+      patchTerrain(r.terrain || {}, TS.pend);   // un enfant retouché entre-temps garde ce qui est à l'écran
+      ui.toast('Enregistré');
+      if (!Object.keys(TS.pend).length) app.rerender();
+    }).catch(function (e) {
+      TS.busy = false;
+      var g = app.S.cache.group;
+      if (g) g.joueurs.forEach(function (p) { var id = p.joueur.id; if (avant.hasOwnProperty(id) && !TS.pend[id]) p.terrain = avant[id] || undefined; });
+      ui.toast((e && e.message ? e.message : 'Pas de réseau') + ' : pas enregistré.', true);
+      app.rerender();
+    });
+  }
+  // en quittant l'appli ou en la mettant de côté : ce qui attend part tout de suite
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden' && Object.keys(TS.pend).length) terrainFlush(); });
   var tTimer = null;
   document.addEventListener('input', function (e) {
     if (!e.target || e.target.id !== 'tq') return;
@@ -1698,12 +1743,11 @@ window.MC = window.MC || {};
       if (nl && ol) ol.innerHTML = nl.innerHTML;
     }, 150);
   });
-  document.addEventListener('hashchange', function () { if (location.hash !== '#/educ/terrain' && Object.keys(T.chg).length) { T.chg = {}; } });
+  document.addEventListener('hashchange', function () { if (location.hash.indexOf('#/educ/joueurs') !== 0) T.vus = {}; });
 
   // ======================================================================
   // Sur la fiche d'un joueur (éduc) : sa fiche terrain et ses plateaux
   // ======================================================================
-  var TK = null;   // fiche en cours de modification : { id, niveau, passerelle, plaquage, postesOk }
   MC.terrainResume = function (d, g) {
     var f = K.fiches(g)[d.joueur.id];
     if (!f) return '';
@@ -1712,7 +1756,9 @@ window.MC = window.MC || {};
       '<span class="grow">' + (ps.length ? esc(ps.slice(0, 2).map(function (p) { return COURT[p]; }).join(' · ')) : 'pas de poste') + '</span><span class="small">Sur le terrain ' + icon('down', 12) + '</span></button>';
   };
   MC.act.goTerrain = function () { var el = document.getElementById('sur-le-terrain'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
-  // part : 'fiche' (niveau, passerelle, plaquage, postes, Spond) ou 'hist' (son historique) ; rien : les deux
+  // part : 'fiche' (niveau, passerelle, plaquage, postes) ou 'hist' (son historique) ; rien : les deux
+  // (v43) toujours modifiable : chaque toucher enregistre tout de suite (MC.terrainSave), plus de « Modifier » ni d'« Enregistrer » ;
+  // plusieurs postes préférés ★ ; le lien Spond est dans l'onglet Réglages de la fiche (MC.spondKid).
   MC.terrainKid = function (d, g, part) {
     var id = d.joueur.id, F = K.fiches(g), f = F[id];
     if (!f) return '';
@@ -1720,41 +1766,70 @@ window.MC = window.MC || {};
     if (!cd) loadCompos().then(function () { if (location.hash.indexOf('#/educ/joueur/' + id) === 0) app.rerender(); }).catch(function () { });
     var H = cd ? (function () { var ev = {}; cd.evenements.forEach(function (e) { ev[e.id] = e; }); return K.historique(cd.compos, ev, F, L.today()); })() : {};
     var h = K.hOf(H, id);
-    var ed = TK && TK.id === id ? TK : null;
-    var body;
-    if (ed) {
-      var pasOpts = ed.niveau ? K.NIV.filter(function (n) { return Math.abs(K.NIV.indexOf(n) - K.NIV.indexOf(ed.niveau)) === 1; }) : [];
-      var st = '';
-      for (var i = 1; i <= 5; i++) st += '<button type="button" class="tst' + (i <= ed.plaquage ? ' on' : '') + '" data-act="tkPl" data-v="' + i + '" aria-label="' + i + ' étoile' + (i > 1 ? 's' : '') + '">' + icon('star', 20) + '</button>';
-      body = '<span class="mlab">Niveau</span><div class="seg3">' + K.NIV.map(function (n) { return '<button type="button" class="opt' + (ed.niveau === n ? ' on' : '') + '" style="--oc:' + K.COUL_NIV[n] + '" aria-pressed="' + (ed.niveau === n) + '" data-act="tkNiv" data-v="' + n + '">' + n + ' · ' + K.NOM_NIV[n] + '</button>'; }).join('') + '</div>' +
-        '<span class="mlab">Passerelle (peut jouer aussi en…)</span><div class="row" style="gap:8px;flex-wrap:wrap">' + (pasOpts.length ? pasOpts.map(function (n) { return '<button type="button" class="opt' + (ed.passerelle === n ? ' on' : '') + '" style="--oc:var(--violet);min-width:120px" aria-pressed="' + (ed.passerelle === n) + '" data-act="tkPas" data-v="' + n + '">⇅ ' + n + ' · ' + K.NOM_NIV[n] + '</button>'; }).join('') : '<span class="small">Choisissez d\'abord le niveau.</span>') + '</div>' +
-        '<span class="mlab">Plaquage (sur 5)</span><span class="tstars big">' + st + '</span>' +
-        '<span class="mlab">Poste principal (son poste par défaut aux plateaux, au jeu à 10)</span><div class="tpostes">' + K.POSTES10.map(function (p) {
-          var on = ed.postesOk[0] === p[0], r = f.voeux.indexOf(p[0]);
-          return '<button type="button" class="cop prin' + (on ? ' on' : '') + '" aria-pressed="' + on + '" data-act="tkPrinc" data-v="' + p[0] + '"><span class="nm">' + esc(K.nomPoste(p[0])) + (r >= 0 ? ' <small style="color:var(--gold)">vœu ' + (r + 1) + '</small>' : '') + '</span><span class="ck">' + icon('star', 14) + '</span></button>';
-        }).join('') + '</div>' +
-        '<span class="mlab">Peut aussi jouer</span><div class="tpostes">' + K.POSTES10.filter(function (p) { return p[0] !== ed.postesOk[0]; }).map(function (p) {
-          var on = ed.postesOk.indexOf(p[0]) > 0, r = f.voeux.indexOf(p[0]);
-          return '<button type="button" class="cop' + (on ? ' on' : '') + '" aria-pressed="' + on + '" data-act="tkPoste" data-v="' + p[0] + '"><span class="nm">' + esc(K.nomPoste(p[0])) + (r >= 0 ? ' <small style="color:var(--gold)">vœu ' + (r + 1) + '</small>' : '') + '</span><span class="ck">' + icon('check', 14) + '</span></button>';
-        }).join('') + '</div>' +
-        '<p class="small" style="margin:0">' + typeTxt(K.typeDe({ postesOk: ed.postesOk })) + '</p>' +
-        spondSelect(g, id, ed) +
-        '<div class="grid2"><button type="button" class="btn2 grey" data-act="tkCancel">Annuler</button><button type="button" class="btn" data-act="tkSave">' + icon('check', 16) + ' Enregistrer</button></div>';
-    } else {
-      body = '<div class="row" style="gap:12px;flex-wrap:wrap">' + niveauTag(f.niveau) + '<span class="grow"><b>' + (f.niveau ? K.NOM_NIV[f.niveau] : 'Niveau à renseigner') + '</b>' + (f.passerelle ? ' <span style="color:var(--violet)">· passerelle ⇅ ' + f.passerelle + '</span>' : '') +
-        '<span class="small" style="display:block;margin-top:4px">Plaquage ' + starsMini(f.plaquage) + '</span></span></div>' +
-        '<div><span class="mlab">Postes' + (f.postesOk.length ? '' : ' (pas encore réglés : ses vœux servent en attendant)') + '</span>' +
-        (K.postesDe(f).length ? MC.ptags(K.postesDe(f), false) + '<span class="small" style="display:block;margin-top:6px">' + (f.postesOk.length ? 'Principal : <b style="color:var(--ink)">' + esc(COURT[f.postesOk[0]] === '9' ? 'demi de mêlée' : COURT[f.postesOk[0]] === '10' ? 'ouvreur' : K.nomPoste(f.postesOk[0])) + '</b> · ' : '') + typeTxt(K.typeDe(f)) + '</span>' : '<span class="small">Aucun pour l\'instant.</span>') + '</div>' +
-        '<button type="button" class="btn2" data-act="tkEdit" data-id="' + esc(id) + '">' + icon('edit', 16) + ' Modifier</button>';
-    }
     var hist = histHtml(h, f, F, cd);
-    var sp = (g.joueurs.filter(function (p) { return p.joueur.id === id; })[0] || {}).terrain;
-    var mb = cd && cd.spond && cd.spond.membres ? cd.spond.membres.filter(function (m) { return sp && m.id === sp.spondId; })[0] : null;
-    var spTxt = '<span class="small" style="color:var(--faint)">Spond : ' + (sp && sp.spondId ? 'relié' + (mb ? ' à « ' + esc(mb.nom) + ' »' : '') : 'pas encore relié') + '</span>';
     if (part === 'hist') return '<section class="sec"><h2 class="h2">Son historique</h2><div class="box" style="display:flex;flex-direction:column;gap:8px">' + hist + '</div></section>';
-    return '<section class="sec" id="sur-le-terrain" style="scroll-margin-top:76px"><div class="between"><h2 class="h2">Sur le terrain</h2>' + (f.niveau ? '' : '<span class="pill" style="--pc:var(--orange)">À renseigner</span>') + '</div><div class="box" style="display:flex;flex-direction:column;gap:12px">' + body + (part === 'fiche' ? spTxt : '') + '</div>' +
-      (part === 'fiche' ? '' : '<div class="box" style="display:flex;flex-direction:column;gap:8px"><span class="mlab" style="margin:0">Son historique</span>' + hist + spTxt + '</div>') + '</section>';
+    var pf = K.prefDe(f), ok = f.postesOk, did = ' data-id="' + esc(id) + '"';
+    var pasOpts = f.niveau ? K.NIV.filter(function (n) { return Math.abs(K.NIV.indexOf(n) - K.NIV.indexOf(f.niveau)) === 1; }) : [];
+    var pl = '';
+    for (var i = 0; i <= 5; i++) pl += '<button type="button" class="opt' + (f.plaquage === i ? ' on' : '') + '" style="--oc:#FF4FA3" aria-pressed="' + (f.plaquage === i) + '" data-act="tkPl"' + did + ' data-v="' + i + '">' + i + '</button>';
+    function voeu(p) { var r = f.voeux.indexOf(p); return r >= 0 ? ' <small style="color:var(--gold)">vœu ' + (r + 1) + '</small>' : ''; }
+    var body = '<span class="mlab">Niveau</span><div class="seg3">' + K.NIV.map(function (n) { return '<button type="button" class="opt' + (f.niveau === n ? ' on' : '') + '" style="--oc:' + K.COUL_NIV[n] + '" aria-pressed="' + (f.niveau === n) + '" data-act="tkNiv"' + did + ' data-v="' + n + '">' + n + ' · ' + K.NOM_NIV[n] + '</button>'; }).join('') + '</div>' +
+      '<span class="mlab">Passerelle (peut jouer aussi en…)</span><div class="row" style="gap:8px;flex-wrap:wrap">' + (pasOpts.length ? pasOpts.map(function (n) { return '<button type="button" class="opt' + (f.passerelle === n ? ' on' : '') + '" style="--oc:var(--violet);min-width:120px" aria-pressed="' + (f.passerelle === n) + '" data-act="tkPas"' + did + ' data-v="' + n + '">⇅ ' + n + ' · ' + K.NOM_NIV[n] + '</button>'; }).join('') : '<span class="small">Choisissez d\'abord le niveau.</span>') + '</div>' +
+      '<span class="mlab">Plaquage (sur 5)</span><div class="tplq">' + bouclier(f.plaquage, true) + '<div class="tplq-s" role="group" aria-label="Plaquage de ' + esc(f.prenom) + '">' + pl + '</div></div>' +
+      '<span class="mlab">Postes préférés ' + icon('star', 12, 'style="color:var(--gold);vertical-align:-1px"') + ' (un ou plusieurs)</span><div class="tpostes">' + K.POSTES10.map(function (p) {
+        var on = pf.indexOf(p[0]) >= 0 && ok.length > 0;
+        return '<button type="button" class="cop prin' + (on ? ' on' : '') + '" aria-pressed="' + on + '" data-act="tkPref"' + did + ' data-v="' + p[0] + '"><span class="nm">' + esc(K.nomPoste(p[0])) + voeu(p[0]) + '</span><span class="ck">' + icon('star', 14) + '</span></button>';
+      }).join('') + '</div>' +
+      '<span class="mlab">Peut aussi jouer</span><div class="tpostes">' + K.POSTES10.filter(function (p) { return !(pf.indexOf(p[0]) >= 0 && ok.length); }).map(function (p) {
+        var on = ok.indexOf(p[0]) >= 0;
+        return '<button type="button" class="cop' + (on ? ' on' : '') + '" aria-pressed="' + on + '" data-act="tkPoste"' + did + ' data-v="' + p[0] + '"><span class="nm">' + esc(K.nomPoste(p[0])) + voeu(p[0]) + '</span><span class="ck">' + icon('check', 14) + '</span></button>';
+      }).join('') + '</div>' +
+      '<p class="small" style="margin:0">' + typeTxt(K.typeDe(f)) + (ok.length ? '' : (f.voeux.length ? ' · postes pas encore réglés : ses vœux servent en attendant' : '')) + '</p>';
+    return '<section class="sec" id="sur-le-terrain" style="scroll-margin-top:76px"><div class="between"><h2 class="h2">Sur le terrain</h2>' + (f.niveau ? '' : '<span class="pill" style="--pc:var(--orange)">À renseigner</span>') + '</div><div class="box" style="display:flex;flex-direction:column;gap:12px">' + body + '</div>' +
+      (part === 'fiche' ? '' : '<div class="box" style="display:flex;flex-direction:column;gap:8px"><span class="mlab" style="margin:0">Son historique</span>' + hist + '</div>') + '</section>';
   };
+  function fk(b) { var F = K.fiches(app.S.cache.group); return F[b.getAttribute('data-id')]; }
+  MC.act.tkNiv = function (b) { var f = fk(b); if (f) terrainSave(f.id, { niveau: b.getAttribute('data-v') }); };
+  MC.act.tkPas = function (b) { var f = fk(b), v = b.getAttribute('data-v'); if (f) terrainSave(f.id, { passerelle: f.passerelle === v ? '' : v }); };
+  MC.act.tkPl = function (b) { var f = fk(b); if (f) terrainSave(f.id, { plaquage: Number(b.getAttribute('data-v')) }); };
+  // les postes : préférés ★ (plusieurs possibles) et « peut aussi jouer » ; retoucher un préféré le retire
+  function postesSave(f, ok, pf) {
+    pf = pf.filter(function (p, i) { return ok.indexOf(p) >= 0 && pf.indexOf(p) === i; });
+    ok = pf.concat(ok.filter(function (p) { return pf.indexOf(p) < 0; }));   // les préférés en tête
+    terrainSave(f.id, { postesOk: ok, postesPref: pf });
+  }
+  MC.act.tkPref = function (b) {
+    var f = fk(b), v = b.getAttribute('data-v');
+    if (!f) return;
+    var ok = f.postesOk.slice(), pf = f.postesOk.length ? K.prefDe(f).slice() : [];
+    if (pf.indexOf(v) >= 0) { pf = pf.filter(function (p) { return p !== v; }); ok = ok.filter(function (p) { return p !== v; }); }
+    else { pf.push(v); if (ok.indexOf(v) < 0) ok.push(v); }
+    postesSave(f, ok, pf);
+  };
+  MC.act.tkPoste = function (b) {
+    var f = fk(b), v = b.getAttribute('data-v');
+    if (!f) return;
+    var ok = f.postesOk.slice(), pf = f.postesOk.length ? K.prefDe(f).slice() : [];
+    if (ok.indexOf(v) >= 0) ok = ok.filter(function (p) { return p !== v; }); else ok.push(v);
+    postesSave(f, ok, pf);
+  };
+  function typeTxt(t) { return t === 'av' ? 'Avant' : t === 'ar' ? 'Arrière' : t === 'les2' ? 'Avant et arrière (polyvalent)' : 'Avant ou arrière : pas encore de poste'; }
+  // (v43) le lien avec Spond, en bas de l'onglet Réglages de la fiche (on n'y touche presque jamais) : enregistré au changement
+  MC.spondKid = function (g, id) {
+    var cd = app.S.cache.compos, l = cd && cd.spond && cd.spond.membres;
+    var sp = (g.joueurs.filter(function (p) { return p.joueur.id === id; })[0] || {}).terrain || {};
+    var mb = l ? l.filter(function (m) { return m.id === sp.spondId; })[0] : null;
+    var etat = '<p class="small" style="margin:0">' + (sp.spondId ? 'Relié' + (mb ? ' à « ' + esc(mb.nom) + ' »' : '') : 'Pas encore relié') + '. Les présences et les noms viennent de Spond.</p>';
+    if (!l || !l.length) return '<section class="sec"><h2 class="h2">Spond</h2>' + etat + '</section>';
+    var pris = {};
+    g.joueurs.forEach(function (p) { if (p.terrain && p.terrain.spondId && p.joueur.id !== id) pris[p.terrain.spondId] = p.joueur.prenom; });
+    return '<section class="sec"><h2 class="h2">Spond</h2>' + etat + '<label class="lab" for="tk-sp">Son nom dans Spond</label><select id="tk-sp" class="txt" data-id="' + esc(id) + '"><option value="">Pas relié</option>' + l.map(function (m) {
+      return '<option value="' + esc(m.id) + '"' + (sp.spondId === m.id ? ' selected' : '') + '>' + esc(m.nom) + (pris[m.id] ? ' (relié à ' + esc(pris[m.id]) + ' : le lien passera ici)' : '') + '</option>';
+    }).join('') + '</select></section>';
+  };
+  document.addEventListener('change', function (e) {
+    if (e.target && e.target.id === 'tk-sp') terrainSave(e.target.getAttribute('data-id'), { spondId: e.target.value });
+  });
   // ---------- l'historique d'un joueur : plateaux, entraînements (ateliers et matchs), ou tout ----------
   var HV = '';   // le filtre choisi : 'plateau', 'entrainement' ou 'tout' (vide : plateaux s'il y en a)
   function histHtml(h, f, F, cd) {
@@ -1803,41 +1878,4 @@ window.MC = window.MC || {};
       '<details><summary class="small" style="cursor:pointer;color:var(--cyan)">' + (vue === 'plateau' ? 'Plateau par plateau' : vue === 'entrainement' ? 'Séance par séance' : 'Dans l\'ordre') + ' (' + L2.length + ')</summary><ul class="small" style="margin:6px 0 0;padding-left:18px;line-height:1.6;color:var(--soft)">' + hl + '</ul></details>';
   }
   MC.act.hvSet = function (b) { HV = b.getAttribute('data-v'); var y = window.scrollY; app.rerender(); setTimeout(function () { window.scrollTo(0, y); }, 0); };
-  // relier le joueur à son membre Spond (quand le prénom ne suffit pas : homonymes, surnom…)
-  function spondSelect(g, id, ed) {
-    var cd = app.S.cache.compos, l = cd && cd.spond && cd.spond.membres;
-    if (!l || !l.length) return '';
-    var pris = {};
-    g.joueurs.forEach(function (p) { if (p.terrain && p.terrain.spondId && p.joueur.id !== id) pris[p.terrain.spondId] = p.joueur.prenom; });
-    return '<label class="lab" for="tk-sp">Son nom dans Spond</label><select id="tk-sp" class="txt" data-act-change="tkSpond"><option value="">Pas relié</option>' + l.map(function (m) {
-      return '<option value="' + esc(m.id) + '"' + (ed.spondId === m.id ? ' selected' : '') + '>' + esc(m.nom) + (pris[m.id] ? ' (relié à ' + esc(pris[m.id]) + ' : le lien passera ici)' : '') + '</option>';
-    }).join('') + '</select>';
-  }
-  document.addEventListener('change', function (e) {
-    if (e.target && e.target.id === 'tk-sp' && TK) TK.spondId = e.target.value;
-  });
-  MC.act.tkEdit = function (b) {
-    var F = K.fiches(app.S.cache.group), f = F[b.getAttribute('data-id')];
-    if (!f) return;
-    TK = { id: f.id, niveau: f.niveau, passerelle: f.passerelle, plaquage: f.plaquage, postesOk: (f.postesOk.length ? f.postesOk : f.voeux).slice(), spondId: f.spondId || '' };
-    app.rerender();
-  };
-  MC.act.tkCancel = function () { TK = null; app.rerender(); };
-  MC.act.tkNiv = function (b) { if (!TK) return; TK.niveau = b.getAttribute('data-v'); if (TK.passerelle && Math.abs(K.NIV.indexOf(TK.passerelle) - K.NIV.indexOf(TK.niveau)) !== 1) TK.passerelle = ''; app.rerender(); };
-  MC.act.tkPas = function (b) { if (!TK) return; var v = b.getAttribute('data-v'); TK.passerelle = TK.passerelle === v ? '' : v; app.rerender(); };
-  MC.act.tkPl = function (b) { if (!TK) return; var v = Number(b.getAttribute('data-v')); TK.plaquage = TK.plaquage === v ? v - 1 : v; app.rerender(); };
-  MC.act.tkPoste = function (b) { if (!TK) return; var v = b.getAttribute('data-v'), i = TK.postesOk.indexOf(v); if (i > 0) TK.postesOk.splice(i, 1); else if (i < 0) TK.postesOk.push(v); app.rerender(); };
-  // le poste principal est le 1er de la liste
-  MC.act.tkPrinc = function (b) { if (!TK) return; var v = b.getAttribute('data-v'); TK.postesOk = [v].concat(TK.postesOk.filter(function (x) { return x !== v; })); app.rerender(); };
-  function typeTxt(t) { return t === 'av' ? 'Avant' : t === 'ar' ? 'Arrière' : t === 'les2' ? 'Avant et arrière (polyvalent)' : 'Avant ou arrière : pas encore de poste'; }
-  MC.act.tkSave = function (b) {
-    if (!TK) return;
-    b.disabled = true;
-    var ligne = { joueurId: TK.id, niveau: TK.niveau, passerelle: TK.passerelle, plaquage: TK.plaquage, postesOk: TK.postesOk };
-    if (document.getElementById('tk-sp')) ligne.spondId = TK.spondId;
-    app.adultCall('setTerrain', { lignes: [ligne] }).then(function (r) {
-      patchTerrain(r.terrain); TK = null; ui.toast('Fiche terrain enregistrée'); app.rerender();
-    }).catch(function (e) { b.disabled = false; ui.toast(e.message, true); });
-  };
-  document.addEventListener('hashchange', function () { TK = null; });
 })();

@@ -63,7 +63,7 @@ with sync_playwright() as p:
     pg.click('[data-act="adultWho"][data-w="e"]'); pg.wait_for_timeout(300); pick(pg, 'Coach Nico'); pad(pg,'2468'); pg.wait_for_timeout(1500)
     pg.screenshot(path='/home/claude/shots/cf-educ.png', full_page=True)
     pg.goto(BASE+'#/educ/joueurs'); pg.wait_for_timeout(600)
-    pg.click('#edlist a >> nth=0'); pg.wait_for_timeout(100)
+    pg.click('#tlist a.tnm >> nth=0'); pg.wait_for_timeout(100)
     print('fiche affichée vite', pg.evaluate("!!document.querySelector('main h1')"))
     pg.wait_for_timeout(800)
     b.close()

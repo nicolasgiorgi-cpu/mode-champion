@@ -43,7 +43,7 @@ with sync_playwright() as p:
     pg.evaluate("(() => { const a = [...document.querySelectorAll('#app a[href^=\"#/educ/joueur/\"]')].find(a => { const r = a.getBoundingClientRect(); return r.top > 130 && r.bottom < innerHeight - 130; }); a.click(); })()"); pg.wait_for_timeout(1000)
     check('fiche ouverte en haut de page', h(pg).startswith('#/educ/joueur/') and pg.evaluate('scrollY') == 0, h(pg))
     n = len(hist(pg))
-    pg.click('.ftabs a:has-text("Prépa")'); pg.wait_for_timeout(600); pg.click('.ftabs a:has-text("Famille")'); pg.wait_for_timeout(600)
+    pg.click('.ftabs a:has-text("Prépa")'); pg.wait_for_timeout(600); pg.click('.ftabs a:has-text("Réglages")'); pg.wait_for_timeout(600)
     check('onglets de la fiche : pas d\'écran de plus dans l\'historique', len(hist(pg)) == n, (n, len(hist(pg))))
     check('onglets de la fiche : sur plusieurs lignes (pas de bande qui défile)', pg.evaluate("getComputedStyle(document.querySelector('.ftabs')).display") == 'grid')
     back(pg)
