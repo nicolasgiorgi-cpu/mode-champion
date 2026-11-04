@@ -101,11 +101,11 @@ window.MC = window.MC || {};
     if (!n) return '<span class="cniv none"' + (small ? ' style="--s:20px"' : '') + ' title="Niveau à renseigner">?</span>';
     return '<span class="cniv" style="--lc:' + K.COUL_NIV[n] + (small ? ';--s:20px' : '') + '" title="' + K.NOM_NIV[n] + '">' + n + '</span>';
   }
-  // (v43) le plaquage : un bouclier (la forme de l'icône de la carte Skills « Plaquage ») avec le niveau, de 0 à 5, dedans
+  // (v43) le plaquage : un bouclier (la forme de l'icône de la carte Skills « Plaquage ») avec le niveau dedans, de 0 à 3 (v44 ; avant : de 0 à 5)
   // (avant : 5 étoiles). big : true = grand (la fiche d'un enfant), 'mini' = petit (les tuiles des compos).
   function bouclier(n, big) {
-    n = Math.max(0, Math.min(5, Math.round(Number(n) || 0)));
-    return '<span class="pshield' + (n ? '' : ' zero') + (big === 'mini' ? ' mini' : big ? ' grand' : '') + '" role="img" aria-label="Plaquage : ' + n + ' sur 5" title="Plaquage : ' + n + ' sur 5">' +
+    n = Math.max(0, Math.min(3, Math.round(Number(n) || 0)));
+    return '<span class="pshield' + (n ? '' : ' zero') + (big === 'mini' ? ' mini' : big ? ' grand' : '') + '" role="img" aria-label="Plaquage : ' + n + ' sur 3" title="Plaquage : ' + n + ' sur 3">' +
       '<svg viewBox="14 4 72 88" aria-hidden="true"><path class="ps-a" d="M50 8 82 21V48Q80 71 50 87Q20 71 18 48V21Z"/><path class="ps-b" d="M50 8 82 21V48Q80 71 50 87Z"/><path class="ps-c" d="M50 8 82 21V48Q80 71 50 87Q20 71 18 48V21Z"/></svg><b>' + n + '</b></span>';
   }
   MC.bouclier = bouclier;
@@ -1674,7 +1674,7 @@ window.MC = window.MC || {};
     var gNom = T.filtre === 'all' ? 'Tous' : T.filtre === 'none' ? 'Sans niveau' : 'Niveau ' + T.filtre;
     return '<main class="screen">' + MC.educBar(g, 'Enfants · ' + ids.length) +
       '<div class="head"><h1 class="big sm">Fiche terrain</h1>' +
-      '<p class="small tleg"><span><b>A</b> Confirmés · <b>B</b> Débrouillés · <b>C</b> Débutants</span><span><b>⇅</b> Passerelle : peut aussi jouer dans le niveau voisin</span><span>' + bouclier(3) + ' Plaquage (sur 5)</span></p></div>' +
+      '<p class="small tleg"><span><b>A</b> Confirmés · <b>B</b> Débrouillés · <b>C</b> Débutants</span><span><b>⇅</b> Passerelle : peut aussi jouer dans le niveau voisin</span><span>' + bouclier(3) + ' Plaquage (de 0 à 3)</span></p></div>' +
       graphePostes(F, parNiv, { cle: 'terrain', resume: gNom + ' · ' + parNiv.length + ' enfant' + (parNiv.length > 1 ? 's' : ''), niv: T.filtre === 'all', simple: true }) +
       '<label class="sr-only" for="tq">Chercher un joueur</label><input id="tq" class="search" type="search" placeholder="Chercher un prénom…" value="' + esc(T.q) + '">' +
       '<div class="tfils"><div class="tfil">' + fb('all', 'Tous', cnt.all, '', 'tf-w') + (cnt[''] || T.filtre === 'none' ? fb('none', 'Sans niveau', cnt[''], 'var(--orange)', 'tf-w') : '') + fb('A', 'A', cnt.A, K.COUL_NIV.A) + fb('B', 'B', cnt.B, K.COUL_NIV.B) + fb('C', 'C', cnt.C, K.COUL_NIV.C) + '</div>' +
@@ -1819,11 +1819,11 @@ window.MC = window.MC || {};
     var pf = K.prefDe(f), ok = f.postesOk, did = ' data-id="' + esc(id) + '"';
     var pasOpts = f.niveau ? K.NIV.filter(function (n) { return Math.abs(K.NIV.indexOf(n) - K.NIV.indexOf(f.niveau)) === 1; }) : [];
     var pl = '';
-    for (var i = 0; i <= 5; i++) pl += '<button type="button" class="opt' + (f.plaquage === i ? ' on' : '') + '" style="--oc:#FF4FA3" aria-pressed="' + (f.plaquage === i) + '" data-act="tkPl"' + did + ' data-v="' + i + '">' + i + '</button>';
-    function voeu(p) { var r = f.voeux.indexOf(p); return r >= 0 ? ' <small style="color:var(--gold)">vœu ' + (r + 1) + '</small>' : ''; }
+    for (var i = 0; i <= 3; i++) pl += '<button type="button" class="opt' + (f.plaquage === i ? ' on' : '') + '" style="--oc:#FF4FA3" aria-pressed="' + (f.plaquage === i) + '" data-act="tkPl"' + did + ' data-v="' + i + '">' + i + '</button>';
+    function voeu(p) { var r = f.voeux.indexOf(p); return r >= 0 ? '<small class="csp" style="color:var(--gold)">son vœu ' + (r + 1) + '</small>' : ''; }   // sur sa ligne : jamais coupé
     var body = '<span class="mlab">Niveau</span><div class="seg3">' + K.NIV.map(function (n) { return '<button type="button" class="opt' + (f.niveau === n ? ' on' : '') + '" style="--oc:' + K.COUL_NIV[n] + '" aria-pressed="' + (f.niveau === n) + '" data-act="tkNiv"' + did + ' data-v="' + n + '">' + n + ' · ' + K.NOM_NIV[n] + '</button>'; }).join('') + '</div>' +
       '<span class="mlab">Passerelle (peut jouer aussi en…)</span><div class="row" style="gap:8px;flex-wrap:wrap">' + (pasOpts.length ? pasOpts.map(function (n) { return '<button type="button" class="opt' + (f.passerelle === n ? ' on' : '') + '" style="--oc:var(--violet);min-width:120px" aria-pressed="' + (f.passerelle === n) + '" data-act="tkPas"' + did + ' data-v="' + n + '">⇅ ' + n + ' · ' + K.NOM_NIV[n] + '</button>'; }).join('') : '<span class="small">Choisissez d\'abord le niveau.</span>') + '</div>' +
-      '<span class="mlab">Plaquage (sur 5)</span><div class="tplq">' + bouclier(f.plaquage, true) + '<div class="tplq-s" role="group" aria-label="Plaquage de ' + esc(f.prenom) + '">' + pl + '</div></div>' +
+      '<span class="mlab">Plaquage (de 0 à 3)</span><div class="tplq">' + bouclier(f.plaquage, true) + '<div class="tplq-s" role="group" aria-label="Plaquage de ' + esc(f.prenom) + '">' + pl + '</div></div>' +
       '<span class="mlab">Postes préférés ' + icon('star', 12, 'style="color:var(--gold);vertical-align:-1px"') + ' (un ou plusieurs)</span><div class="tpostes">' + K.POSTES10.map(function (p) {
         var on = pf.indexOf(p[0]) >= 0 && ok.length > 0;
         return '<button type="button" class="cop prin' + (on ? ' on' : '') + '" aria-pressed="' + on + '" data-act="tkPref"' + did + ' data-v="' + p[0] + '"><span class="nm">' + esc(K.nomPoste(p[0])) + voeu(p[0]) + '</span><span class="ck">' + icon('star', 14) + '</span></button>';

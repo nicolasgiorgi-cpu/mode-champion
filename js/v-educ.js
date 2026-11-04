@@ -544,6 +544,15 @@ window.MC = window.MC || {};
     return '<main class="screen">' + MC.educBar(gr, 'Progrès') + MC.progresTabs('skills') + acts + ui.seg([['passeport', 'Passeport'], ['catalogue', 'Catalogue']], SKV, 'skVue') + (SKV === 'catalogue' ? catalogueHtml(gr) : passeportHtml(gr)) + '</main>';
   }
   MC.act.skVue = function (b) { SKV = b.getAttribute('data-v'); app.rerender(); };
+  // (v44) venir d'ailleurs = le Passeport, cartes repliées ; on garde la vue en revenant d'une page ouverte depuis les Skills
+  // (Évaluer, la fiche d'un enfant, la mission principale remplie depuis le catalogue)
+  var SKprec = location.hash;
+  window.addEventListener('hashchange', function () {
+    var h = location.hash, p = SKprec; SKprec = h;
+    if (h.indexOf('#/educ/skills') === 0 && !/^#\/educ\/(skills|joueur\/|missions\/nouvelle)/.test(p)) { SKV = 'passeport'; CATO = {}; }
+    // la fiche d'un enfant : ses cartes Skills repliées quand on vient d'ailleurs
+    if (h.indexOf('#/educ/joueur/') === 0 && !/^#\/educ\/(joueur\/|missions\/nouvelle|encourager\/)/.test(p)) FSKO = {};
+  });
   app.route('/educ/skills', function (p, q) {
     // les anciennes adresses de l'évaluation (?evt=, ?c=demandes : une alerte, la cloche) : sa page
     if (q.evt !== undefined || q.c === 'demandes') { var i = location.hash.indexOf('?'); app.go('#/educ/skills/evaluer' + (i >= 0 ? location.hash.slice(i) : ''), true); return null; }

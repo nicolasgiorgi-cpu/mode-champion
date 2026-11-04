@@ -663,8 +663,9 @@
 
   // ---------- ÉDUC : un joueur ----------
   app.route('/educ/joueur/:id', function (p, q, cur) {
-    var tab = q.t || app.lsGet('mc-ftab') || 'terrain';
-    if (q.t) app.lsSet('mc-ftab', q.t);
+    // (v44) venir d'ailleurs = le premier onglet (Terrain) ; seul un lien précis (?t=) ouvre un autre onglet
+    var tab = q.t || 'terrain';
+    app.lsSet('mc-ftab', null);   // l'ancien « dernier onglet de la fiche », effacé
     // (retouche UI-13) l'onglet ouvert reste entièrement visible dans la bande qui défile
     if (cur) cur.after = function (root) {
       var nav = root.querySelector('.ftabs'), on = nav && nav.querySelector('a.on');

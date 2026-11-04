@@ -1167,7 +1167,7 @@ body:has(.cdock .cselp) .toast{top:calc(74px + var(--safe-t));bottom:auto}
 .pshield.grand{width:42px;height:48px}
 .pshield.grand b{margin-top:-5px;font-size:21px}
 .tplq{display:flex;align-items:center;gap:12px}
-.tplq-s{flex:1;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px}
+.tplq-s{flex:1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
 .tplq-s .opt{min-height:44px;padding:0;justify-content:center}
 /* (v43) Progrès › Prépa physique : « À relancer », replié */
 .rel-l{list-style:none;margin:0;padding:0 10px 10px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}

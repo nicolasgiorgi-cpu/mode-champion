@@ -37,6 +37,16 @@ assert.strictEqual(r.terrain[P['Léa']].niveau, 'A');
 // seuls les éducs
 r = g.call({ action: 'setTerrain', token: 'x', lignes: [{ joueurId: P.Hugo, postesPref: [] }] });
 assert.ok(r.error);
+// (v44) le plaquage de 0 à 3 (colonne plaquage3) ; l'ancienne note sur 5 (colonne plaquage) n'est plus lue : tout le monde repart de 0
+const dbp = new g.SheetDB_();
+dbp.insert('terrain', { id: P.Hugo, niveau: 'B', passerelle: '', plaquage: 5, postesOk: [], spondId: '', note: '', parQui: '', maj: '' }); dbp.flush_();
+assert.strictEqual(terr(P.Hugo).plaquage, 0, 'ancienne note sur 5 : repart de 0');
+assert.strictEqual(terr(P.Hugo).niveau, 'B', 'le reste de la fiche est gardé');
+[[2, 2], [3, 3], [0, 0], [5, 3], [4, 3], [9, 0], [-1, 0], ['x', 0]].forEach(function (c) {
+  r = g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P.Hugo, plaquage: c[0] }] });
+  assert.strictEqual(r.terrain[P.Hugo].plaquage, c[1], 'plaquage ' + c[0] + ' → ' + c[1]);
+});
+assert.strictEqual(new g.SheetDB_().rows('terrain').find(t => t.id === P.Hugo).plaquage, 5, 'l\'ancienne colonne n\'est pas touchée');
 
 // ---------- règles des compos (js/compos.js) ----------
 const ctx = { window: {}, console, Date, Math, JSON }; ctx.window = ctx; vm.createContext(ctx);

@@ -17,8 +17,9 @@ MC.compos = (function () {
   POSTES10.forEach(function (p) { for (var i = 0; i < p[1]; i++) SLOTS10.push(p[0]); });
   // Étoiles de plaquage attendues pour jouer dans un niveau (proposition, à valider par les éducs) :
   // l'appli prévient, elle n'interdit rien.
-  var SEUIL = { A: 4, B: 3, C: 0 };
-  var BON = 3;                                            // « bon plaqueur » : 3 étoiles ou plus
+  // (v44) le plaquage est noté de 0 à 3 (avant : de 0 à 5, avec 4 pour A et 3 pour B)
+  var SEUIL = { A: 3, B: 2, C: 0 };
+  var BON = 2;                                            // « bon plaqueur » : 2 ou plus
   var TAILLE = { 5: { min: 5, ideal: 7 }, 10: { min: 10, ideal: 12 } };
   var FORMATS = [5, 10];
 
@@ -101,7 +102,7 @@ MC.compos = (function () {
       out[p.joueur.id] = {
         id: p.joueur.id, prenom: p.joueur.prenom, couleur: p.joueur.couleur, actif: p.joueur.actif !== false,
         niveau: NIV.indexOf(t.niveau) >= 0 ? t.niveau : '', passerelle: NIV.indexOf(t.passerelle) >= 0 ? t.passerelle : '',
-        plaquage: Math.max(0, Math.min(5, Number(t.plaquage) || 0)),
+        plaquage: Math.max(0, Math.min(3, Number(t.plaquage) || 0)),
         voeux: Array.isArray(r.postes) ? r.postes.slice(0, 3) : [], postesOk: pref.concat(ok.filter(function (x) { return pref.indexOf(x) < 0; })), pref: pref,
         copains: Array.isArray(r.copains) ? r.copains.slice() : [], spondId: t.spondId || ''
       };

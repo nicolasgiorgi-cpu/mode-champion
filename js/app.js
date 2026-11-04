@@ -380,11 +380,11 @@ MC.app = (function () {
     return 0;
   }
   var NB_LABEL = { skills: ' nouvelle(s) étoile(s)', missions: ' à voir', 'p:prepa': ' à confirmer', 'p:missions': ' nouveau', 'e:progres': ' à traiter', 'e:plateaux': ' à voir', 'e:entrain': ' à voir' };
-  // le dernier sous-onglet choisi dans chaque onglet
-  function tabHref(it) { var h = lsGet('mc-stab:' + it[0]); return typeof h === 'string' && h.charAt(0) === '#' ? h : it[1]; }
-  function rememberTab(key, href) { lsSet('mc-stab:' + (NAV_ALIAS[key] || key), href); }
-  // (v44) Progrès s'ouvre sur Missions : une fois, on oublie le sous-onglet de Progrès retenu avant la v44 (souvent Prépa physique)
-  if (!lsGet('mc-stab-v44')) { lsSet('mc-stab:e:progres', null); lsSet('mc-stab-v44', 1); }
+  // (v44) venir d'ailleurs = arriver sur le premier onglet (décision de Nicolas, 04/11) : un onglet du bas mène toujours à son
+  // premier sous-onglet ; il ne retient plus le dernier (les anciennes clés mc-stab:* gardées sur l'appareil sont effacées une fois)
+  function tabHref(it) { return it[1]; }
+  function rememberTab() { }
+  try { Object.keys(localStorage).forEach(function (k) { if (k.indexOf('mc-stab') === 0) localStorage.removeItem(k); }); } catch (e) { }
   function paintNav(active) {
     if (typeof active === 'function') active = active();
     active = NAV_ALIAS[active] || active;
