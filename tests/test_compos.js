@@ -231,7 +231,7 @@ const sc5 = K.sections({ joueurs: [{ id: 'g7' }, { id: 'zz' }, { id: 'g3' }, { i
 assert.deepStrictEqual(J([sc5.av.map(j => j.id), sc5.ar.map(j => j.id), sc5.sans.map(j => j.id)]), [['g0', 'g3'], ['g7'], ['zz']]);
 
 // ----- styles de proposition -----
-assert.deepStrictEqual(Object.keys(K.STYLES), ['equilibre', 'copains', 'strict']);
+assert.deepStrictEqual(Object.keys(K.STYLES), ['equilibre', 'copains', 'strict', 'aforte'], '(v48) + « A forte »');
 const pStrict = K.proposer(ids, F, {}, { format: 5, nb }, '2026-10-19', 'strict');
 pStrict.equipes.forEach(t => t.joueurs.forEach(j => assert.strictEqual(t.niveau, F[j.id].niveau, 'strict : ' + j.id + ' reste en ' + F[j.id].niveau)));
 const pCop = K.proposer(ids, F, {}, { format: 5, nb }, '2026-10-19', 'copains');

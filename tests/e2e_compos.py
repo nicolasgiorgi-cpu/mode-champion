@@ -77,6 +77,22 @@ with sync_playwright() as p:
     pg.click('a[href="#/educ/compo/sp-demo-p3"]'); pg.wait_for_timeout(700)
     check('réglages : format et équipes', pg.query_selector('[data-act="cFmt"]') is not None and len(pg.query_selector_all('.cstep')) == 3)
     shot(pg, 'k04-reglages', True)
+    # (v48) le style « A forte » : une équipe A, les autres « B » (les C comptent comme des B)
+    check('(v48) 4 styles, dont A forte', len(pg.query_selector_all('[data-act="cStyle"]')) == 4 and pg.query_selector('[data-act="cStyle"][data-v="aforte"]') is not None)
+    pg.click('[data-act="cStyle"][data-v="aforte"]'); pg.wait_for_timeout(200)
+    check('(v48) A forte : la note des équipes', 'les équipes C comptent comme des B' in pg.inner_text('main'))
+    pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(900)
+    af = ev(pg, """(()=>{const k=Object.keys(localStorage).find(k=>k.indexOf('mc-cdraft:')===0&&k.indexOf('sp-demo-p3')>0); const d=JSON.parse(localStorage.getItem(k)).vs[0]; const F=MC.compos.fiches(MC.app.S.cache.group);
+      const a=d.equipes[0], As=d.equipes.flatMap(t=>t.joueurs).filter(j=>(F[j.id]||{}).niveau==='A');
+      return JSON.stringify({ids:d.equipes.map(t=>t.id), style:d.reglages.style, tousA: As.length<=a.joueurs.length ? As.every(j=>a.joueurs.some(x=>x.id===j.id)) : a.joueurs.every(j=>(F[j.id]||{}).niveau==='A'),
+        bC: d.equipes.slice(1).map(t=>t.joueurs.filter(j=>(F[j.id]||{}).niveau==='C').length)});})()""")
+    check('(v48) A forte : A1 puis des équipes B, pas de C', '"ids":["A1","B' in af and '"C' not in af.split('"ids":')[1].split(']')[0] and '"style":"aforte"' in af, af)
+    check('(v48) A forte : les Confirmés dans l\'équipe A', '"tousA":true' in af, af)
+    bc = [int(x) for x in af.split('"bC":[')[1].split(']')[0].split(',') if x]
+    check('(v48) A forte : les Débutants répartis dans les équipes B', len(bc) < 2 or max(bc) - min(bc) <= 1, bc)
+    shot(pg, 'k04b-aforte', True)
+    pg.click('[data-act="cDiscard"]'); pg.wait_for_timeout(300); pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(700)
+    pg.click('[data-act="cStyle"][data-v="equilibre"]'); pg.wait_for_timeout(200)
     pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(800)
     nteams = len(pg.query_selector_all('.ccol')); nchips = len(pg.query_selector_all('.ccol .cpj'))
     npres = ev(pg, "MC.compos.presents(MC.app.S.cache.compos.evenements.find(e=>e.id==='sp-demo-p3')).length")
@@ -165,6 +181,14 @@ with sync_playwright() as p:
     # ----- contre-proposition sur la compo d'un autre éduc (plateau 1, de Cyril) -----
     pg.goto(BASE + '#/educ/compo/sp-demo-p1'); pg.wait_for_timeout(800)
     check('compo d\'un autre éduc : en lecture', pg.query_selector('[data-act="cCounter"]') is not None)
+    # (v48) une équipe seule sur sa rangée (A1, C1) : ses joueurs sur deux colonnes ; deux équipes côte à côte (B1, B2) sur téléphone : une colonne
+    cols = ev(pg, """[...document.querySelectorAll('.clevel:not(.banc) .ccol')].map(c=>{const l=c.querySelector('.cpl'); const g=l?getComputedStyle(l).gridTemplateColumns:'none'; return c.querySelector('.ctid').textContent+':'+(g==='none'?1:g.split(' ').length)+':'+Math.round(c.getBoundingClientRect().width);})""")
+    w = {x.split(':')[0]: (int(x.split(':')[1]), int(x.split(':')[2])) for x in cols}
+    check('(v48) équipe seule sur sa rangée : deux colonnes de joueurs', w['A1'][0] == 2 and w['C1'][0] == 2, cols)
+    if W < 700: check('(v48) téléphone : deux équipes côte à côte, une colonne', w['B1'][0] == 1 and w['B2'][0] == 1, cols)
+    else: check('(v48) iPad : l\'équipe seule prend deux places', w['A1'][1] > 1.8 * w['B1'][1], cols)
+    check('(v48) deux colonnes : pas de défilement horizontal', noscroll(pg))
+    shot(pg, 'k08c-deux-colonnes', True)
     pg.click('[data-act="cCounter"]'); pg.wait_for_timeout(500)
     a = pg.query_selector('.ccol >> nth=1').query_selector('.cpj').get_attribute('data-id')
     c = pg.query_selector('.ccol >> nth=2').query_selector('.cpj').get_attribute('data-id')
@@ -251,6 +275,16 @@ with sync_playwright() as p:
     check('ateliers séparés : chacun de son côté', ok_cote)
     check('ateliers : pas de défilement horizontal', noscroll(pg))
     shot(pg, 'k15-ateliers-separes', True)
+    pg.click('[data-act="cDiscard"]'); pg.wait_for_timeout(300); pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(700)
+    # (v48) ateliers « A forte » : un groupe A, puis des groupes B mélangés
+    check('(v48) ateliers : trois façons (par niveau, équilibrés, A forte)', len(pg.query_selector_all('[data-act="cEMode"]')) == 3 and pg.query_selector('[data-act="cEMode"][data-v="aforte"]') is not None)
+    pg.click('[data-act="cEMode"][data-v="aforte"]'); pg.wait_for_timeout(150)
+    pg.click('[data-act="cESep"][data-v="0"]'); pg.wait_for_timeout(150)
+    pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(900)
+    noms = ev(pg, "[...document.querySelectorAll('.ccol:not(.banc) .ctid')].map(x=>x.textContent).join(',')")
+    check('(v48) ateliers A forte : le groupe A puis les groupes B', noms.startswith('A,B1') and 'C' not in noms, noms)
+    md = ev(pg, "(()=>{const k=Object.keys(localStorage).find(k=>k.indexOf('mc-cdraft:')===0&&k.endsWith(':ateliers')); return JSON.parse(localStorage.getItem(k)).vs[0].reglages.mode;})()")
+    check('(v48) ateliers A forte : le mode gardé dans le brouillon', md == 'aforte', md)
     pg.click('[data-act="cDiscard"]'); pg.wait_for_timeout(300); pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(700)
     pg.click('[data-act="cEMode"][data-v="niveau"]'); pg.wait_for_timeout(150)
     pg.click('[data-act="cESep"][data-v="0"]'); pg.wait_for_timeout(150)

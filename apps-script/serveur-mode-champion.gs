@@ -1899,10 +1899,12 @@ var Core = (function () {
     var raisons = {};
     if (req.raisons && typeof req.raisons === 'object') for (var k in req.raisons) if (seen[k]) raisons[k] = cleanText(req.raisons[k], 200);
     var reglages = { format: Number(r.format) === 10 ? 10 : 5, nb: nb };
+    // (v48) le style de la proposition du plateau est gardé (« A forte » : les alertes en tiennent compte)
+    if (!partie && ['equilibre', 'copains', 'strict', 'aforte'].indexOf(r.style) >= 0) reglages.style = r.style;
     if (partie) {
       var borne = function (v, a, b, d) { v = Math.floor(Number(v)); return isNaN(v) ? d : v < a ? a : v > b ? b : v; };
       // (v35) les matchs d'entraînement peuvent se jouer avec des postes (jeu à 10, comme les plateaux)
-      reglages = { format: partie === 'matchs' && Number(r.format) === 10 ? 10 : 5, nb: nb, partie: partie, mode: r.mode === 'equilibre' ? 'equilibre' : 'niveau', separer: partie === 'ateliers' && !!r.separer,
+      reglages = { format: partie === 'matchs' && Number(r.format) === 10 ? 10 : 5, nb: nb, partie: partie, mode: r.mode === 'equilibre' ? 'equilibre' : r.mode === 'aforte' && partie === 'ateliers' ? 'aforte' : 'niveau', separer: partie === 'ateliers' && !!r.separer,
         n: borne(r.n, 1, 8, 3), nAv: borne(r.nAv, 1, 4, 1), nAr: borne(r.nAr, 1, 4, 1), nbMatchs: borne(r.nbMatchs, 1, 2, 2) };
     }
     return { equipes: equipes, banc: banc, reglages: reglages, raisons: raisons };
