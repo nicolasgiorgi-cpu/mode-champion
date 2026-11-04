@@ -1,7 +1,9 @@
 /* =========================================================
    Mode champion · M12 — ÉDUCS : Progrès › Skills et Missions, le +1, la fiche d'un enfant
-   - Skills : évaluer (un seul écran, Skills v2 : une étoile = la liste, un atelier = la grille, groupes d'ateliers,
-     gardé sur le téléphone puis envoyé à la fin, brille après un plateau, demandes des enfants), le passeport du groupe.
+   - Skills (v44) : deux vues, le Passeport de compétences (les étoiles de chaque enfant, carte par carte) et le Catalogue
+     (cartes repliées ; une étoile se donne à des enfants en mission ou acquise) ; Évaluer sur sa page (#/educ/skills/evaluer :
+     une étoile = la liste, un atelier = la grille, groupes d'ateliers, gardé sur le téléphone puis envoyé à la fin, brille
+     après un plateau, demandes des enfants).
    - Missions : pour le groupe (vidéo + questions, QCM, et « Prépare le jeu à 10 »),
      et la mission principale de chaque enfant (visuels v2, 25/10 : 1 à 3 étoiles d'une même carte, une date de fin,
      donnée à plusieurs enfants d'un coup, avec un récapitulatif par enfant).
@@ -547,7 +549,7 @@ window.MC = window.MC || {};
     if (q.evt !== undefined || q.c === 'demandes') { var i = location.hash.indexOf('?'); app.go('#/educ/skills/evaluer' + (i >= 0 ? location.hash.slice(i) : ''), true); return null; }
     return both().then(function (r) { app.refreshNav(); return paintSkills(r[0]); });
   }, { adult: 'e', nav: 'e:progres', bg: '#2E2612' });
-  app.route('/educ/skills/passeport', function () { app.go('#/educ/skills', true); return null; }, { adult: 'e', nav: 'e:progres', bg: '#2E2612' });
+  app.route('/educ/skills/passeport', function () { SKV = 'passeport'; app.go('#/educ/skills', true); return null; }, { adult: 'e', nav: 'e:progres', bg: '#2E2612' });
 
   // donner une étoile du catalogue : à qui, puis « en mission » (la page Mission principale, déjà remplie) ou « acquise »
   var DON = null;
