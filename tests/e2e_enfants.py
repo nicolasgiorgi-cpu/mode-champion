@@ -220,7 +220,7 @@ with sync_playwright() as p:
     pg.evaluate("""(async () => { const t = MC.app.S.adult.token, g = await MC.api.call('group', { token: t }); const j = g.joueurs.map(p => p.joueur);
       await MC.api.call('updatePlayer', { token: t, joueurId: j.find(x => x.prenom === 'Adam').id, prenom: 'Baptiste Lemaire' });
       await MC.api.call('updatePlayer', { token: t, joueurId: j.find(x => x.prenom === 'Arthur').id, prenom: 'Baptiste Moreau' }); })()""")
-    pg.goto(BASE + '#/educ/progres'); pg.wait_for_timeout(500); pg.goto(BASE + '#/educ/joueurs'); pg.wait_for_timeout(1300); nomodal(pg)
+    pg.goto(BASE + '#/educ/joueurs'); pg.wait_for_timeout(300); pg.reload(); pg.wait_for_timeout(1600); nomodal(pg)   # la liste relit le groupe
     hn = pg.evaluate("[...document.querySelectorAll('#tlist .tnm')].filter(n => n.querySelector('.tnm-c')).map(n => [n.querySelector('.tnm-l').textContent, n.querySelector('.tnm-c').textContent, n.querySelector('.tnm-c').getBoundingClientRect().width > 0, n.querySelector('.tnm-l').getBoundingClientRect().width > 2, n.querySelector('.tnm-c').getAttribute('aria-hidden')])")
     if TAB: check('(v48) iPad : les homonymes en entier', len(hn) == 2 and all(x[3] and not x[2] for x in hn), hn)
     else: check('(v48) téléphone : les homonymes en nom court (« Baptiste Lem. »), le nom entier pour le lecteur d\'écran', sorted(x[1] for x in hn) == ['Baptiste Lem.', 'Baptiste Mor.'] and all(x[2] and not x[3] and x[4] == 'true' for x in hn), hn)
