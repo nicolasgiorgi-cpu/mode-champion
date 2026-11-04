@@ -149,7 +149,7 @@ MC.suivi = (function () {
     return '<ul class="list">' + rows.map(function (x) {
       var k = x.p.joueur;
       var vals = x.recs.map(function (r) { return '<span class="pv' + (r.statut === 'attente' ? ' wait' : '') + '"><small>B' + esc(String(r.bilan)) + '</small>' + esc(valText(t, r)) + '</span>'; }).join('');
-      return '<li class="li"><a href="#/educ/joueur/' + esc(k.id) + '" class="row grow" style="gap:10px;text-decoration:none;color:inherit;min-width:0">' + ui.avatar(k.prenom, k.couleur, 32) +
+      return '<li class="li"><a href="#/educ/joueur/' + esc(k.id) + '?t=prepa&c=bilans" class="row grow" style="gap:10px;text-decoration:none;color:inherit;min-width:0">' + ui.avatar(k.prenom, k.couleur, 32) +
         '<span class="grow" style="min-width:0"><span class="t1">' + esc(k.prenom) + '</span><span class="pvals" style="margin-top:4px">' + (vals || '<span class="small">pas de bilan</span>') + '</span></span></a>' +
         deltaHtml(t, x.last, x.prev) + '</li>';
     }).join('') + '</ul>';

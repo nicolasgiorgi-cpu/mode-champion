@@ -108,6 +108,13 @@ with sync_playwright() as p:
     pg.click('details.fsk >> nth=0 >> summary'); pg.wait_for_timeout(300)
     check('fiche › Skills : une carte s\'ouvre, avec Valider', pg.evaluate("document.querySelector('details.fsk').open && document.querySelector('details.fsk').querySelectorAll('[data-act=valEtoile], [data-act=retEtoile]').length >= 1"))
     check('pas de défilement de côté (fiche)', pg.evaluate(HSCROLL))
+    # (v44) les cartes ouvertes restent en passant d'un onglet de la fiche à l'autre ; venir d'ailleurs les replie
+    fid = hash_(pg).split('/')[3].split('?')[0]
+    pg.click('.ftabs a:text-is("Missions")'); pg.wait_for_timeout(800); pg.click('.ftabs a:text-is("Skills")'); pg.wait_for_timeout(800)
+    check('fiche : passer par un autre onglet de la fiche garde la carte ouverte', pg.evaluate("!!document.querySelector('details.fsk') && document.querySelector('details.fsk').open"))
+    pg.click('#nav a:has-text("Enfants")'); pg.wait_for_timeout(1100); pg.click('#tlist a.tnm[href="#/educ/joueur/%s"]' % fid); pg.wait_for_timeout(1100)
+    pg.click('.ftabs a:text-is("Skills")'); pg.wait_for_timeout(800)
+    check('fiche : venir d\'ailleurs replie les cartes', pg.evaluate("[...document.querySelectorAll('details.fsk')].every(d => !d.open)"))
     # (v44) venir d'ailleurs = le premier onglet : Progrès s'ouvre toujours sur Missions (même avec un ancien sous-onglet gardé sur l'appareil)
     pg.evaluate("localStorage.setItem('mc-stab:e:progres', JSON.stringify('#/educ/progres'))")
     pg.goto(BASE + '#/educ/joueurs'); pg.reload(); pg.wait_for_timeout(1500); nomodal(pg)

@@ -53,9 +53,9 @@ with sync_playwright() as p:
     visit(pg, '#/bilans', 'k02-bilans', 'Prépa', 'Mes records')
     visit(pg, '#/niveaux', 'k03-niveaux', 'Prépa', 'Mes niveaux')
     visit(pg, '#/classement', 'k04-classement', 'Prépa', "L'arène")
-    # le dernier sous-onglet est gardé
+    # (v44) venir d'ailleurs = le premier sous-onglet (on ne retient plus le dernier)
     go(pg, '#/missions')
-    check('onglet Prépa : ramène au dernier sous-onglet (Classement)', pg.get_attribute('#nav a:has-text("Prépa")', 'href') == '#/classement', pg.get_attribute('#nav a:has-text("Prépa")', 'href'))
+    check('onglet Prépa : ramène au premier sous-onglet (Ma semaine)', pg.get_attribute('#nav a:has-text("Prépa")', 'href') == '#/semaine', pg.get_attribute('#nav a:has-text("Prépa")', 'href'))
     t = visit(pg, '#/missions', 'k05-missions', 'Missions', 'Ma mission principale')
     check('Missions : le dernier encouragement dans le bloc de la mission', pg.query_selector('.mp-bloc') is not None and 'Jules' in t)
     check('Missions : 3 encouragements, sans total', '3 ENCOURAGEMENTS' in t.upper() and '3 / 5' not in t)

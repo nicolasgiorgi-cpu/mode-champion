@@ -355,7 +355,7 @@ MC.app = (function () {
   // ---------- Onglets du bas (les mêmes règles pour les enfants, les parents et les éducs) ----------
   // Enfant : Prépa · Missions · Skills · Moi. Parent : Prépa · Missions · Skills · Plus (sans Skills en V1 : 3 onglets).
   // Éduc : Entraîn. · Plateaux · Progrès (v44 : s'ouvre sur Missions) · Enfants ; la gestion est derrière l'engrenage (aucun onglet allumé).
-  // Chaque onglet a 2 ou 3 sous-onglets ; le dernier choisi est gardé (l'onglet du bas y ramène).
+  // Chaque onglet a 2 ou 3 sous-onglets ; (v44) l'onglet du bas mène toujours au premier (venir d'ailleurs = le premier onglet).
   var NAVS = {
     k: [['prepa', '#/semaine', 'bolt', 'Prépa', '#38E8FF'], ['missions', '#/missions', 'target', 'Missions', '#FF7FBC'], ['skills', '#/skills', 'star', 'Skills', '#FFC23D'], ['moi', '#/profil', 'user', 'Moi', '#3DFFB0']],
     p: [['p:prepa', '#/parent', 'bolt', 'Prépa', '#38E8FF'], ['p:missions', '#/parent/missions', 'target', 'Missions', '#FF7FBC'], ['p:skills', '#/parent/skills', 'star', 'Skills', '#FFC23D'], ['p:plus', '#/parent/plus', 'menu', 'Plus', '#C9AEFF']],
@@ -381,7 +381,7 @@ MC.app = (function () {
   }
   var NB_LABEL = { skills: ' nouvelle(s) étoile(s)', missions: ' à voir', 'p:prepa': ' à confirmer', 'p:missions': ' nouveau', 'e:progres': ' à traiter', 'e:plateaux': ' à voir', 'e:entrain': ' à voir' };
   // (v44) venir d'ailleurs = arriver sur le premier onglet (décision de Nicolas, 04/11) : un onglet du bas mène toujours à son
-  // premier sous-onglet ; il ne retient plus le dernier (les anciennes clés mc-stab:* gardées sur l'appareil sont effacées une fois)
+  // premier sous-onglet ; il ne retient plus le dernier (les anciennes clés mc-stab:* gardées sur l'appareil sont effacées à l'ouverture)
   function tabHref(it) { return it[1]; }
   function rememberTab() { }
   try { Object.keys(localStorage).forEach(function (k) { if (k.indexOf('mc-stab') === 0) localStorage.removeItem(k); }); } catch (e) { }

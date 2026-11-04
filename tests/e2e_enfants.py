@@ -39,7 +39,7 @@ with sync_playwright() as p:
     t = pg.evaluate(LIGNE, 'Tom')
     check('Tom : ses postes préférés ★ d\'abord, puis les autres', t and t['pills'][:2] == ['*Centre', '*Ailier'] and t['pills'][2] == '3e L.', t)
     check('pastille préférée : « préféré » lu par le lecteur d\'écran', pg.locator('#tlist .tpp.pref .sr-only').count() >= 2)
-    check('Tom : le bouclier de plaquage avec son niveau (3)', t and t['plaq'] == '3', t)
+    check('Tom : le bouclier de plaquage avec son niveau (2, sur 3)', t and t['plaq'] == '2', t)
     check('Tom : niveau B allumé', t and t['niv'] == 'B', t)
     if TAB: check('iPad : les pastilles à côté du prénom, ligne basse', t and t['memeLigne'] and t['h'] <= 48, t)
     else: check('téléphone : les pastilles sous le prénom, ligne compacte', t and t['dessous'] and t['h'] <= 72, t)

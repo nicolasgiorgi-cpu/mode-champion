@@ -866,7 +866,7 @@ window.MC = window.MC || {};
     return '<section class="ccol" style="--lc:' + coulEq(t, d) + '" aria-label="' + (estMatch(t) ? esc(nomT) : 'Équipe ' + esc(nomT)) + (B && B.vs.length > 1 ? ', ' + vName(v) : '') + '">' +
       '<button type="button" class="chd' + (dest ? ' dest' : '') + '" data-act="cTeam" data-v="' + v + '" data-t="' + esc(t.id) + '"' + (dest || ed ? '' : ' tabindex="-1"') + (ed && !dest ? ' aria-label="Composer ' + esc(labelEq(t)) + '"' : '') + '>' +
       '<span class="row" style="justify-content:space-between;width:100%"><b class="ctid' + (nomT.length > 4 ? ' long' : '') + '">' + esc(nomT) + '</b><span class="cn">' + st.n + '</span></span>' +
-      '<span class="cind"><span title="Plaquage moyen">' + icon('star', 12) + ' ' + virg(st.plaq) + '</span><span title="Bons plaqueurs (3 étoiles et plus)">' + icon('shield', 12) + ' ' + st.bons + '</span>' +
+      '<span class="cind"><span title="Plaquage moyen">' + icon('star', 12) + ' ' + virg(st.plaq) + '</span><span title="Bons plaqueurs (2 et plus, sur 3)">' + icon('shield', 12) + ' ' + st.bons + '</span>' +
       (st.ontCopains ? '<span title="Avec au moins un copain">' + icon('heart', 12) + ' ' + st.avecCopain + '/' + st.ontCopains + '</span>' : '') + (st.passerelles ? '<span title="Hors de leur niveau (passerelles)">⇅ ' + st.passerelles + '</span>' : '') + '</span>' +
       avtq + (fmt10 && !petit && !ed && st.manquants.length ? '<span class="cmiss">Manque : ' + st.manquants.map(function (p) { return COURT[p]; }).join(', ') + '</span>' : '') +
       (dest ? '<span class="cdest">' + icon('down', 12) + ' Ici</span>' : '') + '</button>' +
@@ -1820,7 +1820,7 @@ window.MC = window.MC || {};
     var pasOpts = f.niveau ? K.NIV.filter(function (n) { return Math.abs(K.NIV.indexOf(n) - K.NIV.indexOf(f.niveau)) === 1; }) : [];
     var pl = '';
     for (var i = 0; i <= 3; i++) pl += '<button type="button" class="opt' + (f.plaquage === i ? ' on' : '') + '" style="--oc:#FF4FA3" aria-pressed="' + (f.plaquage === i) + '" data-act="tkPl"' + did + ' data-v="' + i + '">' + i + '</button>';
-    function voeu(p) { var r = f.voeux.indexOf(p); return r >= 0 ? '<small class="csp" style="color:var(--gold)">son vœu ' + (r + 1) + '</small>' : ''; }   // sur sa ligne : jamais coupé
+    function voeu(p) { var r = f.voeux.indexOf(p); return r >= 0 ? ' <small class="csp" style="color:var(--gold)">son vœu ' + (r + 1) + '</small>' : ''; }   // sur sa ligne : jamais coupé
     var body = '<span class="mlab">Niveau</span><div class="seg3">' + K.NIV.map(function (n) { return '<button type="button" class="opt' + (f.niveau === n ? ' on' : '') + '" style="--oc:' + K.COUL_NIV[n] + '" aria-pressed="' + (f.niveau === n) + '" data-act="tkNiv"' + did + ' data-v="' + n + '">' + n + ' · ' + K.NOM_NIV[n] + '</button>'; }).join('') + '</div>' +
       '<span class="mlab">Passerelle (peut jouer aussi en…)</span><div class="row" style="gap:8px;flex-wrap:wrap">' + (pasOpts.length ? pasOpts.map(function (n) { return '<button type="button" class="opt' + (f.passerelle === n ? ' on' : '') + '" style="--oc:var(--violet);min-width:120px" aria-pressed="' + (f.passerelle === n) + '" data-act="tkPas"' + did + ' data-v="' + n + '">⇅ ' + n + ' · ' + K.NOM_NIV[n] + '</button>'; }).join('') : '<span class="small">Choisissez d\'abord le niveau.</span>') + '</div>' +
       '<span class="mlab">Plaquage (de 0 à 3)</span><div class="tplq">' + bouclier(f.plaquage, true) + '<div class="tplq-s" role="group" aria-label="Plaquage de ' + esc(f.prenom) + '">' + pl + '</div></div>' +

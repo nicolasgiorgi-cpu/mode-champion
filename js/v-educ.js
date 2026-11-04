@@ -546,12 +546,15 @@ window.MC = window.MC || {};
   MC.act.skVue = function (b) { SKV = b.getAttribute('data-v'); app.rerender(); };
   // (v44) venir d'ailleurs = le Passeport, cartes repliées ; on garde la vue en revenant d'une page ouverte depuis les Skills
   // (Évaluer, la fiche d'un enfant, la mission principale remplie depuis le catalogue)
+  // Un Retour (ou Avance) se reconnaît à l'état que l'appli a posé sur l'entrée d'historique (history.state.mc) ; une nouvelle
+  // entrée (lien, onglet) n'en a pas encore : cet écouteur passe avant celui de l'appli (app.start), qui le pose ensuite.
   var SKprec = location.hash;
   window.addEventListener('hashchange', function () {
-    var h = location.hash, p = SKprec; SKprec = h;
-    if (h.indexOf('#/educ/skills') === 0 && !/^#\/educ\/(skills|joueur\/|missions\/nouvelle)/.test(p)) { SKV = 'passeport'; CATO = {}; }
-    // la fiche d'un enfant : ses cartes Skills repliées quand on vient d'ailleurs
-    if (h.indexOf('#/educ/joueur/') === 0 && !/^#\/educ\/(joueur\/|missions\/nouvelle|encourager\/)/.test(p)) FSKO = {};
+    var h = location.hash, p = SKprec, retour = !!(history.state && history.state.mc); SKprec = h;
+    if (retour) return;
+    if (h.indexOf('#/educ/skills') === 0 && !/^#\/educ\/skills/.test(p)) { SKV = 'passeport'; CATO = {}; }
+    // la fiche d'un enfant : ses cartes Skills repliées quand on vient d'ailleurs (pas en passant d'un onglet de la fiche à l'autre)
+    if (h.indexOf('#/educ/joueur/') === 0 && p.split('?')[0] !== h.split('?')[0]) FSKO = {};
   });
   app.route('/educ/skills', function (p, q) {
     // les anciennes adresses de l'évaluation (?evt=, ?c=demandes : une alerte, la cloche) : sa page

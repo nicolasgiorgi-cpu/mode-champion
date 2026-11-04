@@ -481,7 +481,8 @@
     // (v36) une séance : « 👏 Bravo » d'un toucher à droite (js/bravos.js), et les bravos déjà donnés dessous
     function feedLi(e) {
       var bt = e.s && MC.bravo ? MC.bravo.btn(g, e.id, e.s, { sm: true }) : '', vu = e.s ? MC.suivi.bravosDe(e.s, { bravos: e.bravos, moi: g.moi.id }) : '';
-      var a = '<a class="li" href="#/educ/joueur/' + esc(e.id) + '"><span class="dia" style="--dc:' + e.c + '"></span><span class="grow"><span class="t1">' + esc(e.p.prenom) + ' · ' + esc(e.t1) + '</span><span class="t2">' + esc(e.t2) + '</span>' + vu + '</span>' + (bt ? '' : icon('right', 16)) + '</a>';
+      // (v44) un lien précis : sa fiche, onglet Prépa, la séance (ou ses bilans) — la fiche s'ouvre sinon sur Terrain
+      var a = '<a class="li" href="#/educ/joueur/' + esc(e.id) + '?t=prepa&c=' + (e.s && e.s.id ? 's-' + esc(e.s.id) : 'bilans') + '"><span class="dia" style="--dc:' + e.c + '"></span><span class="grow"><span class="t1">' + esc(e.p.prenom) + ' · ' + esc(e.t1) + '</span><span class="t2">' + esc(e.t2) + '</span>' + vu + '</span>' + (bt ? '' : icon('right', 16)) + '</a>';
       return bt ? '<li class="bvrow">' + a + bt + '</li>' : '<li>' + a + '</li>';
     }
     var feed = ev.slice(0, 6).map(feedLi).join('');
