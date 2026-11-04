@@ -25,6 +25,11 @@ MC.compos = (function () {
   var FORMATS = [5, 10];
 
   function voisin(a, b) { return NIV.indexOf(a) >= 0 && NIV.indexOf(b) >= 0 && Math.abs(NIV.indexOf(a) - NIV.indexOf(b)) === 1; }
+  // (v45) les passerelles d'un enfant : un ou deux autres niveaux (lettres de la fiche, ex. 'AC')
+  function lettresPas(s, niv) { return NIV.filter(function (n) { return n !== niv && String(s || '').indexOf(n) >= 0; }); }
+  function pasDe(f) { return f ? (Array.isArray(f.passerelles) ? f.passerelles : lettresPas(f.passerelle, f.niveau)) : []; }
+  // peut-il jouer dans ce niveau ? (le sien, ou une de ses passerelles)
+  function joueEn(f, n) { return !!f && (f.niveau === n || pasDe(f).indexOf(n) >= 0); }
   function fmt(r) { return Number(r && r.format) === 10 ? 10 : 5; }
   function nbOf(r) {
     var nb = (r && r.nb) || {}, o = {};
@@ -102,7 +107,8 @@ MC.compos = (function () {
       var r = (m && m.reponses) || {};
       out[p.joueur.id] = {
         id: p.joueur.id, prenom: p.joueur.prenom, couleur: p.joueur.couleur, actif: p.joueur.actif !== false,
-        niveau: NIV.indexOf(t.niveau) >= 0 ? t.niveau : '', passerelle: NIV.indexOf(t.passerelle) >= 0 ? t.passerelle : '',
+        niveau: NIV.indexOf(t.niveau) >= 0 ? t.niveau : '', passerelle: NIV.indexOf(t.niveau) >= 0 ? lettresPas(t.passerelle, t.niveau).join('') : '',
+        passerelles: NIV.indexOf(t.niveau) >= 0 ? lettresPas(t.passerelle, t.niveau) : [],
         plaquage: Math.max(0, Math.min(3, Number(t.plaquage) || 0)),
         voeux: Array.isArray(r.postes) ? r.postes.slice(0, 3) : [], postesOk: pref.concat(ok.filter(function (x) { return pref.indexOf(x) < 0; })), pref: pref,
         copains: Array.isArray(r.copains) ? r.copains.slice() : [], spondId: t.spondId || ''
@@ -321,13 +327,13 @@ MC.compos = (function () {
       princ[id] = n;
       if (!n) { n = ok('B') ? 'B' : ok('C') ? 'C' : 'A'; raisons[id] = 'Niveau à renseigner : placé en ' + n + '.'; }
       else if (!ok(n)) {
-        var alt = f.passerelle && ok(f.passerelle) ? f.passerelle : n === 'B' ? (ok('C') ? 'C' : 'A') : (ok('B') ? 'B' : n === 'A' ? 'C' : 'A');
+        var alt = pasDe(f).filter(ok)[0] || (n === 'B' ? (ok('C') ? 'C' : 'A') : (ok('B') ? 'B' : n === 'A' ? 'C' : 'A'));
         raisons[id] = 'Pas d\'équipe ' + n + ' : joue en ' + alt + '.';
         n = alt;
       }
       lv[id] = n;
     });
-    // 2. les passerelles comblent les écarts d'effectif entre niveaux voisins (d'abord ceux qui attendent leur tour)
+    // 2. les passerelles comblent les écarts d'effectif entre niveaux (d'abord ceux qui attendent leur tour) ; v45 : vers n'importe quel niveau de sa fiche
     var total = ids.length, per = total / tids.length;
     function count(n) { var c = 0; ids.forEach(function (id) { if (lv[id] === n) c++; }); return c; }
     function ecart(n) { return count(n) - nb[n] * per; }
@@ -336,10 +342,10 @@ MC.compos = (function () {
       var move = null;
       NIV.forEach(function (from) {
         NIV.forEach(function (to) {
-          if (move || !voisin(from, to) || !ok(to)) return;
+          if (move || from === to || !ok(to)) return;
           var ef = ecart(from), et = ecart(to);
           if (!(ef > 0.5 && et < -0.5)) return;
-          var c = ids.filter(function (id) { var f = F[id] || {}; return lv[id] === from && princ[id] === from && f.passerelle === to; });
+          var c = ids.filter(function (id) { var f = F[id] || {}; return lv[id] === from && princ[id] === from && pasDe(f).indexOf(to) >= 0; });
           if (!c.length) return;
           c.sort(function (a, b) {
             var ha = hOf(H, a), hb = hOf(H, b);
@@ -484,11 +490,11 @@ MC.compos = (function () {
     });
     // passerelles qui n'ont pas encore joué dans l'autre niveau (rotation)
     var attente = Object.keys(placed).filter(function (id) {
-      var f = F[id]; if (!f || !f.passerelle || placed[id] === 'banc') return false;
+      var f = F[id]; if (!f || !pasDe(f).length || placed[id] === 'banc') return false;
       var t = eqs.filter(function (x) { return x.id === placed[id]; })[0];
       return t && t.niveau === f.niveau && !hOf(H, id).autre;
     });
-    if (attente.length) out.push({ k: 'rotation', niveau: 'info', texte: 'Passerelles qui n\'ont pas encore joué dans l\'autre niveau : ' + attente.map(function (id) { return F[id].prenom + ' (' + F[id].niveau + '→' + F[id].passerelle + ')'; }).join(', ') + '.', ids: attente });
+    if (attente.length) out.push({ k: 'rotation', niveau: 'info', texte: 'Passerelles qui n\'ont pas encore joué dans l\'autre niveau : ' + attente.map(function (id) { return F[id].prenom + ' (' + F[id].niveau + '→' + pasDe(F[id]).join('/') + ')'; }).join(', ') + '.', ids: attente });
     return out;
   }
   function virg(x) { return String(x).replace('.', ','); }
@@ -631,7 +637,8 @@ MC.compos = (function () {
       return d || (a < b ? -1 : 1);
     };
   }
-  function biais(f) { var n = NIV.indexOf(niveauDe(f) || 'B'), p = NIV.indexOf(f.passerelle || ''); return p < 0 ? 1 : p < n ? 0 : 2; }
+  // (v45) une passerelle vers le haut d'abord ; vers le bas seulement : en dernier
+  function biais(f) { var n = NIV.indexOf(niveauDe(f) || 'B'), ps = pasDe(f).map(function (x) { return NIV.indexOf(x); }); return ps.some(function (p) { return p < n; }) ? 0 : ps.length ? 2 : 1; }
   function serpentin(list, k) {
     var teams = [];
     for (var i = 0; i < k; i++) teams.push([]);
@@ -842,6 +849,7 @@ MC.compos = (function () {
   return {
     NIV: NIV, NOM_NIV: NOM_NIV, COUL_NIV: COUL_NIV, POSTES10: POSTES10, SEUIL: SEUIL, BON: BON, TAILLE: TAILLE, FORMATS: FORMATS,
     fiches: fiches, historique: historique, hOf: hOf, suggestNb: suggestNb, teamIds: teamIds, nbOf: nbOf, fmt: fmt,
+    pasDe: pasDe, lettresPas: lettresPas, joueEn: joueEn,
     proposer: proposer, vide: vide, stats: stats, alertes: alertes, apparier: apparier, scoreNiveau: scoreNiveau,
     moveTo: moveTo, swap: swap, setPoste: setPoste, where: where, diff: diff, presents: presents, attente: attente, retirer: retirer, sorteDuTitre: sorteDuTitre,
     nomPoste: nomPoste, frDate: frDate,

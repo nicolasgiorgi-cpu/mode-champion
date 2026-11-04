@@ -26,13 +26,13 @@ r = g.call({ action: 'group', token: nico });
 assert.strictEqual(r.joueurs[0].terrain, null, 'pas encore de fiche terrain');
 r = g.call({ action: 'setTerrain', token: nico, lignes: [
   { joueurId: P.Tom, niveau: 'B', passerelle: 'A', plaquage: 3, postesOk: ['centre', 'pirate', 'centre'] },
-  { joueurId: P['Léa'], niveau: 'A', passerelle: 'C', plaquage: 9 },          // passerelle A→C impossible, plaquage hors bornes
+  { joueurId: P['Léa'], niveau: 'A', passerelle: 'AC', plaquage: 9 },         // (v45) passerelle vers C permise, pas vers son niveau ; plaquage hors bornes
   { joueurId: P.Hugo, niveau: 'C', plaquage: 1 },
   { joueurId: 'inconnu', niveau: 'A' }
 ] });
 assert.ok(r.ok, JSON.stringify(r));
 assert.deepStrictEqual(r.terrain[P.Tom].postesOk, ['centre']);
-assert.strictEqual(r.terrain[P['Léa']].passerelle, '');
+assert.strictEqual(r.terrain[P['Léa']].passerelle, 'C');
 assert.strictEqual(r.terrain[P['Léa']].plaquage, 0);
 assert.strictEqual(r.terrain[P.Tom].parQui, 'Admin');
 assert.strictEqual(Object.keys(r.terrain).length, 3);
@@ -40,9 +40,15 @@ assert.strictEqual(Object.keys(r.terrain).length, 3);
 r = g.call({ action: 'setTerrain', token: cyril, lignes: [{ joueurId: P.Tom, plaquage: 2 }] });   // (v44) plaquage de 0 à 3
 assert.strictEqual(r.terrain[P.Tom].niveau, 'B'); assert.strictEqual(r.terrain[P.Tom].passerelle, 'A'); assert.strictEqual(r.terrain[P.Tom].plaquage, 2);
 assert.strictEqual(r.terrain[P.Tom].parQui, 'Cyril');
-// changer de niveau peut rendre la passerelle impossible
+// (v45) changer de niveau retire la passerelle vers son nouveau niveau, garde l'autre
+r = g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P.Hugo, niveau: 'C', passerelle: 'AB' }] });
+assert.strictEqual(r.terrain[P.Hugo].passerelle, 'AB', 'un C : passerelles vers A et B');
+r = g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P.Hugo, niveau: 'B' }] });
+assert.strictEqual(r.terrain[P.Hugo].passerelle, 'A', 'devenu B : plus de passerelle vers B');
+r = g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P.Hugo, passerelle: 'CXA' }] });
+assert.strictEqual(r.terrain[P.Hugo].passerelle, 'AC', 'lettres dans l\'ordre, inconnues retirées');
 r = g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P.Hugo, niveau: 'C', passerelle: 'A' }] });
-assert.strictEqual(r.terrain[P.Hugo].passerelle, '');
+assert.strictEqual(r.terrain[P.Hugo].passerelle, 'A');
 r = g.call({ action: 'group', token: nico });
 const tomG = r.joueurs.find(p => p.joueur.id === P.Tom);
 assert.strictEqual(tomG.terrain.niveau, 'B');

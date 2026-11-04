@@ -176,7 +176,7 @@ MC.demo = (function () {
       var t = db.rows('terrain').filter(function (x) { return x.id === j.id; })[0] || {};
       var m = db.rows('missions').filter(function (x) { return x.joueurId === j.id; })[0];
       var r = (m && m.reponses) || {};
-      F[j.id] = { id: j.id, prenom: j.prenom, niveau: t.niveau || '', passerelle: t.passerelle || '', plaquage: t.plaquage3 || 0, voeux: r.postes || [], postesOk: [], copains: r.copains || [] };
+      F[j.id] = { id: j.id, prenom: j.prenom, niveau: t.niveau || '', passerelle: t.passerelle || '', passerelles: String(t.passerelle || '').split('').filter(function (n) { return n && n !== t.niveau; }), plaquage: t.plaquage3 || 0, voeux: r.postes || [], postesOk: [], copains: r.copains || [] };
     });
     function sauf(noms) { var out = []; Object.keys(ids).forEach(function (n) { if (noms.indexOf(n) < 0) out.push(ids[n]); }); return out; }
     function evt(o) {
