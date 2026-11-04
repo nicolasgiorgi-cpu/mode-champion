@@ -130,7 +130,7 @@ with sync_playwright() as p:
     t = visit(pg, '#/educ/plateaux', 'e03-plateaux', 'Plateaux', 'Plateau 3')
     check('Plateaux : vote et contre-proposition en tête', pg.query_selector('a.calert-top') is not None)
     visit(pg, '#/educ/evt/sp-demo-e1', 'e04-entrainement', 'Entraîn.', 'Les présents')
-    check('séance : évaluer des Skills avec les présents', pg.query_selector('a[href="#/educ/skills?evt=sp-demo-e1"]') is not None)
+    check('séance : évaluer des Skills avec les présents', pg.query_selector('a[href="#/educ/skills/evaluer?evt=sp-demo-e1"]') is not None)   # (v44) Évaluer a sa page
     visit(pg, '#/educ/evt/sp-demo-e0', 'e05-entrainement-passe', 'Entraîn.', 'Ateliers')
     visit(pg, '#/educ/evt/sp-demo-e1/presents', 'e06-presents', 'Entraîn.', 'Présents')
     visit(pg, '#/educ/evt/sp-demo-p3', 'e07-plateau', 'Plateaux', 'Préparer la compo')

@@ -23,6 +23,8 @@ with sync_playwright() as p:
     pg = ctx.new_page(); pg.on('pageerror', lambda e: errs.append(str(e)))
     pg.goto(BASE); pg.wait_for_timeout(400); pg.evaluate('localStorage.clear(); sessionStorage.clear()'); pg.goto(BASE); pg.wait_for_timeout(700)
     pg.evaluate(EDUC % '#/educ/entrainements'); pg.wait_for_timeout(1600); nomodal(pg)
+    # un entraînement aujourd'hui, avec 12 présents (la démo n'en a pas le jour même) : pour le filtre « Présents » de la fenêtre « donner »
+    pg.evaluate("MC.loadGroup().then(g => { const ids = g.joueurs.filter(p => p.joueur.actif).slice(0, 12).map(p => p.joueur.id); return MC.app.adultCall('setEvenement', { titre: 'Entraînement - Essai', debut: MC.logic.today() + 'T16:30:00.000Z', lieu: 'Essai', sorte: 'entrainement', presents: ids }); }).then(() => MC.loadCompos(true)).then(() => 1)")
     # ----- Progrès : Missions d'abord, ouvert de base -----
     pg.click('#nav a:has-text("Progrès")'); pg.wait_for_timeout(1200); nomodal(pg)
     tabs = pg.evaluate("[...document.querySelectorAll('.stabs a')].map(a => a.childNodes[0].textContent.trim())")
@@ -49,7 +51,18 @@ with sync_playwright() as p:
     btns = pg.evaluate("[...document.querySelectorAll('.modal .mbtns button')].map(b => [b.textContent.trim(), b.disabled])")
     check('deux choix, grisés tant que personne n\'est coché : En mission, Acquise', len(btns) == 2 and 'En mission' in btns[0][0] and 'Acquise' in btns[1][0] and btns[0][1] and btns[1][1], btns)
     deja = pg.locator('.modal .cop[disabled]').count()
-    check('ceux qui l\'ont déjà ne se cochent pas (« l\'a déjà »)', deja >= 1 and 'l\'a déjà' in pg.inner_text('.modal .cop[disabled] >> nth=0'), deja)
+    check('ceux qui l\'ont déjà ne se cochent pas (« l\'a déjà »), grisés', deja >= 1 and 'l\'a déjà' in pg.inner_text('.modal .cop[disabled] >> nth=0') and float(pg.eval_on_selector('.modal .cop[disabled]', 'e => getComputedStyle(e).opacity')) < 0.7, deja)
+    # (relecture v44) le filtre : « Présents » de base s'il y a un entraînement du jour ; un enfant coché puis caché n'est plus compté
+    pres = pg.query_selector('.modal [data-don="filtre"][data-v="presents"]') is not None
+    check('un entraînement aujourd\'hui : le filtre « Présents »', pres)
+    if pres:
+        check('« Présents » de base (entraînement du jour)', pg.query_selector('.modal [data-don="filtre"][data-v="presents"].on') is not None)
+        pg.click('.modal [data-don="filtre"][data-v="tous"]'); pg.wait_for_timeout(200)
+        pg.locator('.modal [data-don="kid"]:not(.on)').last.click(); pg.wait_for_timeout(150)
+        pg.click('.modal [data-don="filtre"][data-v="presents"]'); pg.wait_for_timeout(200)
+    nvis = pg.locator('.modal [data-don="kid"].on').count()
+    check('« Pour qui ? » ne compte que les enfants cochés visibles', ('POUR QUI ? · %d' % nvis) in pg.inner_text('.modal').upper() and (('ACQUISE · %d' % nvis) in pg.inner_text('.modal .mbtns').upper() if nvis else True), (nvis, pg.inner_text('.modal .mbtns')))
+    for i in range(nvis): pg.locator('.modal [data-don="kid"].on').first.click(); pg.wait_for_timeout(120)
     noms = []
     for i in range(2):
         el = pg.locator('.modal [data-don="kid"]:not(.on)').first
@@ -58,6 +71,9 @@ with sync_playwright() as p:
     st = pg.evaluate("(() => { const b = document.querySelector('details[data-skd=\"plaquage\"] [data-act=\"skDonner\"]'); return [b.getAttribute('data-d'), b.getAttribute('data-e')]; })()")
     pg.click('.modal .mbtns button >> nth=1'); pg.wait_for_timeout(1500)
     check('Acquise : validée pour les 2 (au serveur)', not pg.query_selector('.modal') and all(etoiles_de(pg, n, st[0], st[1]) for n in noms), (noms, st))
+    if pres:
+        occ = pg.evaluate("(a) => MC.api.call('group', { token: MC.app.S.adult.token }).then(g => { const p = g.joueurs.find(x => x.joueur.prenom === a[0]); const e = (p.etoiles || []).find(x => x.domaine === a[1] && x.etoile === a[2]); return e ? [e.evenementId || '', e.occasion || ''] : null; })", [noms[0], st[0], st[1]])
+        check('Acquise parmi les présents : l\'occasion est l\'entraînement du jour', occ and occ[0] and occ[1], occ)
     check('… le catalogue est toujours ouvert sur la carte', pg.query_selector('details[data-skd="plaquage"][open]') is not None)
     # ----- donner une étoile : En mission → la page déjà remplie, puis retour aux Skills -----
     pg.click('details[data-skd="plaquage"] [data-act="skDonner"] >> nth=2'); pg.wait_for_timeout(600)
@@ -77,6 +93,12 @@ with sync_playwright() as p:
     check('Évaluer : plus de lien vers l\'ancien « Passeport du groupe »', pg.query_selector('a[href="#/educ/skills/passeport"]') is None)
     pg.goto(BASE + '#/educ/skills?c=demandes'); pg.wait_for_timeout(1300); nomodal(pg)
     check('ancienne adresse des demandes (alertes, cloche) : Évaluer, aux demandes', hash_(pg).startswith('#/educ/skills/evaluer') and 'c=demandes' in hash_(pg), hash_(pg))
+    pg.goto(BASE + '#/educ/skills?evt=sp-demo-e1'); pg.wait_for_timeout(1300); nomodal(pg)
+    check('ancienne adresse d\'une séance (?evt=) : Évaluer, sur la séance', hash_(pg) == '#/educ/skills/evaluer?evt=sp-demo-e1', hash_(pg))
+    pg.goto(BASE + '#/educ/skills/journee'); pg.wait_for_timeout(1200); nomodal(pg)
+    check('ancienne journée d\'évaluation : Évaluer', hash_(pg) == '#/educ/skills/evaluer', hash_(pg))
+    pg.goto(BASE + '#/educ/evt/sp-demo-e1'); pg.wait_for_timeout(1300); nomodal(pg)
+    check('page d\'une séance : « Évaluer des Skills » mène droit à Évaluer', pg.query_selector('a[href="#/educ/skills/evaluer?evt=sp-demo-e1"]') is not None)
     pg.goto(BASE + '#/educ/skills/passeport'); pg.wait_for_timeout(1200); nomodal(pg)
     check('ancienne adresse du passeport : Skills', hash_(pg) == '#/educ/skills' and pg.query_selector('#passeport') is not None, hash_(pg))
     # ----- la fiche d'un enfant › Skills : cartes repliées -----
@@ -86,6 +108,15 @@ with sync_playwright() as p:
     pg.click('details.fsk >> nth=0 >> summary'); pg.wait_for_timeout(300)
     check('fiche › Skills : une carte s\'ouvre, avec Valider', pg.evaluate("document.querySelector('details.fsk').open && document.querySelector('details.fsk').querySelectorAll('[data-act=valEtoile], [data-act=retEtoile]').length >= 1"))
     check('pas de défilement de côté (fiche)', pg.evaluate(HSCROLL))
+    # (relecture v44) un éduc qui avait Prépa physique comme dernier sous-onglet de Progrès : la v44 s'ouvre quand même sur Missions, une fois
+    pg.evaluate("localStorage.setItem('mc-stab:e:progres', JSON.stringify('#/educ/progres')); localStorage.removeItem('mc-stab-v44')")
+    pg.goto(BASE + '#/educ/joueurs'); pg.reload(); pg.wait_for_timeout(1500); nomodal(pg)
+    pg.click('#nav a:has-text("Progrès")'); pg.wait_for_timeout(1200); nomodal(pg)
+    check('mise à jour v44 : Progrès s\'ouvre sur Missions (ancien sous-onglet oublié)', hash_(pg) == '#/educ/missions', hash_(pg))
+    pg.click('.stabs a:has-text("Prépa")'); pg.wait_for_timeout(1000); pg.click('#nav a:has-text("Enfants")'); pg.wait_for_timeout(900)
+    pg.reload(); pg.wait_for_timeout(1500); nomodal(pg)
+    pg.click('#nav a:has-text("Progrès")'); pg.wait_for_timeout(1200); nomodal(pg)
+    check('ensuite, Progrès se souvient de nouveau du dernier sous-onglet', hash_(pg) == '#/educ/progres', hash_(pg))
     check('aucune erreur JS', not errs, errs)
     b.close()
 ok = sum(1 for _, c in res if c); print('%d/%d' % (ok, len(res)))

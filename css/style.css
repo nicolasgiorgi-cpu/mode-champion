@@ -1373,7 +1373,11 @@ textarea.txt{min-height:84px;padding:10px 12px;resize:vertical;font:500 16px/1.4
 /* (v44) Progrès › Skills : le catalogue (cartes repliées, une étoile = un bouton) */
 .rpost-s .grow{flex:1;min-width:0}
 .skcats{display:flex;flex-direction:column;gap:8px}
-@media (min-width:900px){.skcats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}}
+@media (min-width:900px){.skcats{display:block;columns:2;column-gap:8px}.skcats .skcat{break-inside:avoid;margin-bottom:8px}}
+/* la fenêtre « donner » : 2 colonnes (la fenêtre est étroite, même sur iPad) ; ceux qui l'ont déjà, grisés */
+.skdon .cop-list{grid-template-columns:repeat(2,minmax(0,1fr))}
+.skdon .cop:disabled{opacity:.45;cursor:default}
+.skdon .cop:disabled .ck{border-color:transparent;color:var(--gold)}
 .skacts{gap:8px;flex-wrap:wrap}
 .skacts .btn2{flex:1 1 0;min-width:140px}
 .skcat-i{flex:none;display:flex}

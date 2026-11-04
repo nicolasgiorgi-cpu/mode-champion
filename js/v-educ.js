@@ -179,7 +179,7 @@ window.MC = window.MC || {};
     }).join('');
     var nq = queue(evs(), e.id).length, plat = estPlateau(e);
     return '<section class="sec"><h2 class="h2">' + (plat ? 'Après le plateau' : train ? 'Après la séance' : 'Après l\'événement') + '</h2>' +
-      '<a class="li" href="#/educ/skills?evt=' + esc(e.id) + '">' + icon(plat ? 'spark' : 'star', 20, 'style="color:var(--gold);flex:none"') + '<span class="grow"><span class="t1">' + (plat ? 'Faire briller des étoiles' : 'Évaluer des Skills') + '</span><span class="t2">' + (nq ? '<b style="color:var(--pink)">' + nq + ' pas encore envoyée' + (nq > 1 ? 's' : '') + '</b> · ' : '') + 'Avec les ' + pres.length + ' présents' + (plat ? ' · elles brillent' : ' · une étoile ou un atelier') + '</span></span>' + icon('right', 16) + '</a>' +
+      '<a class="li" href="#/educ/skills/evaluer?evt=' + esc(e.id) + '">' + icon(plat ? 'spark' : 'star', 20, 'style="color:var(--gold);flex:none"') + '<span class="grow"><span class="t1">' + (plat ? 'Faire briller des étoiles' : 'Évaluer des Skills') + '</span><span class="t2">' + (nq ? '<b style="color:var(--pink)">' + nq + ' pas encore envoyée' + (nq > 1 ? 's' : '') + '</b> · ' : '') + 'Avec les ' + pres.length + ' présents' + (plat ? ' · elles brillent' : ' · une étoile ou un atelier') + '</span></span>' + icon('right', 16) + '</a>' +
       '<div class="between" style="margin-top:6px"><span class="mlab" style="margin:0">Missions des présents</span><span class="small">un toucher = +1</span></div>' +
       (list ? '<ul class="list">' + list + '</ul>' : '<p class="small" style="margin:0">Aucun présent n\'a de mission principale en cours. Donnez-en une depuis Progrès › Missions ou la fiche d\'un enfant.</p>') +
       '<button type="button" class="li" data-act="encAutre" data-ev="' + esc(e.id) + '">' + icon('heart', 20, 'style="color:var(--green);flex:none"') + '<span class="grow"><span class="t1">Encourager un autre enfant</span><span class="t2">Un +1 avec un mot, sur sa mission ou autre chose</span></span>' + icon('right', 16) + '</button></section>';
@@ -515,7 +515,7 @@ window.MC = window.MC || {};
       }).join('') + '<td class="sktot">' + SK.total(d) + '</td></tr>';
     }).join('');
     return '<section class="sec" id="passeport"><div class="between" style="align-items:baseline"><h2 class="h2">Passeport de compétences</h2><span class="small" style="color:var(--gold)">' + ceMois + ' étoile' + (ceMois > 1 ? 's' : '') + ' ce mois-ci</span></div>' +
-      '<p class="small" style="margin:0">Les étoiles de chaque enfant, carte par carte. Touchez un prénom pour sa fiche. Jamais montré aux enfants comme un classement.</p>' +
+      '<p class="small" style="margin:0">Les étoiles de chaque enfant, carte par carte (' + SK.DOMAINES.map(function (D) { return ABR[D.id] + ' ' + D.etoiles.length; }).join(', ') + '). Touchez un prénom pour sa fiche. Jamais montré aux enfants comme un classement.</p>' +
       '<div class="sktable-w"><table class="sktable"><colgroup><col class="n">' + SK.DOMAINES.map(function () { return '<col>'; }).join('') + '<col></colgroup><thead><tr><th></th>' + SK.DOMAINES.map(function (D) { return '<th scope="col" style="color:' + D.color + '" title="' + esc(D.nom) + '">' + esc(ABR[D.id] || D.nom) + '</th>'; }).join('') + '<th>Tout</th></tr></thead><tbody>' + rows + '</tbody>' +
       '<tfoot><tr><th>Total</th>' + SK.DOMAINES.map(function (D) { return '<td>' + tot[D.id] + '</td>'; }).join('') + '<td></td></tr></tfoot></table></div></section>';
   }
@@ -528,7 +528,7 @@ window.MC = window.MC || {};
         var nb = 0;
         var lis = D.etoiles.map(function (sd) {
           var k = kids.filter(function (p) { return SK.acquis(dataDe(gr, p.joueur.id))[SK.key(D.id, sd.id)]; }).length; nb += k;
-          return '<li><button type="button" class="li skce" data-act="skDonner" data-d="' + D.id + '" data-e="' + sd.id + '"><span class="skno" style="color:' + D.color + '">' + icon('star', 14) + '</span><span class="grow"><span class="t1">' + esc(sd.nom) + '</span><span class="t2">« ' + esc(sd.phrase) + ' »</span></span><span class="skce-n">' + k + '/' + n + '</span>' + icon('right', 14) + '</button></li>';
+          return '<li><button type="button" class="li skce" data-act="skDonner" data-d="' + D.id + '" data-e="' + sd.id + '"><span class="skno" style="color:' + D.color + '">' + icon('star', 14) + '</span><span class="grow"><span class="t1">' + esc(sd.nom) + '</span><span class="t2">« ' + esc(sd.phrase) + ' »</span></span><span class="skce-n" aria-label="' + k + ' sur ' + n + ' l\'ont">' + k + '/' + n + '</span>' + icon('right', 14) + '</button></li>';
         }).join('');
         return '<details class="rpost skcat" data-skd="' + D.id + '"' + (CATO[D.id] ? ' open' : '') + '><summary class="rpost-s"><span class="skcat-i" style="color:' + D.color + '">' + icon(D.icon, 20) + '</span><span class="grow"><b style="color:' + D.color + '">' + esc(D.nom) + '</b><small>' + D.etoiles.length + ' étoiles · ' + nb + ' gagnée' + (nb > 1 ? 's' : '') + ' dans le groupe</small></span>' + icon('down', 16, 'class="rpost-i"') + '</summary>' +
           '<ul class="list rpost-c">' + lis + '</ul></details>';
@@ -559,45 +559,53 @@ window.MC = window.MC || {};
     var filtres = ev ? '<div class="seg3" style="--n:2">' + [['tous', 'Tous'], ['presents', 'Présents (' + pres.length + ')']].map(function (f) {
       return '<button type="button" class="opt' + (DON.filtre === f[0] ? ' on' : '') + '" aria-pressed="' + (DON.filtre === f[0]) + '" data-don="filtre" data-v="' + f[0] + '">' + f[1] + '</button>'; }).join('') + '</div>' : '';
     var libres = kids.filter(function (p) { return !SK.acquis(dataDe(gr, p.joueur.id))[SK.key(DON.d, DON.e)]; });
+    // seuls les enfants visibles, actifs et qui ne l'ont pas encore restent cochés (filtre changé, données rafraîchies)
+    var ok = {}; libres.forEach(function (p) { ok[p.joueur.id] = true; });
+    DON.ids = DON.ids.filter(function (id) { return ok[id]; });
     var tous = libres.length && libres.every(function (p) { return DON.ids.indexOf(p.joueur.id) >= 0; });
     var liste = '<div class="cop-list">' + kids.map(function (p) {
       var id = p.joueur.id, a = SK.acquis(dataDe(gr, id))[SK.key(DON.d, DON.e)], m = persoDe(gr, id), enM = m && !etatDe(gr, m).expiree && SK.dansMission(m, DON.d, DON.e);
       if (a) return '<button type="button" class="cop" disabled><span class="nm">' + esc(p.joueur.prenom) + '<small class="csp" style="color:var(--gold)">l\'a déjà</small></span><span class="ck">' + icon('star', 14) + '</span></button>';
       var on = DON.ids.indexOf(id) >= 0;
-      return '<button type="button" class="cop' + (on ? ' on' : '') + '" aria-pressed="' + on + '" data-don="kid" data-v="' + esc(id) + '"><span class="nm">' + esc(p.joueur.prenom) + (enM ? '<small class="csp" style="color:var(--violet)">dans sa mission</small>' : m && !etatDe(gr, m).expiree ? '<small class="csp">a une mission</small>' : '') + '</span><span class="ck">' + icon('check', 14) + '</span></button>';
-    }).join('') + '</div>';
+      return '<button type="button" class="cop' + (on ? ' on' : '') + '" aria-pressed="' + on + '" data-don="kid" data-v="' + esc(id) + '"' + (DON.busy ? ' disabled' : '') + '><span class="nm">' + esc(p.joueur.prenom) + (enM ? '<small class="csp" style="color:var(--violet)">dans sa mission</small>' : m && !etatDe(gr, m).expiree ? '<small class="csp">a une mission</small>' : '') + '</span><span class="ck">' + icon('check', 14) + '</span></button>';
+    }).join('') + '</div>' + (kids.length ? '' : '<p class="small" style="margin:0">Personne : cochez d\'abord les présents de la séance, ou choisissez « Tous ».</p>');
     return '<p class="small" style="margin:0;color:var(--soft)">« ' + esc(sd.phrase) + ' »</p><p class="small" style="margin:0"><b>Ce qu\'on regarde</b> : ' + esc(sd.repere) + '</p>' +
       '<div class="between"><span class="mlab" style="margin:0">Pour qui ? · ' + DON.ids.length + '</span>' + (libres.length ? '<button type="button" class="lnk" data-don="tous">' + (tous ? 'Tout décocher' : 'Tout cocher') + '</button>' : '') + '</div>' + filtres + liste;
   }
   function donBtns(host) {
     var n = DON.ids.length, b = host.querySelectorAll('.mbtns button[data-i]');
-    if (b[0]) { b[0].disabled = !n; b[0].innerHTML = icon('target', 16) + ' En mission' + (n ? ' · ' + n : ''); }
-    if (b[1]) { b[1].disabled = !n; b[1].innerHTML = icon('star', 16) + ' Acquise' + (n ? ' · ' + n : ''); }
+    if (b[0]) { b[0].disabled = !n || !!DON.busy; b[0].innerHTML = icon('target', 16) + ' En mission' + (n ? ' · ' + n : ''); }
+    if (b[1]) { b[1].disabled = !n || !!DON.busy; b[1].innerHTML = icon('star', 16) + ' Acquise' + (n ? ' · ' + n : ''); }
   }
   MC.act.skDonner = function (b) {
     var gr = G(), D = SK.dom(b.getAttribute('data-d')), sd = D && SK.star(D.id, b.getAttribute('data-e'));
     if (!sd) return;
-    DON = { d: D.id, e: sd.id, ids: [], filtre: evtDuJour() ? 'presents' : 'tous' };
+    var ej = evtDuJour();
+    DON = { d: D.id, e: sd.id, ids: [], filtre: ej && presentsDe(ej, gr).length ? 'presents' : 'tous', busy: false };
     ui.modal({
       title: '<span style="color:' + D.color + '">' + esc(D.nom) + '</span> · ★ ' + esc(sd.nom),
       body: '<div class="sec skdon" style="gap:10px">' + donBody(gr) + '</div>',
       actions: [
         { label: 'En mission', cls: 'btn2', onClick: function (host, close) {
-          if (!DON.ids.length) return;
+          if (!DON.ids.length || DON.busy) return;
           NM = null; var st = nmInit('perso'); st.joueurs = DON.ids.slice(); st.d = DON.d; st.etoiles = [DON.e]; st.depuis = ''; st.retour = '#/educ/skills';
           close(null); app.go('#/educ/missions/nouvelle?type=perso');
         } },
         { label: 'Acquise', cls: 'btn gold', onClick: function (host, close) {
-          if (!DON.ids.length) return;
+          if (!DON.ids.length || DON.busy) return;
           var list = DON.ids.map(function (id) { return { joueurId: id, domaine: DON.d, etoile: DON.e }; });
-          var bb = host.querySelectorAll('.mbtns button[data-i]'); Array.prototype.forEach.call(bb, function (x) { x.disabled = true; });
-          valider(list, null).then(function () { close(null); app.rerender(); }).catch(function () { donBtns(host); });
+          DON.busy = true; donBtns(host);
+          // l'occasion : l'entraînement du jour si on a choisi parmi ses présents
+          valider(list, DON.filtre === 'presents' ? '' : null).then(function (r) {
+            DON.busy = false; close(null);
+            if (r && r.deja) MC.loadGroup(true).then(function () { app.rerender(); }).catch(function () { app.rerender(); }); else app.rerender();
+          }).catch(function () { DON.busy = false; var c = host.querySelector('.skdon'); if (c) c.innerHTML = donBody(G()); donBtns(host); });
         } }
       ],
       onOpen: function (host) {
         donBtns(host);
         host.addEventListener('click', function (ev) {
-          var x = ev.target.closest('[data-don]'); if (!x) return;
+          var x = ev.target.closest('[data-don]'); if (!x || DON.busy) return;
           var k = x.getAttribute('data-don'), v = x.getAttribute('data-v');
           if (k === 'kid') { var i = DON.ids.indexOf(v); if (i >= 0) DON.ids.splice(i, 1); else DON.ids.push(v); }
           else if (k === 'filtre') DON.filtre = v;
@@ -608,6 +616,8 @@ window.MC = window.MC || {};
           }
           var c = host.querySelector('.skdon'); if (c) c.innerHTML = donBody(G());
           donBtns(host);
+          // le focus revient sur ce qu'on vient de toucher (clavier, lecteur d'écran)
+          var f = host.querySelector('[data-don="' + k + '"]' + (v ? '[data-v="' + v + '"]' : '')); if (f) f.focus({ preventScroll: true });
         });
       }
     });
@@ -817,10 +827,11 @@ window.MC = window.MC || {};
         MC.loadGroup(true).then(function () { app.rerender(); }).catch(function () { });
         return;
       }
+      var retour = st.retour;
       NM = null;
       ui.toast((n === 1 ? 'Mission donnée à ' + nomDe(gr, r.missions[0].joueurId) + ' : elle la voit dans son appli' : 'Mission donnée à ' + n + ' enfants : ils la voient dans leur appli') +
         (ig.length ? '. Pas changé : ' + ig.join(', ') + '.' : ''), !!ig.length);
-      app.go(back, true);   // le formulaire envoyé est remplacé : Retour ne le rouvre pas
+      if (retour) app.back(retour); else app.go(back, true);   // le formulaire envoyé est remplacé : Retour ne le rouvre pas ; depuis le catalogue : Retour
     }).catch(function (e) { b.disabled = false; ui.toast(e.message, true); });
   };
   function paintNouvelleGroupe(gr, st) {
@@ -897,7 +908,7 @@ window.MC = window.MC || {};
       var enM = m && !etatDe(gr, m).expiree && m.domaine === D.id, dmD = (d.demandes || []).some(function (x) { return x.statut === 'attente' && x.domaine === D.id; });
       return '<details class="rpost fsk" data-fsk="' + D.id + '"' + (FSKO[id + ':' + D.id] ? ' open' : '') + '><summary class="rpost-s"><span style="color:' + D.color + ';flex:none;display:flex">' + icon(D.icon, 20) + '</span><span class="grow"><b style="color:' + D.color + '">' + esc(D.nom) + '</b>' +
         (enM || dmD ? '<small>' + (enM ? '<span style="color:var(--violet)">sa mission principale</span>' : '') + (enM && dmD ? ' · ' : '') + (dmD ? '<span style="color:var(--cyan)">une demande</span>' : '') + '</small>' : '') + '</span>' +
-        '<span class="skcell" style="--gc:' + c.grade.color + '">' + esc(c.grade.nom) + ' · ' + c.n + '/' + c.max + (c.nbBrille ? ' · ' + c.nbBrille + ' ✦' : '') + '</span>' + icon('down', 16, 'class="rpost-i"') + '</summary><ul class="list rpost-c">' + c.stars.map(function (s) {
+        '<span class="skcell" style="--gc:' + c.grade.color + '">' + esc(c.grade.nom) + ' · ' + c.n + '/' + c.max + (c.nbBrille ? ' · ' + c.nbBrille + ' brille' + (c.nbBrille > 1 ? 'nt' : '') : '') + '</span>' + icon('down', 16, 'class="rpost-i"') + '</summary><ul class="list rpost-c">' + c.stars.map(function (s) {
         var isM = m && !etatDe(gr, m).expiree && SK.dansMission(m, D.id, s.def.id);
         var dm = (d.demandes || []).filter(function (x) { return x.statut === 'attente' && x.domaine === D.id && x.etoile === s.def.id; })[0];
         var demTxt = dm ? ' · <b style="color:var(--cyan)">' + (dm.sorte === 'briller' ? 'demande à la faire briller' : 'demande l\'étoile') + '</b>' : '';

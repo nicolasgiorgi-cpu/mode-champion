@@ -76,9 +76,9 @@ with sync_playwright() as p:
     check('Retour : les détails ouverts le restent', pg.locator('.mrow[open]').count() == 2, pg.locator('.mrow[open]').count())
     pg.go_back(); pg.wait_for_timeout(1000)
     check('le Retour du navigateur marche aussi', h(pg) in ('#/educ', '#/educ/entrainements', '#/educ/joueurs'), h(pg))
-    # une ancienne adresse qui redirige (journée d'évaluation → Skills) : Retour ne tourne pas en rond
+    # une ancienne adresse qui redirige (journée d'évaluation → Évaluer, sa page depuis la v44) : Retour ne tourne pas en rond
     push(pg, '#/educ/progres'); push(pg, '#/educ/skills/journee', 1200)
-    check('ancienne adresse : remplacée par Skills', h(pg) == '#/educ/skills', h(pg))
+    check('ancienne adresse : remplacée par Évaluer', h(pg) == '#/educ/skills/evaluer', h(pg))
     back(pg)
     check('ancienne adresse : Retour revient à l\'écran d\'avant (pas de boucle)', h(pg) == '#/educ/progres', h(pg))
     # plusieurs touchers rapides sur Retour : un seul écran en arrière

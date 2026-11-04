@@ -383,6 +383,8 @@ MC.app = (function () {
   // le dernier sous-onglet choisi dans chaque onglet
   function tabHref(it) { var h = lsGet('mc-stab:' + it[0]); return typeof h === 'string' && h.charAt(0) === '#' ? h : it[1]; }
   function rememberTab(key, href) { lsSet('mc-stab:' + (NAV_ALIAS[key] || key), href); }
+  // (v44) Progrès s'ouvre sur Missions : une fois, on oublie le sous-onglet de Progrès retenu avant la v44 (souvent Prépa physique)
+  if (!lsGet('mc-stab-v44')) { lsSet('mc-stab:e:progres', null); lsSet('mc-stab-v44', 1); }
   function paintNav(active) {
     if (typeof active === 'function') active = active();
     active = NAV_ALIAS[active] || active;
