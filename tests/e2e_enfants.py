@@ -45,6 +45,14 @@ with sync_playwright() as p:
     else: check('téléphone : les pastilles sous le prénom, ligne compacte', t and t['dessous'] and t['h'] <= 72, t)
     check('tout rentre dans la ligne (pastilles, niveau, passerelle, bouclier)', t and not t['deborde'] and t['ctlDansLigne'], t)
     check('pas de défilement de côté', pg.evaluate(HSCROLL) == [], pg.evaluate(HSCROLL))
+    # (v46) moins de couleurs : pas d'étoile dans les pastilles ; niveaux en dégradé de violet (A foncé, C clair) ; passerelle à la couleur du niveau visé
+    check('(v46) pastilles sans étoile', pg.locator('#tlist .tpp svg').count() == 0 and pg.locator('#tlist .tpp.pref').count() >= 5)
+    cols = pg.evaluate("['A','B','C'].map(n => getComputedStyle(document.querySelector('#tlist .tlv[data-v=' + n + ']:not(.on)')).color)")
+    check('(v46) niveaux : violet foncé A, violet B, violet clair C', cols == ['rgb(138, 92, 255)', 'rgb(179, 155, 255)', 'rgb(220, 210, 255)'], cols)
+    pc = pg.evaluate("(() => { const b = document.querySelector('#tlist .tpas.on'); return b ? [b.getAttribute('data-v'), getComputedStyle(b).color] : null; })()")
+    check('(v46) une passerelle allumée a la couleur de son niveau', pc and pc[1] == {'A': 'rgb(138, 92, 255)', 'B': 'rgb(179, 155, 255)', 'C': 'rgb(220, 210, 255)'}[pc[0]], pc)
+    cv = pg.evaluate("(() => { const li = [...document.querySelectorAll('#tlist .tfrow')].find(l => l.querySelector('.tnm').textContent.trim() === 'Côme'); const sh = li && li.querySelector('.pshield'); return sh ? [sh.classList.contains('vide'), sh.querySelector('b').textContent, sh.getAttribute('aria-label')] : null; })()")
+    check('(v46) plaquage pas encore évalué : bouclier vide, sans chiffre (≠ 0)', cv and cv[0] and cv[1] == '' and 'pas encore évalué' in cv[2], cv)
     # le graphique : replié, lignes simples (pas de prénoms au toucher), pas de texte dessous
     check('répartition des postes repliée', pg.evaluate("!document.querySelector('details.rpost[data-rp=\"terrain\"]').open"))
     pg.click('details.rpost[data-rp="terrain"] summary'); pg.wait_for_timeout(300)
@@ -121,6 +129,15 @@ with sync_playwright() as p:
     check('fiche : un 3e préféré et le plaquage partent ensemble, sans bouton', any(c[0] == 'setTerrain' and 'troisieme-ligne' in c[1] and '"plaquage":1' in c[1] for c in calls), calls)
     check('fiche : 3 préférés ★, bouclier à 1', pg.locator('[data-act="tkPref"].on').count() == 3 and pg.inner_text('.tplq .pshield b') == '1')
     check('(v44) plaquage de 0 à 3 : 4 boutons', pg.locator('[data-act="tkPl"]').count() == 4 and pg.query_selector('[data-act="tkPl"][data-v="4"]') is None)
+    # (v46) l'aide discrète du plaquage : tenir le doigt sur « ? » montre les niveaux, relâcher la cache
+    q = pg.locator('.tplq-l .aide-q'); q.scroll_into_view_if_needed(); bb = q.bounding_box()
+    check('(v46) « ? » discret à côté de Plaquage', q.count() == 1 and bb and bb['width'] <= 26 and bb['height'] <= 26, bb)
+    pg.mouse.move(bb['x'] + bb['width'] / 2, bb['y'] + bb['height'] / 2); pg.mouse.down(); pg.wait_for_timeout(300)
+    t1 = pg.inner_text('.aide-bulle') if pg.query_selector('.aide-bulle') else ''
+    pg.mouse.up(); pg.wait_for_timeout(200)
+    check('(v46) doigt posé : les 4 niveaux de plaquage décrits', 'engage l\'épaule et fait tomber' in t1 and 'pas encore d\'engagement' in t1 and 'vide' in t1.lower(), t1[:200])
+    check('(v46) doigt levé : l\'aide se cache', pg.query_selector('.aide-bulle') is None)
+    check('(v46) l\'aide tient dans l\'écran', pg.evaluate(HSCROLL) == [])
     check('règle d\'interface : aucun texte doublé sur les boucliers et les pastilles', pg.evaluate("[...document.querySelectorAll('.pshield, .pshield b, .tpp')].every(e => getComputedStyle(e).textShadow === 'none')"))
     pg.click('[data-act="tkPref"][data-v="troisieme-ligne"]'); pg.wait_for_timeout(1200)
     check('fiche : retoucher un préféré ★ le passe en « Peut aussi jouer »', pg.locator('[data-act="tkPref"].on').count() == 2 and pg.query_selector('[data-act="tkPoste"][data-v="troisieme-ligne"].on') is not None)

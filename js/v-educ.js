@@ -42,7 +42,7 @@ window.MC = window.MC || {};
   function moiNom(gr) { return gr.moi.nom; }
   function qui(gr, x) { return x.parQui === gr.moi.id ? 'moi' : x.parNom; }
   function jourTxt(iso) { return iso ? ui.fmtDate(String(iso).slice(0, 10)) : ''; }
-  var NIVC = { A: '#FFC23D', B: '#38E8FF', C: '#3DFFB0' };
+  var NIVC = MC.compos.COUL_NIV;   // (v46) les couleurs des niveaux, partout les mêmes
   function nivTag(gr, id) { var p = jp(gr, id), n = p && p.terrain && p.terrain.niveau; return n ? '<span class="cniv" style="--lc:' + NIVC[n] + ';--s:22px">' + n + '</span>' : '<span class="cniv none" style="--s:22px">?</span>'; }
 
   // ======================================================================

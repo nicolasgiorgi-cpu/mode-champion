@@ -14,6 +14,7 @@
 
 window.MC = window.MC || {};
 // Couleurs (29/10) : un dégradé du plus foncé (pilier, le marron orangé) au plus clair (ailier), dans l'ordre des postes.
+// (v46) couleurs : les avants en dégradé d'orange, les trois-quarts (du 9 à l'ailier) en dégradé de vert (décision de Nicolas, 04/11)
 MC.POSTES = [
   {
     id: "pilier",
@@ -120,8 +121,8 @@ MC.POSTES = [
     surnom: "L'Éclair",
     cls: "Meneur-passeur",
     groupe: "Trois-quarts",
-    color: "#E2C72D",
-    dark: "#534800",
+    color: "#CAE268",
+    dark: "#424E00",
     emblem: "eclair",
     stats: [40, 80, 95, 60, 85, 70],
     intro: "Le demi de mêlée est collé au ballon. À chaque mêlée et chaque ruck, il le sort et le passe vite. C'est lui qui dirige les avants avec sa voix.",
@@ -152,8 +153,8 @@ MC.POSTES = [
     surnom: "Le Stratège",
     cls: "Décideur · jeu au pied",
     groupe: "Trois-quarts",
-    color: "#CAE268",
-    dark: "#424E00",
+    color: "#A6E06A",
+    dark: "#2F5200",
     emblem: "oeil",
     stats: [45, 70, 90, 60, 95, 95],
     intro: "L'ouvreur est le stratège de l'équipe. Il reçoit le ballon du 9 et décide : passe, course ou coup de pied. C'est lui qui voit le mieux le jeu.",
@@ -184,8 +185,8 @@ MC.POSTES = [
     surnom: "Le Perforateur",
     cls: "Gros plaqueur",
     groupe: "Trois-quarts",
-    color: "#B0F99E",
-    dark: "#205510",
+    color: "#7FD67A",
+    dark: "#1E5418",
     emblem: "perce",
     stats: [80, 75, 75, 90, 65, 50],
     intro: "Le centre prend le ballon lancé et fonce droit pour percer la défense. En défense, c'est un gros plaqueur qui ne laisse rien passer au milieu.",
@@ -216,8 +217,8 @@ MC.POSTES = [
     surnom: "La Flèche",
     cls: "Sprinteur · finisseur",
     groupe: "Trois-quarts",
-    color: "#C9FFE1",
-    dark: "#015636",
+    color: "#57C98A",
+    dark: "#0F4F2E",
     emblem: "aile",
     stats: [50, 98, 65, 65, 60, 55],
     intro: "L'ailier est le sprinteur de l'équipe. Placé sur le côté du terrain, il attend le ballon pour accélérer et aller aplatir l'essai.",

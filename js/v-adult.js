@@ -707,7 +707,7 @@
     var fam = g.familles.filter(function (f) { return f.id === k.familleId; })[0];
     var mine = (g.moi.enfants || []).indexOf(k.id) >= 0;
     var gp = g.joueurs.filter(function (x) { return x.joueur.id === k.id; })[0] || {}, tr = gp.terrain || {};
-    var NIVN = { A: 'Confirmé', B: 'Débrouillé', C: 'Débutant' }, NIVC = { A: '#FFC23D', B: '#38E8FF', C: '#3DFFB0' };
+    var NIVN = { A: 'Confirmé', B: 'Débrouillé', C: 'Débutant' }, NIVC = MC.compos.COUL_NIV;   // (v46) les couleurs des niveaux, partout les mêmes
     var pnom = { pilier: 'pilier', talonneur: 'talonneur', 'troisieme-ligne': '3e ligne', 'demi-de-melee': 'demi de mêlée', ouvreur: 'ouvreur', centre: 'centre', ailier: 'ailier' };
     // (v43) ses postes préférés ★ (un ou plusieurs ; avant la v43 : le 1er de ses postes)
     var pref = Array.isArray(tr.postesPref) ? tr.postesPref : (tr.postesOk || []).slice(0, 1);

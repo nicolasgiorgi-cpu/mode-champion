@@ -103,9 +103,12 @@ window.MC = window.MC || {};
   }
   // (v43) le plaquage : un bouclier (la forme de l'icône de la carte Skills « Plaquage ») avec le niveau dedans, de 0 à 3 (v44 ; avant : de 0 à 5)
   // (avant : 5 étoiles). big : true = grand (la fiche d'un enfant), 'mini' = petit (les tuiles des compos).
+  // (v46) null = pas encore évalué : un bouclier vide (contour pointillé) ; 0 est un niveau, comme 1, 2 et 3
   function bouclier(n, big) {
-    n = Math.max(0, Math.min(3, Math.round(Number(n) || 0)));
-    return '<span class="pshield' + (n ? '' : ' zero') + (big === 'mini' ? ' mini' : big ? ' grand' : '') + '" role="img" aria-label="Plaquage : ' + n + ' sur 3" title="Plaquage : ' + n + ' sur 3">' +
+    var vide = n === null || n === undefined || n === '';
+    n = vide ? '' : Math.max(0, Math.min(3, Math.round(Number(n) || 0)));
+    var lab = vide ? 'Plaquage : pas encore évalué' : 'Plaquage : ' + n + ' sur 3';
+    return '<span class="pshield' + (vide ? ' vide' : n ? '' : ' zero') + (big === 'mini' ? ' mini' : big ? ' grand' : '') + '" role="img" aria-label="' + lab + '" title="' + lab + '">' +
       '<svg viewBox="14 4 72 88" aria-hidden="true"><path class="ps-a" d="M50 8 82 21V48Q80 71 50 87Q20 71 18 48V21Z"/><path class="ps-b" d="M50 8 82 21V48Q80 71 50 87Z"/><path class="ps-c" d="M50 8 82 21V48Q80 71 50 87Q20 71 18 48V21Z"/></svg><b>' + n + '</b></span>';
   }
   MC.bouclier = bouclier;
@@ -877,7 +880,7 @@ window.MC = window.MC || {};
     var cps = (f.copains || []).filter(function (x) { return ids.indexOf(x) >= 0; });
     var heart = !(f.copains || []).length ? '' : cps.length ? '<span class="cfl cop-ok" title="Avec un copain">' + icon('heart', 12) + '</span>' : '<span class="cfl cop-no" title="Sans copain">' + icon('heart', 12) + '</span>';
     var lv = t && t.niveau && f.niveau && f.niveau !== t.niveau ? '<span class="cfl cpas" title="Joue hors de son niveau (' + f.niveau + ')">' + (K.NIV.indexOf(t.niveau) < K.NIV.indexOf(f.niveau) ? '↑' : '↓') + f.niveau + '</span>' : '';
-    var warn = t && (!f.niveau || (!d.reglages.partie && (f.plaquage || 0) < (K.SEUIL[t.niveau] || 0)));
+    var warn = t && (!f.niveau || (!d.reglages.partie && f.plaquage !== null && f.plaquage !== undefined && f.plaquage < (K.SEUIL[t.niveau] || 0)));
     var ty = K.typeDe(f), tag;
     if (t && d.reglages.format === 10) tag = j.poste ? '<span class="cpo">' + COURT[j.poste] + '</span>' : !K.postesDe(f).length ? '<span class="cpo csp" title="Aucun poste sur sa fiche : à régler">Sans poste</span>' : '<span class="cpo none">Remp.</span>';
     else if (t) { var pp = K.posteDefaut(f); tag = pp ? '<span class="cpo ty" title="Poste principal (fiche)' + (ty === 'les2' ? ', joue aussi ' + (K.typePoste(pp) === 'av' ? 'arrière' : 'avant') : '') + '">' + (ty === 'les2' ? '⇄ ' : '') + COURT[pp] + '</span>' : ''; }
@@ -1636,7 +1639,7 @@ window.MC = window.MC || {};
     if (!ps.length) return '<span class="tpp none">pas de poste</span>';
     return ps.map(function (p) {
       var pr = pf.indexOf(p) >= 0;
-      return '<span class="tpp' + (pr ? ' pref' : '') + '" style="--c:' + coulPoste(p) + '"' + (pr ? ' title="Poste préféré"' : '') + '>' + (pr ? icon('star', 10) + '<span class="sr-only">préféré </span>' : '') + esc(COURT[p]) + '</span>';
+      return '<span class="tpp' + (pr ? ' pref' : '') + '" style="--c:' + coulPoste(p) + '"' + (pr ? ' title="Poste préféré"' : '') + '>' + (pr ? '<span class="sr-only">préféré </span>' : '') + esc(COURT[p]) + '</span>';
     }).join('') + (f.postesOk.length ? '' : '<span class="tpp voeu" title="Ses vœux (Choisis ton poste) : postes pas encore réglés">vœux</span>');
   }
   // dans la liste : préféré ★ réglé, ou « peut aussi jouer » (ses vœux tant que rien n'est réglé)
@@ -1646,7 +1649,7 @@ window.MC = window.MC || {};
     var segs = K.NIV.map(function (n) { return '<button type="button" class="tlv' + (niv === n ? ' on' : '') + '" style="--lc:' + K.COUL_NIV[n] + '" aria-pressed="' + (niv === n) + '" data-act="tNiv" data-id="' + esc(id) + '" data-v="' + n + '" title="' + K.NOM_NIV[n] + '">' + n + '</button>'; }).join('');
     // (v45) les passerelles : les deux autres niveaux, une ou deux allumées
     var pasOpts = niv ? K.NIV.filter(function (n) { return n !== niv; }) : [];
-    var pasB = pasOpts.map(function (n) { var on = pas.indexOf(n) >= 0; return '<button type="button" class="tpas' + (on ? ' on' : '') + '" aria-pressed="' + on + '" data-act="tPas" data-id="' + esc(id) + '" data-v="' + n + '" title="Passerelle vers ' + K.NOM_NIV[n] + '" aria-label="Passerelle vers ' + n + '">⇅' + n + '</button>'; }).join('');
+    var pasB = pasOpts.map(function (n) { var on = pas.indexOf(n) >= 0; return '<button type="button" class="tpas' + (on ? ' on' : '') + '" style="--lc:' + K.COUL_NIV[n] + '" aria-pressed="' + on + '" data-act="tPas" data-id="' + esc(id) + '" data-v="' + n + '" title="Passerelle vers ' + K.NOM_NIV[n] + '" aria-label="Passerelle vers ' + n + '">⇅' + n + '</button>'; }).join('');
     return '<li class="tfrow"><a class="tnm" href="#/educ/joueur/' + esc(id) + '">' + esc(f.prenom) + '</a><span class="tps">' + pillsPostes(f) + '</span>' +
       '<span class="tctl"><span class="tseg" role="group" aria-label="Niveau de ' + esc(f.prenom) + '">' + segs + '</span><span class="tpasw">' + pasB + '</span>' + bouclier(f.plaquage) + '</span></li>';
   }
@@ -1704,7 +1707,8 @@ window.MC = window.MC || {};
   // même fiche terrain (sans l'auteur ni l'heure) ?
   function memeTerrain(a, b) {
     a = a || {}; b = b || {};
-    return (a.niveau || '') === (b.niveau || '') && (a.passerelle || '') === (b.passerelle || '') && (Number(a.plaquage) || 0) === (Number(b.plaquage) || 0) &&
+    function pq(x) { return x.plaquage === null || x.plaquage === undefined || x.plaquage === '' ? '' : Number(x.plaquage); }
+    return (a.niveau || '') === (b.niveau || '') && (a.passerelle || '') === (b.passerelle || '') && pq(a) === pq(b) &&
       JSON.stringify(a.postesOk || []) === JSON.stringify(b.postesOk || []) && JSON.stringify(a.postesPref === undefined ? null : a.postesPref) === JSON.stringify(b.postesPref === undefined ? null : b.postesPref) &&
       (a.spondId || '') === (b.spondId || '') && (a.note || '') === (b.note || '');
   }
@@ -1717,7 +1721,7 @@ window.MC = window.MC || {};
   function terrainSave(id, patch, b) {
     var g = app.S.cache.group, p = g && g.joueurs.filter(function (x) { return x.joueur.id === id; })[0];
     if (!p) return;
-    var t = p.terrain || { niveau: '', passerelle: '', plaquage: 0, postesOk: [], postesPref: null, spondId: '', note: '' }, nt = {}, k;
+    var t = p.terrain || { niveau: '', passerelle: '', plaquage: null, postesOk: [], postesPref: null, spondId: '', note: '' }, nt = {}, k;
     // l'état d'avant : celui d'avant l'envoi en cours s'il y en a un (si cet envoi échoue, on revient au tout début)
     if (!TS.avant.hasOwnProperty(id)) TS.avant[id] = TS.vol && TS.vol.hasOwnProperty(id) ? TS.vol[id] : copie(p.terrain);
     for (k in t) nt[k] = t[k];
@@ -1827,8 +1831,8 @@ window.MC = window.MC || {};
     for (var i = 0; i <= 3; i++) pl += '<button type="button" class="opt' + (f.plaquage === i ? ' on' : '') + '" style="--oc:#FF4FA3" aria-pressed="' + (f.plaquage === i) + '" data-act="tkPl"' + did + ' data-v="' + i + '">' + i + '</button>';
     function voeu(p) { var r = f.voeux.indexOf(p); return r >= 0 ? ' <small class="csp" style="color:var(--gold)">son vœu ' + (r + 1) + '</small>' : ''; }   // sur sa ligne : jamais coupé
     var body = '<span class="mlab">Niveau</span><div class="seg3">' + K.NIV.map(function (n) { return '<button type="button" class="opt' + (f.niveau === n ? ' on' : '') + '" style="--oc:' + K.COUL_NIV[n] + '" aria-pressed="' + (f.niveau === n) + '" data-act="tkNiv"' + did + ' data-v="' + n + '">' + n + ' · ' + K.NOM_NIV[n] + '</button>'; }).join('') + '</div>' +
-      '<span class="mlab">Passerelles (peut jouer aussi en…, une ou deux)</span><div class="row" style="gap:8px;flex-wrap:wrap">' + (pasOpts.length ? pasOpts.map(function (n) { return '<button type="button" class="opt' + (pasL.indexOf(n) >= 0 ? ' on' : '') + '" style="--oc:var(--violet);min-width:120px" aria-pressed="' + (pasL.indexOf(n) >= 0) + '" data-act="tkPas"' + did + ' data-v="' + n + '">⇅ ' + n + ' · ' + K.NOM_NIV[n] + '</button>'; }).join('') : '<span class="small">Choisissez d\'abord le niveau.</span>') + '</div>' +
-      '<span class="mlab">Plaquage (de 0 à 3)</span><div class="tplq">' + bouclier(f.plaquage, true) + '<div class="tplq-s" role="group" aria-label="Plaquage de ' + esc(f.prenom) + '">' + pl + '</div></div>' +
+      '<span class="mlab">Passerelles (peut jouer aussi en…, une ou deux)</span><div class="row" style="gap:8px;flex-wrap:wrap">' + (pasOpts.length ? pasOpts.map(function (n) { return '<button type="button" class="opt' + (pasL.indexOf(n) >= 0 ? ' on' : '') + '" style="--oc:' + K.COUL_NIV[n] + ';min-width:120px" aria-pressed="' + (pasL.indexOf(n) >= 0) + '" data-act="tkPas"' + did + ' data-v="' + n + '">⇅ ' + n + ' · ' + K.NOM_NIV[n] + '</button>'; }).join('') : '<span class="small">Choisissez d\'abord le niveau.</span>') + '</div>' +
+      '<span class="mlab tplq-l">Plaquage' + (f.plaquage === null || f.plaquage === undefined ? ' · pas encore évalué' : '') + aideHtml('plaquage', 'Les niveaux de plaquage') + '</span><div class="tplq">' + bouclier(f.plaquage, true) + '<div class="tplq-s" role="group" aria-label="Plaquage de ' + esc(f.prenom) + '">' + pl + '</div></div>' +
       '<span class="mlab">Postes préférés ' + icon('star', 12, 'style="color:var(--gold);vertical-align:-1px"') + ' (un ou plusieurs)</span><div class="tpostes">' + K.POSTES10.map(function (p) {
         var on = pf.indexOf(p[0]) >= 0 && ok.length > 0;
         return '<button type="button" class="cop prin' + (on ? ' on' : '') + '" aria-pressed="' + on + '" data-act="tkPref"' + did + ' data-v="' + p[0] + '"><span class="nm">' + esc(K.nomPoste(p[0])) + voeu(p[0]) + '</span><span class="ck">' + icon('star', 14) + '</span></button>';
@@ -1845,6 +1849,42 @@ window.MC = window.MC || {};
   MC.act.tkNiv = function (b) { var f = fk(b), v = b.getAttribute('data-v'); if (f && f.niveau !== v) terrainSave(f.id, { niveau: v }, b); };
   MC.act.tkPas = function (b) { var f = fk(b), v = b.getAttribute('data-v'); if (f) terrainSave(f.id, { passerelle: basculePas(f, v) }, b); };
   MC.act.tkPl = function (b) { var f = fk(b), v = Number(b.getAttribute('data-v')); if (f && f.plaquage !== v) terrainSave(f.id, { plaquage: v }, b); };
+  // ---------- (v46) une aide discrète « ? » : tenir le doigt dessus montre la description (un toucher l'ouvre aussi, pour le clavier) ----------
+  var AIDES = {
+    plaquage: '<b>Les niveaux de plaquage</b><ul>' +
+      '<li><b>0</b> : pas encore d\'engagement au plaquage</li>' +
+      '<li><b>1</b> : essaie de plaquer, avec les bras, ou ralentit l\'adversaire</li>' +
+      '<li><b>2</b> : engage l\'épaule régulièrement, mais ne fait pas tomber tout de suite</li>' +
+      '<li><b>3</b> : engage l\'épaule et fait tomber l\'adversaire rapidement</li></ul>' +
+      '<span>Bouclier vide : pas encore évalué.</span>'
+  };
+  function aideHtml(k, label) { return ' <button type="button" class="aide-q" data-aide="' + k + '" aria-label="' + esc(label) + '" aria-expanded="false">?</button>'; }
+  function aideFerme() { var b = document.querySelector('.aide-bulle'); if (b) b.remove(); Array.prototype.forEach.call(document.querySelectorAll('.aide-q[aria-expanded="true"]'), function (x) { x.setAttribute('aria-expanded', 'false'); }); }
+  function aideOuvre(q) {
+    aideFerme();
+    var d = document.createElement('div'); d.className = 'aide-bulle'; d.setAttribute('role', 'tooltip'); d.id = 'aide-' + q.getAttribute('data-aide');
+    d.innerHTML = AIDES[q.getAttribute('data-aide')] || '';
+    document.body.appendChild(d);
+    var r = q.getBoundingClientRect(), w = Math.min(320, innerWidth - 32), x = Math.max(16, Math.min(r.left + r.width / 2 - w / 2, innerWidth - 16 - w));
+    d.style.width = w + 'px'; d.style.left = x + 'px';
+    var h = d.offsetHeight, y = r.top - h - 8; if (y < 60) y = r.bottom + 8;
+    d.style.top = y + 'px';
+    q.setAttribute('aria-expanded', 'true'); q.setAttribute('aria-describedby', d.id);
+  }
+  var aideTenu = null;
+  document.addEventListener('pointerdown', function (e) {
+    var q = e.target.closest && e.target.closest('.aide-q');
+    if (!q) { if (!e.target.closest || !e.target.closest('.aide-bulle')) aideFerme(); return; }
+    e.preventDefault(); aideTenu = q; aideOuvre(q);
+  });
+  ['pointerup', 'pointercancel'].forEach(function (t) { document.addEventListener(t, function () { if (aideTenu) { aideTenu = null; aideFerme(); } }); });
+  document.addEventListener('click', function (e) {
+    var q = e.target.closest && e.target.closest('.aide-q'); if (!q) return;
+    if (e.detail === 0) { if (q.getAttribute('aria-expanded') === 'true') aideFerme(); else aideOuvre(q); }   // clavier : Entrée / Espace
+  });
+  document.addEventListener('contextmenu', function (e) { if (e.target.closest && e.target.closest('.aide-q')) e.preventDefault(); });
+  window.addEventListener('hashchange', aideFerme);
+  window.addEventListener('scroll', aideFerme, { passive: true });
   // les postes : préférés ★ (plusieurs possibles) et « peut aussi jouer » ; retoucher un préféré le passe en « peut aussi jouer »
   function postesSave(f, ok, pf, b) {
     pf = pf.filter(function (p, i) { return ok.indexOf(p) >= 0 && pf.indexOf(p) === i; });

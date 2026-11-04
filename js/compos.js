@@ -9,7 +9,8 @@ window.MC = window.MC || {};
 MC.compos = (function () {
   var NIV = ['A', 'B', 'C'];
   var NOM_NIV = { A: 'Confirmés', B: 'Débrouillés', C: 'Débutants' };
-  var COUL_NIV = { A: '#FFC23D', B: '#38E8FF', C: '#3DFFB0' };
+  // (v46) les niveaux en dégradé de violet : foncé pour A (Confirmés), clair pour C (Débutants) ; repris partout (décision de Nicolas, 04/11)
+  var COUL_NIV = { A: '#8A5CFF', B: '#B39BFF', C: '#DCD2FF' };
   // Jeu à 10 (règlement FFR M12) : mêlée 3 + 2 (les avants), puis 5 arrières (dans l'appli, « arrières » = les lignes arrières : 9, 10, centres, ailiers).
   // Derrière la charnière (9 et 10) : 1 centre et 2 ailiers (décidé par Nicolas le 20/10 ; à ajuster ici si le club joue autrement).
   var POSTES10 = [['pilier', 2], ['talonneur', 1], ['troisieme-ligne', 2], ['demi-de-melee', 1], ['ouvreur', 1], ['centre', 1], ['ailier', 2]];
@@ -109,7 +110,8 @@ MC.compos = (function () {
         id: p.joueur.id, prenom: p.joueur.prenom, couleur: p.joueur.couleur, actif: p.joueur.actif !== false,
         niveau: NIV.indexOf(t.niveau) >= 0 ? t.niveau : '', passerelle: NIV.indexOf(t.niveau) >= 0 ? lettresPas(t.passerelle, t.niveau).join('') : '',
         passerelles: NIV.indexOf(t.niveau) >= 0 ? lettresPas(t.passerelle, t.niveau) : [],
-        plaquage: Math.max(0, Math.min(3, Number(t.plaquage) || 0)),
+        // (v46) null = pas encore évalué (0 est un niveau) ; les calculs le comptent comme 0, mais il n'est pas signalé « sous le repère »
+        plaquage: t.plaquage === null || t.plaquage === undefined || t.plaquage === '' ? null : Math.max(0, Math.min(3, Number(t.plaquage) || 0)),
         voeux: Array.isArray(r.postes) ? r.postes.slice(0, 3) : [], postesOk: pref.concat(ok.filter(function (x) { return pref.indexOf(x) < 0; })), pref: pref,
         copains: Array.isArray(r.copains) ? r.copains.slice() : [], spondId: t.spondId || ''
       };
@@ -430,15 +432,16 @@ MC.compos = (function () {
   // ---------- Indicateurs d'une équipe ----------
   function stats(t, F, format) {
     var ids = (t.joueurs || []).map(function (j) { return j.id; });
-    var n = ids.length, sp = 0, bons = 0, avec = 0, avecCps = 0, pass = 0, sousSeuil = [];
+    var n = ids.length, sp = 0, ne = 0, bons = 0, avec = 0, avecCps = 0, pass = 0, sousSeuil = [];
     ids.forEach(function (id) {
-      var f = F[id] || {}, p = f.plaquage || 0;
-      sp += p; if (p >= BON) bons++;
+      var f = F[id] || {}, ev = f.plaquage !== null && f.plaquage !== undefined, p = f.plaquage || 0;
+      if (ev) { sp += p; ne++; } if (p >= BON) bons++;
       if ((f.copains || []).length) { avecCps++; if (f.copains.some(function (c) { return ids.indexOf(c) >= 0; })) avec++; }
       if (t.niveau && f.niveau && f.niveau !== t.niveau) pass++;
-      if (p < (SEUIL[t.niveau] || 0)) sousSeuil.push(id);
+      if (ev && p < (SEUIL[t.niveau] || 0)) sousSeuil.push(id);   // (v46) pas encore évalué : pas signalé
     });
-    var o = { n: n, plaq: n ? Math.round(sp / n * 10) / 10 : 0, bons: bons, avecCopain: avec, ontCopains: avecCps, passerelles: pass, sousSeuil: sousSeuil, manquants: [] };
+    // (v46) le plaquage moyen : sur ceux qui sont évalués
+    var o = { n: n, plaq: ne ? Math.round(sp / ne * 10) / 10 : 0, bons: bons, avecCopain: avec, ontCopains: avecCps, passerelles: pass, sousSeuil: sousSeuil, manquants: [] };
     // avants / arrières, comme les sections de l'équipe (voir sections) : au jeu à 10, d'après le poste du plateau,
     // les remplaçants à part (o.remplTypes : le type de leur fiche) ; au jeu à 5, d'après le poste principal de la fiche
     // (« les2 » = combien peuvent jouer avant et arrière, « inconnus » = pas encore de poste)

@@ -40,12 +40,22 @@ assert.ok(r.error);
 // (v44) le plaquage de 0 à 3 (colonne plaquage3) ; l'ancienne note sur 5 (colonne plaquage) n'est plus lue : tout le monde repart de 0
 const dbp = new g.SheetDB_();
 dbp.insert('terrain', { id: P.Hugo, niveau: 'B', passerelle: '', plaquage: 5, postesOk: [], spondId: '', note: '', parQui: '', maj: '' }); dbp.flush_();
-assert.strictEqual(terr(P.Hugo).plaquage, 0, 'ancienne note sur 5 : repart de 0');
+// (v46) une case vide = pas encore évalué (null) ; 0 est un niveau
+assert.strictEqual(terr(P.Hugo).plaquage, null, 'ancienne note sur 5 : pas encore évalué sur 3');
 assert.strictEqual(terr(P.Hugo).niveau, 'B', 'le reste de la fiche est gardé');
-[[2, 2], [3, 3], [0, 0], [5, 3], [4, 3], [9, 0], [-1, 0], ['x', 0]].forEach(function (c) {
+[[2, 2], [3, 3], [0, 0], [5, 3], [4, 3], [null, null], [1, 1], ['', null]].forEach(function (c) {
   r = g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P.Hugo, plaquage: c[0] }] });
   assert.strictEqual(r.terrain[P.Hugo].plaquage, c[1], 'plaquage ' + c[0] + ' → ' + c[1]);
 });
+r = g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P.Hugo, plaquage: 0 }] });
+assert.strictEqual(terr(P.Hugo).plaquage, 0, '0 relu comme 0, pas comme vide');
+[9, -1, 'x'].forEach(function (v) {
+  r = g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P.Hugo, plaquage: v }] });
+  assert.strictEqual(terr(P.Hugo).plaquage, 0, 'plaquage ' + v + ' : ignoré');
+});
+// un enfant qui reçoit sa fiche (niveau seul) : plaquage pas encore évalué
+r = g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P['Léa'], niveau: 'B' }] });
+assert.strictEqual(terr(P['Léa']).plaquage, null);
 assert.strictEqual(new g.SheetDB_().rows('terrain').find(t => t.id === P.Hugo).plaquage, 5, 'l\'ancienne colonne n\'est pas touchée');
 
 // ---------- règles des compos (js/compos.js) ----------
@@ -93,6 +103,12 @@ assert.strictEqual(A7.manquants.length, 0);
 assert.deepStrictEqual([K.SEUIL.A, K.SEUIL.B, K.BON], [3, 2, 2]);
 const FP = K.fiches({ joueurs: [joueur('a2', { niveau: 'A', plaquage: 2, postesOk: [] }), joueur('a3', { niveau: 'A', plaquage: 3, postesOk: [] }), joueur('b2', { niveau: 'B', plaquage: 2, postesOk: [] }), joueur('b1', { niveau: 'B', plaquage: 1, postesOk: [] }), joueur('x5', { niveau: 'B', plaquage: 5, postesOk: [] })] });
 assert.strictEqual(FP.x5.plaquage, 3, 'une fiche ne dépasse pas 3');
+// (v46) pas encore évalué : null, jamais signalé sous le repère ; le plaquage moyen compte seulement les évalués
+const FN = K.fiches({ joueurs: [joueur('n1', { niveau: 'A', plaquage: null, postesOk: [] }), joueur('n0', { niveau: 'A', plaquage: 0, postesOk: [] }), joueur('n3', { niveau: 'A', plaquage: 3, postesOk: [] })] });
+assert.strictEqual(FN.n1.plaquage, null); assert.strictEqual(FN.n0.plaquage, 0);
+const SN = K.stats({ niveau: 'A', joueurs: [{ id: 'n1' }, { id: 'n0' }, { id: 'n3' }] }, FN, 5);
+assert.deepStrictEqual(Array.from(SN.sousSeuil), ['n0'], '0 est sous le repère, pas encore évalué ne l\'est pas');
+assert.strictEqual(SN.plaq, 1.5, 'moyenne des évalués : (0 + 3) / 2');
 const SA = K.stats({ niveau: 'A', joueurs: [{ id: 'a2' }, { id: 'a3' }] }, FP, 5), SB = K.stats({ niveau: 'B', joueurs: [{ id: 'b2' }, { id: 'b1' }] }, FP, 5);
 assert.deepStrictEqual(Array.from(SA.sousSeuil), ['a2'], 'en A : sous 3');
 assert.deepStrictEqual(Array.from(SB.sousSeuil), ['b1'], 'en B : sous 2');
