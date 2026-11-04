@@ -37,12 +37,16 @@ with sync_playwright() as p:
     check('pas de bouton Enregistrer', not pg.query_selector('[data-act="tSave"], [data-act="tkSave"]'))
     # une ligne : pastilles (★ d'abord), bouclier
     t = pg.evaluate(LIGNE, 'Tom')
-    check('(v46) Tom : ses postes dans l\'ordre des postes (3e ligne, centre, ailier), les préférés en pastille pleine', t and t['pills'] == ['3e L.', '*Centre', '*Ailier'], t)
+    check('(v46) Tom : ses postes dans l\'ordre des postes (3e ligne, centre, ailier), les préférés en pastille pleine', t and t['pills'] == ['3eL', '*Ctr', '*Ail'], t)
     check('pastille préférée : « préféré » lu par le lecteur d\'écran', pg.locator('#tlist .tpp.pref .sr-only').count() >= 2)
     check('Tom : le bouclier de plaquage avec son niveau (2, sur 3)', t and t['plaq'] == '2', t)
     check('Tom : niveau B allumé', t and t['niv'] == 'B', t)
-    if TAB: check('iPad : les pastilles à côté du prénom, ligne basse', t and t['memeLigne'] and t['h'] <= 48, t)
-    else: check('téléphone : les pastilles sous le prénom, ligne compacte', t and t['dessous'] and t['h'] <= 72, t)
+    # (v48) téléphone aussi : une seule ligne, les postes abrégés à côté du prénom (choix de Nicolas, 04/11)
+    check('(v48) les pastilles à côté du prénom, une seule ligne', t and t['memeLigne'] and t['h'] <= 48 and not t['deborde'] and t['ctlDansLigne'], t)
+    hs = pg.evaluate("[...document.querySelectorAll('#tlist .tfrow')].map(l => Math.round(l.getBoundingClientRect().height))")
+    check('(v48) toutes les lignes sur une seule ligne', max(hs) <= 48, hs)
+    gap = pg.evaluate("(()=>{const l=[...document.querySelectorAll('#tlist .tfrow')].find(x=>!x.querySelector('.tpas')&&x.querySelector('.tlv.on')); const a=l.querySelector('.tlv').getBoundingClientRect(), b=l.querySelector('.pshield').getBoundingClientRect(); return Math.round(b.left-a.right);})()")
+    check('(v48) le niveau près du bouclier (place pour une passerelle)', gap <= 45, gap)
     check('tout rentre dans la ligne (pastilles, niveau, passerelle, bouclier)', t and not t['deborde'] and t['ctlDansLigne'], t)
     check('pas de défilement de côté', pg.evaluate(HSCROLL) == [], pg.evaluate(HSCROLL))
     # (v46) moins de couleurs : pas d'étoile dans les pastilles ; niveaux en dégradé de violet (A foncé, C clair) ; passerelle à la couleur du niveau visé
@@ -71,7 +75,7 @@ with sync_playwright() as p:
     l = noms(pg)
     sep = l.index('|') if '|' in l else -1
     check('filtre Centre : préférés d\'abord, puis « Peuvent aussi jouer »', sep > 0 and 'Tom' in l[:sep] and 'Arthur' in l[sep:] and pg.locator('#tlist .tsep').count() == 1, l)
-    check('filtre Centre : chacun a bien ce poste', all(pg.evaluate(LIGNE, n)['pills'] and any(x.strip('*') == 'Centre' for x in pg.evaluate(LIGNE, n)['pills']) for n in l if n != '|'), l)
+    check('filtre Centre : chacun a bien ce poste', all(pg.evaluate(LIGNE, n)['pills'] and any(x.strip('*') == 'Ctr' for x in pg.evaluate(LIGNE, n)['pills']) for n in l if n != '|'), l)
     pg.click('.tfil:not(.tfp) button[data-v="A"]'); pg.wait_for_timeout(400)
     l2 = noms(pg); seps = pg.evaluate("[...document.querySelectorAll('#tlist .tsep')].map(x => x.textContent)")
     # (v46) filtre croisé A + Centre : les A au centre (préférés, puis peuvent aussi jouer), puis les passerelles vers A qui jouent centre
@@ -192,7 +196,7 @@ with sync_playwright() as p:
     pg.click('.ftabs a:text-is("Skills")'); pg.wait_for_timeout(900)
     # retour à la liste : les pastilles suivent
     pg.click('#nav a:has-text("Enfants")'); pg.wait_for_timeout(1200); nomodal(pg)
-    check('liste : Tom avec 3e L. en « peut aussi jouer »', pg.evaluate(LIGNE, 'Tom')['pills'] == ['3e L.', '*Centre', '*Ailier'], pg.evaluate(LIGNE, 'Tom'))
+    check('liste : Tom avec 3e L. en « peut aussi jouer »', pg.evaluate(LIGNE, 'Tom')['pills'] == ['3eL', '*Ctr', '*Ail'], pg.evaluate(LIGNE, 'Tom'))
     pg.click('#tlist a.tfrow:has(.tnm:text-is("Arthur"))'); pg.wait_for_timeout(1200); nomodal(pg)
     check('(v44) un enfant touché dans la liste : sa fiche s\'ouvre sur Terrain (pas sur le dernier onglet vu)', pg.query_selector('.ftabs a.on') is not None and pg.inner_text('.ftabs a.on').strip().upper() == 'TERRAIN' and pg.query_selector('#sur-le-terrain') is not None, pg.evaluate('location.hash'))
     pg.click('#nav a:has-text("Enfants")'); pg.wait_for_timeout(1000)

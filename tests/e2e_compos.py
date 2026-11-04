@@ -339,7 +339,7 @@ with sync_playwright() as p:
     check('jeu à 10 : postes affichés', len(pg.query_selector_all('.cpj .cpo')) >= 16)
     check('jeu à 10 : bouton Postes auto', pg.query_selector('[data-act="cPostes"]') is not None)
     ordre = ev(pg, """[...document.querySelectorAll('.ccol')].map(c => [...c.querySelectorAll('.csec')].map(s => ((s.querySelector('.csech span') || {}).textContent || '') + ':' + [...s.querySelectorAll('.cpo')].map(x => x.textContent).join(',')))""")
-    rang = {'Pilier': 0, 'Talon.': 1, '3e L.': 2, '9': 3, '10': 4, 'Centre': 5, 'Ailier': 6}
+    rang = {'Pil': 0, 'Tal': 1, '3eL': 2, '9': 3, '10': 4, 'Ctr': 5, 'Ail': 6}
     def bien_range(team):
         if not team or not team[0].startswith('Avants:') or len(team) < 2 or not team[1].startswith('Arrières:'): return False
         for sec in team[:2]:
@@ -366,13 +366,13 @@ with sync_playwright() as p:
     check('à la main : passer une place', pg.inner_text('.modal h2').split('\n')[0].upper().endswith('3E LIGNE') or 'DEMI' in pg.inner_text('.modal h2').upper())
     pg.click('.modal button:has-text("Terminé")'); pg.wait_for_timeout(500)
     po0 = ev(pg, "[...document.querySelectorAll('.ccol')[0].querySelectorAll('.cpj .cpo')].map(x=>x.textContent).join(',')")
-    check('à la main : 3 joueurs placés à leur poste', po0 == 'Pilier,Pilier,Talon.', po0)
+    check('à la main : 3 joueurs placés à leur poste', po0 == 'Pil,Pil,Tal', po0)
     check('à la main : pas de défilement horizontal', noscroll(pg))
     # un joueur choisi, puis une place vide d'une autre équipe : il la prend, avec ce poste
     pg.locator('.ccol >> nth=0 >> .cpj >> nth=0').evaluate('e=>e.click()'); pg.wait_for_timeout(300)
     pg.locator('.ccol >> nth=1 >> .cslot >> nth=2').evaluate('e=>e.click()'); pg.wait_for_timeout(500)
     po1 = ev(pg, "[...document.querySelectorAll('.ccol')[1].querySelectorAll('.cpj .cpo')].map(x=>x.textContent).join(',')")
-    check('à la main : le joueur choisi prend la place touchée', po1 == 'Talon.', po1)
+    check('à la main : le joueur choisi prend la place touchée', po1 == 'Tal', po1)
     # jeu à 5 : « Ajouter des joueurs », la liste reste ouverte
     pg.locator('[data-act="cRegl"]').evaluate('e=>e.click()'); pg.wait_for_timeout(400)
     pg.click('.modal [data-rf="5"]'); pg.wait_for_timeout(200)

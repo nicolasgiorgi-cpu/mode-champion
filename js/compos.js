@@ -48,6 +48,25 @@ MC.compos = (function () {
   // les équipes d'un plateau d'après ses réglages (style compris)
   function idsEquipes(reglages) { var nb = nbOf(reglages); return teamIds(reglages && reglages.style === 'aforte' ? nbAForte(nb) : nb); }
   function niveauDe(f) { return f && NIV.indexOf(f.niveau) >= 0 ? f.niveau : ''; }
+  // (v48) les noms courts de la liste Enfants : un homonyme (« Baptiste Lemaire », même premier mot qu'un autre enfant)
+  // devient « Baptiste Lem. » (les premières lettres de son nom qui le distinguent, 3 au moins), comme sur l'écran de connexion
+  function nomsCourts(joueurs) {
+    var grp = {}, out = {};
+    joueurs.forEach(function (j) { var m = /^(\S+)\s+(.+)$/.exec(String(j.prenom || '').trim()); if (m) (grp[m[1].toLowerCase()] = grp[m[1].toLowerCase()] || []).push({ id: j.id, p: m[1], n: m[2] }); });
+    joueurs.forEach(function (j) { var w = String(j.prenom || '').trim().split(/\s+/)[0].toLowerCase(); if (grp[w] && !/\s/.test(String(j.prenom).trim())) grp[w].seul = true; });
+    Object.keys(grp).forEach(function (k) {
+      var g = grp[k];
+      if (g.length < 2 && !g.seul) return;   // pas d'homonyme : le nom tel quel
+      g.forEach(function (x) {
+        var autres = g.filter(function (y) { return y !== x; }).map(function (y) { return y.n.toLowerCase(); });
+        for (var L = 3; L < x.n.length; L++) {
+          var pre = x.n.slice(0, L).toLowerCase();
+          if (!autres.some(function (a) { return a.indexOf(pre) === 0; })) { out[x.id] = x.p + ' ' + x.n.slice(0, L).trim() + '.'; return; }
+        }
+      });
+    });
+    return out;
+  }
   // Les postes d'un joueur, dans l'ordre : ceux de sa fiche (ses postes préférés ★ d'abord, réglés par les éducs),
   // sinon les vœux de l'enfant (mission « jeu à 10 »).
   function postesDe(f) {
@@ -959,7 +978,7 @@ MC.compos = (function () {
 
   return {
     NIV: NIV, NOM_NIV: NOM_NIV, COUL_NIV: COUL_NIV, POSTES10: POSTES10, SEUIL: SEUIL, BON: BON, TAILLE: TAILLE, FORMATS: FORMATS,
-    fiches: fiches, historique: historique, hOf: hOf, suggestNb: suggestNb, teamIds: teamIds, idsEquipes: idsEquipes, nbAForte: nbAForte, nbOf: nbOf, fmt: fmt,
+    fiches: fiches, historique: historique, hOf: hOf, suggestNb: suggestNb, teamIds: teamIds, nomsCourts: nomsCourts, idsEquipes: idsEquipes, nbAForte: nbAForte, nbOf: nbOf, fmt: fmt,
     pasDe: pasDe, lettresPas: lettresPas, joueEn: joueEn,
     proposer: proposer, vide: vide, stats: stats, alertes: alertes, apparier: apparier, scoreNiveau: scoreNiveau,
     moveTo: moveTo, swap: swap, setPoste: setPoste, where: where, diff: diff, presents: presents, attente: attente, retirer: retirer, sorteDuTitre: sorteDuTitre,

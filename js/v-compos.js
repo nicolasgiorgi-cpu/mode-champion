@@ -10,7 +10,8 @@ window.MC = window.MC || {};
 (function () {
   var app = MC.app, ui = MC.ui, L = MC.logic, K = MC.compos, M = MC.missions;
   var esc = ui.esc, icon = ui.icon;
-  var COURT = { pilier: 'Pilier', talonneur: 'Talon.', 'troisieme-ligne': '3e L.', 'demi-de-melee': '9', ouvreur: '10', centre: 'Centre', ailier: 'Ailier' };
+  // (v48) abrégés (choix de Nicolas, 04/11) : la ligne d'un enfant tient sur une ligne
+  var COURT = { pilier: 'Pil', talonneur: 'Tal', 'troisieme-ligne': '3eL', 'demi-de-melee': '9', ouvreur: '10', centre: 'Ctr', ailier: 'Ail' };
   var BG = '#1E1A3A';
 
   // ---------- données ----------
@@ -878,7 +879,7 @@ window.MC = window.MC || {};
       '<span class="row" style="justify-content:space-between;width:100%"><b class="ctid' + (nomT.length > 4 ? ' long' : '') + '">' + esc(nomT) + '</b><span class="cn">' + st.n + '</span></span>' +
       '<span class="cind"><span title="Plaquage moyen">' + icon('star', 12) + ' ' + (st.plaq === null ? '—' : virg(st.plaq)) + '</span><span title="Bons plaqueurs (2 et plus, sur 3)">' + icon('shield', 12) + ' ' + st.bons + '</span>' +
       (st.ontCopains ? '<span title="Avec au moins un copain">' + icon('heart', 12) + ' ' + st.avecCopain + '/' + st.ontCopains + '</span>' : '') + (st.passerelles ? '<span title="Hors de leur niveau (passerelles)">⇅ ' + st.passerelles + '</span>' : '') + '</span>' +
-      avtq + (fmt10 && !petit && !ed && st.manquants.length ? '<span class="cmiss">Manque : ' + st.manquants.map(function (p) { return COURT[p]; }).join(', ') + '</span>' : '') +
+      avtq + (fmt10 && !petit && !ed && st.manquants.length ? '<span class="cmiss">Manque : ' + st.manquants.map(K.nomPoste).join(', ') + '</span>' : '') +
       (dest ? '<span class="cdest">' + icon('down', 12) + ' Ici</span>' : '') + '</button>' +
       corps + '</section>';
   }
@@ -1591,7 +1592,7 @@ window.MC = window.MC || {};
   function paintAvis(C, a, c, e) {
     var moves = a.changements.map(function (m) {
       var de = m.de === 'banc' ? 'pas placé' : m.de || '—', vers = m.vers === 'banc' ? 'pas placé' : m.vers || '—';
-      return '<li class="li"><span class="grow"><span class="t1">' + esc(nom(C, m.id)) + '</span><span class="t2">' + (m.de !== m.vers ? esc(de) + ' → <b style="color:var(--ink)">' + esc(vers) + '</b>' : 'poste : ' + esc(COURT[m.posteDe] || 'remp.') + ' → <b style="color:var(--ink)">' + esc(COURT[m.poste] || 'remp.') + '</b>') + '</span></span></li>';
+      return '<li class="li"><span class="grow"><span class="t1">' + esc(nom(C, m.id)) + '</span><span class="t2">' + (m.de !== m.vers ? esc(de) + ' → <b style="color:var(--ink)">' + esc(vers) + '</b>' : 'poste : ' + esc(m.posteDe ? K.nomPoste(m.posteDe) : 'remp.') + ' → <b style="color:var(--ink)">' + esc(m.poste ? K.nomPoste(m.poste) : 'remp.') + '</b>') + '</span></span></li>';
     }).join('');
     var moved = {}; a.changements.forEach(function (m) { moved[m.id] = true; });
     var att = a.statut === 'attente', me = C.moi;
@@ -1657,12 +1658,14 @@ window.MC = window.MC || {};
   function lienListe(f, p) { return f.postesOk.length ? K.lienPoste(f, p) : (f.voeux.indexOf(p) >= 0 ? 'sec' : ''); }
   // (v46) une ligne = un lien vers la fiche de l'enfant (toute la ligne) ; on n'y change plus rien : niveau, passerelles et plaquage
   // se règlent sur sa fiche (décision de Nicolas, 04/11)
-  function rowTerrain(F, id) {
-    var f = F[id], niv = f.niveau, pas = K.pasDe(f);
+  function rowTerrain(F, id, courts) {
+    var f = F[id], niv = f.niveau, pas = K.pasDe(f), court = courts && courts[id];
     var nv = niv ? '<span class="tlv on" style="--lc:' + K.COUL_NIV[niv] + '" title="Niveau ' + niv + ' · ' + K.NOM_NIV[niv] + '"><span class="sr-only">niveau </span>' + niv + '</span>'
       : '<span class="tlv none" title="Niveau à renseigner"><span class="sr-only">niveau </span>?</span>';
     var pasB = pas.map(function (n) { return '<span class="tpas on" style="--lc:' + K.COUL_NIV[n] + '" title="Passerelle vers ' + K.NOM_NIV[n] + '"><span class="sr-only">passerelle vers </span><span aria-hidden="true">⇅</span>' + n + '</span>'; }).join('');
-    return '<li><a class="tfrow" href="#/educ/joueur/' + esc(id) + '"><span class="tnm">' + esc(f.prenom) + '</span><span class="tps">' + pillsPostes(f) + '</span>' +
+    // (v48) sur téléphone, un homonyme a son nom court (« Baptiste Lem. ») ; sur iPad, le nom entier
+    var nm = court ? '<span class="tnm-l">' + esc(f.prenom) + '</span><span class="tnm-c">' + esc(court) + '</span>' : esc(f.prenom);
+    return '<li><a class="tfrow" href="#/educ/joueur/' + esc(id) + '"><span class="tnm"' + (court ? ' title="' + esc(f.prenom) + '"' : '') + '>' + nm + '</span><span class="tps">' + pillsPostes(f) + '</span>' +
       '<span class="tctl">' + nv + '<span class="tpasw">' + pasB + '</span>' + bouclier(f.plaquage) + '</span></a></li>';
   }
   function paintTerrain(g) {
@@ -1682,7 +1685,8 @@ window.MC = window.MC || {};
     var nivF = T.filtre !== 'all' && T.filtre !== 'none' ? T.filtre : '';
     var pas = nivF ? ids.filter(function (id) { return !okNiv(id) && F[id].niveau && K.pasDe(F[id]).indexOf(nivF) >= 0 && (!q || F[id].prenom.toLowerCase().indexOf(q) >= 0); }) : [];
     function sep(t) { return '<li class="tsep"><span>' + esc(t) + '</span></li>'; }
-    function lignes(l) { return l.map(function (id) { return rowTerrain(F, id); }).join(''); }
+    var courts = K.nomsCourts(ids.map(function (id) { return { id: id, prenom: F[id].prenom }; }));
+    function lignes(l) { return l.map(function (id) { return rowTerrain(F, id, courts); }).join(''); }
     var rows;
     if (T.poste) {
       var pr = list.filter(function (id) { return lienListe(F[id], T.poste) === 'pref'; }), se = list.filter(function (id) { return lienListe(F[id], T.poste) === 'sec'; });
