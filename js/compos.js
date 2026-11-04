@@ -9,8 +9,9 @@ window.MC = window.MC || {};
 MC.compos = (function () {
   var NIV = ['A', 'B', 'C'];
   var NOM_NIV = { A: 'Confirmés', B: 'Débrouillés', C: 'Débutants' };
-  // (v46) les niveaux en dégradé de violet : foncé pour A (Confirmés), clair pour C (Débutants) ; repris partout (décision de Nicolas, 04/11)
-  var COUL_NIV = { A: '#9A6EFF', B: '#B39BFF', C: '#DCD2FF' };
+  // (v46) les niveaux en dégradé de violet, repris partout ; (v47) plus contrastés : A violet vif, B violet pâle, C presque blanc,
+  // lettre toujours en noir (palette « B au milieu » choisie par Nicolas le 04/11)
+  var COUL_NIV = { A: '#9A4BFF', B: '#BFA6FF', C: '#F6F3FF' };
   // Jeu à 10 (règlement FFR M12) : mêlée 3 + 2 (les avants), puis 5 arrières (dans l'appli, « arrières » = les lignes arrières : 9, 10, centres, ailiers).
   // Derrière la charnière (9 et 10) : 1 centre et 2 ailiers (décidé par Nicolas le 20/10 ; à ajuster ici si le club joue autrement).
   var POSTES10 = [['pilier', 2], ['talonneur', 1], ['troisieme-ligne', 2], ['demi-de-melee', 1], ['ouvreur', 1], ['centre', 1], ['ailier', 2]];

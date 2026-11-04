@@ -48,9 +48,9 @@ with sync_playwright() as p:
     # (v46) moins de couleurs : pas d'étoile dans les pastilles ; niveaux en dégradé de violet (A foncé, C clair) ; passerelle à la couleur du niveau visé
     check('(v46) pastilles sans étoile', pg.locator('#tlist .tpp svg').count() == 0 and pg.locator('#tlist .tpp.pref').count() >= 5)
     cols = pg.evaluate("['A','B','C'].map(n => { const el = [...document.querySelectorAll('#tlist .tlv.on')].find(e => e.textContent.replace('niveau ', '') === n); return el ? getComputedStyle(el).backgroundColor : null; })")
-    check('(v46) niveaux : violet foncé A, violet B, violet clair C', cols == ['rgb(154, 110, 255)', 'rgb(179, 155, 255)', 'rgb(220, 210, 255)'], cols)
+    check('(v47) niveaux : violet vif A, violet pâle B, presque blanc C', cols == ['rgb(154, 75, 255)', 'rgb(191, 166, 255)', 'rgb(246, 243, 255)'], cols)
     pc = pg.evaluate("(() => { const b = document.querySelector('#tlist .tpas.on'); return b ? [b.textContent.slice(-1), getComputedStyle(b).color] : null; })()")
-    check('(v46) une passerelle a la couleur de son niveau', pc and pc[1] == {'A': 'rgb(154, 110, 255)', 'B': 'rgb(179, 155, 255)', 'C': 'rgb(220, 210, 255)'}[pc[0]], pc)
+    check('(v46) une passerelle a la couleur de son niveau', pc and pc[1] == {'A': 'rgb(154, 75, 255)', 'B': 'rgb(191, 166, 255)', 'C': 'rgb(246, 243, 255)'}[pc[0]], pc)
     cv = pg.evaluate("(() => { const li = [...document.querySelectorAll('#tlist .tfrow')].find(l => l.querySelector('.tnm').textContent.trim() === 'Côme'); const sh = li && li.querySelector('.pshield'); return sh ? [sh.classList.contains('vide'), sh.querySelector('b').textContent, sh.getAttribute('aria-label')] : null; })()")
     check('(v46) plaquage pas encore évalué : bouclier vide, sans chiffre (≠ 0)', cv and cv[0] and cv[1] == '' and 'pas encore évalué' in cv[2], cv)
     m0 = pg.evaluate("(() => { const li = [...document.querySelectorAll('#tlist .tfrow')].find(l => l.querySelector('.tnm').textContent.trim() === 'Maël'); const sh = li && li.querySelector('.pshield'); return sh ? [sh.className, sh.querySelector('b').textContent] : null; })()")
