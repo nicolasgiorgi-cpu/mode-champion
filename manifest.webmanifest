@@ -2,7 +2,7 @@
   "name": "Mode champion · M12",
   "short_name": "Champion",
   "description": "La préparation physique des M12",
-  "start_url": "./",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#070A12",
