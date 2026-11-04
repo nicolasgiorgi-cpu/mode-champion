@@ -1,10 +1,10 @@
-# (v35) Les postes côté éducs : Enfants › Niveaux et postes (filtres sur une ligne, « Sans niveau » qui disparaît quand
+# (v35, revu en v43) Les postes côté éducs : l'onglet Enfants = la fiche terrain (filtres sur une ligne, « Sans niveau » qui disparaît quand
 # tout le monde a son niveau, la répartition des postes repliée qui suit le filtre), la répartition des présents avant
 # un plateau et avant les matchs, et les matchs d'entraînement avec des postes (changer le poste d'un enfant pour ce match).
 # Site de démo (sh tests/mkdemo.sh), puis : python3 tests/e2e_postes.py [largeur hauteur]   (aussi 360 780)
-import sys, re
+import os, sys, re
 from playwright.sync_api import sync_playwright
-BASE = 'http://localhost:8899/index.html'
+BASE = os.environ.get('BASE', 'http://localhost:8899/index.html')
 W, H = (int(sys.argv[1]), int(sys.argv[2])) if len(sys.argv) > 2 else (390, 844)
 errs = []; res = []
 def check(n, c, i=''): res.append((n, c)); print(('OK  ' if c else 'BAD ') + n, '' if c else i)
@@ -27,12 +27,14 @@ with sync_playwright() as p:
     codes = pg.evaluate('MC.demo.CODES')
     pg.click('[data-act="adultWho"][data-w="e"]'); pg.wait_for_timeout(400)
     pg.click('[data-act="adultPick"][data-nom="Coach Nico"]'); pg.wait_for_timeout(300); pin(pg, codes['educ']); pg.wait_for_timeout(1500)
-    # ----- 1. Niveaux et postes : les filtres sur une ligne -----
-    pg.goto(BASE + '#/educ/terrain'); pg.wait_for_timeout(1200)
+    # ----- 1. Enfants (la fiche terrain) : les filtres sur une ligne -----
+    pg.goto(BASE + '#/educ/joueurs'); pg.wait_for_timeout(1200)
     n0, att0, sans0 = attendu(pg, 'all')
     nsn = ev(pg, "(() => { const F = MC.compos.fiches(MC.app.S.cache.group); return Object.keys(F).filter(id => F[id].actif && !/^test$/i.test(F[id].prenom) && !F[id].niveau).length; })()")
-    check('filtres : Tous, Sans niveau, A, B, C', len(pg.query_selector_all('.tfil .opt')) == 5 and nsn > 0, (len(pg.query_selector_all('.tfil .opt')), nsn))
-    check('filtres : sur une seule ligne', une_ligne(pg, '.tfil:not(.rpf) .opt'))
+    NIVS = '.tfil:not(.rpf):not(.tfp) .opt'
+    check('filtres : Tous, Sans niveau, A, B, C', len(pg.query_selector_all(NIVS)) == 5 and nsn > 0, (len(pg.query_selector_all(NIVS)), nsn))
+    check('filtres : sur une seule ligne', une_ligne(pg, NIVS))
+    check('(v43) filtres de postes : une 2e rangée, sur une ligne', len(pg.query_selector_all('.tfp .opt')) == 8 and une_ligne(pg, '.tfp .opt'))
     check('… chaque bouton sur une hauteur raisonnable (pas de 3 lignes)', ev(pg, "Math.max(...[...document.querySelectorAll('.tfil .opt')].map(b => b.getBoundingClientRect().height))") <= 56)
     check('pas de défilement de côté', sans_debord(pg))
     # ----- 2. la répartition des postes : repliée, puis ouverte ; elle suit le filtre -----
@@ -44,9 +46,8 @@ with sync_playwright() as p:
     check('ouverte : les 7 postes, dans l\'ordre du jeu à 10', [x[0] for x in bb] == ['Pilier', 'Talonneur', '3e ligne', 'Demi de mêlée', 'Ouvreur', 'Centre', 'Ailier'], bb)
     check('… les nombres = la fiche terrain (principal + peut aussi jouer)', [x[1] for x in bb] == att0, ([x[1] for x in bb], att0))
     t = pg.inner_text('details[data-rp="terrain"]')
-    check('… « pas encore de poste réglé » quand il y en a', (sans0 == 0) == ('Pas encore de poste réglé' not in t), (sans0, t[-200:]))
-    pg.click('details[data-rp="terrain"] .pbarw >> nth=0'); pg.wait_for_timeout(250)
-    check('toucher un poste : les prénoms', 'Poste principal' in pg.inner_text('details[data-rp="terrain"] .pbarw >> nth=0') or 'Personne' in pg.inner_text('details[data-rp="terrain"] .pbarw >> nth=0'))
+    check('(v43) plus de texte sous les barres (légende, postes pas réglés)', 'Barre pleine' not in t and 'Pas encore de poste réglé' not in t, t[-200:])
+    check('(v43) plus de prénoms au toucher d\'un poste (les filtres le font)', pg.query_selector('details[data-rp="terrain"] .pbarw') is None)
     check('ouverte : pas de défilement de côté', sans_debord(pg))
     pg.click('[data-act="tFiltre"][data-v="A"]'); pg.wait_for_timeout(400)
     nA, attA, _ = attendu(pg, 'A')
@@ -57,11 +58,16 @@ with sync_playwright() as p:
     # ----- 3. tout le monde a son niveau : « Sans niveau » disparaît -----
     pg.click('[data-act="tFiltre"][data-v="none"]'); pg.wait_for_timeout(400)
     ids = ev(pg, "[...document.querySelectorAll('#tlist .tfrow')].map(r => r.querySelector('[data-act=tNiv]').getAttribute('data-id'))")
-    for i in ids: pg.click('[data-act="tNiv"][data-id="%s"][data-v="C"]' % i); pg.wait_for_timeout(150)
-    check('niveaux donnés, pas encore enregistrés : « Sans niveau » reste (on voit qui on vient de régler)', pg.query_selector('[data-act="tFiltre"][data-v="none"]') is not None)
-    pg.click('[data-act="tSave"]'); pg.wait_for_timeout(1200)
-    check('enregistré : plus de « Sans niveau », retour à « Tous »', pg.query_selector('[data-act="tFiltre"][data-v="none"]') is None and ev(pg, "document.querySelector('[data-act=tFiltre][data-v=all]').classList.contains('on')"))
-    check('4 filtres, toujours sur une ligne', len(pg.query_selector_all('.tfil .opt')) == 4 and une_ligne(pg, '.tfil:not(.rpf) .opt'))
+    for k, i in enumerate(ids):
+        pg.click('[data-act="tNiv"][data-id="%s"][data-v="C"]' % i); pg.wait_for_timeout(150)
+        if k == 0 and len(ids) > 1: check('(v43) un enfant réglé reste dans « Sans niveau » (on voit qui on vient de régler)', pg.query_selector('#tlist [data-act="tNiv"][data-id="%s"]' % i) is not None)
+    pg.wait_for_timeout(1300)
+    # (relecture v43) le filtre ne bascule pas sous le doigt : « Sans niveau » reste, avec ceux qu'on vient de régler, tant qu'on est sur l'écran
+    check('tous réglés : « Sans niveau » reste le temps de l\'écran (ceux qu\'on vient de régler visibles)', ev(pg, "!!document.querySelector('[data-act=tFiltre][data-v=none].on')") and len(pg.query_selector_all('#tlist .tfrow')) == len(ids), len(pg.query_selector_all('#tlist .tfrow')))
+    pg.click('#nav a:has-text("Progrès")'); pg.wait_for_timeout(900); pg.click('#nav a:has-text("Enfants")'); pg.wait_for_timeout(1000)
+    check('tous réglés : plus de « Sans niveau », retour à « Tous »', pg.query_selector('[data-act="tFiltre"][data-v="none"]') is None and ev(pg, "document.querySelector('[data-act=tFiltre][data-v=all]').classList.contains('on')"))
+    check('(v43) enregistrés au toucher, sans bouton', pg.query_selector('[data-act="tSave"]') is None and ev(pg, "MC.api.call('group',{token:MC.app.S.adult.token}).then(g => g.joueurs.filter(p => %s.indexOf(p.joueur.id) >= 0).every(p => p.terrain && p.terrain.niveau === 'C'))" % str(ids).replace("'", '"')))
+    check('4 filtres, toujours sur une ligne', len(pg.query_selector_all(NIVS)) == 4 and une_ligne(pg, NIVS))
     # ----- 4. avant un plateau : les postes des présents -----
     pg.goto(BASE + '#/educ/compo/sp-demo-p3'); pg.wait_for_timeout(1300)
     check('plateau : « Répartition des postes » des présents, repliée', pg.query_selector('details[data-rp="plateau"]') is not None and 'présents' in pg.inner_text('details[data-rp="plateau"] > summary'))

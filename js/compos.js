@@ -35,7 +35,7 @@ MC.compos = (function () {
     return out;
   }
   function niveauDe(f) { return f && NIV.indexOf(f.niveau) >= 0 ? f.niveau : ''; }
-  // Les postes d'un joueur, dans l'ordre : ceux de sa fiche (le 1er = son poste principal, réglé par les éducs),
+  // Les postes d'un joueur, dans l'ordre : ceux de sa fiche (ses postes préférés ★ d'abord, réglés par les éducs),
   // sinon les vœux de l'enfant (mission « jeu à 10 »).
   function postesDe(f) {
     var l = (f && f.postesOk && f.postesOk.length) ? f.postesOk : ((f && f.voeux) || []), o = [];
@@ -43,22 +43,37 @@ MC.compos = (function () {
     return o;
   }
   function posteDefaut(f) { return postesDe(f)[0] || ''; }
+  // (v43) ses postes préférés ★ (un ou plusieurs) ; sans postes réglés : son 1er vœu
+  // (pref = liste réglée par les éducs, même vide ; sinon le 1er poste connu de sa fiche, ou son 1er vœu)
+  function prefDe(f) {
+    if (f && f.postesOk && f.postesOk.length) {
+      if (Array.isArray(f.pref)) return f.pref.filter(function (p) { return f.postesOk.indexOf(p) >= 0; });
+      var p0 = f.postesOk.filter(function (p) { return ORDRE.indexOf(p) >= 0; })[0];
+      return p0 ? [p0] : [];
+    }
+    var v0 = ((f && f.voeux) || []).filter(function (p) { return ORDRE.indexOf(p) >= 0; })[0];
+    return v0 ? [v0] : [];
+  }
+  // (v43) son lien avec un poste : 'pref' (★), 'sec' (peut aussi jouer) ou '' (pas ce poste)
+  function lienPoste(f, poste) { return prefDe(f).indexOf(poste) >= 0 ? 'pref' : postesDe(f).indexOf(poste) >= 0 ? 'sec' : ''; }
   // (v35) la répartition des postes RÉGLÉS sur les fiches (pas les vœux) : pour chaque poste, ceux qui l'ont en poste
   // principal et ceux qui peuvent le jouer ; « sans » = pas encore de poste réglé. ids : les enfants à compter.
   function repartition(ids, F) {
     var o = { postes: ORDRE.map(function (p) { return { id: p, princ: [], autres: [] }; }), sans: [] }, ix = {};
     o.postes.forEach(function (x) { ix[x.id] = x; });
     (ids || []).forEach(function (id) {
-      var l = ((F[id] || {}).postesOk || []).filter(function (p, i, a) { return ix[p] && a.indexOf(p) === i; });
+      var f = F[id] || {}, l = (f.postesOk || []).filter(function (p, i, a) { return ix[p] && a.indexOf(p) === i; }), pf = prefDe(f);
       if (!l.length) { o.sans.push(id); return; }
-      l.forEach(function (p, i) { ix[p][i ? 'autres' : 'princ'].push(id); });
+      l.forEach(function (p) { ix[p][pf.indexOf(p) >= 0 ? 'princ' : 'autres'].push(id); });
     });
     return o;
   }
-  // rang d'un poste pour un joueur : 0 = poste principal, 1, 2… = ses autres postes ; sinon 9
+  // rang d'un poste pour un joueur : 0 = un de ses postes préférés (v43 : il peut y en avoir plusieurs),
+  // 1, 2… = ses autres postes ; sinon 9
   function rang(f, poste) {
-    var i = postesDe(f).indexOf(poste);
-    return i >= 0 ? i : 9;
+    if (prefDe(f).indexOf(poste) >= 0) return 0;
+    var l = postesDe(f).filter(function (p) { return prefDe(f).indexOf(p) < 0; }), i = l.indexOf(poste);
+    return i >= 0 ? i + 1 : 9;
   }
   // avant (piliers, talonneur, 3es lignes) ou arrière (9, 10, centres, ailiers)
   var AVANTS = ['pilier', 'talonneur', 'troisieme-ligne'];
@@ -78,14 +93,16 @@ MC.compos = (function () {
   function fiches(g) {
     var out = {};
     ((g && g.joueurs) || []).forEach(function (p) {
-      var t = p.terrain || {}, m = null;
+      var t = p.terrain || {}, m = null, ok = Array.isArray(t.postesOk) ? t.postesOk.filter(function (x, i, a) { return a.indexOf(x) === i; }) : [];
+      // (v43) les préférés ★ : la liste du serveur, sinon (fiche d'avant la v43) le 1er poste ; postesOk les met en tête
+      var pref = Array.isArray(t.postesPref) ? t.postesPref.filter(function (x) { return ok.indexOf(x) >= 0; }) : ok.slice(0, 1);
       (p.missions || []).forEach(function (x) { if (x.mission === 'jeu10') m = x; });
       var r = (m && m.reponses) || {};
       out[p.joueur.id] = {
         id: p.joueur.id, prenom: p.joueur.prenom, couleur: p.joueur.couleur, actif: p.joueur.actif !== false,
         niveau: NIV.indexOf(t.niveau) >= 0 ? t.niveau : '', passerelle: NIV.indexOf(t.passerelle) >= 0 ? t.passerelle : '',
         plaquage: Math.max(0, Math.min(5, Number(t.plaquage) || 0)),
-        voeux: Array.isArray(r.postes) ? r.postes.slice(0, 3) : [], postesOk: Array.isArray(t.postesOk) ? t.postesOk.slice() : [],
+        voeux: Array.isArray(r.postes) ? r.postes.slice(0, 3) : [], postesOk: pref.concat(ok.filter(function (x) { return pref.indexOf(x) < 0; })), pref: pref,
         copains: Array.isArray(r.copains) ? r.copains.slice() : [], spondId: t.spondId || ''
       };
     });
@@ -166,7 +183,7 @@ MC.compos = (function () {
       }
       return false;
     }
-    [0, 1, 2, 3, 4, 5, 6].forEach(function (maxR) {
+    [0, 1, 2, 3, 4, 5, 6, 7].forEach(function (maxR) {   // 7 : le 7e poste d'un enfant sans préféré ★
       ids.forEach(function (pid) { if (slotOf[pid] === undefined) tryAssign(pid, maxR, {}); });
     });
     if (remplir) ids.forEach(function (pid) {
@@ -825,7 +842,7 @@ MC.compos = (function () {
     proposer: proposer, vide: vide, stats: stats, alertes: alertes, apparier: apparier, scoreNiveau: scoreNiveau,
     moveTo: moveTo, swap: swap, setPoste: setPoste, where: where, diff: diff, presents: presents, attente: attente, retirer: retirer, sorteDuTitre: sorteDuTitre,
     nomPoste: nomPoste, frDate: frDate,
-    STYLES: STYLES, AVANTS: AVANTS, postesDe: postesDe, posteDefaut: posteDefaut, repartition: repartition, placeLibre: placeLibre, typePoste: typePoste, typeDe: typeDe, sections: sections, ORDRE: ORDRE,
+    STYLES: STYLES, AVANTS: AVANTS, postesDe: postesDe, posteDefaut: posteDefaut, prefDe: prefDe, lienPoste: lienPoste, rang: rang, repartition: repartition, placeLibre: placeLibre, typePoste: typePoste, typeDe: typeDe, sections: sections, ORDRE: ORDRE,
     PARTIES: PARTIES, regEnt: regEnt, proposerEnt: proposerEnt, videEnt: videEnt, reprendre: reprendre, alertesEnt: alertesEnt,
     blocDe: blocDe, blocsDe: blocsDe, nomBloc: nomBloc, nomEq: nomEq
   };

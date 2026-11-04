@@ -157,7 +157,7 @@ with sync_playwright() as p:
     visit(pg, '#/educ/missions/nouvelle?type=video', 'e15-nouvelle-video', 'Progrès', 'Nouvelle mission')
     visit(pg, '#/educ/missions/nouvelle?type=perso', 'e16-nouvelle-perso', 'Progrès', 'Donner une mission principale')
     t = visit(pg, '#/educ/joueurs', 'e17-enfants', 'Enfants', 'Tom')
-    check('Enfants : mon enfant en premier', pg.inner_text('#edlist li >> nth=0').upper().find('TOM') >= 0)
+    check('(v43) Enfants : directement la fiche terrain du groupe', len(pg.query_selector_all('#tlist .tfrow')) >= 20 and not pg.query_selector('main .subtabs'))
     visit(pg, '#/educ/terrain', 'e18-terrain', 'Enfants')
     for tb in ['terrain', 'skills', 'missions', 'prepa', 'hist', 'famille']:
         visit(pg, '#/educ/joueur/%s?t=%s' % (tomId, tb), 'e19-fiche-' + tb, 'Enfants')
