@@ -1369,7 +1369,18 @@ textarea.txt{min-height:84px;padding:10px 12px;resize:vertical;font:500 16px/1.4
 @media (min-width:760px){.ftabs{grid-template-columns:repeat(6,minmax(0,1fr))}}
 .ftabs a{min-width:0;min-height:42px;display:flex;align-items:center;justify-content:center;text-align:center;padding:0 6px;background:var(--panel2);border:1px solid var(--line);color:var(--muted);text-decoration:none;font:700 12px/1 var(--f-hud);letter-spacing:.06em;text-transform:uppercase}
 .ftabs a.on{border-color:var(--violet);color:#C9AEFF;background:rgba(180,140,255,.1)}
-.fsk{display:flex;flex-direction:column;gap:6px}
+.fsk .skcell{flex:none}
+/* (v44) Progrès › Skills : le catalogue (cartes repliées, une étoile = un bouton) */
+.rpost-s .grow{flex:1;min-width:0}
+.skcats{display:flex;flex-direction:column;gap:8px}
+@media (min-width:900px){.skcats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}}
+.skacts{gap:8px;flex-wrap:wrap}
+.skacts .btn2{flex:1 1 0;min-width:140px}
+.skcat-i{flex:none;display:flex}
+.skce{width:100%;text-align:left;font:inherit;color:inherit;cursor:pointer}
+.skce .skno{flex:none}
+.skce-n{flex:none;font:700 12px/1 var(--f-hud);color:var(--dim)}
+.rpost-c.list{margin:0}
 .fmis{display:flex;flex-direction:column;gap:10px;padding:12px;background:var(--panel2);border:1px solid var(--line);border-top:3px solid var(--pink)}
 .fmis-act{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 @media (min-width:760px){

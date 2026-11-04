@@ -423,8 +423,12 @@
     return ui.topbar({ kicker: 'Éduc · ' + g.moi.nom + (g.moi.admin ? ' · admin' : ''), title: title, right: right, help: ui.helpLink('educ') });
   }
   MC.educBar = educBar;
-  // Progrès : Prépa physique · Skills · Missions
-  function progresTabs(on) { return ui.subtabs('e:progres', [['prepa', '#/educ/progres', 'Prépa physique'], ['skills', '#/educ/skills', 'Skills'], ['missions', '#/educ/missions', 'Missions']], on, '#3DFFB0', 'Progrès'); }
+  // Progrès (v44) : Missions (ouvert de base) · Skills · Prépa physique ; une pastille sur ce qui attend (demandes d'étoiles, résultats de mon enfant)
+  function progresTabs(on) {
+    var g = app.S.cache.group, nSk = MC.demandesSkills ? MC.demandesSkills() : 0, nPr = 0;
+    if (g) mesEnfants(g).forEach(function (p) { if (p.joueur.actif) (p.records || []).forEach(function (r) { if (r.statut === 'attente') nPr++; }); });
+    return ui.subtabs('e:progres', [['missions', '#/educ/missions', 'Missions'], ['skills', '#/educ/skills', 'Skills', nSk || ''], ['prepa', '#/educ/progres', 'Prépa physique', nPr || '']], on, '#3DFFB0', 'Progrès');
+  }
   MC.progresTabs = progresTabs;
   function mesEnfants(g) { return (g.moi.enfants || []).map(function (id) { return g.joueurs.filter(function (p) { return p.joueur.id === id; })[0]; }).filter(Boolean); }
   MC.mesEnfants = mesEnfants;
