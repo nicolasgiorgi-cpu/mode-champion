@@ -44,9 +44,15 @@ MC.compos = (function () {
   }
   function posteDefaut(f) { return postesDe(f)[0] || ''; }
   // (v43) ses postes préférés ★ (un ou plusieurs) ; sans postes réglés : son 1er vœu
+  // (pref = liste réglée par les éducs, même vide ; sinon le 1er poste connu de sa fiche, ou son 1er vœu)
   function prefDe(f) {
-    if (f && f.postesOk && f.postesOk.length) return (f.pref && f.pref.length ? f.pref : f.postesOk.slice(0, 1)).filter(function (p) { return f.postesOk.indexOf(p) >= 0; });
-    return ((f && f.voeux) || []).slice(0, 1);
+    if (f && f.postesOk && f.postesOk.length) {
+      if (Array.isArray(f.pref)) return f.pref.filter(function (p) { return f.postesOk.indexOf(p) >= 0; });
+      var p0 = f.postesOk.filter(function (p) { return ORDRE.indexOf(p) >= 0; })[0];
+      return p0 ? [p0] : [];
+    }
+    var v0 = ((f && f.voeux) || []).filter(function (p) { return ORDRE.indexOf(p) >= 0; })[0];
+    return v0 ? [v0] : [];
   }
   // (v43) son lien avec un poste : 'pref' (★), 'sec' (peut aussi jouer) ou '' (pas ce poste)
   function lienPoste(f, poste) { return prefDe(f).indexOf(poste) >= 0 ? 'pref' : postesDe(f).indexOf(poste) >= 0 ? 'sec' : ''; }
