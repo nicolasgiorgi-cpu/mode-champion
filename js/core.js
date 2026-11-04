@@ -1692,7 +1692,11 @@ var Core = (function () {
         var cur = pubTerrain(find(ctx.db.rows('terrain'), j.id)) || { niveau: '', passerelle: '', plaquage: 0, postesOk: [], postesPref: null, spondId: '', note: '' };
         var patch = {};
         if (l.niveau !== undefined) patch.niveau = NIVS.indexOf(String(l.niveau)) >= 0 ? String(l.niveau) : '';
-        if (l.passerelle !== undefined) patch.passerelle = String(l.passerelle || '');
+        // (v45) le site envoie « passerelles » (une ou deux lettres) ; « passerelle » vient d'un site plus ancien resté ouvert : appliquée
+        // seulement si la fiche est encore lisible par lui (vide, ou une seule passerelle vers le niveau voisin), sinon il effacerait
+        // des passerelles qu'il ne voit pas
+        if (l.passerelles !== undefined) patch.passerelle = String(l.passerelles || '');
+        else if (l.passerelle !== undefined && (!cur.passerelle || (cur.passerelle.length === 1 && Math.abs(NIVS.indexOf(cur.passerelle) - NIVS.indexOf(cur.niveau)) === 1))) patch.passerelle = String(l.passerelle || '');
         var niv = patch.niveau !== undefined ? patch.niveau : cur.niveau, pas = patch.passerelle !== undefined ? patch.passerelle : cur.passerelle;
         if (normPas(pas, niv) !== pas) patch.passerelle = normPas(pas, niv);           // (v45) vers un ou deux autres niveaux, jamais le sien
         // (v44) de 0 à 3 ; 4 ou 5 (un site pas encore à jour, l'ancienne échelle) → 3 ; le reste → 0

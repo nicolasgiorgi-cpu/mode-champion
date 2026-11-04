@@ -1749,7 +1749,8 @@ window.MC = window.MC || {};
     if (TS.busy) { TS.timer = setTimeout(terrainFlush, 300); return; }
     var ids = Object.keys(TS.pend);
     if (!ids.length) return;
-    var envoi = TS.pend, lignes = ids.map(function (id) { var o = { joueurId: id }; for (var k in envoi[id]) o[k] = envoi[id][k]; return o; });
+    // (v45) les passerelles partent sous le nom « passerelles » (un site plus ancien envoie « passerelle », une seule lettre)
+    var envoi = TS.pend, lignes = ids.map(function (id) { var o = { joueurId: id }; for (var k in envoi[id]) o[k === 'passerelle' ? 'passerelles' : k] = envoi[id][k]; return o; });
     var avant = TS.avant, spond = lignes.some(function (l) { return l.spondId !== undefined; });
     TS.pend = {}; TS.avant = {}; TS.vol = avant; TS.busy = true;
     app.adultCall('setTerrain', { lignes: lignes }).then(function (r) {

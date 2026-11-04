@@ -51,8 +51,40 @@ const q = K.proposer(Object.keys(G), G, {}, { format: 5, nb: { A: 1, B: 1, C: 1 
 const ouG = {}; q.equipes.forEach(t => t.joueurs.forEach(j => { ouG[j.id] = t.niveau; }));
 assert.strictEqual(ouG.b1, 'C', 'b1 (passerelles A et C) va combler le manque en C');
 
-// ----- l'alerte de rotation cite ses deux passerelles -----
-const al = K.alertes(q, G, {}).filter(a => a.k === 'rotation');
-if (al.length) assert.ok(!/undefined/.test(al[0].texte), al[0].texte);
+// ----- pas d'équipe de son niveau : le niveau le plus proche (une passerelle ne fait pas sauter un niveau) -----
+const P1 = {};
+function addP(id, niveau, pas) { P1[id] = { id, prenom: id, niveau, passerelle: pas || '', plaquage: 2, voeux: [], postesOk: [], copains: [] }; }
+['a1', 'a2'].forEach(id => addP(id, 'A')); P1.a3 = null; delete P1.a3; addP('a3', 'A', 'C');
+['b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8'].forEach(id => addP(id, 'B'));
+['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8'].forEach(id => addP(id, 'C'));
+let r1 = K.proposer(Object.keys(P1), P1, {}, { format: 5, nb: { A: 0, B: 1, C: 1 } });
+let o1 = {}; r1.equipes.forEach(t => t.joueurs.forEach(j => { o1[j.id] = t.niveau; }));
+assert.strictEqual(o1.a3, 'B', 'pas d\'équipe A : un A avec ⇅C joue en B comme les autres A');
+const P2 = JSON.parse(JSON.stringify(P1)); P2.b1.passerelle = 'A'; P2.b2.passerelle = '';
+r1 = K.proposer(Object.keys(P2), P2, {}, { format: 5, nb: { A: 1, B: 0, C: 1 } });
+o1 = {}; r1.equipes.forEach(t => t.joueurs.forEach(j => { o1[j.id] = t.niveau; }));
+assert.strictEqual(o1.b2, 'C', 'pas d\'équipe B : un B sans passerelle joue en C (comme avant)');
+assert.strictEqual(o1.b1, 'A', 'pas d\'équipe B : un B avec ⇅A joue en A');
+
+// ----- les passerelles vers le niveau voisin d'abord : un Débrouillé monte en A avant un Débutant -----
+const P3 = {};
+function add3(id, niveau, pas) { P3[id] = { id, prenom: id, niveau, passerelle: pas || '', plaquage: 2, voeux: [], postesOk: [], copains: [] }; }
+['a1', 'a2', 'a3', 'a4', 'a5'].forEach(id => add3(id, 'A'));
+['b1', 'b2', 'b3', 'b4', 'b5'].forEach(id => add3(id, 'B')); P3.b1.passerelle = 'A';
+['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9', 'c10', 'c11'].forEach(id => add3(id, 'C')); ['c1', 'c2', 'c3', 'c4'].forEach(id => { P3[id].passerelle = 'AB'; });
+const r3 = K.proposer(Object.keys(P3), P3, {}, { format: 5, nb: { A: 1, B: 1, C: 1 } });
+const o3 = {}; r3.equipes.forEach(t => t.joueurs.forEach(j => { o3[j.id] = t.niveau; }));
+assert.strictEqual(o3.b1, 'A', 'le B avec ⇅A monte en A : ' + JSON.stringify(o3));
+assert.ok(['c1', 'c2', 'c3', 'c4'].filter(id => o3[id] === 'A').length <= 1, 'les C ne passent pas devant : ' + JSON.stringify(o3));
+
+// ----- la rotation se compte par niveau : un B avec ⇅A et ⇅C qui a déjà joué en C attend encore son tour en A -----
+const R = {};
+['a1', 'a2', 'a3', 'a4', 'a5', 'a6', 'a7'].forEach(id => { R[id] = { id, prenom: id, niveau: 'A', passerelle: '', plaquage: 2, voeux: [], postesOk: [], copains: [] }; });
+['b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7'].forEach(id => { R[id] = { id, prenom: id, niveau: 'B', passerelle: '', plaquage: 2, voeux: [], postesOk: [], copains: [] }; });
+R.b1.passerelle = 'AC';
+const HR = { b1: { plateaux: 1, autre: 1, dernierAutre: '2026-10-10', avecCopain: 0, sansCopainSerie: 0, vus: {}, niveaux: {}, postes: {}, liste: [{ date: '2026-10-10', niveau: 'C', autre: true }] } };
+const rr = K.proposer(Object.keys(R), R, HR, { format: 5, nb: { A: 1, B: 1, C: 0 } });
+const al = K.alertes(rr, R, HR).filter(a => a.k === 'rotation');
+assert.ok(al.length && /b1 \(B→A\)/.test(al[0].texte), 'alerte : ' + JSON.stringify(al));
 
 console.log('test_passerelles : OK');

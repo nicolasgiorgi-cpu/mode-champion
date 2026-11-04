@@ -26,7 +26,7 @@ r = g.call({ action: 'group', token: nico });
 assert.strictEqual(r.joueurs[0].terrain, null, 'pas encore de fiche terrain');
 r = g.call({ action: 'setTerrain', token: nico, lignes: [
   { joueurId: P.Tom, niveau: 'B', passerelle: 'A', plaquage: 3, postesOk: ['centre', 'pirate', 'centre'] },
-  { joueurId: P['Léa'], niveau: 'A', passerelle: 'AC', plaquage: 9 },         // (v45) passerelle vers C permise, pas vers son niveau ; plaquage hors bornes
+  { joueurId: P['Léa'], niveau: 'A', passerelles: 'AC', plaquage: 9 },        // (v45) passerelle vers C permise, pas vers son niveau ; plaquage hors bornes
   { joueurId: P.Hugo, niveau: 'C', plaquage: 1 },
   { joueurId: 'inconnu', niveau: 'A' }
 ] });
@@ -41,13 +41,25 @@ r = g.call({ action: 'setTerrain', token: cyril, lignes: [{ joueurId: P.Tom, pla
 assert.strictEqual(r.terrain[P.Tom].niveau, 'B'); assert.strictEqual(r.terrain[P.Tom].passerelle, 'A'); assert.strictEqual(r.terrain[P.Tom].plaquage, 2);
 assert.strictEqual(r.terrain[P.Tom].parQui, 'Cyril');
 // (v45) changer de niveau retire la passerelle vers son nouveau niveau, garde l'autre
-r = g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P.Hugo, niveau: 'C', passerelle: 'AB' }] });
+r = g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P.Hugo, niveau: 'C', passerelles: 'AB' }] });
 assert.strictEqual(r.terrain[P.Hugo].passerelle, 'AB', 'un C : passerelles vers A et B');
 r = g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P.Hugo, niveau: 'B' }] });
 assert.strictEqual(r.terrain[P.Hugo].passerelle, 'A', 'devenu B : plus de passerelle vers B');
-r = g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P.Hugo, passerelle: 'CXA' }] });
+r = g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P.Hugo, passerelles: 'CXA' }] });
 assert.strictEqual(r.terrain[P.Hugo].passerelle, 'AC', 'lettres dans l\'ordre, inconnues retirées');
-r = g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P.Hugo, niveau: 'C', passerelle: 'A' }] });
+// un site d'avant la v45 encore ouvert (« passerelle ») n'efface pas ce qu'il ne sait pas lire…
+r = g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P.Hugo, passerelle: '', plaquage: 1 }] });
+assert.strictEqual(r.terrain[P.Hugo].passerelle, 'AC', 'ancien site : deux passerelles gardées'); assert.strictEqual(r.terrain[P.Hugo].plaquage, 1);
+r = g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P.Hugo, niveau: 'C', passerelles: 'A' }] });
+assert.strictEqual(r.terrain[P.Hugo].passerelle, 'A');
+r = g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P.Hugo, passerelle: '' }] });
+assert.ok(r.ok && !r.terrain[P.Hugo], 'ancien site : rien à changer');
+assert.strictEqual(g.call({ action: 'group', token: nico }).joueurs.find(p => p.joueur.id === P.Hugo).terrain.passerelle, 'A', 'ancien site : une passerelle non voisine (C → A) gardée');
+// … mais garde la main sur une fiche qu'il sait lire (une passerelle voisine)
+r = g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P.Hugo, niveau: 'B', passerelles: 'A' }] });
+r = g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P.Hugo, passerelle: 'C' }] });
+assert.strictEqual(r.terrain[P.Hugo].passerelle, 'C', 'ancien site : une passerelle voisine se change');
+r = g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P.Hugo, niveau: 'C', passerelles: 'A' }] });
 assert.strictEqual(r.terrain[P.Hugo].passerelle, 'A');
 r = g.call({ action: 'group', token: nico });
 const tomG = r.joueurs.find(p => p.joueur.id === P.Tom);

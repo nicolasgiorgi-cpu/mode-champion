@@ -24,9 +24,9 @@ MC.compos = (function () {
   var TAILLE = { 5: { min: 5, ideal: 7 }, 10: { min: 10, ideal: 12 } };
   var FORMATS = [5, 10];
 
-  function voisin(a, b) { return NIV.indexOf(a) >= 0 && NIV.indexOf(b) >= 0 && Math.abs(NIV.indexOf(a) - NIV.indexOf(b)) === 1; }
-  // (v45) les passerelles d'un enfant : un ou deux autres niveaux (lettres de la fiche, ex. 'AC')
-  function lettresPas(s, niv) { return NIV.filter(function (n) { return n !== niv && String(s || '').indexOf(n) >= 0; }); }
+  function dist(a, b) { return Math.abs(NIV.indexOf(a) - NIV.indexOf(b)); }
+  // (v45) les passerelles d'un enfant : un ou deux autres niveaux (lettres de la fiche, ex. 'AC') ; aucune sans niveau
+  function lettresPas(s, niv) { if (NIV.indexOf(niv) < 0) return []; return NIV.filter(function (n) { return n !== niv && String(s || '').indexOf(n) >= 0; }); }
   function pasDe(f) { return f ? (Array.isArray(f.passerelles) ? f.passerelles : lettresPas(f.passerelle, f.niveau)) : []; }
   // peut-il jouer dans ce niveau ? (le sien, ou une de ses passerelles)
   function joueEn(f, n) { return !!f && (f.niveau === n || pasDe(f).indexOf(n) >= 0); }
@@ -160,6 +160,9 @@ MC.compos = (function () {
     return H;
   }
   function hOf(H, id) { return (H && H[id]) || { plateaux: 0, entrainements: 0, autre: 0, dernierAutre: '', avecCopain: 0, sansCopainSerie: 0, vus: {}, niveaux: {}, postes: {}, liste: [] }; }
+  // (v45) la rotation se compte par niveau de passerelle : la dernière fois (et combien de fois) qu'il a joué en n hors de son niveau
+  function dernierEn(H, id, n) { var d = ''; hOf(H, id).liste.forEach(function (x) { if (x.autre && x.niveau === n && x.date > d) d = x.date; }); return d; }
+  function nbEn(H, id, n) { return hOf(H, id).liste.filter(function (x) { return x.autre && x.niveau === n; }).length; }
 
   // ---------- Nombre d'équipes conseillé par niveau ----------
   function suggestNb(ids, F, format) {
@@ -327,7 +330,10 @@ MC.compos = (function () {
       princ[id] = n;
       if (!n) { n = ok('B') ? 'B' : ok('C') ? 'C' : 'A'; raisons[id] = 'Niveau à renseigner : placé en ' + n + '.'; }
       else if (!ok(n)) {
-        var alt = pasDe(f).filter(ok)[0] || (n === 'B' ? (ok('C') ? 'C' : 'A') : (ok('B') ? 'B' : n === 'A' ? 'C' : 'A'));
+        // (v45) le niveau le plus proche qui a une équipe ; à égalité (un B), une de ses passerelles, sinon C
+        var proches = NIV.filter(ok).sort(function (a, b) { return dist(a, n) - dist(b, n) || (a === 'C' ? -1 : 1); });
+        var egaux = proches.filter(function (x) { return dist(x, n) === dist(proches[0], n); });
+        var alt = egaux.filter(function (x) { return pasDe(f).indexOf(x) >= 0; })[0] || egaux[0];
         raisons[id] = 'Pas d\'équipe ' + n + ' : joue en ' + alt + '.';
         n = alt;
       }
@@ -338,31 +344,43 @@ MC.compos = (function () {
     function count(n) { var c = 0; ids.forEach(function (id) { if (lv[id] === n) c++; }); return c; }
     function ecart(n) { return count(n) - nb[n] * per; }
     var guard = S.sansPasserelles ? 60 : 0;
+    // ceux qui jouent dans leur niveau et ont une passerelle vers « to », dans l'ordre de leur tour (par niveau visé, v45)
+    function candidats(from, to) {
+      return ids.filter(function (id) { var f = F[id] || {}; return lv[id] === from && princ[id] === from && pasDe(f).indexOf(to) >= 0; }).sort(function (a, b) {
+        var da = dernierEn(H, a, to), db = dernierEn(H, b, to), na = nbEn(H, a, to), nb2 = nbEn(H, b, to);
+        if (da !== db) return da < db ? -1 : 1;   // jamais en « to » / le plus ancien d'abord
+        if (na !== nb2) return na - nb2;
+        var pa = (F[a] || {}).plaquage || 0, pb = (F[b] || {}).plaquage || 0;
+        if (pa !== pb) return NIV.indexOf(to) < NIV.indexOf(from) ? pb - pa : pa - pb;          // vers le haut : les meilleurs plaqueurs
+        return a < b ? -1 : 1;
+      });
+    }
     while (guard++ < 60) {
       var move = null;
-      NIV.forEach(function (from) {
+      // (v45) d'abord vers un niveau voisin ; à deux niveaux (C ↔ A), d'abord en chaîne par le niveau du milieu
+      // (un B monte en A, un C prend sa place en B), puis directement
+      [1, 2].forEach(function (d) { NIV.forEach(function (from) {
         NIV.forEach(function (to) {
-          if (move || from === to || !ok(to)) return;
+          if (move || dist(from, to) !== d || !ok(to)) return;
           var ef = ecart(from), et = ecart(to);
           if (!(ef > 0.5 && et < -0.5)) return;
-          var c = ids.filter(function (id) { var f = F[id] || {}; return lv[id] === from && princ[id] === from && pasDe(f).indexOf(to) >= 0; });
-          if (!c.length) return;
-          c.sort(function (a, b) {
-            var ha = hOf(H, a), hb = hOf(H, b);
-            if (ha.dernierAutre !== hb.dernierAutre) return ha.dernierAutre < hb.dernierAutre ? -1 : 1;   // jamais / le plus ancien d'abord
-            if (ha.autre !== hb.autre) return ha.autre - hb.autre;
-            var pa = (F[a] || {}).plaquage || 0, pb = (F[b] || {}).plaquage || 0;
-            if (pa !== pb) return NIV.indexOf(to) < NIV.indexOf(from) ? pb - pa : pa - pb;          // vers le haut : les meilleurs plaqueurs
-            return a < b ? -1 : 1;
-          });
           // déplacer seulement si l'écart total diminue
-          if (Math.abs(ef - 1) + Math.abs(et + 1) < Math.abs(ef) + Math.abs(et)) move = { id: c[0], to: to };
+          if (!(Math.abs(ef - 1) + Math.abs(et + 1) < Math.abs(ef) + Math.abs(et))) return;
+          if (d === 2) {
+            var mid = NIV[(NIV.indexOf(from) + NIV.indexOf(to)) / 2];
+            if (ok(mid)) { var cm = candidats(mid, to), cf = candidats(from, mid); if (cm.length && cf.length) { move = { id: cm[0], to: to, puis: { id: cf[0], to: mid } }; return; } }
+          }
+          var c = candidats(from, to);
+          if (c.length) move = { id: c[0], to: to };
         });
-      });
+      }); });
       if (!move) break;
-      lv[move.id] = move.to;
-      var hh = hOf(H, move.id);
-      raisons[move.id] = 'Joue en ' + move.to + ' grâce à sa passerelle : ' + (hh.dernierAutre ? 'son tour (dernière fois le ' + frDate(hh.dernierAutre) + ').' : 'son tour, il n\'y a pas encore joué.');
+      [move, move.puis].forEach(function (m) {
+        if (!m) return;
+        lv[m.id] = m.to;
+        var der = dernierEn(H, m.id, m.to);
+        raisons[m.id] = 'Joue en ' + m.to + ' grâce à sa passerelle : ' + (der ? 'son tour (dernière fois le ' + frDate(der) + ').' : 'son tour, il n\'y a pas encore joué.');
+      });
     }
     // 3. dans chaque niveau : serpentin par étoiles de plaquage, puis échanges
     var equipes = [];
@@ -489,12 +507,13 @@ MC.compos = (function () {
       });
     });
     // passerelles qui n'ont pas encore joué dans l'autre niveau (rotation)
+    function jamais(id) { return pasDe(F[id]).filter(function (n) { return !nbEn(H, id, n); }); }   // (v45) par niveau de passerelle
     var attente = Object.keys(placed).filter(function (id) {
       var f = F[id]; if (!f || !pasDe(f).length || placed[id] === 'banc') return false;
       var t = eqs.filter(function (x) { return x.id === placed[id]; })[0];
-      return t && t.niveau === f.niveau && !hOf(H, id).autre;
+      return t && t.niveau === f.niveau && jamais(id).length > 0;
     });
-    if (attente.length) out.push({ k: 'rotation', niveau: 'info', texte: 'Passerelles qui n\'ont pas encore joué dans l\'autre niveau : ' + attente.map(function (id) { return F[id].prenom + ' (' + F[id].niveau + '→' + pasDe(F[id]).join('/') + ')'; }).join(', ') + '.', ids: attente });
+    if (attente.length) out.push({ k: 'rotation', niveau: 'info', texte: 'Passerelles qui n\'ont pas encore joué dans l\'autre niveau : ' + attente.map(function (id) { return F[id].prenom + ' (' + F[id].niveau + '→' + jamais(id).join('/') + ')'; }).join(', ') + '.', ids: attente });
     return out;
   }
   function virg(x) { return String(x).replace('.', ','); }
