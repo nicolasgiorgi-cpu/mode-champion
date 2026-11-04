@@ -118,9 +118,10 @@ var Core = (function () {
     // fiche terrain d'un joueur (id = id du joueur) : niveau A/B/C, passerelles (v45 : une ou deux, vers n'importe quel autre niveau,
     // les lettres dans l'ordre A, B, C : '', 'A', 'AC'…), plaquage, postes compatibles
     // (v44) le plaquage est noté de 0 à 3 dans la colonne plaquage3 ; l'ancienne colonne plaquage (0 à 5) n'est plus lue : tout le monde repart de 0 (décision de Nicolas, 04/11)
+    // (v46) 0 est un niveau (« pas encore d'engagement ») ; une case vide = pas encore évalué (plaquage: null) — la colonne est lue en texte pour les distinguer
     terrain: [['id', 's'], ['niveau', 's'], ['passerelle', 's'], ['plaquage', 'n'], ['postesOk', 'j'], ['spondId', 's'], ['note', 's'], ['parQui', 's'], ['maj', 's'],
       // (v43) les postes préférés (★, un ou plusieurs, pris dans postesOk) ; vide = l'ancienne règle : le 1er de postesOk
-      ['postesPref', 'j'], ['plaquage3', 'n']],
+      ['postesPref', 'j'], ['plaquage3', 's']],
     // événements (Spond ou ajoutés à la main) et leurs présents (ids des joueurs de l'appli)
     evenements: [['id', 's'], ['source', 's'], ['titre', 's'], ['sorte', 's'], ['debut', 's'], ['fin', 's'], ['lieu', 's'], ['presents', 'j'], ['absents', 'j'],
       ['sansReponse', 'j'], ['ajouts', 'j'], ['retraits', 'j'], ['inconnus', 'j'], ['annule', 'b'], ['parQui', 's'], ['maj', 's'],
@@ -1667,18 +1668,20 @@ var Core = (function () {
   function pubTerrain(t) {
     if (!t) return null;
     var ok = Array.isArray(t.postesOk) ? t.postesOk : [];
-    return { niveau: t.niveau || '', passerelle: normPas(t.passerelle, t.niveau || ''), plaquage: Math.max(0, Math.min(3, Math.round(Number(t.plaquage3) || 0))), postesOk: ok,
+    return { niveau: t.niveau || '', passerelle: normPas(t.passerelle, t.niveau || ''), plaquage: plaqDe(t.plaquage3), postesOk: ok,
       // (v43) null = pas encore réglé avec la v43 : le 1er poste de postesOk est le préféré (comme avant)
       postesPref: Array.isArray(t.postesPref) ? t.postesPref.filter(function (p) { return ok.indexOf(p) >= 0; }) : null,
       spondId: t.spondId && t.spondId !== '-' ? t.spondId : '', note: t.note || '', parQui: t.parQui || '', maj: t.maj || '' };
   }
+  // (v46) le plaquage : 0 à 3, ou null = pas encore évalué (case vide)
+  function plaqDe(v) { if (v === '' || v === null || v === undefined) return null; var n = Math.round(Number(v)); return isFinite(n) ? Math.max(0, Math.min(3, n)) : null; }
   // (v45) les passerelles : les autres niveaux (un ou deux), dans l'ordre A, B, C ; aucune sans niveau
   function normPas(s, niv) { var o = ''; if (!niv) return ''; NIVS.forEach(function (n) { if (n !== niv && String(s || '').indexOf(n) >= 0) o += n; }); return o; }
   function terrainRow(ctx, joueurId, patch) {
     var row = find(ctx.db.rows('terrain'), joueurId);
     if (row) ctx.db.update('terrain', joueurId, patch);
     else {
-      var o = { id: joueurId, niveau: '', passerelle: '', plaquage: 0, postesOk: [], spondId: '', note: '', parQui: '', maj: '', postesPref: null, plaquage3: 0 };
+      var o = { id: joueurId, niveau: '', passerelle: '', plaquage: 0, postesOk: [], spondId: '', note: '', parQui: '', maj: '', postesPref: null, plaquage3: '' };
       for (var k in patch) o[k] = patch[k];
       ctx.db.insert('terrain', o);
     }
@@ -1692,7 +1695,7 @@ var Core = (function () {
         if (!l || typeof l !== 'object') return;
         var j = find(joueurs, String(l.joueurId || ''));
         if (!j) return;
-        var cur = pubTerrain(find(ctx.db.rows('terrain'), j.id)) || { niveau: '', passerelle: '', plaquage: 0, postesOk: [], postesPref: null, spondId: '', note: '' };
+        var cur = pubTerrain(find(ctx.db.rows('terrain'), j.id)) || { niveau: '', passerelle: '', plaquage: null, postesOk: [], postesPref: null, spondId: '', note: '' };
         var patch = {};
         if (l.niveau !== undefined) patch.niveau = NIVS.indexOf(String(l.niveau)) >= 0 ? String(l.niveau) : '';
         // (v45) le site envoie « passerelles » (une ou deux lettres) ; « passerelle » vient d'un site plus ancien resté ouvert : appliquée
@@ -1702,8 +1705,11 @@ var Core = (function () {
         else if (l.passerelle !== undefined && (!cur.passerelle || (cur.passerelle.length === 1 && Math.abs(NIVS.indexOf(cur.passerelle) - NIVS.indexOf(cur.niveau)) === 1))) patch.passerelle = String(l.passerelle || '');
         var niv = patch.niveau !== undefined ? patch.niveau : cur.niveau, pas = patch.passerelle !== undefined ? patch.passerelle : cur.passerelle;
         if (normPas(pas, niv) !== pas) patch.passerelle = normPas(pas, niv);           // (v45) vers un ou deux autres niveaux, jamais le sien
-        // (v44) de 0 à 3 ; 4 ou 5 (un site pas encore à jour, l'ancienne échelle) → 3 ; le reste → 0
-        if (l.plaquage !== undefined) { var p = Math.round(Number(l.plaquage)); patch.plaquage3 = p >= 0 && p <= 3 ? p : p === 4 || p === 5 ? 3 : 0; }
+        // (v44) de 0 à 3 ; 4 ou 5 (un site pas encore à jour, l'ancienne échelle) → 3 ; (v46) null ou vide → pas encore évalué ; le reste → ignoré
+        if (l.plaquage !== undefined) {
+          if (l.plaquage === null || l.plaquage === '') patch.plaquage3 = '';
+          else { var p = Math.round(Number(l.plaquage)); if (p >= 0 && p <= 3) patch.plaquage3 = p; else if (p === 4 || p === 5) patch.plaquage3 = 3; }
+        }
         if (l.postesOk !== undefined) {
           if (!Array.isArray(l.postesOk)) fail('invalide', 'Postes invalides.');
           var ps = []; l.postesOk.forEach(function (x) { x = String(x); if (POSTES_ID.indexOf(x) >= 0 && ps.indexOf(x) < 0) ps.push(x); });
@@ -2592,6 +2598,9 @@ var CACHE_PART = 24000;    // caractères par morceau (une valeur du cache est l
 var CACHE_MAX_PARTS = 90;  // au-delà, l'onglet est lu dans la feuille à chaque fois
 
 /** Petit adaptateur : les onglets de la feuille servent de tables. Tout est stocké en texte. */
+// (v46) les clés du cache portent la version du schéma : un serveur dont le schéma change ne relit jamais l'ancien cache
+// (ex. plaquage3 lu en nombre jusqu'à la v45, en texte depuis la v46)
+var CK_ = 't46:';
 function SheetDB_() {
   this.ss = null;           // la feuille n'est ouverte que si on en a besoin
   this.cache = {};          // onglets lus pendant cette demande
@@ -2642,10 +2651,10 @@ SheetDB_.prototype.readSheet_ = function (table) {
 };
 SheetDB_.prototype.cacheGet_ = function (table) {
   try {
-    var meta = this.cs.get('t:' + table);
+    var meta = this.cs.get(CK_ + table);
     if (!meta) return null;
     var n = Number(meta), keys = [], i;
-    for (i = 0; i < n; i++) keys.push('t:' + table + ':' + i);
+    for (i = 0; i < n; i++) keys.push(CK_ + table + ':' + i);
     var got = this.cs.getAll(keys), s = '';
     for (i = 0; i < n; i++) { if (typeof got[keys[i]] !== 'string') return null; s += got[keys[i]]; }
     return JSON.parse(s);
@@ -2654,20 +2663,20 @@ SheetDB_.prototype.cacheGet_ = function (table) {
 SheetDB_.prototype.cachePut_ = function (table, rows) {
   try {
     var s = JSON.stringify(rows), n = Math.ceil(s.length / CACHE_PART) || 1;
-    if (n > CACHE_MAX_PARTS) { this.cs.remove('t:' + table); return; }
+    if (n > CACHE_MAX_PARTS) { this.cs.remove(CK_ + table); return; }
     var parts = {}, k = 0;
     for (var i = 0; i < n; i++) {
-      parts['t:' + table + ':' + i] = s.slice(i * CACHE_PART, (i + 1) * CACHE_PART);
+      parts[CK_ + table + ':' + i] = s.slice(i * CACHE_PART, (i + 1) * CACHE_PART);
       if (++k === 30 || i === n - 1) { this.cs.putAll(parts, CACHE_TTL); parts = {}; k = 0; }
     }
-    this.cs.put('t:' + table, String(n), CACHE_TTL);
-  } catch (e) { try { this.cs.remove('t:' + table); } catch (e2) { /* rien */ } }
+    this.cs.put(CK_ + table, String(n), CACHE_TTL);
+  } catch (e) { try { this.cs.remove(CK_ + table); } catch (e2) { /* rien */ } }
 };
 /** À la fin de chaque demande : le cache reprend l'état des onglets modifiés. */
 SheetDB_.prototype.flush_ = function () {
   for (var t in this.dirty) {
     if (this.cache[t]) this.cachePut_(t, this.cache[t]);
-    else { try { this.cs.remove('t:' + t); } catch (e) { /* rien */ } }
+    else { try { this.cs.remove(CK_ + t); } catch (e) { /* rien */ } }
   }
   this.dirty = {};
 };
@@ -2724,7 +2733,7 @@ SheetDB_.prototype.remove = function (table, id) {
     if (rows[i].id === id) {
       this.sheet(table).deleteRow(rows[i]._row);
       delete this.cache[table];
-      try { this.cs.remove('t:' + table); } catch (e) { /* la prochaine lecture relira la feuille */ }
+      try { this.cs.remove(CK_ + table); } catch (e) { /* la prochaine lecture relira la feuille */ }
       this.dirty[table] = true;
       return;
     }
@@ -2943,6 +2952,8 @@ function doPost(e) {
   } catch (err) {
     return json_({ ok: false, error: 'occupe', message: 'Le serveur est occupé, réessaie dans un instant.' });
   }
+  // (v46) aucune demande n'est traitée avant que la migration ait réussi (sinon un 0 choisi pourrait être effacé ensuite)
+  try { plaquageVideV46_(); } catch (err) { lock.releaseLock(); return json_({ ok: false, error: 'occupe', message: 'Le serveur est occupé, réessaie dans un instant.' }); }
   var db = new SheetDB_(), out;
   PUSH_FILE_ = [];
   try {
@@ -3036,8 +3047,27 @@ function nouveauxCodesAdultes() {
 }
 
 /** Après une modification faite à la main dans la feuille : lance cette fonction pour que le site la voie tout de suite. */
+/** (v46) Une fois : les « 0 » de plaquage3 écrits par défaut par les serveurs v44 et v45 (case vide lue comme 0, ligne réécrite)
+ *  redeviennent vides = pas encore évalué (décision de Nicolas, 04/11 : tout le monde est reparti de zéro, et 0 est maintenant un niveau). */
+function plaquageVideV46_() {
+  var props = PropertiesService.getScriptProperties();
+  if (props.getProperty('PLAQ3_V46')) return;
+  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('terrain'), n = 0;
+  if (sh && sh.getLastRow() > 1) {
+    var head = sh.getRange(1, 1, 1, sh.getLastColumn()).getDisplayValues()[0], c = head.indexOf('plaquage3');
+    if (c >= 0) {
+      var rg = sh.getRange(2, c + 1, sh.getLastRow() - 1, 1), v = rg.getDisplayValues();
+      for (var i = 0; i < v.length; i++) if (String(v[i][0]).trim() === '0') { v[i][0] = ''; n++; }
+      if (n) rg.setValues(v);
+    }
+  }
+  props.setProperty('PLAQ3_V46', new Date().toISOString() + ' · ' + n);   // si ceci échoue, la demande est refusée et la migration rejouée : sans effet de plus (plus aucun « 0 » par défaut)
+  var cs = CacheService.getScriptCache();
+  Object.keys(Core.SCHEMA).forEach(function (t) { cs.remove('t:' + t); cs.remove(CK_ + t); });
+  Logger.log('Plaquage : ' + n + ' case(s) « 0 » remise(s) à vide (pas encore évalué).');
+}
 function viderCache() {
   var cs = CacheService.getScriptCache();
-  TABLES.forEach(function (t) { cs.remove('t:' + t); });
+  Object.keys(Core.SCHEMA).forEach(function (t) { cs.remove(CK_ + t); cs.remove('t:' + t); });   // (v46) toutes les tables (bravos compris)
   Logger.log('Cache vidé : le site relit la feuille.');
 }

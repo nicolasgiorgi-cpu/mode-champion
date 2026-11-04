@@ -11,8 +11,8 @@ for (let i = 0; i < 400; i++) {
   x = g.call({ action: 'logSession', token: t, type: 'cros', date: d, mode: 'guidee', details: { exos: [{ id: 'pompes', niveau: 2, series: [8, 8, 7], ressenti: 'bien', fait: true, dose: '3 × 8' }], duree: 900 } });
   assert.ok(x.ok, JSON.stringify(x));
 }
-const parts = Number(g._cache['t:seances']);
-console.log('chunks seances', parts, 'chars', Object.keys(g._cache).filter(k => k.startsWith('t:seances:')).reduce((n, k) => n + g._cache[k].length, 0));
+const parts = Number(g._cache['t46:seances']);
+console.log('chunks seances', parts, 'chars', Object.keys(g._cache).filter(k => k.startsWith('t46:seances:')).reduce((n, k) => n + g._cache[k].length, 0));
 x = g.call({ action: 'me', token: t }); assert.strictEqual(x.seances.length, 400);
 Object.keys(g._cache).forEach(k => delete g._cache[k]);
 x = g.call({ action: 'me', token: t }); assert.strictEqual(x.seances.length, 400);

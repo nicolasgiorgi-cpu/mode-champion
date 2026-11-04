@@ -129,7 +129,7 @@ console.log('ALL TESTS OK');
   // le cache contient bien la nouvelle séance (2e demande, lue depuis le cache)
   const before = g2._cstats.gets;
   x = g2.call({ action: 'me', token: zt2 }); assert.strictEqual(x.seances.length, 1); assert.ok(g2._cstats.gets > before);
-  assert.ok(g2._cache['t:seances'], 'onglet séances en cache');
+  assert.ok(g2._cache['t46:seances'], 'onglet séances en cache');
   // bilan daté, niveaux dans le même appel
   const d0 = new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10);
   x = g2.call({ action: 'submitRecords', token: zt2, bilan: '0', date: d0, valeurs: [{ test: 'planche', valeur: 75 }, { test: 'pompes', valeur: 8 }], niveaux: { planche: 3 }, journal: [{ type: 'bilan_niveaux', data: { bilan: 0 } }], avecDossier: true });
@@ -154,7 +154,7 @@ console.log('ALL TESTS OK');
   Object.keys(g2._cache).forEach(k => delete g2._cache[k]);
   x = g2.call({ action: 'me', token: zt2 }); assert.strictEqual(x.records.length, 2); assert.strictEqual(x.seances.length, 1);
   // viderCache
-  g2.call({ action: 'me', token: zt2 }); assert.ok(g2._cache['t:records']); g2.viderCache(); assert.ok(!g2._cache['t:records']);
+  g2.call({ action: 'me', token: zt2 }); assert.ok(g2._cache['t46:records']); g2.viderCache(); assert.ok(!g2._cache['t46:records']);
   console.log('NEW FEATURES OK');
 
   // ===== v9 : niveaux par les parents, éduc parent, sécurité des écritures =====

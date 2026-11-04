@@ -197,7 +197,7 @@ fieldset{margin:0;padding:0;border:0;display:flex;flex-direction:column;gap:10px
 legend{padding:0;margin-bottom:10px;font:700 13px/1.2 var(--f-hud);letter-spacing:.1em;text-transform:uppercase}
 legend b{color:var(--cyan)}
 .opt{min-height:48px;border:1px solid var(--line2);background:#0C1120;color:var(--soft);font:700 13px/1.15 var(--f-hud);letter-spacing:.05em;text-transform:uppercase;display:flex;align-items:center;justify-content:center;gap:8px;padding:6px 8px;text-align:center}
-.opt.on{border:1.5px solid var(--oc,var(--cyan));background:rgba(56,232,255,.12);color:var(--oc,var(--cyan))}
+.opt.on{border:1.5px solid var(--oc,var(--cyan));background:color-mix(in srgb,var(--oc,var(--cyan)) 12%,transparent);color:var(--oc,var(--cyan))}
 .opt.tall{min-height:64px}
 .opt.lv{flex-direction:column;gap:4px}
 .opt.lv b{font-size:20px}
@@ -975,7 +975,7 @@ textarea.txt{width:100%;padding:10px 12px;background:#0C1120;border:1px solid va
 .cmoves{display:flex;flex-wrap:wrap;gap:6px}
 .cmv{min-width:52px;min-height:42px;padding:0 10px;border:1.5px solid var(--lc,var(--line3));background:#0C1120;color:var(--lc,var(--soft));font:700 13px/1 var(--f-hud);letter-spacing:.04em}
 .cmv.here{background:var(--lc,var(--line3));color:#070A12;opacity:.55}
-.cmv.po{--lc:var(--violet);min-width:0;font-size:12px}
+.cmv.po{--lc:var(--soft);min-width:0;font-size:12px}
 .cmv.po.here{opacity:1}
 .cmv sup{font-size:9px;margin-left:2px;color:var(--gold)}
 /* réglages */
@@ -1087,7 +1087,7 @@ body:has(.cdock .cselp) .toast{top:calc(74px + var(--safe-t));bottom:auto}
 .cpr-ou{color:var(--orange)}
 .cpj{width:100%;min-height:46px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:4px;padding:6px 8px;background:#0C1120;border:1px solid var(--line2);color:var(--ink);text-align:left;position:relative}
 .cpj .cpn{font:700 14px/1.1 var(--f-body);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:44px}
-.cpj .cpo{position:absolute;top:6px;right:6px;font:700 10px/1 var(--f-hud);letter-spacing:.04em;color:var(--violet)}
+.cpj .cpo{position:absolute;top:6px;right:6px;font:700 10px/1 var(--f-hud);letter-spacing:.04em;color:var(--soft)}
 .cpj .cpo.none{color:var(--dim)}
 .cpj .cfls{gap:6px;flex-wrap:wrap}
 .cfl{display:inline-flex;align-items:center;font:700 10px/1 var(--f-hud)}
@@ -1145,9 +1145,15 @@ body:has(.cdock .cselp) .toast{top:calc(74px + var(--safe-t));bottom:auto}
 .tseg{display:flex;gap:3px}
 .tlv{width:30px;height:30px;padding:0;border:1.5px solid color-mix(in srgb,var(--lc) 55%,transparent);background:#0C1120;color:var(--lc);font:700 13px/1 var(--f-hud)}
 .tlv.on{background:var(--lc);color:#070A12;border-color:var(--lc)}
+/* (v46) la ligne d'un enfant : un seul lien vers sa fiche ; niveau et passerelles seulement affichés */
+a.tfrow{color:inherit;text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
+a.tfrow:active{background:var(--line)}
+@media (hover:hover){a.tfrow:hover{border-color:var(--line3)}}
+span.tlv,span.tpas{display:inline-flex;align-items:center;justify-content:center}
+.tlv.none{border:1.5px dashed var(--orange);color:var(--orange);background:none}
 .tpasw{display:flex;gap:3px;min-width:63px}
 .tpas{min-height:30px;padding:0 6px;border:1px dashed var(--line3);background:none;color:var(--dim);font:700 11px/1 var(--f-hud)}
-.tpas.on{border:1.5px solid var(--violet);color:var(--violet);background:rgba(180,140,255,.12)}
+.tpas.on{border:1.5px solid var(--lc,var(--violet));color:var(--lc,var(--violet));background:color-mix(in srgb,var(--lc,var(--violet)) 14%,transparent)}
 /* avec un filtre de poste : ceux qui l'ont en préféré, puis ce séparateur, puis ceux qui peuvent aussi le jouer */
 .tsep{display:flex;align-items:center;gap:10px;margin:10px 2px 4px;color:var(--dim);font:600 11px/1.2 var(--f-hud);letter-spacing:.1em;text-transform:uppercase}
 .tsep::before,.tsep::after{content:'';flex:1;height:1px;background:var(--line2)}
@@ -1161,7 +1167,19 @@ body:has(.cdock .cselp) .toast{top:calc(74px + var(--safe-t));bottom:auto}
 .pshield b{position:relative;margin-top:-3px;font:700 13px/1 var(--f-hud);color:#FFF;text-shadow:none}
 .pshield.zero .ps-a,.pshield.zero .ps-b{fill:#1E2740}
 .pshield.zero .ps-c{stroke:#4A5578}
-.pshield.zero b{color:var(--dim)}
+.pshield.zero b{color:var(--soft)}
+/* (v46) pas encore évalué : un bouclier vide, en pointillé, sans chiffre (0 est un niveau) */
+.pshield.vide .ps-a,.pshield.vide .ps-b{fill:none}
+.pshield.vide .ps-c{stroke:var(--dim);stroke-dasharray:6 5}
+/* (v46) une aide discrète « ? » : tenir le doigt dessus montre la description */
+.aide-q{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;margin:-4px 0 -4px 6px;padding:0;border:1px solid var(--line3);border-radius:50%;background:none;color:var(--dim);font:700 12px/1 var(--f-body);vertical-align:middle;letter-spacing:0;text-transform:none;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation;cursor:help}
+.aide-q.ouvert{color:var(--ink);border-color:var(--soft)}
+.tplq-l{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.aide-bulle{position:fixed;z-index:60;padding:10px 12px;background:#141B2E;border:1px solid var(--line3);box-shadow:0 8px 24px rgba(0,0,0,.5);color:var(--soft);font:400 13px/1.4 var(--f-body);text-transform:none;letter-spacing:0;pointer-events:none}
+.aide-bulle b{color:var(--ink)}
+.aide-bulle ul{margin:6px 0;padding-left:18px}
+.aide-bulle li{margin:2px 0}
+.aide-bulle span{display:block;color:var(--dim);font-size:12px}
 .pshield.mini{width:17px;height:20px}
 .pshield.mini b{margin-top:-2px;font-size:10px}
 .pshield.grand{width:42px;height:48px}

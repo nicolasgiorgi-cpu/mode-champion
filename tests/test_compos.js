@@ -170,7 +170,7 @@ const g = { joueurs: [
 ] };
 const FF = K.fiches(g);
 assert.strictEqual(FF.j1.niveau, 'B'); assert.deepStrictEqual(J(FF.j1.copains), ['j2']); assert.deepStrictEqual(J(FF.j1.voeux), ['ailier']);
-assert.strictEqual(FF.j2.niveau, ''); assert.strictEqual(FF.j2.plaquage, 0);
+assert.strictEqual(FF.j2.niveau, ''); assert.strictEqual(FF.j2.plaquage, null);   // (v46) pas de fiche : plaquage pas encore évalué
 
 // ----- échanges avec le banc et avec un présent pas encore placé : le niveau principal reste -----
 let cb = K.moveTo(c0, 'b5', 'banc', F);

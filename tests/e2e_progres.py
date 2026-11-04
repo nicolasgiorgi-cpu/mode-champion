@@ -112,7 +112,7 @@ with sync_playwright() as p:
     fid = hash_(pg).split('/')[3].split('?')[0]
     pg.click('.ftabs a:text-is("Missions")'); pg.wait_for_timeout(800); pg.click('.ftabs a:text-is("Skills")'); pg.wait_for_timeout(800)
     check('fiche : passer par un autre onglet de la fiche garde la carte ouverte', pg.evaluate("!!document.querySelector('details.fsk') && document.querySelector('details.fsk').open"))
-    pg.click('#nav a:has-text("Enfants")'); pg.wait_for_timeout(1100); pg.click('#tlist a.tnm[href="#/educ/joueur/%s"]' % fid); pg.wait_for_timeout(1100)
+    pg.click('#nav a:has-text("Enfants")'); pg.wait_for_timeout(1100); pg.click('#tlist a.tfrow[href="#/educ/joueur/%s"]' % fid); pg.wait_for_timeout(1100)
     pg.click('.ftabs a:text-is("Skills")'); pg.wait_for_timeout(800)
     check('fiche : venir d\'ailleurs replie les cartes', pg.evaluate("[...document.querySelectorAll('details.fsk')].every(d => !d.open)"))
     # (v44) venir d'ailleurs = le premier onglet : Progrès s'ouvre toujours sur Missions (même avec un ancien sous-onglet gardé sur l'appareil)

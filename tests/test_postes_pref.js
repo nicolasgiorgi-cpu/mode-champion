@@ -40,12 +40,51 @@ assert.ok(r.error);
 // (v44) le plaquage de 0 à 3 (colonne plaquage3) ; l'ancienne note sur 5 (colonne plaquage) n'est plus lue : tout le monde repart de 0
 const dbp = new g.SheetDB_();
 dbp.insert('terrain', { id: P.Hugo, niveau: 'B', passerelle: '', plaquage: 5, postesOk: [], spondId: '', note: '', parQui: '', maj: '' }); dbp.flush_();
-assert.strictEqual(terr(P.Hugo).plaquage, 0, 'ancienne note sur 5 : repart de 0');
+// (v46) une case vide = pas encore évalué (null) ; 0 est un niveau
+assert.strictEqual(terr(P.Hugo).plaquage, null, 'ancienne note sur 5 : pas encore évalué sur 3');
 assert.strictEqual(terr(P.Hugo).niveau, 'B', 'le reste de la fiche est gardé');
-[[2, 2], [3, 3], [0, 0], [5, 3], [4, 3], [9, 0], [-1, 0], ['x', 0]].forEach(function (c) {
+[[2, 2], [3, 3], [0, 0], [5, 3], [4, 3], [null, null], [1, 1], ['', null]].forEach(function (c) {
   r = g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P.Hugo, plaquage: c[0] }] });
   assert.strictEqual(r.terrain[P.Hugo].plaquage, c[1], 'plaquage ' + c[0] + ' → ' + c[1]);
 });
+r = g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P.Hugo, plaquage: 0 }] });
+assert.strictEqual(terr(P.Hugo).plaquage, 0, '0 relu comme 0, pas comme vide');
+[9, -1, 'x'].forEach(function (v) {
+  r = g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P.Hugo, plaquage: v }] });
+  assert.strictEqual(terr(P.Hugo).plaquage, 0, 'plaquage ' + v + ' : ignoré');
+});
+// (v46) une fois, au 1er appel du serveur v46 : les « 0 » écrits par défaut par les serveurs v44/v45 redeviennent vides ; le cache v45 n'est pas relu
+const sh = g._sheets.terrain, head = sh.data[0], cP = head.indexOf('plaquage3'), cN = head.indexOf('niveau');
+const lig = sh.data.findIndex((r, i) => i > 0 && r && r[0] === P.Hugo);
+assert.ok(cP >= 0 && lig > 0, 'colonne plaquage3 et ligne de Hugo');
+sh.data[lig][cP] = '0'; sh.data[lig][cN] = 'C';                                  // comme l'aurait écrit un serveur v45
+g._cache['t:terrain'] = '1'; g._cache['t:terrain:0'] = JSON.stringify([]);     // un vieux cache v45
+delete g._props.PLAQ3_V46;
+assert.strictEqual(terr(P.Hugo).plaquage, null, 'le « 0 » par défaut redevient : pas encore évalué');
+assert.strictEqual(terr(P.Hugo).niveau, 'C', 'la feuille est relue (pas le vieux cache)');
+assert.ok(/ · 1$/.test(g._props.PLAQ3_V46), 'une seule fois, une case : ' + g._props.PLAQ3_V46);
+r = g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P.Hugo, plaquage: 0 }] });
+assert.strictEqual(terr(P.Hugo).plaquage, 0, 'ensuite, un 0 choisi reste 0 (la migration ne repasse pas)');
+// (relecture) une migration qui échoue : la demande est refusée (rien n'est écrit), puis la migration réussit au prochain appel ;
+// elle ne touche que les « 0 » de plaquage3 (un 2 et les autres colonnes restent)
+const lea = sh.data.findIndex((r, i) => i > 0 && r && r[0] === P['Léa']);
+sh.data[lea][cP] = '2'; sh.data[lig][cP] = '0'; delete g._props.PLAQ3_V46;
+const avantLea = sh.data[lea].slice(), avantHugo = sh.data[lig].slice();
+const gr0 = sh.getRange; sh.getRange = function () { throw new Error('panne Sheets'); };
+r = g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P.Hugo, plaquage: 0 }] });
+sh.getRange = gr0;
+assert.strictEqual(r.error, 'occupe', 'migration en panne : demande refusée ' + JSON.stringify(r));
+assert.ok(!g._props.PLAQ3_V46, 'pas marquée faite');
+assert.strictEqual(terr(P.Hugo).plaquage, null, 'au prochain appel : migrée (le « 0 » par défaut redevient vide)');
+assert.strictEqual(terr(P['Léa']).plaquage, 2, 'un 2 reste 2');
+assert.deepStrictEqual(sh.data[lea].filter((x, j) => j !== cP), avantLea.filter((x, j) => j !== cP), 'les autres colonnes de Léa sont inchangées');
+assert.deepStrictEqual(sh.data[lig].filter((x, j) => j !== cP), avantHugo.filter((x, j) => j !== cP), 'les autres colonnes de Hugo sont inchangées');
+r = g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P.Hugo, plaquage: 0 }, { joueurId: P['Léa'], plaquage: null }] });
+assert.strictEqual(terr(P.Hugo).plaquage, 0);
+assert.strictEqual(terr(P['Léa']).plaquage, null, 'remis à « pas encore évalué »');
+// un enfant qui reçoit sa fiche (niveau seul) : plaquage pas encore évalué
+r = g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P['Léa'], niveau: 'B' }] });
+assert.strictEqual(terr(P['Léa']).plaquage, null);
 assert.strictEqual(new g.SheetDB_().rows('terrain').find(t => t.id === P.Hugo).plaquage, 5, 'l\'ancienne colonne n\'est pas touchée');
 
 // ---------- règles des compos (js/compos.js) ----------
@@ -93,6 +132,12 @@ assert.strictEqual(A7.manquants.length, 0);
 assert.deepStrictEqual([K.SEUIL.A, K.SEUIL.B, K.BON], [3, 2, 2]);
 const FP = K.fiches({ joueurs: [joueur('a2', { niveau: 'A', plaquage: 2, postesOk: [] }), joueur('a3', { niveau: 'A', plaquage: 3, postesOk: [] }), joueur('b2', { niveau: 'B', plaquage: 2, postesOk: [] }), joueur('b1', { niveau: 'B', plaquage: 1, postesOk: [] }), joueur('x5', { niveau: 'B', plaquage: 5, postesOk: [] })] });
 assert.strictEqual(FP.x5.plaquage, 3, 'une fiche ne dépasse pas 3');
+// (v46) pas encore évalué : null, jamais signalé sous le repère ; le plaquage moyen compte seulement les évalués
+const FN = K.fiches({ joueurs: [joueur('n1', { niveau: 'A', plaquage: null, postesOk: [] }), joueur('n0', { niveau: 'A', plaquage: 0, postesOk: [] }), joueur('n3', { niveau: 'A', plaquage: 3, postesOk: [] })] });
+assert.strictEqual(FN.n1.plaquage, null); assert.strictEqual(FN.n0.plaquage, 0);
+const SN = K.stats({ niveau: 'A', joueurs: [{ id: 'n1' }, { id: 'n0' }, { id: 'n3' }] }, FN, 5);
+assert.deepStrictEqual(Array.from(SN.sousSeuil), ['n0'], '0 est sous le repère, pas encore évalué ne l\'est pas');
+assert.strictEqual(SN.plaq, 1.5, 'moyenne des évalués : (0 + 3) / 2');
 const SA = K.stats({ niveau: 'A', joueurs: [{ id: 'a2' }, { id: 'a3' }] }, FP, 5), SB = K.stats({ niveau: 'B', joueurs: [{ id: 'b2' }, { id: 'b1' }] }, FP, 5);
 assert.deepStrictEqual(Array.from(SA.sousSeuil), ['a2'], 'en A : sous 3');
 assert.deepStrictEqual(Array.from(SB.sousSeuil), ['b1'], 'en B : sous 2');

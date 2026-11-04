@@ -57,14 +57,12 @@ with sync_playwright() as p:
     check('filtre C : les postes des C', [x[1] for x in barres(pg, 'terrain')] == attendu(pg, 'C')[1])
     # ----- 3. tout le monde a son niveau : « Sans niveau » disparaît -----
     pg.click('[data-act="tFiltre"][data-v="none"]'); pg.wait_for_timeout(400)
-    ids = ev(pg, "[...document.querySelectorAll('#tlist .tfrow')].map(r => r.querySelector('[data-act=tNiv]').getAttribute('data-id'))")
+    ids = ev(pg, "[...document.querySelectorAll('#tlist a.tfrow')].map(a => a.getAttribute('href').split('/').pop())")
+    # (v46) le niveau se règle sur la fiche de l'enfant (toute la ligne y mène), puis Retour
     for k, i in enumerate(ids):
-        pg.click('[data-act="tNiv"][data-id="%s"][data-v="C"]' % i); pg.wait_for_timeout(150)
-        if k == 0 and len(ids) > 1: check('(v43) un enfant réglé reste dans « Sans niveau » (on voit qui on vient de régler)', pg.query_selector('#tlist [data-act="tNiv"][data-id="%s"]' % i) is not None)
-    pg.wait_for_timeout(1300)
-    # (relecture v43) le filtre ne bascule pas sous le doigt : « Sans niveau » reste, avec ceux qu'on vient de régler, tant qu'on est sur l'écran
-    check('tous réglés : « Sans niveau » reste le temps de l\'écran (ceux qu\'on vient de régler visibles)', ev(pg, "!!document.querySelector('[data-act=tFiltre][data-v=none].on')") and len(pg.query_selector_all('#tlist .tfrow')) == len(ids), len(pg.query_selector_all('#tlist .tfrow')))
-    pg.click('#nav a:has-text("Progrès")'); pg.wait_for_timeout(900); pg.click('#nav a:has-text("Enfants")'); pg.wait_for_timeout(1000)
+        pg.click('#tlist a.tfrow[href="#/educ/joueur/%s"]' % i); pg.wait_for_timeout(1000)
+        pg.click('[data-act="tkNiv"][data-v="C"]'); pg.wait_for_timeout(1200)
+        pg.go_back(); pg.wait_for_timeout(1000)
     check('tous réglés : plus de « Sans niveau », retour à « Tous »', pg.query_selector('[data-act="tFiltre"][data-v="none"]') is None and ev(pg, "document.querySelector('[data-act=tFiltre][data-v=all]').classList.contains('on')"))
     check('(v43) enregistrés au toucher, sans bouton', pg.query_selector('[data-act="tSave"]') is None and ev(pg, "MC.api.call('group',{token:MC.app.S.adult.token}).then(g => g.joueurs.filter(p => %s.indexOf(p.joueur.id) >= 0).every(p => p.terrain && p.terrain.niveau === 'C'))" % str(ids).replace("'", '"')))
     check('4 filtres, toujours sur une ligne', len(pg.query_selector_all(NIVS)) == 4 and une_ligne(pg, NIVS))

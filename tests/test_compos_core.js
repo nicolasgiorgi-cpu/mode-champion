@@ -33,7 +33,7 @@ r = g.call({ action: 'setTerrain', token: nico, lignes: [
 assert.ok(r.ok, JSON.stringify(r));
 assert.deepStrictEqual(r.terrain[P.Tom].postesOk, ['centre']);
 assert.strictEqual(r.terrain[P['Léa']].passerelle, 'C');
-assert.strictEqual(r.terrain[P['Léa']].plaquage, 0);
+assert.strictEqual(r.terrain[P['Léa']].plaquage, null, '(v46) plaquage hors bornes : ignoré, pas encore évalué');
 assert.strictEqual(r.terrain[P.Tom].parQui, 'Admin');
 assert.strictEqual(Object.keys(r.terrain).length, 3);
 // modification partielle : le reste ne bouge pas
