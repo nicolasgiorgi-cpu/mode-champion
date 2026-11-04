@@ -102,14 +102,14 @@ window.MC = window.MC || {};
     return '<span class="cniv" style="--lc:' + K.COUL_NIV[n] + (small ? ';--s:20px' : '') + '" title="' + K.NOM_NIV[n] + '">' + n + '</span>';
   }
   // (v43) le plaquage : un bouclier (la forme de l'icône de la carte Skills « Plaquage ») avec le niveau, de 0 à 5, dedans
-  // (avant : 5 étoiles). big : la fiche d'un enfant.
+  // (avant : 5 étoiles). big : true = grand (la fiche d'un enfant), 'mini' = petit (les tuiles des compos).
   function bouclier(n, big) {
     n = Math.max(0, Math.min(5, Math.round(Number(n) || 0)));
-    return '<span class="pshield' + (n ? '' : ' zero') + (big ? ' big' : '') + '" role="img" aria-label="Plaquage : ' + n + ' sur 5" title="Plaquage : ' + n + ' sur 5">' +
+    return '<span class="pshield' + (n ? '' : ' zero') + (big === 'mini' ? ' mini' : big ? ' grand' : '') + '" role="img" aria-label="Plaquage : ' + n + ' sur 5" title="Plaquage : ' + n + ' sur 5">' +
       '<svg viewBox="14 4 72 88" aria-hidden="true"><path class="ps-a" d="M50 8 82 21V48Q80 71 50 87Q20 71 18 48V21Z"/><path class="ps-b" d="M50 8 82 21V48Q80 71 50 87Z"/><path class="ps-c" d="M50 8 82 21V48Q80 71 50 87Q20 71 18 48V21Z"/></svg><b>' + n + '</b></span>';
   }
   MC.bouclier = bouclier;
-  function starsMini(n) { return bouclier(n); }
+  function starsMini(n) { return bouclier(n, 'mini'); }
   function virg(x) { return String(x).replace('.', ','); }
   // jour (local) d'un horodatage ISO
   function localDay(iso) {
@@ -1245,7 +1245,7 @@ window.MC = window.MC || {};
         var hors = t.niveau && f.niveau && f.niveau !== t.niveau && f.passerelle !== t.niveau;
         return '<button type="button" class="cprow' + (w && w.t >= 0 ? ' ailleurs' : '') + '" data-pk="' + esc(id) + '">' +
           '<span class="row" style="gap:8px;min-width:0">' + niveauTag(f.niveau, true) + '<b class="cprn">' + esc(f.prenom) + '</b>' + starsMini(f.plaquage || 0) + '</span>' +
-          '<span class="cprm">' + (ps.length ? ps.map(function (x, i) { return (S.p === x ? '<b>' : '') + COURT[x] + (i === 0 && ps.length > 1 ? '★' : '') + (S.p === x ? '</b>' : ''); }).join(', ') : 'pas encore de poste') +
+          '<span class="cprm">' + (ps.length ? ps.map(function (x) { return (S.p === x ? '<b>' : '') + COURT[x] + (f.postesOk && f.postesOk.length && ps.length > 1 && K.lienPoste(f, x) === 'pref' ? '★' : '') + (S.p === x ? '</b>' : ''); }).join(', ') : 'pas encore de poste') +
           ' · <span class="' + (w && w.t >= 0 ? 'cpr-ou' : '') + '">' + ou + '</span>' + (ATT && ATT.att[id] ? ' · <span style="color:var(--gold)">pas encore répondu</span>' : '') + (hors ? ' · <span style="color:var(--violet)">niveau ' + f.niveau + '</span>' : '') + '</span>' +
           (cps.length ? '<span class="cprm" style="color:var(--pink)">' + icon('heart', 11) + ' avec ' + esc(cps.join(', ')) + '</span>' : '') + '</button>';
       }
@@ -1274,7 +1274,7 @@ window.MC = window.MC || {};
         }
         var html = '';
         if (S.p && S.p !== '*') {
-          var princ = pool.filter(function (id) { return K.posteDefaut(C.F[id]) === S.p; });
+          var princ = pool.filter(function (id) { return K.lienPoste(C.F[id] || {}, S.p) === 'pref'; });
           var peut = pool.filter(function (id) { return princ.indexOf(id) < 0 && K.postesDe(C.F[id]).indexOf(S.p) >= 0; });
           var autres = pool.filter(function (id) { return princ.indexOf(id) < 0 && peut.indexOf(id) < 0; });
           html = groupe(NOMP[S.p] + ' en poste principal', princ) + groupe('Peuvent jouer ' + NOMP[S.p].toLowerCase(), peut) +
@@ -1630,19 +1630,22 @@ window.MC = window.MC || {};
   app.route('/educ/terrain', function () { app.go('#/educ/joueurs', true); return null; }, { adult: 'e', nav: 'e:enfants', bg: BG });
   MC.paintEnfants = function (g) { return paintTerrain(g); };
   // les pastilles des postes : les préférés ★ (pleins) puis les autres (contour)
+  // (sans postes réglés : ses vœux, en contour, sans ★)
   function pillsPostes(f) {
-    var ps = K.postesDe(f), pf = K.prefDe(f);
+    var ps = K.postesDe(f), pf = f.postesOk.length ? K.prefDe(f) : [];
     if (!ps.length) return '<span class="tpp none">pas de poste</span>';
     return ps.map(function (p) {
       var pr = pf.indexOf(p) >= 0;
-      return '<span class="tpp' + (pr ? ' pref' : '') + '" style="--c:' + coulPoste(p) + '"' + (pr ? ' title="Poste préféré"' : '') + '>' + (pr ? icon('star', 10) : '') + esc(COURT[p]) + '</span>';
+      return '<span class="tpp' + (pr ? ' pref' : '') + '" style="--c:' + coulPoste(p) + '"' + (pr ? ' title="Poste préféré"' : '') + '>' + (pr ? icon('star', 10) + '<span class="sr-only">préféré </span>' : '') + esc(COURT[p]) + '</span>';
     }).join('') + (f.postesOk.length ? '' : '<span class="tpp voeu" title="Ses vœux (Choisis ton poste) : postes pas encore réglés">vœux</span>');
   }
+  // dans la liste : préféré ★ réglé, ou « peut aussi jouer » (ses vœux tant que rien n'est réglé)
+  function lienListe(f, p) { return f.postesOk.length ? K.lienPoste(f, p) : (f.voeux.indexOf(p) >= 0 ? 'sec' : ''); }
   function rowTerrain(F, id) {
     var f = F[id], niv = f.niveau, pas = f.passerelle;
     var segs = K.NIV.map(function (n) { return '<button type="button" class="tlv' + (niv === n ? ' on' : '') + '" style="--lc:' + K.COUL_NIV[n] + '" aria-pressed="' + (niv === n) + '" data-act="tNiv" data-id="' + esc(id) + '" data-v="' + n + '" title="' + K.NOM_NIV[n] + '">' + n + '</button>'; }).join('');
     var pasOpts = niv ? K.NIV.filter(function (n) { return Math.abs(K.NIV.indexOf(n) - K.NIV.indexOf(niv)) === 1; }) : [];
-    var pasB = pasOpts.map(function (n) { return '<button type="button" class="tpas' + (pas === n ? ' on' : '') + '" aria-pressed="' + (pas === n) + '" data-act="tPas" data-id="' + esc(id) + '" data-v="' + n + '" title="Passerelle vers ' + K.NOM_NIV[n] + '">⇅' + n + '</button>'; }).join('');
+    var pasB = pasOpts.map(function (n) { return '<button type="button" class="tpas' + (pas === n ? ' on' : '') + '" aria-pressed="' + (pas === n) + '" data-act="tPas" data-id="' + esc(id) + '" data-v="' + n + '" title="Passerelle vers ' + K.NOM_NIV[n] + '" aria-label="Passerelle vers ' + n + '">⇅' + n + '</button>'; }).join('');
     return '<li class="tfrow"><a class="tnm" href="#/educ/joueur/' + esc(id) + '">' + esc(f.prenom) + '</a><span class="tps">' + pillsPostes(f) + '</span>' +
       '<span class="tctl"><span class="tseg" role="group" aria-label="Niveau de ' + esc(f.prenom) + '">' + segs + '</span><span class="tpasw">' + pasB + '</span>' + bouclier(f.plaquage) + '</span></li>';
   }
@@ -1651,7 +1654,7 @@ window.MC = window.MC || {};
     var ids = Object.keys(F).filter(function (id) { return F[id].actif && !/^test$/i.test(F[id].prenom); }).sort(function (a, b) { return F[a].prenom.localeCompare(F[b].prenom, 'fr'); });
     var cnt = { all: ids.length, '': 0, A: 0, B: 0, C: 0 };
     ids.forEach(function (id) { cnt[F[id].niveau || '']++; });
-    if (T.filtre === 'none' && !cnt['']) T.filtre = 'all';   // tout le monde a son niveau
+    if (T.filtre === 'none' && !cnt[''] && !Object.keys(T.vus).length) T.filtre = 'all';   // tout le monde a son niveau
     function okNiv(id) { var n = F[id].niveau || ''; return T.filtre === 'all' || n === (T.filtre === 'none' ? '' : T.filtre) || T.vus[id]; }
     var q = T.q.toLowerCase();
     var parNiv = ids.filter(okNiv), list = parNiv.filter(function (id) { return !q || F[id].prenom.toLowerCase().indexOf(q) >= 0; });
@@ -1660,7 +1663,7 @@ window.MC = window.MC || {};
     parNiv.forEach(function (id) { K.postesDe(F[id]).forEach(function (p) { if (cntP[p] !== undefined) cntP[p]++; }); });
     var rows;
     if (T.poste) {
-      var pr = list.filter(function (id) { return K.lienPoste(F[id], T.poste) === 'pref'; }), se = list.filter(function (id) { return K.lienPoste(F[id], T.poste) === 'sec'; });
+      var pr = list.filter(function (id) { return lienListe(F[id], T.poste) === 'pref'; }), se = list.filter(function (id) { return lienListe(F[id], T.poste) === 'sec'; });
       rows = pr.map(function (id) { return rowTerrain(F, id); }).join('') +
         (se.length ? '<li class="tsep"><span>Peuvent aussi jouer ' + esc(NOMP[T.poste].toLowerCase()) + '</span></li>' + se.map(function (id) { return rowTerrain(F, id); }).join('') : '') ;
       if (!pr.length && !se.length) rows = '';
@@ -1680,8 +1683,8 @@ window.MC = window.MC || {};
       '<a class="btn2" href="#/educ/ajouter">' + icon('plus', 16) + ' Ajouter des enfants (depuis Spond)</a>' +
       '</main>';
   }
-  MC.act.tNiv = function (b) { var F = K.fiches(app.S.cache.group), id = b.getAttribute('data-id'), v = b.getAttribute('data-v'); T.vus[id] = 1; terrainSave(id, { niveau: (F[id] || {}).niveau === v ? '' : v }); };
-  MC.act.tPas = function (b) { var F = K.fiches(app.S.cache.group), id = b.getAttribute('data-id'), v = b.getAttribute('data-v'); T.vus[id] = 1; terrainSave(id, { passerelle: (F[id] || {}).passerelle === v ? '' : v }); };
+  MC.act.tNiv = function (b) { var F = K.fiches(app.S.cache.group), id = b.getAttribute('data-id'), v = b.getAttribute('data-v'); if (!F[id] || F[id].niveau === v) return; T.vus[id] = 1; terrainSave(id, { niveau: v }, b); };
+  MC.act.tPas = function (b) { var F = K.fiches(app.S.cache.group), id = b.getAttribute('data-id'), v = b.getAttribute('data-v'); T.vus[id] = 1; terrainSave(id, { passerelle: (F[id] || {}).passerelle === v ? '' : v }, b); };
   MC.act.tFiltre = function (b) { T.filtre = b.getAttribute('data-v'); T.vus = {}; app.rerender(); };
   MC.act.tPoste = function (b) { var v = b.getAttribute('data-v'); T.poste = T.poste === v ? '' : v; T.vus = {}; app.rerender(); };
   function patchTerrain(map, garder) {
@@ -1692,12 +1695,28 @@ window.MC = window.MC || {};
   }
   // ---------- (v43) enregistrer tout de suite : la fiche terrain change à l'écran, puis part au serveur ----------
   // Les touchers rapprochés partent ensemble (0,5 s) ; une erreur remet ce qui était enregistré avant.
-  var TS = { pend: {}, avant: {}, timer: 0, busy: false };
-  function terrainSave(id, patch) {
+  // pend : ce qui attend de partir ; avant : l'état enregistré avant le 1er toucher ; vol : l'« avant » de l'envoi en cours.
+  var TS = { pend: {}, avant: {}, vol: null, timer: 0, busy: false };
+  function copie(x) { return x === undefined ? null : JSON.parse(JSON.stringify(x)); }
+  // même fiche terrain (sans l'auteur ni l'heure) ?
+  function memeTerrain(a, b) {
+    a = a || {}; b = b || {};
+    return (a.niveau || '') === (b.niveau || '') && (a.passerelle || '') === (b.passerelle || '') && (Number(a.plaquage) || 0) === (Number(b.plaquage) || 0) &&
+      JSON.stringify(a.postesOk || []) === JSON.stringify(b.postesOk || []) && JSON.stringify(a.postesPref === undefined ? null : a.postesPref) === JSON.stringify(b.postesPref === undefined ? null : b.postesPref) &&
+      (a.spondId || '') === (b.spondId || '') && (a.note || '') === (b.note || '');
+  }
+  // le bouton touché, pour lui rendre le focus après le nouvel affichage (clavier, lecteur d'écran)
+  function focusApres(b) {
+    if (!b || document.activeElement !== b) return;
+    var sel = '[data-act="' + b.getAttribute('data-act') + '"][data-id="' + b.getAttribute('data-id') + '"][data-v="' + b.getAttribute('data-v') + '"]', n = 0;
+    (function essai() { var x = document.querySelector(sel); if (x && x !== b) { x.focus({ preventScroll: true }); return; } if (++n < 20) setTimeout(essai, 25); })();
+  }
+  function terrainSave(id, patch, b) {
     var g = app.S.cache.group, p = g && g.joueurs.filter(function (x) { return x.joueur.id === id; })[0];
     if (!p) return;
     var t = p.terrain || { niveau: '', passerelle: '', plaquage: 0, postesOk: [], postesPref: null, spondId: '', note: '' }, nt = {}, k;
-    if (!TS.avant[id]) TS.avant[id] = JSON.parse(JSON.stringify(p.terrain || null));
+    // l'état d'avant : celui d'avant l'envoi en cours s'il y en a un (si cet envoi échoue, on revient au tout début)
+    if (!TS.avant.hasOwnProperty(id)) TS.avant[id] = TS.vol && TS.vol.hasOwnProperty(id) ? TS.vol[id] : copie(p.terrain);
     for (k in t) nt[k] = t[k];
     for (k in patch) nt[k] = patch[k];
     // une passerelle va vers le niveau voisin
@@ -1705,27 +1724,56 @@ window.MC = window.MC || {};
     p.terrain = nt;
     var c = TS.pend[id] || (TS.pend[id] = {});
     for (k in patch) c[k] = patch[k];
-    app.rerender();
+    app.rerender(); focusApres(b);
     clearTimeout(TS.timer); TS.timer = setTimeout(terrainFlush, 500);
   }
   MC.terrainSave = terrainSave;
+  // (v43) la mise à jour du groupe en fond : un enfant touché (en attente, en cours d'envoi, ou plus récent) garde ce qui est à l'écran
+  MC.terrainFusion = function (old, res) {
+    if (!old || !res || !res.joueurs) return res;
+    var O = {};
+    (old.joueurs || []).forEach(function (p) { O[p.joueur.id] = p.terrain; });
+    res.joueurs.forEach(function (p) {
+      var id = p.joueur.id, o = O[id];
+      if (!O.hasOwnProperty(id) || o === undefined) return;
+      if (TS.pend[id] || (TS.vol && TS.vol.hasOwnProperty(id)) || (o && o.maj && (!p.terrain || !p.terrain.maj || o.maj > p.terrain.maj))) p.terrain = o;
+    });
+    return res;
+  };
   function terrainFlush() {
     clearTimeout(TS.timer);
     if (TS.busy) { TS.timer = setTimeout(terrainFlush, 300); return; }
     var ids = Object.keys(TS.pend);
     if (!ids.length) return;
-    var lignes = ids.map(function (id) { var o = { joueurId: id }; for (var k in TS.pend[id]) o[k] = TS.pend[id][k]; return o; });
-    var avant = TS.avant;
-    TS.pend = {}; TS.avant = {}; TS.busy = true;
+    var envoi = TS.pend, lignes = ids.map(function (id) { var o = { joueurId: id }; for (var k in envoi[id]) o[k] = envoi[id][k]; return o; });
+    var avant = TS.avant, spond = lignes.some(function (l) { return l.spondId !== undefined; });
+    TS.pend = {}; TS.avant = {}; TS.vol = avant; TS.busy = true;
     app.adultCall('setTerrain', { lignes: lignes }).then(function (r) {
-      TS.busy = false;
-      patchTerrain(r.terrain || {}, TS.pend);   // un enfant retouché entre-temps garde ce qui est à l'écran
+      TS.busy = false; TS.vol = null;
+      var g = app.S.cache.group, R = r.terrain || {}, diff = false;
+      // un enfant retouché entre-temps garde ce qui est à l'écran ; on ne redessine que si le serveur dit autre chose
+      // (sinon un champ de saisie ouvert, comme « Chercher un prénom », perdrait le clavier)
+      if (g) g.joueurs.forEach(function (p) {
+        var id = p.joueur.id;
+        if (!R[id] || TS.pend[id]) return;
+        if (!memeTerrain(p.terrain, R[id])) diff = true;
+        p.terrain = R[id];
+      });
+      if (g) app.lsSet('mc-group', { tok: app.S.adult.token, data: g });
       ui.toast('Enregistré');
-      if (!Object.keys(TS.pend).length) app.rerender();
+      // le lien Spond change aussi les noms (repris de Spond) : on recharge le groupe
+      if (spond) MC.loadGroup(true).then(function () { app.rerender(); }).catch(function () { });
+      else if (diff && !Object.keys(TS.pend).length) app.rerender();
     }).catch(function (e) {
-      TS.busy = false;
+      TS.busy = false; TS.vol = null;
       var g = app.S.cache.group;
-      if (g) g.joueurs.forEach(function (p) { var id = p.joueur.id; if (avant.hasOwnProperty(id) && !TS.pend[id]) p.terrain = avant[id] || undefined; });
+      if (g) g.joueurs.forEach(function (p) {
+        var id = p.joueur.id;
+        if (!avant.hasOwnProperty(id)) return;
+        if (TS.pend[id]) {   // retouché pendant l'envoi : ce qui n'est pas parti repart avec le nouveau toucher
+          var c = TS.pend[id]; for (var k in envoi[id]) if (!c.hasOwnProperty(k)) c[k] = envoi[id][k];
+        } else p.terrain = avant[id] || undefined;
+      });
       ui.toast((e && e.message ? e.message : 'Pas de réseau') + ' : pas enregistré.', true);
       app.rerender();
     });
@@ -1789,34 +1837,36 @@ window.MC = window.MC || {};
       (part === 'fiche' ? '' : '<div class="box" style="display:flex;flex-direction:column;gap:8px"><span class="mlab" style="margin:0">Son historique</span>' + hist + '</div>') + '</section>';
   };
   function fk(b) { var F = K.fiches(app.S.cache.group); return F[b.getAttribute('data-id')]; }
-  MC.act.tkNiv = function (b) { var f = fk(b); if (f) terrainSave(f.id, { niveau: b.getAttribute('data-v') }); };
-  MC.act.tkPas = function (b) { var f = fk(b), v = b.getAttribute('data-v'); if (f) terrainSave(f.id, { passerelle: f.passerelle === v ? '' : v }); };
-  MC.act.tkPl = function (b) { var f = fk(b); if (f) terrainSave(f.id, { plaquage: Number(b.getAttribute('data-v')) }); };
-  // les postes : préférés ★ (plusieurs possibles) et « peut aussi jouer » ; retoucher un préféré le retire
-  function postesSave(f, ok, pf) {
+  MC.act.tkNiv = function (b) { var f = fk(b), v = b.getAttribute('data-v'); if (f && f.niveau !== v) terrainSave(f.id, { niveau: v }, b); };
+  MC.act.tkPas = function (b) { var f = fk(b), v = b.getAttribute('data-v'); if (f) terrainSave(f.id, { passerelle: f.passerelle === v ? '' : v }, b); };
+  MC.act.tkPl = function (b) { var f = fk(b), v = Number(b.getAttribute('data-v')); if (f && f.plaquage !== v) terrainSave(f.id, { plaquage: v }, b); };
+  // les postes : préférés ★ (plusieurs possibles) et « peut aussi jouer » ; retoucher un préféré le passe en « peut aussi jouer »
+  function postesSave(f, ok, pf, b) {
     pf = pf.filter(function (p, i) { return ok.indexOf(p) >= 0 && pf.indexOf(p) === i; });
     ok = pf.concat(ok.filter(function (p) { return pf.indexOf(p) < 0; }));   // les préférés en tête
-    terrainSave(f.id, { postesOk: ok, postesPref: pf });
+    terrainSave(f.id, { postesOk: ok, postesPref: pf }, b);
   }
   MC.act.tkPref = function (b) {
     var f = fk(b), v = b.getAttribute('data-v');
     if (!f) return;
     var ok = f.postesOk.slice(), pf = f.postesOk.length ? K.prefDe(f).slice() : [];
-    if (pf.indexOf(v) >= 0) { pf = pf.filter(function (p) { return p !== v; }); ok = ok.filter(function (p) { return p !== v; }); }
+    if (pf.indexOf(v) >= 0) pf = pf.filter(function (p) { return p !== v; });
     else { pf.push(v); if (ok.indexOf(v) < 0) ok.push(v); }
-    postesSave(f, ok, pf);
+    postesSave(f, ok, pf, b);
   };
   MC.act.tkPoste = function (b) {
     var f = fk(b), v = b.getAttribute('data-v');
     if (!f) return;
     var ok = f.postesOk.slice(), pf = f.postesOk.length ? K.prefDe(f).slice() : [];
     if (ok.indexOf(v) >= 0) ok = ok.filter(function (p) { return p !== v; }); else ok.push(v);
-    postesSave(f, ok, pf);
+    postesSave(f, ok, pf, b);
   };
   function typeTxt(t) { return t === 'av' ? 'Avant' : t === 'ar' ? 'Arrière' : t === 'les2' ? 'Avant et arrière (polyvalent)' : 'Avant ou arrière : pas encore de poste'; }
   // (v43) le lien avec Spond, en bas de l'onglet Réglages de la fiche (on n'y touche presque jamais) : enregistré au changement
   MC.spondKid = function (g, id) {
     var cd = app.S.cache.compos, l = cd && cd.spond && cd.spond.membres;
+    // les membres Spond viennent avec les compos : chargées ici si on arrive directement sur Réglages
+    if (!cd) loadCompos().then(function () { if (location.hash.indexOf('#/educ/joueur/' + id) === 0) app.rerender(); }).catch(function () { });
     var sp = (g.joueurs.filter(function (p) { return p.joueur.id === id; })[0] || {}).terrain || {};
     var mb = l ? l.filter(function (m) { return m.id === sp.spondId; })[0] : null;
     var etat = '<p class="small" style="margin:0">' + (sp.spondId ? 'Relié' + (mb ? ' à « ' + esc(mb.nom) + ' »' : '') : 'Pas encore relié') + '. Les présences et les noms viennent de Spond.</p>';
@@ -1828,7 +1878,26 @@ window.MC = window.MC || {};
     }).join('') + '</select></section>';
   };
   document.addEventListener('change', function (e) {
-    if (e.target && e.target.id === 'tk-sp') terrainSave(e.target.getAttribute('data-id'), { spondId: e.target.value });
+    if (!e.target || e.target.id !== 'tk-sp') return;
+    var sel = e.target, id = sel.getAttribute('data-id'), v = sel.value, g = app.S.cache.group;
+    if (!g) return;
+    var moi = g.joueurs.filter(function (p) { return p.joueur.id === id; })[0], cur = (moi && moi.terrain && moi.terrain.spondId) || '';
+    var autre = v ? g.joueurs.filter(function (p) { return p.joueur.id !== id && p.terrain && p.terrain.spondId === v; })[0] : null;
+    if (v === cur) return;
+    if (!(cur && !v) && !autre) { terrainSave(id, { spondId: v }); return; }
+    // délier, ou déplacer un lien : on demande (la synchro ne relie plus tout seul un enfant délié à la main)
+    var nom = moi ? moi.joueur.prenom : '', mb = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text.replace(/ \(relié à .*$/, '') : '';
+    ui.modal({
+      title: autre ? 'Déplacer le lien Spond ?' : 'Délier de Spond ?',
+      body: '<p class="small" style="margin:0">' + (autre
+        ? '« ' + esc(mb) + ' » est relié à <b>' + esc(autre.joueur.prenom) + '</b>. Le lien passera à <b>' + esc(nom) + '</b>, et ' + esc(autre.joueur.prenom) + ' ne sera plus relié à Spond (ses présences et son nom ne viendront plus de Spond).'
+        : '<b>' + esc(nom) + '</b> ne sera plus relié à Spond : ses présences et son nom ne viendront plus de Spond, et la synchro ne le reliera plus toute seule.') + '</p>',
+      actions: [{ label: 'Annuler', value: false, cls: 'btn2 grey' }, { label: autre ? 'Déplacer le lien' : 'Délier', value: true, cls: 'btn' }],
+      cancelValue: false
+    }).then(function (ok) {
+      if (ok) terrainSave(id, { spondId: v });
+      else { var s2 = document.getElementById('tk-sp'); if (s2) s2.value = cur; }
+    });
   });
   // ---------- l'historique d'un joueur : plateaux, entraînements (ateliers et matchs), ou tout ----------
   var HV = '';   // le filtre choisi : 'plateau', 'entrainement' ou 'tout' (vide : plateaux s'il y en a)

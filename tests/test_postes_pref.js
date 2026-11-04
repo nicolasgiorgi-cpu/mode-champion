@@ -70,4 +70,13 @@ assert.deepStrictEqual(Array.from(ligne('troisieme-ligne').autres), ['deux']);
 assert.deepStrictEqual(Array.from(ligne('centre').princ), ['ancien']);
 assert.deepStrictEqual(Array.from(ligne('ouvreur').autres), ['aucun'], 'aucun préféré : tout en « peut aussi jouer »');
 assert.deepStrictEqual(Array.from(R.sans), ['voeux'], 'vœux seulement : pas encore de poste réglé');
+// (relecture v43) un enfant avec ses 7 postes et aucun préféré : son 7e poste (rang 7) est encore donné
+const POS7 = ['pilier', 'talonneur', 'troisieme-ligne', 'demi-de-melee', 'ouvreur', 'centre', 'ailier'];
+// (les 9 autres places sont prises par des préférés : il ne reste qu'une place d'ailier, son 7e poste)
+const AUTRES = ['pilier', 'pilier', 'talonneur', 'troisieme-ligne', 'troisieme-ligne', 'demi-de-melee', 'ouvreur', 'centre', 'ailier'];
+const F7 = K.fiches({ joueurs: [joueur('sept', { niveau: 'B', postesOk: POS7, postesPref: [] })].concat(AUTRES.map(function (p, i) { return joueur('a' + i, { niveau: 'B', postesOk: [p], postesPref: [p] }); })) });
+assert.strictEqual(K.rang(F7.sept, 'ailier'), 7);
+const A7 = K.apparier(['sept'].concat(AUTRES.map(function (p, i) { return 'a' + i; })), F7);
+assert.strictEqual(A7.poste.sept, 'ailier', 'son 7e poste : ' + JSON.stringify(A7.poste));
+assert.strictEqual(A7.manquants.length, 0);
 console.log('test_postes_pref : OK');

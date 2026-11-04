@@ -183,7 +183,7 @@ MC.compos = (function () {
       }
       return false;
     }
-    [0, 1, 2, 3, 4, 5, 6].forEach(function (maxR) {
+    [0, 1, 2, 3, 4, 5, 6, 7].forEach(function (maxR) {   // 7 : le 7e poste d'un enfant sans préféré ★
       ids.forEach(function (pid) { if (slotOf[pid] === undefined) tryAssign(pid, maxR, {}); });
     });
     if (remplir) ids.forEach(function (pid) {

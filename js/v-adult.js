@@ -407,6 +407,8 @@
     if (app.S.cache.group && !force) return Promise.resolve(app.S.cache.group);
     if (force) return app.adultCall('group').then(function (r) { app.S.cache.group = r; app.lsSet('mc-group', { tok: app.S.adult.token, data: r }); return r; });
     return app.swr('mc-group', 'group', {}, function (res) {
+      // (v43) un toucher de la fiche terrain pas encore confirmé, ou plus récent que la réponse, reste à l'écran
+      if (MC.terrainFusion) { res = MC.terrainFusion(app.S.cache.group, res); app.lsSet('mc-group', { tok: app.S.adult.token, data: res }); }
       app.S.cache.group = res;
       if (/^#\/educ/.test(location.hash) && !Object.keys(dec).length && !document.querySelector('.modal')) app.rerender();
       app.refreshNav();
@@ -488,7 +490,8 @@
       (MC.api.DEMO ? '<p class="small" style="margin:0;color:var(--yellow)">Mode démo : joueurs fictifs.</p>' : '') +
       '<div class="grid3"><div class="tile"><span class="v">' + G.sessionsWeek + '</span><span class="l" style="text-transform:none;font-family:var(--f-body);letter-spacing:0;font-size:12px">séances cette semaine</span></div>' +
       '<div class="tile"><span class="v" style="color:var(--green)">' + G.active + '<small style="font-size:13px;color:var(--dim)"> / ' + G.players.length + '</small></span><span class="l" style="text-transform:none;font-family:var(--f-body);letter-spacing:0;font-size:12px">actifs sur 7 jours</span></div>' +
-      '<button type="button" class="tile" data-act="relancerOuvrir" style="border-color:rgba(255,138,61,.5);background:rgba(255,138,61,.08);color:inherit;text-align:left;font:inherit"><span class="v" style="color:var(--orange)">' + G.late.length + '</span><span class="l" style="text-transform:none;font-family:var(--f-body);letter-spacing:0;font-size:12px;color:var(--soft)">à relancer ' + icon('down', 11) + '</span></button></div>' +
+      (G.late.length ? '<button type="button" class="tile" data-act="relancerOuvrir" style="border-color:rgba(255,138,61,.5);background:rgba(255,138,61,.08);color:inherit;text-align:left;font:inherit"><span class="v" style="color:var(--orange)">' + G.late.length + '</span><span class="l" style="text-transform:none;font-family:var(--f-body);letter-spacing:0;font-size:12px;color:var(--soft)">à relancer ' + icon('down', 11) + '</span></button>'
+        : '<div class="tile"><span class="v" style="color:var(--dim)">0</span><span class="l" style="text-transform:none;font-family:var(--f-body);letter-spacing:0;font-size:12px">à relancer</span></div>') + '</div>' +
       '<div class="cols2"><section class="sec">' + aConfirmer(g, pending, pend) + '</section>' +
       '<section class="sec"><div class="between"><h2 class="h2">Ça bouge</h2><a class="lnk" href="#/educ/joueurs">Les enfants</a></div>' + (feed || '<div class="empty">Pas encore de séance notée.</div>') + '</section></div>' +
       relancer(G) +
@@ -505,7 +508,7 @@
     return '<details class="rpost relancer" id="relancer"' + (relOuvert ? ' open' : '') + '><summary class="rpost-s">' + icon('clock', 18, 'style="color:var(--orange);flex:none"') +
       '<span class="grow"><b>À relancer · ' + G.late.length + '</b><small>Rien noté depuis 7 jours, ou jamais connecté : un petit mot à l\'entraînement suffit souvent</small></span>' + icon('down', 16, 'class="rpost-i"') + '</summary>' +
       '<ul class="rel-l">' + l.map(function (p) {
-        var t = p._last ? 'rien depuis ' + L.daysBetween(p._last, G.today) + ' j' : (p.joueur.aUnCode ? 'pas encore de séance' : 'pas encore connecté');
+        var t = p._last ? L.daysBetween(p._last, G.today) + ' j sans séance' : (p.joueur.aUnCode ? 'aucune séance' : 'jamais connecté');
         return '<li><a href="#/educ/joueur/' + esc(p.joueur.id) + '?t=prepa"><span class="grow">' + esc(p.joueur.prenom) + '</span><small>' + esc(t) + '</small>' + icon('right', 14) + '</a></li>';
       }).join('') + '</ul></details>';
   }
@@ -701,7 +704,7 @@
     var NIVN = { A: 'Confirmé', B: 'Débrouillé', C: 'Débutant' }, NIVC = { A: '#FFC23D', B: '#38E8FF', C: '#3DFFB0' };
     var pnom = { pilier: 'pilier', talonneur: 'talonneur', 'troisieme-ligne': '3e ligne', 'demi-de-melee': 'demi de mêlée', ouvreur: 'ouvreur', centre: 'centre', ailier: 'ailier' };
     // (v43) ses postes préférés ★ (un ou plusieurs ; avant la v43 : le 1er de ses postes)
-    var pref = Array.isArray(tr.postesPref) && tr.postesPref.length ? tr.postesPref : (tr.postesOk || []).slice(0, 1);
+    var pref = Array.isArray(tr.postesPref) ? tr.postesPref : (tr.postesOk || []).slice(0, 1);
     var resume = [tr.niveau ? NIVN[tr.niveau] : 'niveau à renseigner', pref.map(function (x) { return pnom[x]; }).filter(Boolean).join(', '), tr.passerelle ? 'passerelle vers ' + tr.passerelle : ''].filter(Boolean).join(' · ');
     var head = '<div class="fhead">' + (tr.niveau ? '<span class="cniv big" style="--lc:' + NIVC[tr.niveau] + '">' + tr.niveau + '</span>' : '<span class="cniv none big">?</span>') +
       '<div class="grow"><h1 class="big sm" style="margin:0">' + esc(k.prenom) + (mine ? ' <span class="pill" style="--pc:var(--cyan);vertical-align:8px">Mon enfant</span>' : '') + '</h1><span class="small" style="color:var(--soft)">' + esc(resume) + (k.actif ? '' : ' · <b style="color:var(--orange)">désactivé</b>') + '</span></div></div>';

@@ -53,7 +53,7 @@ with sync_playwright() as p:
     check('pas de défilement horizontal (fiche terrain)', noscroll(pg))
     shot(pg, 'k02-terrain')
     pg.wait_for_timeout(1200)
-    t = ev(pg, "JSON.stringify(MC.api.call('group',{token:MC.app.S.adult.token}).then(g=>g.joueurs.find(p=>p.joueur.prenom==='Côme').terrain))")
+    t = ev(pg, "MC.api.call('group',{token:MC.app.S.adult.token}).then(g=>JSON.stringify(g.joueurs.find(p=>p.joueur.prenom==='Côme').terrain))")
     check('fiche terrain enregistrée au serveur (B, passerelle C)', '"niveau":"B"' in t and '"passerelle":"C"' in t, t)
     # ----- un événement : les présents -----
     pg.goto(BASE + '#/educ/evt/sp-demo-p3/presents'); pg.wait_for_timeout(800)
