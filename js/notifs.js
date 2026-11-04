@@ -152,7 +152,7 @@ MC.notifs = (function () {
       });
       (p.demandes || []).forEach(function (x) {
         var et = '« ' + esc(nomEtoile(x.domaine, x.etoile)) + ' »';
-        out.push({ id: 'd:' + x.id, cat: 'etoile', t: ms(x.cree), txt: x.sorte === 'briller' ? who + ' dit avoir fait briller l\'étoile ' + et + ' au plateau.' : who + ' demande l\'étoile ' + et + '.', href: '#/educ/skills/evaluer?c=demandes' });
+        out.push({ id: 'd:' + x.id, cat: 'etoile', t: ms(x.cree), txt: x.sorte === 'briller' ? who + ' dit avoir fait briller l\'étoile ' + et + ' au plateau.' : who + ' demande l\'étoile ' + et + '.', href: '#/educ/skills?c=demandes' });   // le même lien que l'alerte du serveur (lireLien) ; mène à Évaluer (v44, redirection)
       });
       (p.journal || []).forEach(function (n) {
         var d = n.data || {};
