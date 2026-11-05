@@ -416,7 +416,7 @@ window.MC = window.MC || {};
     var presCard = '<a class="li cpres-card" href="#/educ/evt/' + esc(e.id) + '/presents"><span class="cbig">' + pres.length + '</span><span class="grow"><span class="t1">Les présents</span><span class="t2">' +
       (e.source === 'spond' ? 'D\'après Spond' + (ab ? ' · ' + ab + ' absent' + (ab > 1 ? 's' : '') : '') + (sr ? ' · ' + sr + ' sans réponse' : '') + ' · toucher pour corriger' : 'Cochés à la main · toucher pour corriger') + '</span></span>' + icon('right', 16) + '</a>';
     // (v56, demande de Nicolas) une compo faite passe en premier, plus grande et en surbrillance
-    var aCompo = train ? K.PARTIES.some(function (x) { return compoOf(C.cd, e.id, x) || app.lsGet(draftKey(e.id, x)); }) : e.sorte === 'plateau' && (!!c || (!past && !!app.lsGet(draftKey(e.id))));
+    var aCompo = train ? K.PARTIES.some(function (x) { return compoOf(C.cd, e.id, x) || (!past && app.lsGet(draftKey(e.id, x))); }) : e.sorte === 'plateau' && (!!c || (!past && !!app.lsGet(draftKey(e.id))));
     var compoBlock;
     if (train) compoBlock = partCard(C, e, 'ateliers', 1, past) + partCard(C, e, 'matchs', 2, past) + '<p class="small" style="margin:0">D\'abord les groupes d\'ateliers, ensuite les matchs. Un éduc publie ; le jour de l\'entraînement, tous les éducs peuvent corriger.</p>';
     else if (e.sorte !== 'plateau') compoBlock = '<p class="small" style="margin:0">C\'est un plateau ou un entraînement ?</p><div class="grid2"><button type="button" class="btn2 grey" data-act="eSorte" data-v="plateau">C\'est un plateau</button><button type="button" class="btn2 grey" data-act="eSorte" data-v="entrainement">Un entraînement</button></div>';
@@ -647,8 +647,8 @@ window.MC = window.MC || {};
   // (v50) les options d'une compo de plateau (v56 : revues par Nicolas, plus de compteur « Montent en A »)
   var OPT_TXT = {
     orga: ['Organisation', { niveau: ['Par niveau', 'Une équipe par niveau : A, B, C.'], aforte: ['A forte', 'Une équipe A avec les Confirmés (complétée par les meilleurs B), les autres mélangent B et C.'] }],
-    effectifs: ['Joueurs par équipe', { equilibre: ['Équilibrés', 'À un joueur près ; « Ajuster » pour les régler équipe par équipe.'], niveaux: ['Suivre les niveaux', 'Personne ne change de niveau, les passerelles non plus : chaque équipe a les joueurs de son niveau.'] }],
-    passerelles: ['Passerelles', { niveau: ['Plaquage d\'abord', 'Le nombre de joueurs par équipe décide combien changent de niveau. Ceux qui ont une passerelle passent d\'abord, le plaquage en premier : les meilleurs montent, les moins avancés descendent.'], roulant: ['Roulant', 'Ceux qui ont une passerelle jouent chacun leur tour, quel que soit le plaquage. Une par équipe monte, même si l\'équipe est pleine : quelqu\'un descend en échange.'] }],
+    effectifs: ['Joueurs par équipe', { equilibre: ['Équilibrés', 'À un joueur près ; « Ajuster » pour les régler équipe par équipe.'], niveaux: ['Suivre les niveaux', 'Personne ne monte ni ne descend, les passerelles non plus : le nombre de joueurs par équipe suit.'] }],
+    passerelles: ['Passerelles', { niveau: ['Plaquage d\'abord', 'Le nombre de joueurs par équipe décide combien changent de niveau. Ceux qui ont une passerelle passent d\'abord, le plaquage en premier : les meilleurs montent, les moins avancés descendent.'], roulant: ['Roulant', 'Une passerelle par équipe monte à son tour, quel que soit le plaquage, même si l\'équipe est pleine : quelqu\'un descend en échange. S\'il faut encore bouger, les passerelles passent d\'abord, à leur tour.'] }],
     copains: ['Copains', { un: ['Un copain pour chacun', 'Quand c\'est possible, le plaquage d\'abord.', 'Un pour chacun'], dabord: ['Copains d\'abord', 'Chacun avec ses copains en priorité.'], sans: ['Sans', 'Les copains ne comptent pas du tout.'] }]
   };
   var OPT_LIGNE = { effectifs: 'Effectifs' };   // le nom de la ligne, quand celui des choix est trop long
@@ -876,7 +876,11 @@ window.MC = window.MC || {};
   function autreCop(c) { return c === 'un' ? 'dabord' : 'un'; }
   function autreOpts(o) { var x = JSON.parse(JSON.stringify(o)); if (x.orga === 'aforte') x.orga = 'niveau'; else x.copains = autreCop(x.copains); return x; }
   // le nom d'une version, d'après ce qui la distingue de l'autre (ref)
-  function nomOpts(o, ref) { return ref && ref.orga !== o.orga ? (o.orga === 'aforte' ? 'A forte' : 'par niveau') : o.copains === 'dabord' ? 'copains d\'abord' : o.copains === 'sans' ? 'sans les copains' : 'un copain pour chacun'; }
+  function nomOpts(o, ref) {
+    if (ref && ref.copains === o.copains && ref.orga === o.orga && ref.effectifs !== o.effectifs) return o.effectifs === 'niveaux' ? 'suivre les niveaux' : 'équilibrés';
+    if (ref && ref.copains === o.copains && ref.orga === o.orga && ref.passerelles !== o.passerelles) return o.passerelles === 'niveau' ? 'plaquage d\'abord' : 'roulant';
+    return ref && ref.orga !== o.orga ? (o.orga === 'aforte' ? 'A forte' : 'par niveau') : o.copains === 'dabord' ? 'copains d\'abord' : o.copains === 'sans' ? 'sans les copains' : 'un copain pour chacun';
+  }
   MC.act.cPropose = function () {
     withC(function (C, e) {
       var reg = B.reg;
@@ -1125,7 +1129,7 @@ window.MC = window.MC || {};
       cmp = '<div class="cvcols nv2 ccmp">' + R.map(function (r, v) {
         var rg = vs[v].reglages, st = rg.partie ? { nom: MODES[rg.partie][MODES[rg.partie][rg.mode] ? rg.mode : 'niveau'][0] + (rg.separer ? ', avants / arrières à part' : '') } : rg.style || rg.opts ? { nom: nomOpts(K.optsDe(rg), K.optsDe(vs[1 - v].reglages)) } : null;
         return '<div class="cvsum"><b>' + vName(v) + '</b>' + (st ? '<small>' + esc(st.nom) + '</small>' : '') +
-          '<span>' + icon('heart', 11) + ' ' + r.avec + '/' + r.ont + ' avec un copain</span><span>' + icon('shieldavg', 12) + ' écart ' + virg(r.gap) + '</span><span' + (r.warn ? ' style="color:var(--orange)"' : '') + '>' + icon('warn', 11) + ' ' + r.al.length + ' à regarder</span>' +
+          (sansCop(vs[v]) ? '' : '<span>' + icon('heart', 11) + ' ' + r.avec + '/' + r.ont + ' avec un copain</span>') + '<span>' + icon('shieldavg', 12) + ' écart ' + virg(r.gap) + '</span><span' + (r.warn ? ' style="color:var(--orange)"' : '') + '>' + icon('warn', 11) + ' ' + r.al.length + ' à regarder</span>' +
           (editable() ? '<span class="row" style="gap:6px;margin-top:4px"><button type="button" class="lnk sm" data-act="cRegl" data-v="' + v + '">Refaire</button><button type="button" class="lnk sm" data-act="cDelV" data-v="' + v + '">Supprimer</button></span>' : '') + '</div>';
       }).join('') + '</div>';
     }
@@ -1145,7 +1149,7 @@ window.MC = window.MC || {};
       '<div class="head"><span class="kicker" style="color:var(--gold)">' + esc(quand(e)) + ' · ' + presents.length + ' présents' + (P ? '' : ' · jeu à ' + fmt) + '</span><h1 class="big sm">' + (P ? NOM_PARTIE[P] : 'La compo') + '</h1></div>' +
       (P ? stepsHtml(C, e, P) : '') + state + topHtml(C, e, c) + avBlock + cmp +
       '<p class="small" style="margin:0">' + (ed ? 'Touchez un joueur, puis son ' + (P === 'ateliers' ? 'groupe' : 'équipe') + ' d\'arrivée (ou un joueur d\'' + (P === 'ateliers' ? 'un autre groupe' : 'une autre équipe') + ' : ils s\'échangent). Pour ' + (P === 'ateliers' ? 'remplir un groupe' : 'composer une équipe') + ', touchez son nom' + (fmt === 10 ? ' ou une place vide (+)' : ' ou « + Ajouter des joueurs »') + '.' + (nv > 1 ? ' Chaque version se modifie à part.' : '') : 'Touchez un joueur pour voir sa fiche.') + (communes ? ' <b style="color:var(--yellow)">Entourés</b> : placés autrement d\'une version à l\'autre.' : '') + '</p>' +
-      '<p class="small clegend"><span>' + icon('shieldavg', 12) + ' plaquage moyen</span><span>' + icon('shieldok', 12) + ' bons plaqueurs</span><span>' + icon('heart', 11) + ' avec un copain</span><span>⇅ hors niveau</span>' + (P ? '' : '<span>' + bouclier(2, 'mini', true) + ' sous le repère de l\'équipe</span>') + '<span>Av avants · Ar arrières</span></p>' +
+      '<p class="small clegend"><span>' + icon('shieldavg', 12) + ' plaquage moyen</span><span>' + icon('shieldok', 12) + ' bons plaqueurs</span>' + (vs.every(sansCop) ? '' : '<span>' + icon('heart', 11) + ' avec un copain</span>') + '<span>⇅ hors niveau</span>' + (P ? '' : '<span>' + bouclier(2, 'mini', true) + ' sous le repère de l\'équipe</span>') + '<span>Av avants · Ar arrières</span></p>' +
       boardHtml(C, { vs: vs, presents: presents, attente: att, moved: moved, ed: ed }) +
       '<section class="sec">' + vs.map(function (d, v) { return alertesHtml(C, d, v, presents, nv, att); }).join('') + '</section>' +
       rsAll + hist + avHist + suite +

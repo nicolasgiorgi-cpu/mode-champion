@@ -138,12 +138,84 @@ assert.ok(dans(p, 'C1').includes('b1'), 'sans passerelle, par niveau : le plaqua
 const G3 = groupe([['a1', 'A', 3], ['a2', 'A', 3], ['a3', 'A', 3], ['b1', 'B', 2], ['b2', 'B', 2], ['b3', 'B', 2], ['b4', 'B', 2], ['b5', 'B', 2], ['c1', 'C', 1]]);
 p = K.proposer(Object.keys(G3), G3, { b1: H1('2026-10-25', 'C') }, { format: 5, nb, opts: O({}) });
 assert.ok(!dans(p, 'C1').includes('b1') && dans(p, 'C1').length === 3, 'à plaquage égal : un autre B descend ' + dans(p, 'C1'));
-// une passerelle vers le bas : à son tour en Roulant, le moins avancé en Par niveau
-const G2bis = groupe([['a1', 'A', 3], ['a2', 'A', 3], ['a3', 'A', 3], ['b1', 'B', 1, 'C'], ['b2', 'B', 2, 'C'], ['b3', 'B', 2], ['b4', 'B', 2], ['b5', 'B', 2], ['c1', 'C', 1]]);
+// une passerelle vers le bas : à son tour en Roulant, le moins avancé en « Plaquage d'abord »
+const G2bis = groupe([['a1', 'A', 3], ['a2', 'A', 3], ['a3', 'A', 3], ['b1', 'B', 1, 'C'], ['b2', 'B', 2, 'C'], ['b3', 'B', 2], ['b4', 'B', 2], ['c1', 'C', 1], ['c2', 'C', 1]]);
 p = K.proposer(Object.keys(G2bis), G2bis, HG, { format: 5, nb, opts: O({ passerelles: 'niveau' }) });
-assert.ok(dans(p, 'C1').includes('b1'), 'par niveau : le moins avancé des passerelles descend ' + dans(p, 'C1'));
+assert.ok(dans(p, 'C1').includes('b1') && !dans(p, 'C1').includes('b2'), 'plaquage d\'abord : le moins avancé des passerelles descend ' + dans(p, 'C1'));
 p = K.proposer(Object.keys(G2bis), G2bis, HG, { format: 5, nb, opts: O({}) });
-assert.ok(dans(p, 'C1').includes('b2') && dans(p, 'C1')[0] !== undefined, 'roulant : b2, qui n\'y a pas encore joué, passe avant b1 ' + dans(p, 'C1'));
+assert.ok(dans(p, 'C1').includes('b2') && !dans(p, 'C1').includes('b1'), 'roulant : b2, qui n\'y a pas encore joué, passe avant b1 ' + dans(p, 'C1'));
+
+// ----- (relecture v56) A forte, à plaquage égal : à son tour -----
+const sp6 = [];
+for (let i = 0; i < 6; i++) sp6.push(['a' + i, 'A', 3]);
+for (let i = 0; i < 10; i++) sp6.push(['b' + i, 'B', 2]);
+const F6 = groupe(sp6);
+p = K.proposer(Object.keys(F6), F6, { b0: H1('2026-10-20', 'A') }, { format: 5, nb: nb2, opts: O({ orga: 'aforte' }) });
+assert.ok(!dans(p, 'A1').includes('b0') && dans(p, 'A1').includes('b1'), 'A forte, même plaquage : b0 a déjà monté, un autre monte ' + dans(p, 'A1'));
+
+// ----- (relecture v56) Roulant : pas de Confirmé en équipe C pour faire monter un Débutant -----
+const sp7 = [];
+for (let i = 0; i < 12; i++) sp7.push(['a' + (i < 10 ? '0' : '') + i, 'A', 3]);
+for (let i = 0; i < 3; i++) sp7.push(['b' + i, 'B', 2]);
+for (let i = 0; i < 3; i++) sp7.push(['c' + i, 'C', 1, i === 0 ? 'B' : '']);
+const F7 = groupe(sp7);
+p = K.proposer(Object.keys(F7), F7, {}, { format: 5, nb, opts: O({}) });
+assert.deepStrictEqual(tailles(p), ['A1:6', 'B1:6', 'C1:6']);
+assert.ok(!dans(p, 'C1').some(id => /^a/.test(id)), 'aucun Confirmé en C ' + dans(p, 'C1'));
+const nbSansA = { A: 0, B: 1, C: 1 }, sp8 = [];
+for (let i = 0; i < 7; i++) sp8.push(['a' + i, 'A', 3]);
+for (let i = 0; i < 4; i++) sp8.push(['b' + i, 'B', 2]);
+for (let i = 0; i < 2; i++) sp8.push(['c' + i, 'C', 1, i === 0 ? 'B' : '']);
+const F8 = groupe(sp8);
+p = K.proposer(Object.keys(F8), F8, {}, { format: 5, nb: nbSansA, opts: O({}) });
+assert.ok(!dans(p, 'C1').some(id => /^a/.test(id)), 'sans équipe A non plus ' + dans(p, 'C1'));
+// le cas 10 / 13 / 6 garde sa montée de C vers B
+const spN2 = [];
+for (let i = 0; i < 10; i++) spN2.push(['a' + i, 'A', 3]);
+for (let i = 0; i < 13; i++) spN2.push(['b' + (i < 10 ? '0' : '') + i, 'B', 2, i < 2 ? 'A' : '']);
+for (let i = 0; i < 6; i++) spN2.push(['c' + i, 'C', 1, i < 2 ? 'B' : '']);
+const FN2 = groupe(spN2);
+p = K.proposer(Object.keys(FN2), FN2, {}, { format: 5, nb, opts: O({}) });
+assert.deepStrictEqual(tailles(p), ['A1:10', 'B1:10', 'C1:9']);
+assert.strictEqual(dans(p, 'B1').filter(id => /^c/.test(id)).length, 1, '10 / 13 / 6 : une passerelle monte de C en B ' + dans(p, 'B1'));
+
+// ----- (relecture v56) des tailles réglées à la main : tenues, même avec des montées -----
+const sp9 = [];
+for (let i = 0; i < 10; i++) sp9.push(['a' + i, 'A', 3]);
+for (let i = 0; i < 5; i++) sp9.push(['c' + i, 'C', 1, i === 0 ? 'B' : '']);
+const F9 = groupe(sp9);
+p = K.proposer(Object.keys(F9), F9, {}, { format: 5, nb, tailles: { A1: 10, B1: 0, C1: 5 }, opts: O({}) });
+assert.deepStrictEqual(tailles(p), ['A1:10', 'B1:0', 'C1:5'], 'une équipe voulue à 0 joueur reste vide');
+// tirage : le total voulu de chaque niveau est tenu
+let graine = 12345; const hasard = (n) => { graine = (graine * 1103515245 + 12345) % 2147483648; return graine % n; };
+for (let n = 0; n < 400; n++) {
+  const sp = [], nA = 3 + hasard(10), nB = 3 + hasard(10), nC = 2 + hasard(8);
+  for (let i = 0; i < nA; i++) sp.push(['a' + i, 'A', 2 + hasard(2), hasard(4) === 0 ? 'B' : '']);
+  for (let i = 0; i < nB; i++) sp.push(['b' + i, 'B', hasard(4), ['', '', 'A', 'C', 'AC'][hasard(5)]]);
+  for (let i = 0; i < nC; i++) sp.push(['c' + i, 'C', hasard(3), hasard(3) === 0 ? 'B' : '']);
+  const Fh = groupe(sp), idsh = Object.keys(Fh), nbh = { A: 1 + hasard(2), B: 1 + hasard(2), C: 1 };
+  const tid = K.teamIds(nbh), t = {}; let reste = idsh.length;
+  tid.forEach((x, i) => { const v = i === tid.length - 1 ? reste : Math.min(reste, 1 + hasard(Math.ceil(idsh.length / tid.length) + 2)); t[x] = v; reste -= v; });
+  ['niveau', 'roulant'].forEach(pa => {
+    const q = K.proposer(idsh, Fh, {}, { format: 5, nb: nbh, tailles: t, opts: O({ passerelles: pa }) });
+    assert.strictEqual(q.equipes.reduce((s, e) => s + e.joueurs.length, 0), idsh.length, 'personne de perdu');
+    ['A', 'B', 'C'].forEach(l => {
+      const voulu = tid.filter(x => x[0] === l).reduce((s, x) => s + t[x], 0), eu = q.equipes.filter(e => e.niveau === l).reduce((s, e) => s + e.joueurs.length, 0);
+      assert.strictEqual(eu, voulu, 'niveau ' + l + ' : ' + eu + ' au lieu de ' + voulu + ' ' + JSON.stringify(t) + ' ' + pa);
+    });
+  });
+}
+
+// ----- (relecture v56) « Sans » : la correction proposée ne dépend pas des copains -----
+const sp10 = [];
+for (let i = 0; i < 4; i++) sp10.push(['b' + i, 'B', 3]);
+for (let i = 4; i < 8; i++) sp10.push(['b' + i, 'B', 1]);
+const F10 = groupe(sp10), F10b = J(F10); F10b.b5.copains = ['b1'];
+const c10 = (co) => ({ reglages: { format: 5, nb: { A: 0, B: 2, C: 0 }, opts: O({ copains: co }) }, equipes: [{ id: 'B1', niveau: 'B', joueurs: ['b0', 'b1', 'b2', 'b3'].map(id => ({ id })) }, { id: 'B2', niveau: 'B', joueurs: ['b4', 'b5', 'b6', 'b7'].map(id => ({ id })) }], banc: [] });
+const fixDe = (c, Fx) => { const a = K.alertes(c, Fx, {}).filter(x => x.k === 'plaquage')[0]; return a && a.fix && a.fix.texte; };
+assert.ok(fixDe(c10('sans'), F10), 'une correction est proposée');
+assert.strictEqual(fixDe(c10('sans'), F10b), fixDe(c10('sans'), F10), '« Sans » : la même correction, avec ou sans copains');
+assert.notStrictEqual(fixDe(c10('un'), F10b), fixDe(c10('un'), F10), 'avec les copains, la correction en tient compte');
 
 // ----- suivre les niveaux : personne ne change de niveau, même avec une passerelle -----
 p = K.proposer(Object.keys(G), G, {}, { format: 5, nb, opts: O({ effectifs: 'niveaux' }) });

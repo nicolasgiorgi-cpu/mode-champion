@@ -482,12 +482,16 @@ MC.compos = (function () {
     function tourB(a, b, to) { var da = dernierEn(H, a, to), db = dernierEn(H, b, to); if (da !== db) return da < db ? -1 : 1; return nbEn(H, a, to) - nbEn(H, b, to); }
     if (O.montees) [['B', 'A'], ['C', 'B']].forEach(function (x) {
       var de = x[0], vers = x[1];
-      if (!ok(de) || !ok(vers)) return;
+      if (!ok(de) || !ok(vers) || voulu(vers) < 1) return;   // une équipe voulue à 0 joueur ne reçoit personne
       var deja = ids.filter(function (id) { return lv[id] === vers && princ[id] === de; });
       deja.forEach(function (id) { fixe[id] = true; });
       var nUp = deja.length, veut = O.montees * nb[vers];
       var cs = ids.filter(function (id) { return lv[id] === de && princ[id] === de && !fixe[id] && pasDe(F[id]).indexOf(vers) >= 0; }).sort(function (a, b) { return tourB(a, b, vers) || (a < b ? -1 : 1); });
       while (nUp < veut && cs.length) {
+        // le niveau de départ manque déjà de monde, et il ne reste pas assez d'enfants de l'équipe au-dessus pour le compléter :
+        // la montée ferait descendre un enfant de deux niveaux (un Confirmé en équipe C), on ne la fait pas
+        var natifs = ids.filter(function (id) { return lv[id] === vers && princ[id] === vers && !fixe[id]; }).length;
+        if (ecart(de) < 0 && natifs < 1 - ecart(de)) break;
         var up = cs.shift(), der = dernierEn(H, up, vers);
         lv[up] = vers; fixe[up] = true; nUp++;
         raisons[up] = 'Monte en ' + vers + ' grâce à sa passerelle : ' + (der ? 'son tour (dernière fois le ' + frDate(der) + ').' : 'son tour, il n\'y a pas encore joué.');
@@ -516,7 +520,9 @@ MC.compos = (function () {
         var dir = NIV.indexOf(pr[1]) > NIV.indexOf(pr[0]) ? 1 : -1, nx = NIV[NIV.indexOf(pr[0]) + dir];
         if (!ok(nx)) nx = pr[1];
         var monte = NIV.indexOf(nx) < NIV.indexOf(pr[0]), dep = pr[0];
-        var cand = ids.filter(function (id) { return lv[id] === dep && !fixe[id]; }).sort(function (a, b) {
+        var libres = ids.filter(function (id) { return lv[id] === dep && !fixe[id]; });
+        if (!libres.length) libres = ids.filter(function (id) { return lv[id] === dep; });   // tenir les effectifs passe avant une montée déjà faite
+        var cand = libres.sort(function (a, b) {
           var ra = dist(princ[a] || 'B', nx), rb = dist(princ[b] || 'B', nx);
           if (ra !== rb) return ra - rb;   // ceux qui reviennent dans leur niveau, puis les plus proches du niveau visé
           var xa = pasDe(F[a]).indexOf(nx) >= 0 ? 0 : 1, xb = pasDe(F[b]).indexOf(nx) >= 0 ? 0 : 1;
@@ -605,7 +611,14 @@ MC.compos = (function () {
             var na = nbEn(H, a, 'A'), nb2 = nbEn(H, b, 'A');
             if (na !== nb2) return na - nb2;
           }
-          return plq(F, b) - plq(F, a) || (a < b ? -1 : 1);
+          var pq = plq(F, b) - plq(F, a);
+          if (pq) return pq;
+          if (O.passerelles) {   // (v56) à plaquage égal, à son tour (compo d'un plateau ; les ateliers ne changent pas)
+            var d1 = dernierEn(H, a, 'A'), d2 = dernierEn(H, b, 'A');
+            if (d1 !== d2) return d1 < d2 ? -1 : 1;
+            if (nbEn(H, a, 'A') !== nbEn(H, b, 'A')) return nbEn(H, a, 'A') - nbEn(H, b, 'A');
+          }
+          return a < b ? -1 : 1;
         }).forEach(function (id) { if (pas.indexOf(id) < 0) autres.push(id); });
       });
       autres.slice(0, Math.max(0, taille - fort.length)).forEach(function (id) {
@@ -815,11 +828,12 @@ MC.compos = (function () {
     var memes = c.equipes.filter(function (t) { return blocDe(t) === blocDe(A); });
     var lvTeams = memes.map(function (t) { return t.joueurs.map(function (j) { return j.id; }); });
     var ia = memes.indexOf(A), ib = memes.indexOf(B);
-    var format = fmt(c.reglages), base = scoreNiveau(lvTeams, F, H, format), best = null;
+    var wc = poidsCop(optsDe(c.reglages), W, W);   // (v56) « Sans » : les copains ne comptent pas non plus ici
+    var format = fmt(c.reglages), base = scoreNiveau(lvTeams, F, H, format, wc), best = null;
     lvTeams[ia].forEach(function (x, i) {
       lvTeams[ib].forEach(function (y, j) {
         lvTeams[ia][i] = y; lvTeams[ib][j] = x;
-        var sc = scoreNiveau(lvTeams, F, H, format);
+        var sc = scoreNiveau(lvTeams, F, H, format, wc);
         lvTeams[ia][i] = x; lvTeams[ib][j] = y;
         if (sc < base - 0.2 && (!best || sc < best.sc)) best = { sc: sc, a: x, b: y };
       });
@@ -829,11 +843,11 @@ MC.compos = (function () {
   function bestMove(c, F, H, from, to) {
     var A = c.equipes.filter(function (t) { return t.id === from; })[0];
     if (!A) return null;
-    var best = null, format = fmt(c.reglages);
+    var best = null, format = fmt(c.reglages), wc = poidsCop(optsDe(c.reglages), W, W);
     A.joueurs.forEach(function (j) {
       var o = moveTo(c, j.id, to, F);
       var lvTeams = o.equipes.filter(function (t) { return blocDe(t) === blocDe(A); }).map(function (t) { return t.joueurs.map(function (x) { return x.id; }); });
-      var sc = scoreNiveau(lvTeams, F, H, format);
+      var sc = scoreNiveau(lvTeams, F, H, format, wc);
       if (!best || sc < best.sc) best = { sc: sc, id: j.id };
     });
     var T = c.equipes.filter(function (t) { return t.id === to; })[0];

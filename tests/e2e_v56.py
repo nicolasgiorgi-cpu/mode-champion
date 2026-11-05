@@ -95,6 +95,7 @@ with sync_playwright() as p:
     pasA = [x for x in sous if x['eq'].startswith('A') and x['pl'] is not None and x['pl'] < 3 and not x['rouge']]
     check('équipe A : le repère reste 3', not pasA, pasA)
     check('copains « Sans » : pas de cœur sur la compo', pg.query_selector('.cpj .cop-ok, .cpj .cop-no') is None and 'Avec au moins un copain' not in ev("document.querySelector('.coupe, main').innerHTML"))
+    check('copains « Sans » : la légende ne parle plus des copains', 'avec un copain' not in pg.inner_text('.clegend'), pg.inner_text('.clegend'))
     check('le résumé dit « sans les copains »', 'sans les copains' in pg.inner_text('.cbopt summary'), pg.inner_text('.cbopt summary'))
 
     # ----- le haut d'une compo faite : les joueurs juste sous les équipes -----
@@ -114,6 +115,15 @@ with sync_playwright() as p:
     pg.click('.cbopt .aide-q[data-aide="o-passerelles"]'); pg.wait_for_timeout(150)
     t = pg.inner_text('.aide-bulle') if pg.query_selector('.aide-bulle') else ''
     check('le « ? » des passerelles explique les deux choix', ("Plaquage d'abord" in t or 'Plaquage d’abord' in t) and 'Roulant' in t, t)
+    # ----- un brouillon d'entraînement : en haut si l'entraînement est à venir, pas s'il est passé -----
+    ev("Object.keys(localStorage).filter(k => k.indexOf('mc-cdraft:') === 0).forEach(k => localStorage.removeItem(k))")
+    pg.goto(BASE + '#/educ/evt/sp-demo-e1'); pg.wait_for_timeout(800)
+    ev("""localStorage.setItem('mc-cdraft:' + MC.app.S.adult.id + ':sp-demo-e1:ateliers', '{"vs":[]}'); MC.app.rerender()"""); pg.wait_for_timeout(300)
+    hautFutur = ev("""document.querySelector('.cpart').getBoundingClientRect().bottom <= document.querySelector('.cpres-card').getBoundingClientRect().top""")
+    check('brouillon d\'un entraînement à venir : au-dessus des présents', hautFutur)
+    ev("""(() => { MC.app.S.cache.compos.evenements.find(x => x.id === 'sp-demo-e1').debut = '2026-01-07T16:30:00.000Z'; MC.app.rerender(); })()"""); pg.wait_for_timeout(300)
+    basPasse = ev("""document.querySelector('.cpres-card').getBoundingClientRect().bottom <= document.querySelector('.cpart').getBoundingClientRect().top""")
+    check('vieux brouillon d\'un entraînement passé : sous les présents', basPasse)
     check('aucune erreur', not errs, errs)
     b.close()
 bad = [n for n, c in res if not c]
