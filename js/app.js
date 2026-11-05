@@ -797,12 +797,16 @@ MC.app = (function () {
     render();
     window.__mcStarted = true;
     registerSW();
+    // (v52) à l'ouverture aussi : quand le réseau traîne (plus de 3,5 s), le service worker ouvre la copie gardée, qui peut être
+    // l'ancienne version (Nicolas, 05/11 : appli fermée et rouverte deux fois, toujours la v49) ; on lit la page en ligne
+    // quelques secondes après, et l'appli se recharge au calme dès que le réseau répond
+    if (window.__MC_MAJ_OUVERTURE !== -1) setTimeout(function () { verifierVersion(false); }, 2500);   // (tests : -1 = pas à l'ouverture)
   }
 
   // ---------- (v51) Une nouvelle version en ligne : l'appli se recharge d'elle-même ----------
   // Sur iPhone, revenir dans l'appli la reprend telle qu'elle était en mémoire, sans la recharger : elle pouvait garder
   // l'ancienne version longtemps (Nicolas, 05/11 : « je vois toujours v49 »). En revenant dans l'appli (au plus une fois par
-  // minute) ou en tirant pour actualiser, on lit le numéro de version de la page en ligne ; s'il est plus récent, on recharge,
+  // minute), à l'ouverture (v52) ou en tirant pour actualiser, on lit le numéro de version de la page en ligne ; s'il est plus récent, on recharge,
   // au calme, et seulement sur un écran de consultation (ceux où l'on peut tirer pour actualiser : jamais un écran de saisie,
   // une séance, un bilan ou une connexion), sans fenêtre ouverte, sans saisie ni envoi en cours ; sinon en arrivant sur un
   // autre écran calme. L'écran et le défilement sont gardés comme quand l'iPhone ferme l'appli.
@@ -826,12 +830,16 @@ MC.app = (function () {
     var p = parseHash().path, autre = p !== MAJ.chemin;
     MAJ.chemin = p;
     if (!MAJ.attend || !autre) return;
+    majEssais(p, 0);
+  }
+  // quelques essais (le temps que l'écran s'affiche, ou que ses données arrivent), tant qu'on reste sur le même écran
+  function majEssais(p, d) {
     MAJ.essais = 0;
-    setTimeout(function essai() {   // une fois le nouvel écran dessiné
+    setTimeout(function essai() {
       if (!MAJ.attend || MAJ.enCours || parseHash().path !== p) return;
       if (majRecharger() || ++MAJ.essais >= 6) return;
       setTimeout(essai, 700);
-    }, 0);
+    }, d);
   }
   function majRecharger() {
     if (MAJ.enCours) return true;
@@ -853,9 +861,14 @@ MC.app = (function () {
     MAJ.at = now;
     return fetch(location.pathname, { cache: 'no-cache', credentials: 'same-origin' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (html) {
       var m = html.indexOf('MC.app.start') >= 0 && /css\/style\.css\?v=(\d+)/.exec(html);
-      MAJ.v = m ? Number(m[1]) : 0;
-      return MAJ.v > ici ? majRecharger() : false;
-    }, function () { return false; });
+      if (!m) { MAJ.at = 0; return false; }   // pas de réponse utile (réseau pas encore là) : on pourra relire tout de suite
+      MAJ.v = Number(m[1]);
+      if (!(MAJ.v > ici)) return false;
+      if (majRecharger()) return true;
+      // l'écran s'affiche ou charge encore ses données (et seulement ça) : quelques essais
+      if (MAJ.attend && (!painted || document.documentElement.classList.contains('net-busy'))) majEssais(parseHash().path, 700);
+      return false;
+    }, function () { MAJ.at = 0; return false; });
   }
 
   // ---------- Appli « hors ligne » ----------
