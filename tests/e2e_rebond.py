@@ -54,15 +54,26 @@ with sync_playwright() as p:
             pg.evaluate("""() => new Promise(r => { MC.rebond.state.tEnd = Date.now(); MC.rebond.state.touching = false;
                 var max = document.documentElement.scrollHeight - innerHeight, y = Math.max(0, max - 600), mn = 0;
                 // le décalage vertical de la page (translate3d(0, y, 0) ou translateY(y))
-                function ty() { var m = document.getElementById('app').style.transform.match(/translate(?:3d\\(0(?:px)?, |Y\\()(-?[\\d.]+)px/); return m ? parseFloat(m[1]) : 0; }
+                function ty() { var m = getComputedStyle(document.getElementById('app')).transform.match(/matrix\\(1, 0, 0, 1, 0, (-?[\\d.]+)\\)/); return m ? parseFloat(m[1]) : 0; }
                 (function f(){ y = Math.min(max, y + 40); window.scrollTo(0, y); var t = ty(); if (t < mn) mn = t; if (y < max) requestAnimationFrame(f); else { var n = 0; (function g(){ var t2 = ty(); if (t2 < mn) mn = t2; if (++n < 30) requestAnimationFrame(g); else { window.__mn = mn; r(); } })(); } })(); })""")
             mn = pg.evaluate('window.__mn')
             check('élan qui arrive en bas : petit rebond vers le haut', -60 <= mn < -3, mn)
             # le ressort : la vitesse de l'élan, puis retour sans dépasser de l'autre côté
             tr = pg.evaluate("""() => new Promise(res => { var out = []; MC.rebond.spring(0, -1500); var t0 = performance.now();
-                (function f(t){ var m = (document.getElementById('app').style.transform.match(/translate3d\\(0px, (-?[\\d.]+)px/)||[0,0])[1]; out.push(+m); if (t - t0 < 800) requestAnimationFrame(f); else res(out); })(t0); })""")
+                (function f(t){ var m = (getComputedStyle(document.getElementById('app')).transform.match(/matrix\\(1, 0, 0, 1, 0, (-?[\\d.]+)\\)/)||[0,0])[1]; out.push(+m); if (t - t0 < 800) requestAnimationFrame(f); else res(out); })(t0); })""")
             check('ressort : pic proportionné à l\'élan (1500 px/s → 25 à 50 px)', -50 <= min(tr) <= -25, min(tr))
             check('ressort : jamais de l\'autre côté (pas de saccade au retour)', max(tr) <= 0 and tr[-1] == 0, (max(tr), tr[-1]))
+            # (v54) le ressort tourne à part (element.animate), plus image par image dans le script : sur iPad 120 Hz, les images du script restent à 60
+            an = pg.evaluate("""() => { MC.rebond.spring(0, -1500); var app = document.getElementById('app'), bar = app.querySelector('.topbar');
+                var r = { page: app.getAnimations().length, barre: bar ? bar.getAnimations().length : 0, ecrit: app.style.transform, raf: MC.rebond.state.raf }; return r; }""")
+            check('(v54) ressort : joué par l\'animation du navigateur, sur la page et la barre du haut, sans décalage écrit à la main', an['page'] == 1 and an['barre'] == 1 and an['ecrit'] == '', an)
+            pg.wait_for_timeout(900)
+            check('(v54) ressort fini : plus aucune animation, état remis à zéro', pg.evaluate("document.getElementById('app').getAnimations().length === 0 && document.querySelector('#app .topbar').getAnimations().length === 0 && !MC.rebond.state.raf && !MC.rebond.state.anim"))
+            # un doigt posé pendant le ressort : il s'arrête tout de suite
+            pg.evaluate("MC.rebond.spring(0, -1500)"); pg.wait_for_timeout(80)
+            touch(cdp, 'touchStart', W // 2, int(H * 0.5)); pg.wait_for_timeout(40)
+            check('(v54) un doigt pendant le ressort : l\'animation s\'arrête', pg.evaluate("document.getElementById('app').getAnimations().length") == 0 and ty(pg, '#app') == 0)
+            touch(cdp, 'touchEnd', W // 2, int(H * 0.5)); pg.wait_for_timeout(100)
             pg.wait_for_timeout(900)
             check('après l\'élan : la page est revenue', ty(pg, '#app') == 0)
             # en haut d'un écran SANS « tirer pour actualiser » (réglages éduc) : rebond vers le bas

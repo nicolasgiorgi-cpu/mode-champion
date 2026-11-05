@@ -638,20 +638,36 @@ MC.app = (function () {
     root.style.transform = 'translate3d(0,' + x.toFixed(1) + 'px,0)';
     if (EB.bar) EB.bar.style.transform = x < 0 ? 'translate3d(0,' + (-x).toFixed(1) + 'px,0)' : '';
   }
-  // ressort amorti (un léger dépassement, puis immobile) : départ en x (px) avec une vitesse v (px/s)
   // ressort à amortissement critique : x(t) = (x0 + (v0 + w·x0)·t)·e^(−w·t) ; départ en x0 (px), vitesse v0 (px/s)
-  function ebSpring(x0, v0) {
-    if (EB.raf) cancelAnimationFrame(EB.raf);
-    var w = EB_W, b = v0 + w * x0, t0 = performance.now();
-    function step(now) {
-      var t = Math.max(0, (now - t0) / 1000), e = Math.exp(-w * t), x = (x0 + b * t) * e, v = (v0 - w * b * t) * e;
-      if (t > 0.03 && Math.abs(x) < 0.5 && Math.abs(v) < 15) { EB.raf = 0; ebSet(0); return; }
-      ebSet(x);
-      EB.raf = requestAnimationFrame(step);
-    }
-    EB.raf = requestAnimationFrame(step);
+  // (v54) le ressort est calculé d'avance et confié à l'animation du navigateur (element.animate), plus image par image dans le
+  // script : elle tourne à part, à la cadence de l'écran. Sur un écran 120 Hz (iPad Pro), les images du script restent à 60 par
+  // seconde (requestAnimationFrame dans Safari) alors que le défilement natif est à 120 : on sentait une latence en arrivant au bout.
+  function ebAnimFin() {
+    if (EB.anim) { EB.anim.onfinish = null; EB.anim.cancel(); EB.anim = null; }
+    if (EB.animBar) { EB.animBar.cancel(); EB.animBar = null; }
+    EB.raf = 0;
   }
-  function ebStop() { if (EB.raf) { cancelAnimationFrame(EB.raf); EB.raf = 0; } ebSet(0); }
+  function ebSpring(x0, v0) {
+    ebAnimFin();
+    var w = EB_W, b = v0 + w * x0;
+    function pos(t) { return (x0 + b * t) * Math.exp(-w * t); }
+    function vit(t) { return (v0 - w * b * t) * Math.exp(-w * t); }
+    var T = 0.1; while (T < 1.5 && (Math.abs(pos(T)) >= 0.5 || Math.abs(vit(T)) >= 15)) T += 0.02;
+    var bar = root.querySelector('.topbar'), N = Math.max(12, Math.min(48, Math.round(T * 60))), kf = [], kb = [], i, x, recule = false;
+    for (i = 0; i <= N; i++) {
+      x = i === N ? 0 : pos(T * i / N);
+      if (x < -0.1) recule = true;
+      kf.push({ transform: 'translate3d(0,' + x.toFixed(2) + 'px,0)' });
+      kb.push({ transform: 'translate3d(0,' + Math.max(0, -x).toFixed(2) + 'px,0)' });   // la barre du haut reste en place quand la page monte
+    }
+    ebSet(0);   // plus de décalage écrit à la main : l'animation prend le relais dans la même image
+    if (!root.animate) return;
+    EB.anim = root.animate(kf, { duration: T * 1000, easing: 'linear' });
+    if (bar && recule) EB.animBar = bar.animate(kb, { duration: T * 1000, easing: 'linear' });
+    EB.raf = 1;
+    EB.anim.onfinish = ebAnimFin;
+  }
+  function ebStop() { ebAnimFin(); ebSet(0); }
   function ebStart(e) {
     EB.touching = true; EB.track = false; EB.on = false; EB.axis = 0;
     if (!e.touches || e.touches.length !== 1 || ebReduced() || !root) { if (EB.x) ebSpring(EB.x, 0); return; }
@@ -783,7 +799,9 @@ MC.app = (function () {
     try { VV.avant = (JSON.parse(localStorage.getItem('mc-vue') || 'null') || {}).n || 0; } catch (x) { VV.avant = 0; }
     var v = window.visualViewport;
     if (v) { v.addEventListener('resize', vvDemande); v.addEventListener('scroll', vvDemande); }
-    ['resize', 'scroll', 'focusin', 'pageshow', 'orientationchange'].forEach(function (n) { window.addEventListener(n, vvDemande, { passive: true }); });
+    ['resize', 'focusin', 'pageshow', 'orientationchange'].forEach(function (n) { window.addEventListener(n, vvDemande, { passive: true }); });
+    // (v54) rien à faire à chaque image de défilement, sauf si un écart est déjà là : on le suit
+    window.addEventListener('scroll', function () { if (VV.t || VV.b) vvDemande(); }, { passive: true });
     // le clavier se ferme : s'il reste un écart, le geste qu'on voit partout pour remettre iOS d'aplomb, puis on mesure
     window.addEventListener('focusout', function () {
       vvDemande();

@@ -988,27 +988,53 @@ textarea.txt{width:100%;padding:10px 12px;background:#0C1120;border:1px solid va
 .cstep{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--lc)}
 .cnbv{min-width:28px;text-align:center;font:700 22px/1 var(--f-hud)}
 /* (v50) les options d'une compo, et le haut du tableau (options choisies, boutons) */
-.copts{display:flex;flex-direction:column;gap:12px}
-.copt{display:flex;flex-direction:column;gap:6px}
-.copt .mlab{margin:0}
-.copt .opt{min-height:44px}
-.copt>small{color:var(--soft)}
-.cmont{margin-top:2px}
-.cbopt>summary{list-style:none;cursor:pointer;display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px;min-height:44px}
+.obody{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,380px),1fr));background:var(--panel2)}
+.oboite{border:1px solid var(--line2);border-top:0}
+.oli{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0;min-height:52px;padding:4px 14px;border-top:1px solid var(--line)}
+.olab{flex:1;min-width:0;display:flex;align-items:center;font:600 14px/1.2 var(--f-body);color:var(--ink)}
+.olab small{display:block;margin-top:2px;font:400 12px/1.25 var(--f-body);color:var(--dim)}
+.oli .aide-q,.ogarde .aide-q{position:relative;flex:none;margin:0 8px 0 0}
+.oli .aide-q::after,.ogarde .aide-q::after{content:'';position:absolute;inset:-11px}
+.oseg{flex:0 0 min(190px,52%);display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border:1px solid var(--line2)}
+.oseg.court{flex-basis:112px}
+.oseg .opt{min-height:42px;padding:2px 3px;border:1.5px solid transparent;background:none;color:var(--muted);font:700 11px/1.1 var(--f-hud);letter-spacing:.03em}
+.oseg .opt.on{border-color:var(--cyan);background:color-mix(in srgb,var(--cyan) 14%,transparent);color:var(--cyan)}
+.ost{flex:none;display:inline-flex;align-items:center}
+.ost button{width:34px;height:42px;display:flex;align-items:center;justify-content:center;padding:0;background:none;border:1px solid var(--line2);color:var(--muted);cursor:pointer}
+.ost button:disabled{opacity:.38;cursor:default}
+.ost .cnbv{min-width:24px;font-size:17px}
+.oeq{flex-wrap:wrap;gap:4px 3px}
+.oeq .aide-q{margin-right:3px}
+.oeqn{display:inline-flex;align-items:center;gap:4px}
+.oeq .ost button{width:clamp(24px,6.8vw,30px)}
+.oeq .ost .cnbv{min-width:16px}
+.otail{grid-column:1 / -1;display:block;padding-top:0;padding-bottom:0}
+.otail .ctaild>summary{min-height:50px;flex-wrap:nowrap}
+.otail .ctsum{flex:none;font-size:12px}
+.otail .ctaild>summary .lnk{min-height:0;padding:6px 0 6px 4px}
+/* (v54, O1) la section Options : un seul cadre, le même plié et déplié */
+.cbopt{background:var(--panel);border:1px solid var(--line3);border-top:3px solid var(--cyan)}
+.cbopt>summary{list-style:none;cursor:pointer;display:flex;align-items:center;flex-wrap:wrap;column-gap:10px;min-height:50px;padding:3px 6px 3px 14px}
 .cbopt>summary::-webkit-details-marker{display:none}
-.cbopt>summary .mlab{margin:0}
-.cbopt .cbsum{flex:1 1 100%;order:2;font:600 13px/1.35 var(--f-body);color:var(--ink)}
-.cbopt .cbdiff{flex-basis:100%;order:3;font:600 12px/1.3 var(--f-body);color:var(--gold)}
-.cbopt>summary .lnk{margin-left:auto;order:1;min-height:0;padding:4px}
-.cbopt[open]>summary .lnk{display:none}
-.cbin{display:flex;flex-direction:column;gap:12px;margin-top:10px}
+.ott{flex:1;font:700 13px/1 var(--f-hud);letter-spacing:.14em;text-transform:uppercase;color:var(--ink)}
+.oac{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 8px;font:600 12px/1 var(--f-hud);letter-spacing:.06em;text-transform:uppercase;color:var(--cyan)}
+.oac svg{flex:none}
+.oac-d{display:none}
+.cbopt[open] .oac-d{display:inline}
+.cbopt[open] .oac-p{display:none}
+.cbopt[open] .oac svg{transform:rotate(180deg)}
+.cbopt .cbsum{flex:1 1 100%;padding:0 8px 9px 0;font:600 13px/1.35 var(--f-body);color:var(--soft)}
+.cbopt[open] .cbsum{display:none}
+.cbopt .cbdiff{flex:1 1 100%;padding:0 8px 9px 0;font:600 12px/1.3 var(--f-body);color:var(--gold)}
+.ofoot{display:flex;flex-direction:column;align-items:stretch;gap:4px;padding:12px 14px 6px;border-top:1px solid var(--line3)}
+.ogarde{display:flex;align-items:center;justify-content:center}
+.ogarde .lnk:disabled{opacity:.38;cursor:default}
 .ctop{justify-content:space-between}
 .ctop .cact{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-left:auto}
 /* (v49) les joueurs par équipe */
 .ctaild>summary{list-style:none;cursor:pointer;display:flex;align-items:center;flex-wrap:wrap;gap:4px 12px;min-height:44px}
 .ctaild>summary::-webkit-details-marker{display:none}
 .ctaild>summary .h2{margin:0}
-.cbin .ctaild>summary .h2{font:600 11px/1.2 var(--f-hud);letter-spacing:.14em;color:var(--dim)}
 .ctaild .ctsum{font:600 13px/1.3 var(--f-hud);color:var(--soft)}
 .ctaild>summary .lnk{margin-left:auto}
 .ctaild[open]>summary .lnk{display:none}
@@ -1137,7 +1163,6 @@ body:has(.cdock .cselp) .toast{top:calc(74px + var(--safe-t) + var(--vvt));botto
 .cfl.cop-no{color:var(--faint)}
 .cfl.cpas{color:var(--violet)}
 .cfl.cq{color:var(--orange)}
-.cpj.warn{border-left:3px solid var(--orange)}
 .cpj.moved{box-shadow:0 0 0 2px var(--yellow) inset}
 .cpj.sel{border-color:var(--cyan);background:rgba(56,232,255,.16);box-shadow:0 0 0 2px var(--cyan),0 0 16px rgba(56,232,255,.35)}
 .calerts .li{min-height:44px;align-items:center}
@@ -1212,6 +1237,10 @@ span.tlv,span.tpas{display:inline-flex;align-items:center;justify-content:center
 .pshield.zero .ps-c{stroke:#4A5578}
 .pshield.zero b{color:var(--soft)}
 /* (v46) pas encore évalué : un bouclier vide, en pointillé, sans chiffre (0 est un niveau) */
+/* (v54) sous le repère de son équipe : rouge rosé (le bouclier normal est rose) */
+.pshield.sous .ps-a{fill:#F4284B}
+.pshield.sous .ps-b{fill:#B5142F}
+.pshield.sous .ps-c{stroke:#FF8A9B}
 .pshield.vide .ps-a,.pshield.vide .ps-b{fill:none}
 .pshield.vide .ps-c{stroke:var(--dim);stroke-dasharray:6 5}
 /* (v46) une aide discrète « ? » : tenir le doigt dessus montre la description */

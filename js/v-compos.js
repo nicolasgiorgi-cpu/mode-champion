@@ -105,15 +105,16 @@ window.MC = window.MC || {};
   // (v43) le plaquage : un bouclier (la forme de l'icône de la carte Skills « Plaquage ») avec le niveau dedans, de 0 à 3 (v44 ; avant : de 0 à 5)
   // (avant : 5 étoiles). big : true = grand (la fiche d'un enfant), 'mini' = petit (les tuiles des compos).
   // (v46) null = pas encore évalué : un bouclier vide (contour pointillé) ; 0 est un niveau, comme 1, 2 et 3
-  function bouclier(n, big) {
+  // sous : (v54) sous le repère de son équipe, le bouclier passe en rouge rosé
+  function bouclier(n, big, sous) {
     var vide = n === null || n === undefined || n === '';
     n = vide ? '' : Math.max(0, Math.min(3, Math.round(Number(n) || 0)));
-    var lab = vide ? 'Plaquage : pas encore évalué' : 'Plaquage : ' + n + ' sur 3';
-    return '<span class="pshield' + (vide ? ' vide' : '') + (big === 'mini' ? ' mini' : big ? ' grand' : '') + '" role="img" aria-label="' + lab + '" title="' + lab + '">' +
+    var lab = vide ? 'Plaquage : pas encore évalué' : 'Plaquage : ' + n + ' sur 3' + (sous ? ', sous le repère de son équipe' : '');
+    return '<span class="pshield' + (vide ? ' vide' : '') + (sous && !vide ? ' sous' : '') + (big === 'mini' ? ' mini' : big ? ' grand' : '') + '" role="img" aria-label="' + lab + '" title="' + lab + '">' +
       '<svg viewBox="14 4 72 88" aria-hidden="true"><path class="ps-a" d="M50 8 82 21V48Q80 71 50 87Q20 71 18 48V21Z"/><path class="ps-b" d="M50 8 82 21V48Q80 71 50 87Z"/><path class="ps-c" d="M50 8 82 21V48Q80 71 50 87Q20 71 18 48V21Z"/></svg><b>' + n + '</b></span>';
   }
   MC.bouclier = bouclier;
-  function starsMini(n) { return bouclier(n, 'mini'); }
+  function starsMini(n, sous) { return bouclier(n, 'mini', sous); }
   function virg(x) { return String(x).replace('.', ','); }
   // jour (local) d'un horodatage ISO
   function localDay(iso) {
@@ -660,21 +661,41 @@ window.MC = window.MC || {};
     effectifs: ['Joueurs par équipe', { equilibre: ['Équilibrés', 'À un joueur près ; « Ajuster » pour les régler équipe par équipe.'], niveaux: ['Suivre les niveaux', 'Personne ne change de niveau, sauf les passerelles.'] }],
     passerelles: ['Passerelles', { tour: ['À leur tour', 'Elles comblent les manques, à tour de rôle.'], aucune: ['Aucune', 'Chacun dans son niveau.'] }],
     change: ['Pour équilibrer, qui change de niveau', { plaquage: ['Selon le plaquage', 'Les moins avancés descendent, les meilleurs montent.'], tour: ['Chacun son tour', 'Quel que soit le plaquage.'] }],
-    copains: ['Copains', { un: ['Un copain pour chacun', 'Quand c\'est possible, le plaquage d\'abord.'], dabord: ['Copains d\'abord', 'Chacun avec ses copains en priorité.'] }]
+    copains: ['Copains', { un: ['Un copain pour chacun', 'Quand c\'est possible, le plaquage d\'abord.', 'Un pour chacun'], dabord: ['Copains d\'abord', 'Chacun avec ses copains en priorité.'] }]
   };
-  // les options, en boutons ; A : { o: attribut des choix (data-k et data-v), m: attribut du nombre de passerelles qui montent (data-d) }
-  function optionsHtml(reg, ids, F, A) {
+  var OPT_LIGNE = { effectifs: 'Effectifs', change: 'Qui change de niveau' };   // le nom de la ligne, quand celui des choix est trop long
+  // (v54, choix O1 de Nicolas) une ligne par option : un « ? » au début (la règle appliquée), le nom, les choix à droite
+  function ligneOpt(aide, label, sous, droite, cls) {
+    return '<div class="oli' + (cls ? ' ' + cls : '') + '"><span class="olab">' + aideHtml(aide, 'La règle : ' + label) + '<span>' + label + (sous ? '<small>' + sous + '</small>' : '') + '</span></span>' + droite + '</div>';
+  }
+  function compteur(attr, val, min, max, labMoins, labPlus) {
+    return '<span class="ost"><button type="button" ' + attr + '="-1" aria-label="' + labMoins + '"' + (val <= min ? ' disabled' : '') + '>' + icon('minus', 14) + '</button><output class="cnbv">' + val + '</output>' +
+      '<button type="button" ' + attr + '="1" aria-label="' + labPlus + '"' + (val >= max ? ' disabled' : '') + '>' + icon('plus', 14) + '</button></span>';
+  }
+  // A : { o: attribut des choix (data-k et data-v), m: attribut du nombre de passerelles qui montent (data-d), apres: { option: html à mettre juste après sa ligne } }
+  function optionsLignes(reg, ids, F, A) {
     var o = K.optsDe(reg), nbA = nbAEff(reg), nPas = nPasA(ids, F, reg);
-    return '<div class="copts">' + ['orga', 'effectifs', 'passerelles', 'change', 'copains'].map(function (k) {
+    return ['orga', 'effectifs', 'passerelles', 'change', 'copains'].map(function (k) {
       // « qui change de niveau » sert à équilibrer les effectifs, et à choisir le Confirmé qui laisse sa place aux montées
       if (k === 'change' && o.effectifs === 'niveaux' && !(o.montees && nbA)) return '';
       var T = OPT_TXT[k];
-      return '<div class="copt"><span class="mlab">' + T[0] + '</span><div class="grid2">' + Object.keys(T[1]).map(function (v) {
-        return '<button type="button" class="opt' + (o[k] === v ? ' on' : '') + '" aria-pressed="' + (o[k] === v) + '" ' + A.o + '="' + k + '" data-v="' + v + '">' + T[1][v][0] + '</button>';
-      }).join('') + '</div><small class="small">' + T[1][o[k]][1] + '</small>' +
-        (k === 'passerelles' && o.passerelles === 'tour' && nbA ? '<div class="cstep cmont" style="--lc:' + K.COUL_NIV.A + '"><span><b>Montent en A</b><small class="small" style="display:block">par équipe A, à leur tour, sans regarder le plaquage (un Confirmé descend en échange) · ' + nPas + ' présent' + (nPas > 1 ? 's' : '') + ' avec ⇅A</small></span>' +
-          '<span class="row" style="gap:6px"><button type="button" class="ibtn" ' + A.m + '="-1" aria-label="Une passerelle de moins"' + (o.montees <= 0 ? ' disabled' : '') + '>' + icon('minus', 18) + '</button><output class="cnbv">' + o.montees + '</output>' +
-          '<button type="button" class="ibtn" ' + A.m + '="1" aria-label="Une passerelle de plus"' + (o.montees >= 3 ? ' disabled' : '') + '>' + icon('plus', 18) + '</button></span></div>' : '') + '</div>';
+      return ligneOpt('o-' + k, OPT_LIGNE[k] || T[0], '', '<div class="oseg">' + Object.keys(T[1]).map(function (v) {
+        return '<button type="button" class="opt' + (o[k] === v ? ' on' : '') + '" aria-pressed="' + (o[k] === v) + '" ' + A.o + '="' + k + '" data-v="' + v + '">' + (T[1][v][2] || T[1][v][0]) + '</button>';
+      }).join('') + '</div>') +
+        (A.apres && A.apres[k] || '') +
+        (k === 'passerelles' && o.passerelles === 'tour' && nbA ? ligneOpt('o-montees', 'Montent en A', 'par équipe A · ' + nPas + ' présent' + (nPas > 1 ? 's' : '') + ' avec ⇅A',
+          compteur(A.m, o.montees, 0, 3, 'Une passerelle de moins', 'Une passerelle de plus'), 'cmont') : '');
+    }).join('');
+  }
+  function optionsHtml(reg, ids, F, A) { return '<div class="obody oboite">' + optionsLignes(reg, ids, F, A) + '</div>'; }
+  // les deux premières lignes de la section du haut d'une compo : le format et les équipes
+  function ligneFormat(reg) {
+    return ligneOpt('o-format', 'Jeu à', '', '<div class="oseg court">' + K.FORMATS.map(function (f) { return '<button type="button" class="opt' + (reg.format === f ? ' on' : '') + '" aria-pressed="' + (reg.format === f) + '" data-act="cFmt" data-v="' + f + '">' + f + '</button>'; }).join('') + '</div>');
+  }
+  function ligneEquipes(reg) {
+    return '<div class="oli oeq">' + aideHtml('o-equipes', 'La règle : les équipes') + K.NIV.map(function (n) {
+      return '<span class="oeqn"><span class="cniv" style="--lc:' + K.COUL_NIV[n] + ';--s:18px" title="' + K.NOM_NIV[n] + '">' + n + '</span>' +
+        compteur('data-act="cNb" data-n="' + n + '" data-d', reg.nb[n], 0, 6, 'Une équipe ' + n + ' de moins', 'Une équipe ' + n + ' de plus') + '</span>';
     }).join('') + '</div>';
   }
   // changer une option (réglages, fenêtre Réglages, panneau du tableau)
@@ -709,13 +730,13 @@ window.MC = window.MC || {};
     var t = taillesReg(ids, F, reg), s = 0; K.idsEquipes(reg).forEach(function (id) { s += t[id]; });
     return ids.length - s;
   }
-  function taillesHtml(ids, F, reg, attr, attrEq) {
+  function taillesHtml(ids, F, reg, attr, attrEq, ligne) {
     if (K.optsDe(reg).effectifs === 'niveaux') return '';   // (v50) « Suivre les niveaux » : dit dans les options
     var tids = K.idsEquipes(reg), t = taillesReg(ids, F, reg), s = 0, def = K.taillesDefaut(ids, F, reg), modif = false;
     tids.forEach(function (id) { s += t[id]; if (t[id] !== def[id]) modif = true; });
     if (!tids.length) return '';
     var d = ids.length - s, ouvert = modif || d;
-    return '<section class="sec"><details class="ctaild"' + (ouvert ? ' open' : '') + '><summary><span class="h2">Joueurs par équipe</span><span class="ctsum">' +
+    return (ligne ? '<div class="oli otail">' : '<section class="sec">') + '<details class="ctaild"' + (ouvert ? ' open' : '') + '><summary>' + (ligne ? '<span class="olab">' + aideHtml('o-tailles', 'La règle : les joueurs par équipe') + '<span>Joueurs</span></span>' : '<span class="h2">Joueurs par équipe</span>') + '<span class="ctsum">' +
       tids.map(function (id) { return '<b style="color:' + K.COUL_NIV[id.charAt(0)] + '">' + id + '</b> ' + t[id]; }).join(' · ') + '</span><span class="lnk">Ajuster</span></summary><div class="ctails">' + tids.map(function (id) {
       return '<div class="ctail" style="--lc:' + K.COUL_NIV[id.charAt(0)] + '"><b>' + id + '</b><span class="row" style="gap:4px">' +
         '<button type="button" class="ibtn" ' + attr + '="' + id + '" data-d="-1" aria-label="' + id + ' : un joueur de moins"' + (t[id] <= 0 ? ' disabled' : '') + '>' + icon('minus', 16) + '</button>' +
@@ -723,7 +744,7 @@ window.MC = window.MC || {};
         '<button type="button" class="ibtn" ' + attr + '="' + id + '" data-d="1" aria-label="' + id + ' : un joueur de plus"' + (t[id] >= 40 ? ' disabled' : '') + '>' + icon('plus', 16) + '</button></span></div>';
     }).join('') + '</div><p class="small ctailp" style="margin:0' + (d ? ';color:var(--orange)' : '') + '">' +
       (d > 0 ? 'Il reste ' + d + ' enfant' + (d > 1 ? 's' : '') + ' à placer : ' : d < 0 ? (-d) + ' place' + (-d > 1 ? 's' : '') + ' de trop : ' : '') + s + ' joueurs pour ' + ids.length + ' présents' +
-      (!d && !modif ? ', équipes équilibrées' : '') + '.' + (modif ? ' <button type="button" class="lnk" ' + attrEq + '>Équilibrer</button>' : '') + '</p></details></section>';
+      (!d && !modif ? ', équipes équilibrées' : '') + '.' + (modif ? ' <button type="button" class="lnk" ' + attrEq + '>Équilibrer</button>' : '') + '</p></details>' + (ligne ? '</div>' : '</section>');
   }
   function paintReglages(C, e) {
     var ids = presentsOf(C, e), reg = regOf(C, e), cnt = { A: 0, B: 0, C: 0, '': 0 };
@@ -993,7 +1014,9 @@ window.MC = window.MC || {};
     var lv = t && t.niveau && f.niveau && f.niveau !== t.niveau ? '<span class="cfl cpas" style="color:' + K.COUL_NIV[f.niveau] + '" title="Joue hors de son niveau (' + f.niveau + ')">' + (K.NIV.indexOf(t.niveau) < K.NIV.indexOf(f.niveau) ? '↑' : '↓') + f.niveau + '</span>' : '';
     // (v48) « A forte » : un Débutant dans une équipe B n'est pas marqué sous le repère B (comme dans « À regarder »)
     var horsAF = !d.reglages.partie && K.optsDe(d.reglages).orga === 'aforte' && t && t.niveau === 'B' && f.niveau !== 'B';
-    var warn = t && (!f.niveau || (!d.reglages.partie && !horsAF && f.plaquage !== null && f.plaquage !== undefined && f.plaquage < (K.SEUIL[t.niveau] || 0)));
+    // (v54, demande de Nicolas) plus de barre orange : le plaquage sous le repère de l'équipe se voit sur le bouclier, en rouge rosé ;
+    // pas aux entraînements ; un enfant sans niveau garde son « ? »
+    var sousRep = !!t && !d.reglages.partie && !horsAF && f.plaquage !== null && f.plaquage !== undefined && f.plaquage !== '' && f.plaquage < (K.SEUIL[t.niveau] || 0);
     var ty = K.typeDe(f), tag;
     if (t && d.reglages.format === 10) tag = j.poste ? '<span class="cpo">' + COURT[j.poste] + '</span>' : !K.postesDe(f).length ? '<span class="cpo csp" title="Aucun poste sur sa fiche : à régler">Sans poste</span>' : '<span class="cpo none">Remp.</span>';
     else if (t) { var pp = K.posteDefaut(f); tag = pp ? '<span class="cpo ty" title="Poste principal (fiche)' + (ty === 'les2' ? ', joue aussi ' + (K.typePoste(pp) === 'av' ? 'arrière' : 'avant') : '') + '">' + (ty === 'les2' ? '⇄ ' : '') + COURT[pp] + '</span>' : ''; }
@@ -1001,8 +1024,8 @@ window.MC = window.MC || {};
     var on = B && B.sel && B.sel.v === v && B.sel.id === j.id;
     // réponse Spond : en attente (horloge) ou plus là (barré, « absent »)
     var att = ATT && ATT.att[j.id], gone = ATT && t && !ATT.pres[j.id] && !att;
-    return '<li><button type="button" class="cpj' + (on ? ' sel' : '') + (moved ? ' moved' : '') + (warn ? ' warn' : '') + (gone ? ' gone' : '') + '" data-act="cPick" data-v="' + v + '" data-id="' + esc(j.id) + '" aria-pressed="' + !!on + '">' +
-      '<span class="cpn">' + esc(f.prenom) + '</span>' + (gone ? '<span class="cpo cabs">absent</span>' : tag) + '<span class="row cfls">' + (att ? '<span class="cfl catt" title="Pas encore répondu sur Spond">' + icon('clock', 12) + '</span>' : '') + starsMini(f.plaquage) + lv + heart + (f.niveau ? '' : '<span class="cfl cq" title="Niveau à renseigner">?</span>') + '</span></button></li>';
+    return '<li><button type="button" class="cpj' + (on ? ' sel' : '') + (moved ? ' moved' : '') + (gone ? ' gone' : '') + '" data-act="cPick" data-v="' + v + '" data-id="' + esc(j.id) + '" aria-pressed="' + !!on + '">' +
+      '<span class="cpn">' + esc(f.prenom) + '</span>' + (gone ? '<span class="cpo cabs">absent</span>' : tag) + '<span class="row cfls">' + (att ? '<span class="cfl catt" title="Pas encore répondu sur Spond">' + icon('clock', 12) + '</span>' : '') + starsMini(f.plaquage, sousRep) + lv + heart + (f.niveau ? '' : '<span class="cfl cq" title="Niveau à renseigner">?</span>') + '</span></button></li>';
   }
   // le banc d'une version : « Pas placés » + les présents arrivés après la compo (venus sans répondre…)
   function bancOf(d, presents) {
@@ -1141,7 +1164,7 @@ window.MC = window.MC || {};
       '<div class="head"><span class="kicker" style="color:var(--gold)">' + esc(quand(e)) + ' · ' + presents.length + ' présents' + (P ? '' : ' · jeu à ' + fmt) + '</span><h1 class="big sm">' + (P ? NOM_PARTIE[P] : 'La compo') + '</h1></div>' +
       (P ? stepsHtml(C, e, P) : '') + state + topHtml(C, e, c) + avBlock + cmp +
       '<p class="small" style="margin:0">' + (ed ? 'Touchez un joueur, puis son ' + (P === 'ateliers' ? 'groupe' : 'équipe') + ' d\'arrivée (ou un joueur d\'' + (P === 'ateliers' ? 'un autre groupe' : 'une autre équipe') + ' : ils s\'échangent). Pour ' + (P === 'ateliers' ? 'remplir un groupe' : 'composer une équipe') + ', touchez son nom' + (fmt === 10 ? ' ou une place vide (+)' : ' ou « + Ajouter des joueurs »') + '.' + (nv > 1 ? ' Chaque version se modifie à part.' : '') : 'Touchez un joueur pour voir sa fiche.') + (communes ? ' <b style="color:var(--yellow)">Entourés</b> : placés autrement d\'une version à l\'autre.' : '') + '</p>' +
-      '<p class="small clegend"><span>' + icon('shieldavg', 12) + ' plaquage moyen</span><span>' + icon('shieldok', 12) + ' bons plaqueurs</span><span>' + icon('heart', 11) + ' avec un copain</span><span>⇅ hors niveau</span><span>Av avants · Ar arrières</span></p>' +
+      '<p class="small clegend"><span>' + icon('shieldavg', 12) + ' plaquage moyen</span><span>' + icon('shieldok', 12) + ' bons plaqueurs</span><span>' + icon('heart', 11) + ' avec un copain</span><span>⇅ hors niveau</span>' + (P ? '' : '<span>' + bouclier(2, 'mini', true) + ' sous le repère de l\'équipe</span>') + '<span>Av avants · Ar arrières</span></p>' +
       boardHtml(C, { vs: vs, presents: presents, attente: att, moved: moved, ed: ed }) +
       '<section class="sec">' + vs.map(function (d, v) { return alertesHtml(C, d, v, presents, nv, att); }).join('') + '</section>' +
       rsAll + hist + avHist + suite +
@@ -1173,15 +1196,13 @@ window.MC = window.MC || {};
       var ids = presentsOf(C, e), d0 = B.vs[0];
       if (!B.reg) B.reg = regDe(d0.reglages);
       var reg = B.reg, ok = !ecartTailles(ids, C.F, reg) && K.idsEquipes(reg).length, diff = cleReg(reg) !== cleReg(d0.reglages), gk = garderChange(d0.reglages, reg);
-      html += '<details class="box cbopt"' + (B.optOuvert ? ' open' : '') + '><summary><span class="mlab">Options</span><span class="cbsum">' + esc(resumeOpts(reg, ids, C.F)) + '</span>' +
-        (diff ? '<span class="cbdiff">Pas encore appliquées : « Générer une nouvelle compo »</span>' : '') + '<span class="lnk">Modifier</span></summary><div class="cbin">' +
-        '<div class="grid2">' + K.FORMATS.map(function (f) { return '<button type="button" class="opt' + (reg.format === f ? ' on' : '') + '" aria-pressed="' + (reg.format === f) + '" data-act="cFmt" data-v="' + f + '">Jeu à ' + f + '</button>'; }).join('') + '</div>' +
-        K.NIV.map(function (n) { return stepperHtml(n, reg, null, null, 'data-act="cNb" data-n'); }).join('') +
-        optionsHtml(reg, ids, C.F, { o: 'data-act="cOpt" data-k', m: 'data-act="cMont" data-d' }) +
-        taillesHtml(ids, C.F, reg, 'data-act="cTail" data-t', 'data-act="cTailEq"') +
-        '<button type="button" class="btn" data-act="cRegen"' + (ok ? '' : ' disabled') + '>' + icon('refresh', 18) + ' Générer une nouvelle compo</button>' +
-        '<button type="button" class="btn2" data-act="cKeep"' + (gk ? '' : ' disabled') + '>Garder mes placements</button>' +
-        '<p class="small" style="margin:0">« Générer » remplace la compo (« Annuler » la fait revenir) ; « Garder mes placements » change seulement le format et les équipes, sans toucher aux joueurs (ceux d\'une équipe enlevée passent en « Pas placés ») ; les autres options attendent « Générer ». Ensuite : ' + (B.mode === 'draft' ? '« Publier »' : '« Enregistrer »') + '.</p></div></details>';
+      // (v54, O1) une seule section, le même cadre pliée et dépliée ; l'en-tête ne bouge pas, « Modifier » devient « Replier »
+      html += '<details class="cbopt"' + (B.optOuvert ? ' open' : '') + '><summary><span class="ott">Options</span><span class="oac"><span class="oac-p">Modifier</span><span class="oac-d">Replier</span>' + icon('down', 16) + '</span><span class="cbsum">' + esc(resumeOpts(reg, ids, C.F)) + '</span>' +
+        (diff ? '<span class="cbdiff">Pas encore appliquées : « Générer une nouvelle compo »</span>' : '') + '</summary>' +
+        '<div class="obody">' + ligneFormat(reg) + ligneEquipes(reg) +
+        optionsLignes(reg, ids, C.F, { o: 'data-act="cOpt" data-k', m: 'data-act="cMont" data-d', apres: { effectifs: taillesHtml(ids, C.F, reg, 'data-act="cTail" data-t', 'data-act="cTailEq"', true) } }) + '</div>' +
+        '<div class="ofoot"><button type="button" class="btn" data-act="cRegen"' + (ok ? '' : ' disabled') + '>' + icon('refresh', 18) + ' Générer une nouvelle compo</button>' +
+        '<span class="ogarde">' + aideHtml('o-garder', 'La règle : générer ou garder mes placements') + '<button type="button" class="lnk" data-act="cKeep"' + (gk ? '' : ' disabled') + '>Garder mes placements</button></span></div></details>';
     }
     var act = '';
     if (B.mode === 'draft' && nv === 1) act = '<button type="button" class="btn sm" data-act="cPublish" data-v="0">' + icon('send', 16) + ' Publier</button>';
@@ -2047,6 +2068,15 @@ window.MC = window.MC || {};
       '<li><b>3</b> : engage l\'épaule et fait tomber l\'adversaire rapidement</li></ul>' +
       '<span>Bouclier vide : pas encore évalué.</span>'
   };
+  // (v54) les règles des options de compo, une par ligne
+  ['orga', 'effectifs', 'passerelles', 'change', 'copains'].forEach(function (k) {
+    AIDES['o-' + k] = Object.keys(OPT_TXT[k][1]).map(function (v) { return '<b>' + OPT_TXT[k][1][v][0] + '</b> : ' + OPT_TXT[k][1][v][1]; }).join('<br>');
+  });
+  AIDES['o-format'] = '<b>Jeu à 5</b> : pas de postes dans la compo ; l\'appli range quand même chaque équipe en avants et arrières, d\'après le poste principal de leur fiche.<br><b>Jeu à 10</b> : chaque joueur a son poste du plateau, par défaut celui de sa fiche.';
+  AIDES['o-equipes'] = 'Le nombre d\'équipes de chaque niveau : A Confirmés, B Débrouillés, C Débutants. Un niveau sans équipe joue dans le niveau voisin.';
+  AIDES['o-montees'] = 'Combien de passerelles montent en A, par équipe A : à leur tour, sans regarder le plaquage. Un Confirmé descend en échange si l\'équipe est pleine.';
+  AIDES['o-tailles'] = 'Le nombre de joueurs de chaque équipe : équilibré à un joueur près. « Ajuster » pour le régler équipe par équipe ; le total doit faire le nombre de présents.';
+  AIDES['o-garder'] = '<b>Générer</b> remplace la compo (« Annuler » la fait revenir).<br><b>Garder mes placements</b> change seulement le format et les équipes, sans toucher aux joueurs : ceux d\'une équipe enlevée passent en « Pas placés ». Les autres options attendent « Générer ».';
   // le texte est aussi dans la page, masqué, relié au « ? » (lecteur d'écran) ; la bulle : doigt posé (tenir) ou toucher court (reste ouverte
   // jusqu'au toucher suivant), clavier (Entrée / Espace ; Échap ou quitter le bouton la ferme)
   function aideHtml(k, label) { return ' <button type="button" class="aide-q" data-aide="' + k + '" data-noptr aria-label="' + esc(label) + '" aria-describedby="aide-t-' + k + '">?</button><span hidden id="aide-t-' + k + '">' + (AIDES[k] || '').replace(/<[^>]+>/g, ' ') + '</span>'; }
@@ -2075,6 +2105,7 @@ window.MC = window.MC || {};
   document.addEventListener('pointercancel', function () { if (aideTenu) { aideTenu = null; aideFerme(); } });
   document.addEventListener('click', function (e) {
     var q = e.target.closest && e.target.closest('.aide-q'); if (!q) return;
+    if (q.closest('summary')) e.preventDefault();   // (v54) le « ? » dans une ligne qui se déplie : il ne la déplie pas
     if (e.detail === 0) { if (q.classList.contains('ouvert')) aideFerme(); else aideOuvre(q); }   // clavier : Entrée / Espace
   });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && document.querySelector('.aide-bulle')) aideFerme(); });
