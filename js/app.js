@@ -760,7 +760,7 @@ MC.app = (function () {
   function vvNote(e) {
     VV.n++;
     var v = vvSource() || {};
-    try { localStorage.setItem('mc-vue', JSON.stringify({ n: VV.n + (VV.avant || 0), haut: e.t, bas: e.b, vue: Math.round(v.height || 0), fen: window.innerHeight, le: new Date().toISOString().slice(0, 16) })); } catch (x) { }
+    try { localStorage.setItem('mc-vue', JSON.stringify({ n: VV.n + (VV.avant || 0), haut: e.t, bas: e.b, vue: Math.round(v.height || 0), fen: window.innerHeight, le: new Date().toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) })); } catch (x) { }
   }
   function vvMesure() {
     VV.raf = 0;
@@ -798,7 +798,7 @@ MC.app = (function () {
   MC.vueInfo = function () {
     var d = null; try { d = JSON.parse(localStorage.getItem('mc-vue') || 'null'); } catch (x) { }
     if (!d || !d.n) return '';
-    return 'Écran décalé, barre recalée ' + d.n + ' fois (haut ' + d.haut + ', bas ' + d.bas + ', vue ' + d.vue + ', fenêtre ' + d.fen + ', ' + d.le.replace('T', ' à ') + ')' + (VV.t || VV.b ? ' · en cours' : '');
+    return 'Écran décalé, barre recalée ' + d.n + ' fois (haut ' + d.haut + ', bas ' + d.bas + ', vue ' + d.vue + ', fenêtre ' + d.fen + ', ' + d.le + ')' + (VV.t || VV.b ? ' · en cours' : '');
   };
 
   // ---------- Événements ----------

@@ -124,6 +124,7 @@ with sync_playwright() as p:
     check('zone visible plus grande que la fenêtre : la barre descend', abs(rect(pg, '#nav')['b'] - (IH + 200)) < 1.5, rect(pg, '#nav'))
     fake(pg, 300); pg.wait_for_timeout(150)
     # la relance (un mini-défilement) : seulement s'il y a un écart, et la position ne change pas
+    pg.wait_for_timeout(450)   # la relance d'avant (le champ retiré juste au-dessus) est passée
     pg.evaluate("(function(){window.__rel=0;var o=window.scrollTo;window.scrollTo=function(){window.__rel++;return o.apply(window,arguments)}})()")
     y1 = pg.evaluate('scrollY')
     fake(pg, 300); pg.evaluate("(function(){var i=document.createElement('input');i.id='essai-champ';document.body.appendChild(i);i.focus();i.blur();i.remove()})()"); pg.wait_for_timeout(700)
@@ -137,7 +138,7 @@ with sync_playwright() as p:
     check('sans événement : le relevé régulier voit que c\'est fini', abs(rect(pg, '#nav')['b'] - IH) < 1)
     # dans Réglages : la ligne n'apparaît que si c'est déjà arrivé
     pg.goto(BASE + '#/educ/reglages'); pg.wait_for_timeout(700)
-    check('Réglages : le décalage est dit, avec le nombre de fois', 'recalée 2 fois' in pg.inner_text('main'), pg.inner_text('main')[-200:])
+    check('Réglages : le décalage est dit, avec le nombre de fois et les hauteurs', 'recalée 3 fois' in pg.inner_text('main') and 'fenêtre %d' % IH in pg.inner_text('main'), pg.inner_text('main')[-200:])
     pg.evaluate("localStorage.removeItem('mc-vue')"); pg.goto(BASE + '#/educ/entrainements'); pg.wait_for_timeout(500); pg.goto(BASE + '#/educ/reglages'); pg.wait_for_timeout(700)
     check('Réglages : rien si jamais arrivé', 'recalée' not in pg.inner_text('main'))
     check('pas de défilement de côté', pg.evaluate('document.scrollingElement.scrollWidth <= innerWidth + 1'))
