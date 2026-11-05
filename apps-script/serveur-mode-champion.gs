@@ -1901,6 +1901,13 @@ var Core = (function () {
     var reglages = { format: Number(r.format) === 10 ? 10 : 5, nb: nb };
     // (v48) le style de la proposition du plateau est gardé (« A forte » : les alertes en tiennent compte)
     if (!partie && ['equilibre', 'copains', 'strict', 'aforte'].indexOf(r.style) >= 0) reglages.style = r.style;
+    // (v50) les options de la compo (voir optsDe dans js/compos.js)
+    if (!partie && r.opts && typeof r.opts === 'object') {
+      var OK = { orga: ['niveau', 'aforte'], effectifs: ['equilibre', 'niveaux'], passerelles: ['tour', 'aucune'], change: ['plaquage', 'tour'], copains: ['un', 'dabord'] }, op = {};
+      Object.keys(OK).forEach(function (k) { if (OK[k].indexOf(r.opts[k]) >= 0) op[k] = r.opts[k]; });
+      var mt = Math.floor(Number(r.opts.montees)); if (mt >= 0 && mt <= 3) op.montees = mt;
+      if (Object.keys(op).length) reglages.opts = op;
+    }
     // (v49) les joueurs voulus par équipe (pour refaire la proposition) : A1…C9, de 0 à 40
     if (!partie && r.tailles && typeof r.tailles === 'object') {
       var tl = {}; Object.keys(r.tailles).slice(0, 18).forEach(function (k) { var v = Math.floor(Number(r.tailles[k])); if (/^[ABC][1-9]$/.test(k) && v >= 0 && v <= 40) tl[k] = v; });

@@ -632,6 +632,7 @@ window.MC = window.MC || {};
     var last = C.cd.compos.filter(function (c) { return c.statut === 'publiee' && !c.partie; }).sort(function (a, b) { return a.maj < b.maj ? 1 : -1; })[0];   // (v35) pas un match d'entraînement
     if (last && last.reglages && last.reglages.format) format = last.reglages.format;
     B.reg = { format: format, nb: K.suggestNb(ids, C.F, format), style: 'equilibre' };
+    B.reg.opts = optsDefaut(ids, C.F, B.reg);
     return B.reg;
   }
   function stepperHtml(n, reg, cnt, sug, attr) {
@@ -640,11 +641,61 @@ window.MC = window.MC || {};
       '<span class="row" style="gap:6px"><button type="button" class="ibtn" ' + attr + '="' + n + '" data-d="-1" aria-label="Une équipe ' + n + ' de moins"' + (reg.nb[n] <= 0 ? ' disabled' : '') + '>' + icon('minus', 18) + '</button>' +
       '<output class="cnbv">' + reg.nb[n] + '</output><button type="button" class="ibtn" ' + attr + '="' + n + '" data-d="1" aria-label="Une équipe ' + n + ' de plus"' + (reg.nb[n] >= 6 ? ' disabled' : '') + '>' + icon('plus', 18) + '</button></span></div>';
   }
-  function stylesHtml(cur, attr) {
-    return '<div class="cstyles">' + Object.keys(K.STYLES).map(function (k) {
-      var S = K.STYLES[k];
-      return '<button type="button" class="opt cstyle' + (cur === k ? ' on' : '') + '" aria-pressed="' + (cur === k) + '" ' + attr + '="' + k + '"><b>' + esc(S.nom) + '</b><small>' + esc(S.texte) + '</small></button>';
+  // (v50) les options d'une compo de plateau (liste validée par Nicolas, 05/11) ; par défaut, une passerelle monte en A par équipe A
+  // s'il y en a parmi les présents (des Débrouillés avec ⇅A ; en « A forte », aussi des Débutants)
+  function nbAEff(reg) { return K.optsDe(reg).orga === 'aforte' ? K.nbAForte(K.nbOf(reg)).A : K.nbOf(reg).A; }
+  function nPasA(ids, F, reg) {
+    var af = K.optsDe(reg).orga === 'aforte';
+    return ids.filter(function (id) { var f = F[id] || {}; return (f.niveau === 'B' || (af && f.niveau === 'C')) && K.pasDe(f).indexOf('A') >= 0; }).length;
+  }
+  function optsDefaut(ids, F, reg) {
+    var o = K.optsDe(reg);
+    o.montees = o.passerelles === 'tour' && nPasA(ids, F, reg) && nbAEff(reg) > 0 ? 1 : 0;
+    return o;
+  }
+  // tant que les montées n'ont pas été réglées à la main (préparation d'une nouvelle compo), elles suivent les équipes A
+  function montAuto(reg, ids, F) { if (!reg.montMain) reg.opts = optsDefaut(ids, F, reg); }
+  var OPT_TXT = {
+    orga: ['Organisation', { niveau: ['Par niveau', 'Une équipe par niveau : A, B, C.'], aforte: ['A forte', 'Une équipe A avec les Confirmés (complétée par les meilleurs B), les autres mélangent B et C.'] }],
+    effectifs: ['Joueurs par équipe', { equilibre: ['Équilibrés', 'À un joueur près ; « Ajuster » pour les régler équipe par équipe.'], niveaux: ['Suivre les niveaux', 'Personne ne change de niveau, sauf les passerelles.'] }],
+    passerelles: ['Passerelles', { tour: ['À leur tour', 'Elles comblent les manques, à tour de rôle.'], aucune: ['Aucune', 'Chacun dans son niveau.'] }],
+    change: ['Pour équilibrer, qui change de niveau', { plaquage: ['Selon le plaquage', 'Les moins avancés descendent, les meilleurs montent.'], tour: ['Chacun son tour', 'Quel que soit le plaquage.'] }],
+    copains: ['Copains', { un: ['Un copain pour chacun', 'Quand c\'est possible, le plaquage d\'abord.'], dabord: ['Copains d\'abord', 'Chacun avec ses copains en priorité.'] }]
+  };
+  // les options, en boutons ; A : { o: attribut des choix (data-k et data-v), m: attribut du nombre de passerelles qui montent (data-d) }
+  function optionsHtml(reg, ids, F, A) {
+    var o = K.optsDe(reg), nbA = nbAEff(reg), nPas = nPasA(ids, F, reg);
+    return '<div class="copts">' + ['orga', 'effectifs', 'passerelles', 'change', 'copains'].map(function (k) {
+      // « qui change de niveau » sert à équilibrer les effectifs, et à choisir le Confirmé qui laisse sa place aux montées
+      if (k === 'change' && o.effectifs === 'niveaux' && !(o.montees && nbA)) return '';
+      var T = OPT_TXT[k];
+      return '<div class="copt"><span class="mlab">' + T[0] + '</span><div class="grid2">' + Object.keys(T[1]).map(function (v) {
+        return '<button type="button" class="opt' + (o[k] === v ? ' on' : '') + '" aria-pressed="' + (o[k] === v) + '" ' + A.o + '="' + k + '" data-v="' + v + '">' + T[1][v][0] + '</button>';
+      }).join('') + '</div><small class="small">' + T[1][o[k]][1] + '</small>' +
+        (k === 'passerelles' && o.passerelles === 'tour' && nbA ? '<div class="cstep cmont" style="--lc:' + K.COUL_NIV.A + '"><span><b>Montent en A</b><small class="small" style="display:block">par équipe A, à leur tour, sans regarder le plaquage (un Confirmé descend en échange) · ' + nPas + ' présent' + (nPas > 1 ? 's' : '') + ' avec ⇅A</small></span>' +
+          '<span class="row" style="gap:6px"><button type="button" class="ibtn" ' + A.m + '="-1" aria-label="Une passerelle de moins"' + (o.montees <= 0 ? ' disabled' : '') + '>' + icon('minus', 18) + '</button><output class="cnbv">' + o.montees + '</output>' +
+          '<button type="button" class="ibtn" ' + A.m + '="1" aria-label="Une passerelle de plus"' + (o.montees >= 3 ? ' disabled' : '') + '>' + icon('plus', 18) + '</button></span></div>' : '') + '</div>';
     }).join('') + '</div>';
+  }
+  // changer une option (réglages, fenêtre Réglages, panneau du tableau)
+  function optChange(reg, k, v) {
+    var o = K.optsDe(reg); if (!o[k] && k !== 'montees') return;
+    var av = o.orga;
+    if (k === 'passerelles' && v === 'aucune' && o.montees) reg.montAvant = o.montees;   // pour les retrouver en revenant à « À leur tour »
+    if (k === 'montees') { o.montees = Math.max(0, Math.min(3, o.montees + v)); reg.montMain = true; } else o[k] = v;
+    if (k === 'passerelles' && v === 'tour' && !o.montees && reg.montAvant) o.montees = reg.montAvant;
+    reg.opts = o; reg.style = K.styleDe(o);
+    if (av !== o.orga || (k === 'effectifs' && v === 'niveaux')) reg.tailles = null;
+  }
+  // le résumé des options, en une ligne
+  function resumeOpts(reg, ids, F) {
+    var o = K.optsDe(reg), tids = K.idsEquipes(reg), bits = ['Jeu à ' + K.fmt(reg), tids.join(' ') || 'aucune équipe', OPT_TXT.orga[1][o.orga][0]];
+    if (o.effectifs === 'niveaux') bits.push('effectifs des niveaux');
+    else if (ids) { var t = taillesReg(ids, F, reg); bits.push(tids.map(function (id) { return t[id]; }).join(' · ') + ' joueurs'); }
+    bits.push(o.passerelles === 'aucune' ? 'sans passerelle' : o.montees && nbAEff(reg) ? '⇅A ' + o.montees + ' qui monte' + (o.montees > 1 ? 'nt' : '') : 'passerelles si besoin');
+    if (o.effectifs !== 'niveaux') bits.push(o.change === 'tour' ? 'chacun son tour' : 'selon le plaquage');
+    bits.push(o.copains === 'dabord' ? 'copains d\'abord' : 'un copain chacun');
+    return bits.join(' · ');
   }
   // (v49) le nombre de joueurs de chaque équipe : équilibré par défaut, réglable équipe par équipe (demande de Nicolas, 05/11) ;
   // le total doit faire le nombre de présents
@@ -654,12 +705,12 @@ window.MC = window.MC || {};
     return K.taillesDefaut(ids, F, reg);
   }
   function ecartTailles(ids, F, reg) {
-    if (reg.style === 'strict') return 0;
+    if (K.optsDe(reg).effectifs === 'niveaux') return 0;
     var t = taillesReg(ids, F, reg), s = 0; K.idsEquipes(reg).forEach(function (id) { s += t[id]; });
     return ids.length - s;
   }
   function taillesHtml(ids, F, reg, attr, attrEq) {
-    if (reg.style === 'strict') return '<section class="sec"><h2 class="h2">Joueurs par équipe</h2><p class="small" style="margin:0">Niveaux stricts : chacun dans son niveau, les effectifs suivent les niveaux.</p></section>';
+    if (K.optsDe(reg).effectifs === 'niveaux') return '';   // (v50) « Suivre les niveaux » : dit dans les options
     var tids = K.idsEquipes(reg), t = taillesReg(ids, F, reg), s = 0, def = K.taillesDefaut(ids, F, reg), modif = false;
     tids.forEach(function (id) { s += t[id]; if (t[id] !== def[id]) modif = true; });
     if (!tids.length) return '';
@@ -677,7 +728,7 @@ window.MC = window.MC || {};
   function paintReglages(C, e) {
     var ids = presentsOf(C, e), reg = regOf(C, e), cnt = { A: 0, B: 0, C: 0, '': 0 };
     ids.forEach(function (id) { cnt[(C.F[id] || {}).niveau || '']++; });
-    var af = reg.style === 'aforte' ? K.nbAForte(reg.nb) : null, tot = af ? af.A + af.B : reg.nb.A + reg.nb.B + reg.nb.C, sug = K.suggestNb(ids, C.F, reg.format);
+    var af = K.optsDe(reg).orga === 'aforte' ? K.nbAForte(reg.nb) : null, tot = af ? af.A + af.B : reg.nb.A + reg.nb.B + reg.nb.C, sug = K.suggestNb(ids, C.F, reg.format);
     var per = tot ? Math.round(ids.length / tot * 10) / 10 : 0;
     var noLv = ids.filter(function (id) { return !(C.F[id] || {}).niveau; });
     var ok = tot && !ecartTailles(ids, C.F, reg);   // (v49) le total des joueurs par équipe = les présents
@@ -691,7 +742,7 @@ window.MC = window.MC || {};
       '<p class="small" style="margin:0">' + tot + ' équipe' + (tot > 1 ? 's' : '') + (tot ? ', environ ' + virg(per) + ' joueurs par équipe' : '') + '. Un niveau sans équipe joue dans le niveau voisin.</p>' +
       (noLv.length ? '<p class="small" style="margin:0;color:var(--orange)">Sans niveau (placés en B en attendant) : ' + noLv.map(function (id) { return esc(nom(C, id)); }).join(', ') + '. <a href="#/educ/joueurs">Fiche terrain</a></p>' : '') + '</section>' +
       graphePresents(C, ids, 'plateau') +
-      '<section class="sec"><h2 class="h2">La proposition</h2>' + stylesHtml(reg.style, 'data-act="cStyle" data-v') +
+      '<section class="sec"><h2 class="h2">Les options</h2>' + optionsHtml(reg, ids, C.F, { o: 'data-act="cOpt" data-k', m: 'data-act="cMont" data-d' }) +
       (af ? '<p class="small" style="margin:0">A forte : ' + af.A + ' équipe' + (af.A > 1 ? 's' : '') + ' A, ' + af.B + ' équipe' + (af.B > 1 ? 's' : '') + ' B (les équipes C comptent comme des B : Débrouillés et Débutants mélangés' + (reg.nb.B + reg.nb.C > 9 ? ' ; 9 équipes B au plus' : '') + ').</p>' : '') + '</section>' +
       taillesHtml(ids, C.F, reg, 'data-act="cTail" data-t', 'data-act="cTailEq"') +
       '<div class="sec"><button type="button" class="btn" data-act="cPropose"' + (ok ? '' : ' disabled') + '>' + icon('spark', 18) + ' Proposer une compo</button>' +
@@ -784,37 +835,51 @@ window.MC = window.MC || {};
       app.rerender(); window.scrollTo(0, 0);
     });
   };
-  MC.act.cFmt = function (b) { if (!B || !B.reg) return; B.reg.format = Number(b.getAttribute('data-v')); app.rerender(); };
-  MC.act.cNb = function (b) { if (!B || !B.reg) return; var n = b.getAttribute('data-n'); B.reg.nb[n] = Math.max(0, Math.min(6, B.reg.nb[n] + Number(b.getAttribute('data-d')))); B.reg.tailles = null; app.rerender(); };
-  MC.act.cStyle = function (b) { if (!B || !B.reg) return; var av = B.reg.style; B.reg.style = b.getAttribute('data-v'); if ((av === 'aforte') !== (B.reg.style === 'aforte')) B.reg.tailles = null; app.rerender(); };
+  MC.act.cFmt = function (b) { if (!B || !B.reg) return; B.reg.format = Number(b.getAttribute('data-v')); redessine(); };
+  function redessine() { if (B && B.vs && B.vs.length && B.mode !== 'reglages') rerenderKeep(); else app.rerender(); }
+  MC.act.cNb = function (b) {
+    if (!B || !B.reg) return; var n = b.getAttribute('data-n'); B.reg.nb[n] = Math.max(0, Math.min(6, B.reg.nb[n] + Number(b.getAttribute('data-d')))); B.reg.tailles = null;
+    withC(function (C, e) { montAuto(B.reg, presentsOf(C, e), C.F); }); redessine();
+  };
+  MC.act.cOpt = function (b) {
+    if (!B || !B.reg) return; var k = b.getAttribute('data-k'); optChange(B.reg, k, b.getAttribute('data-v'));
+    if (k === 'orga') withC(function (C, e) { montAuto(B.reg, presentsOf(C, e), C.F); });
+    redessine();
+  };
+  MC.act.cMont = function (b) { if (!B || !B.reg) return; optChange(B.reg, 'montees', Number(b.getAttribute('data-d'))); redessine(); };
   // (v49) une équipe : un joueur de plus ou de moins ; « Équilibrer » revient aux tailles par défaut
   function tailleUn(reg, ids, F, id, d) { var t = JSON.parse(JSON.stringify(taillesReg(ids, F, reg))); t[id] = Math.max(0, Math.min(40, (t[id] || 0) + d)); reg.tailles = t; }
-  MC.act.cTail = function (b) { withC(function (C, e) { if (!B.reg) return; tailleUn(B.reg, presentsOf(C, e), C.F, b.getAttribute('data-t'), Number(b.getAttribute('data-d'))); app.rerender(); }); };
-  MC.act.cTailEq = function () { if (!B || !B.reg) return; B.reg.tailles = null; app.rerender(); };
+  MC.act.cTail = function (b) { withC(function (C, e) { if (!B.reg) return; tailleUn(B.reg, presentsOf(C, e), C.F, b.getAttribute('data-t'), Number(b.getAttribute('data-d'))); redessine(); }); };
+  MC.act.cTailEq = function () { if (!B || !B.reg) return; B.reg.tailles = null; redessine(); };
   function withC(fn) {
     var g = app.S.cache.group, cd = app.S.cache.compos;
     if (!g || !cd || !B) return;
     var C = ctxOf(g, cd), e = C.evts[B.evtId];
     if (e) fn(C, e);
   }
-  function proposition(C, e, reg, style) {
+  // x : le mode (entraînement) ; pour un plateau, des options (sinon celles des réglages)
+  function proposition(C, e, reg, x) {
     if (B && B.partie) {
-      var r = JSON.parse(JSON.stringify(reg)); if (style === 'niveau' || style === 'equilibre' || style === 'aforte') r.mode = style;
+      var r = JSON.parse(JSON.stringify(reg)); if (x === 'niveau' || x === 'equilibre' || x === 'aforte') r.mode = x;
       var q = K.proposerEnt(presentsOf(C, e), C.F, C.H, r, L.today());
       return { reglages: q.reglages, equipes: q.equipes, banc: q.banc, raisons: q.raisons };
     }
-    var r2 = { format: K.fmt(reg), nb: K.nbOf(reg), style: style || 'equilibre', tailles: reg.tailles || null }, ids = presentsOf(C, e);
-    var p = K.proposer(ids, C.F, C.H, r2, L.today(), r2.style);
-    var out = { format: r2.format, nb: r2.nb, style: r2.style };
-    if (r2.style !== 'strict' && reg.tailles && !ecartTailles(ids, C.F, r2)) out.tailles = K.tailles(ids, C.F, r2);   // (v49) seulement des tailles réglées
+    var o = x && typeof x === 'object' ? x : K.optsDe(reg), ids = presentsOf(C, e), memes = o.orga === K.optsDe(reg).orga && o.effectifs === K.optsDe(reg).effectifs;
+    var r2 = { format: K.fmt(reg), nb: K.nbOf(reg), style: K.styleDe(o), opts: o, tailles: memes ? reg.tailles || null : null };
+    var p = K.proposer(ids, C.F, C.H, r2, L.today());
+    var out = { format: r2.format, nb: r2.nb, style: r2.style, opts: o };
+    if (o.effectifs !== 'niveaux' && r2.tailles && !ecartTailles(ids, C.F, r2)) out.tailles = K.tailles(ids, C.F, r2);   // (v49) seulement des tailles réglées
     return { reglages: out, equipes: p.equipes, banc: p.banc, raisons: p.raisons };
   }
-  function autreStyle(s) { return s === 'copains' || s === 'aforte' ? 'equilibre' : 'copains'; }   // (v48) A forte ↔ Équilibrée
+  // (v50) la 2e version à côté : A forte ↔ par niveau, sinon un copain ↔ copains d'abord
+  function autreOpts(o) { var x = JSON.parse(JSON.stringify(o)); if (x.orga === 'aforte') x.orga = 'niveau'; else x.copains = x.copains === 'dabord' ? 'un' : 'dabord'; return x; }
+  // le nom d'une version, d'après ce qui la distingue de l'autre (ref)
+  function nomOpts(o, ref) { return ref && ref.orga !== o.orga ? (o.orga === 'aforte' ? 'A forte' : 'par niveau') : o.copains === 'dabord' ? 'copains d\'abord' : 'un copain pour chacun'; }
   MC.act.cPropose = function () {
     withC(function (C, e) {
       var reg = B.reg;
       if (B.vs.length) B.undo.push(JSON.stringify(B.vs));
-      B.vs = [proposition(C, e, reg, B.partie ? reg.mode : reg.style)];
+      B.vs = [proposition(C, e, reg, B.partie ? reg.mode : K.optsDe(reg))];
       B.mode = 'draft'; B.dirty = true; B.sel = null; saveDraft();
       ui.toast((B.partie === 'ateliers' ? 'Groupes proposés' : B.partie === 'matchs' ? 'Matchs proposés' : 'Compo proposée') + ' : à vous d\'ajuster'); app.rerender(); window.scrollTo(0, 0);
     });
@@ -827,8 +892,9 @@ window.MC = window.MC || {};
         B.vs = [proposition(C, e, reg, reg.mode), proposition(C, e, reg, m2)];
         ui.toast('2 versions : ' + minus(MODES[B.partie][reg.mode][0]) + ' et ' + minus(MODES[B.partie][m2][0]));
       } else {
-        B.vs = [proposition(C, e, reg, reg.style), proposition(C, e, reg, autreStyle(reg.style))];
-        ui.toast('2 versions proposées : ' + K.STYLES[reg.style].nom + ' et ' + K.STYLES[autreStyle(reg.style)].nom);
+        var o1 = K.optsDe(reg), o2 = autreOpts(o1);
+        B.vs = [proposition(C, e, reg, o1), proposition(C, e, reg, o2)];
+        ui.toast('2 versions proposées : ' + nomOpts(o1, o2) + ' et ' + nomOpts(o2, o1));
       }
       B.mode = 'draft'; B.dirty = true; B.sel = null; saveDraft();
       app.rerender(); window.scrollTo(0, 0);
@@ -838,7 +904,7 @@ window.MC = window.MC || {};
     withC(function (C, e) {
       var reg = B.reg, d;
       if (B.partie) d = K.videEnt(presentsOf(C, e), C.F, reg, L.today());
-      else { d = K.vide(presentsOf(C, e), reg); d.reglages = { format: reg.format, nb: K.nbOf(reg), style: reg.style === 'aforte' ? 'aforte' : '' }; }
+      else { var oz = K.optsDe(reg); d = K.vide(presentsOf(C, e), reg); d.reglages = { format: reg.format, nb: K.nbOf(reg), style: K.styleDe(oz), opts: oz }; }
       B.vs = [d]; B.mode = 'draft'; B.dirty = true; saveDraft(); app.rerender(); window.scrollTo(0, 0);
     });
   };
@@ -914,7 +980,7 @@ window.MC = window.MC || {};
     return '<section class="ccol" style="--lc:' + coulEq(t, d) + '" aria-label="' + (estMatch(t) ? esc(nomT) : 'Équipe ' + esc(nomT)) + (B && B.vs.length > 1 ? ', ' + vName(v) : '') + '">' +
       '<button type="button" class="chd' + (dest ? ' dest' : '') + '" data-act="cTeam" data-v="' + v + '" data-t="' + esc(t.id) + '"' + (dest || ed ? '' : ' tabindex="-1"') + (ed && !dest ? ' aria-label="Composer ' + esc(labelEq(t)) + '"' : '') + '>' +
       '<span class="row" style="justify-content:space-between;width:100%"><b class="ctid' + (nomT.length > 4 ? ' long' : '') + '">' + esc(nomT) + '</b><span class="cn">' + st.n + '</span></span>' +
-      '<span class="cind"><span title="Plaquage moyen">' + icon('star', 12) + ' ' + (st.plaq === null ? '—' : virg(st.plaq)) + '</span><span title="Bons plaqueurs (2 et plus, sur 3)">' + icon('shield', 12) + ' ' + st.bons + '</span>' +
+      '<span class="cind"><span title="Plaquage moyen">' + icon('shieldavg', 13) + ' ' + (st.plaq === null ? '—' : virg(st.plaq)) + '</span><span title="Bons plaqueurs (2 et plus, sur 3)">' + icon('shieldok', 13) + ' ' + st.bons + '</span>' +
       (st.ontCopains ? '<span title="Avec au moins un copain">' + icon('heart', 12) + ' ' + st.avecCopain + '/' + st.ontCopains + '</span>' : '') + (st.passerelles ? '<span title="Hors de leur niveau (passerelles)">⇅ ' + st.passerelles + '</span>' : '') + '</span>' +
       avtq + (fmt10 && !petit && !ed && st.manquants.length ? '<span class="cmiss">Manque : ' + st.manquants.map(function (p) { return COURT[p]; }).join(', ') + '</span>' : '') +
       (dest ? '<span class="cdest">' + icon('down', 12) + ' Ici</span>' : '') + '</button>' +
@@ -926,7 +992,7 @@ window.MC = window.MC || {};
     var heart = !(f.copains || []).length ? '' : cps.length ? '<span class="cfl cop-ok" title="Avec un copain">' + icon('heart', 12) + '</span>' : '<span class="cfl cop-no" title="Sans copain">' + icon('heart', 12) + '</span>';
     var lv = t && t.niveau && f.niveau && f.niveau !== t.niveau ? '<span class="cfl cpas" style="color:' + K.COUL_NIV[f.niveau] + '" title="Joue hors de son niveau (' + f.niveau + ')">' + (K.NIV.indexOf(t.niveau) < K.NIV.indexOf(f.niveau) ? '↑' : '↓') + f.niveau + '</span>' : '';
     // (v48) « A forte » : un Débutant dans une équipe B n'est pas marqué sous le repère B (comme dans « À regarder »)
-    var horsAF = d.reglages.style === 'aforte' && t && t.niveau === 'B' && f.niveau !== 'B';
+    var horsAF = !d.reglages.partie && K.optsDe(d.reglages).orga === 'aforte' && t && t.niveau === 'B' && f.niveau !== 'B';
     var warn = t && (!f.niveau || (!d.reglages.partie && !horsAF && f.plaquage !== null && f.plaquage !== undefined && f.plaquage < (K.SEUIL[t.niveau] || 0)));
     var ty = K.typeDe(f), tag;
     if (t && d.reglages.format === 10) tag = j.poste ? '<span class="cpo">' + COURT[j.poste] + '</span>' : !K.postesDe(f).length ? '<span class="cpo csp" title="Aucun poste sur sa fiche : à régler">Sans poste</span>' : '<span class="cpo none">Remp.</span>';
@@ -1053,9 +1119,9 @@ window.MC = window.MC || {};
     if (nv === 2) {
       var R = vs.map(function (d) { return resume(C, d, presents); });
       cmp = '<div class="cvcols nv2 ccmp">' + R.map(function (r, v) {
-        var rg = vs[v].reglages, st = rg.partie ? { nom: MODES[rg.partie][MODES[rg.partie][rg.mode] ? rg.mode : 'niveau'][0] + (rg.separer ? ', avants / arrières à part' : '') } : rg.style && K.STYLES[rg.style];
+        var rg = vs[v].reglages, st = rg.partie ? { nom: MODES[rg.partie][MODES[rg.partie][rg.mode] ? rg.mode : 'niveau'][0] + (rg.separer ? ', avants / arrières à part' : '') } : rg.style || rg.opts ? { nom: nomOpts(K.optsDe(rg), K.optsDe(vs[1 - v].reglages)) } : null;
         return '<div class="cvsum"><b>' + vName(v) + '</b>' + (st ? '<small>' + esc(st.nom) + '</small>' : '') +
-          '<span>' + icon('heart', 11) + ' ' + r.avec + '/' + r.ont + ' avec un copain</span><span>' + icon('star', 11) + ' écart ' + virg(r.gap) + '</span><span' + (r.warn ? ' style="color:var(--orange)"' : '') + '>' + icon('warn', 11) + ' ' + r.al.length + ' à regarder</span>' +
+          '<span>' + icon('heart', 11) + ' ' + r.avec + '/' + r.ont + ' avec un copain</span><span>' + icon('shieldavg', 12) + ' écart ' + virg(r.gap) + '</span><span' + (r.warn ? ' style="color:var(--orange)"' : '') + '>' + icon('warn', 11) + ' ' + r.al.length + ' à regarder</span>' +
           (editable() ? '<span class="row" style="gap:6px;margin-top:4px"><button type="button" class="lnk sm" data-act="cRegl" data-v="' + v + '">Refaire</button><button type="button" class="lnk sm" data-act="cDelV" data-v="' + v + '">Supprimer</button></span>' : '') + '</div>';
       }).join('') + '</div>';
     }
@@ -1073,9 +1139,9 @@ window.MC = window.MC || {};
     var suite = P === 'ateliers' ? '<a class="btn2" href="' + lienCompo(esc(e.id), 'matchs') + '">' + icon('right', 16) + ' Ensuite : les matchs</a>' : '';
     return '<main class="screen cscreen">' + MC.educBar(C.g, (P ? (P === 'ateliers' ? 'Ateliers' : 'Matchs') : 'Compo') + ' · ' + e.titre, '#/educ/evt/' + e.id, e.titre) +
       '<div class="head"><span class="kicker" style="color:var(--gold)">' + esc(quand(e)) + ' · ' + presents.length + ' présents' + (P ? '' : ' · jeu à ' + fmt) + '</span><h1 class="big sm">' + (P ? NOM_PARTIE[P] : 'La compo') + '</h1></div>' +
-      (P ? stepsHtml(C, e, P) : '') + state + avBlock + cmp +
+      (P ? stepsHtml(C, e, P) : '') + state + topHtml(C, e, c) + avBlock + cmp +
       '<p class="small" style="margin:0">' + (ed ? 'Touchez un joueur, puis son ' + (P === 'ateliers' ? 'groupe' : 'équipe') + ' d\'arrivée (ou un joueur d\'' + (P === 'ateliers' ? 'un autre groupe' : 'une autre équipe') + ' : ils s\'échangent). Pour ' + (P === 'ateliers' ? 'remplir un groupe' : 'composer une équipe') + ', touchez son nom' + (fmt === 10 ? ' ou une place vide (+)' : ' ou « + Ajouter des joueurs »') + '.' + (nv > 1 ? ' Chaque version se modifie à part.' : '') : 'Touchez un joueur pour voir sa fiche.') + (communes ? ' <b style="color:var(--yellow)">Entourés</b> : placés autrement d\'une version à l\'autre.' : '') + '</p>' +
-      '<p class="small clegend"><span>' + icon('star', 11) + ' plaquage moyen</span><span>' + icon('shield', 11) + ' bons plaqueurs</span><span>' + icon('heart', 11) + ' avec un copain</span><span>⇅ hors niveau</span><span>Av avants · Ar arrières</span></p>' +
+      '<p class="small clegend"><span>' + icon('shieldavg', 12) + ' plaquage moyen</span><span>' + icon('shieldok', 12) + ' bons plaqueurs</span><span>' + icon('heart', 11) + ' avec un copain</span><span>⇅ hors niveau</span><span>Av avants · Ar arrières</span></p>' +
       boardHtml(C, { vs: vs, presents: presents, attente: att, moved: moved, ed: ed }) +
       '<section class="sec">' + vs.map(function (d, v) { return alertesHtml(C, d, v, presents, nv, att); }).join('') + '</section>' +
       rsAll + hist + avHist + suite +
@@ -1097,6 +1163,55 @@ window.MC = window.MC || {};
       '<span class="cvotes">' + [0, 1].map(function (i) { return '<span class="cvote' + (mien === i ? ' mine' : '') + '"><b>' + vName(i) + ' : ' + par[i].length + ' voix</b><small>' + (par[i].length ? esc(par[i].join(', ')) : 'personne pour l\'instant') + '</small></span>'; }).join('') + '</span>' +
       (mien === undefined ? '<span class="small" style="color:var(--pink)">Vous n\'avez pas encore voté.</span>' : '') + '</span></div>';
   }
+  // (v50) le haut de la compo : les options choisies (modifiables, puis « Générer une nouvelle compo ») et les boutons (Publier,
+  // Enregistrer, Envoyer, voter…) ; plus de barre d'actions collée en bas (demande de Nicolas, 05/11)
+  function regDe(r) { var o = K.optsDe(r); return { format: K.fmt(r), nb: JSON.parse(JSON.stringify(K.nbOf(r))), style: K.styleDe(o), opts: o, tailles: r.tailles ? JSON.parse(JSON.stringify(r.tailles)) : null, montMain: true }; }   // montées d'une compo faite : choisies
+  function cleReg(r) { return JSON.stringify({ f: K.fmt(r), nb: K.nbOf(r), o: K.optsDe(r), t: r.tailles || null }); }
+  function topHtml(C, e, c) {
+    var html = '', nv = B.vs.length, P = B.partie, c2 = c;
+    if (!P && nv === 1 && (B.mode === 'draft' || B.mode === 'edit')) {
+      var ids = presentsOf(C, e), d0 = B.vs[0];
+      if (!B.reg) B.reg = regDe(d0.reglages);
+      var reg = B.reg, ok = !ecartTailles(ids, C.F, reg) && K.idsEquipes(reg).length, diff = cleReg(reg) !== cleReg(d0.reglages), gk = garderChange(d0.reglages, reg);
+      html += '<details class="box cbopt"' + (B.optOuvert ? ' open' : '') + '><summary><span class="mlab">Options</span><span class="cbsum">' + esc(resumeOpts(reg, ids, C.F)) + '</span>' +
+        (diff ? '<span class="cbdiff">Pas encore appliquées : « Générer une nouvelle compo »</span>' : '') + '<span class="lnk">Modifier</span></summary><div class="cbin">' +
+        '<div class="grid2">' + K.FORMATS.map(function (f) { return '<button type="button" class="opt' + (reg.format === f ? ' on' : '') + '" aria-pressed="' + (reg.format === f) + '" data-act="cFmt" data-v="' + f + '">Jeu à ' + f + '</button>'; }).join('') + '</div>' +
+        K.NIV.map(function (n) { return stepperHtml(n, reg, null, null, 'data-act="cNb" data-n'); }).join('') +
+        optionsHtml(reg, ids, C.F, { o: 'data-act="cOpt" data-k', m: 'data-act="cMont" data-d' }) +
+        taillesHtml(ids, C.F, reg, 'data-act="cTail" data-t', 'data-act="cTailEq"') +
+        '<button type="button" class="btn" data-act="cRegen"' + (ok ? '' : ' disabled') + '>' + icon('refresh', 18) + ' Générer une nouvelle compo</button>' +
+        '<button type="button" class="btn2" data-act="cKeep"' + (gk ? '' : ' disabled') + '>Garder mes placements</button>' +
+        '<p class="small" style="margin:0">« Générer » remplace la compo (« Annuler » la fait revenir) ; « Garder mes placements » change seulement le format et les équipes, sans toucher aux joueurs (ceux d\'une équipe enlevée passent en « Pas placés ») ; les autres options attendent « Générer ». Ensuite : ' + (B.mode === 'draft' ? '« Publier »' : '« Enregistrer »') + '.</p></div></details>';
+    }
+    var act = '';
+    if (B.mode === 'draft' && nv === 1) act = '<button type="button" class="btn sm" data-act="cPublish" data-v="0">' + icon('send', 16) + ' Publier</button>';
+    else if (B.mode === 'draft') act = '<button type="button" class="btn2 sm" data-act="cPublishWhich">Publier…</button><button type="button" class="btn sm" data-act="cVote">' + icon('podium', 16) + ' Au vote</button>';
+    else if (B.mode === 'edit' && B.dirty) act = '<button type="button" class="btn sm" data-act="cSave">' + icon('check', 16) + ' Enregistrer (v' + (c2.version + 1) + ')</button>';
+    else if (B.mode === 'view') act = '<button type="button" class="btn sm" data-act="cCounter">' + icon('swap', 16) + ' Proposer des changements</button>';
+    else if (B.mode === 'counter') act = '<button type="button" class="btn sm pink" data-act="cSendCounter"' + (c2 && K.diff(c2, B.vs[0]).length ? '' : ' disabled') + '>' + icon('send', 16) + ' Envoyer à ' + esc(c2 ? c2.auteurNom : '') + '</button>';
+    else if (B.mode === 'vote') {
+      var mien = (c2.votes || {})[C.moi.id], e2 = C.evts[c2.evenementId];
+      act = [0, 1].map(function (i) { return '<button type="button" class="' + (mien === i ? 'btn' : 'btn2') + ' sm" data-act="cVoteFor" data-v="' + i + '"' + (mien === i ? ' aria-pressed="true"' : '') + '>' + (mien === i ? icon('check', 16) + ' ' : '') + 'Je vote V' + (i + 1) + '</button>'; }).join('') +
+        (c2.auteur === C.moi.id || C.moi.admin || (e2 && jour(e2) === L.today()) ? '<button type="button" class="btn2 sm grey" data-act="cClore">Clore</button>' : '');
+    }
+    // les outils : annuler le dernier geste, réglages (entraînement), postes d'après les fiches (jeu à 10)
+    var tl = editable() ? '<button type="button" class="ibtn" data-act="cUndo" aria-label="Annuler le dernier changement" title="Annuler le dernier changement"' + (B.undo.length ? '' : ' disabled') + '>' + icon('undo', 18) + '</button>' +
+      (nv === 1 && P ? '<button type="button" class="ibtn" data-act="cRegl" data-v="0" aria-label="Réglages : format et groupes" title="Réglages">' + icon('settings', 18) + '</button>' : '') +
+      (B.vs[0].reglages.format === 10 ? '<button type="button" class="ibtn" data-act="cPostes" aria-label="Postes d\'après les fiches" title="Postes d\'après les fiches">' + icon('spark', 18) + '</button>' : '') : '';
+    if (act || tl) html += '<div class="row cacts ctop">' + (tl ? '<span class="row ctl">' + tl + '</span>' : '') + '<span class="row cact">' + act + '</span></div>';
+    return html;
+  }
+  // garder le panneau des options ouvert d'un affichage à l'autre
+  document.addEventListener('toggle', function (ev) { var t = ev.target; if (B && t && t.classList && t.classList.contains('cbopt')) B.optOuvert = t.open; }, true);
+  MC.act.cRegen = function () {
+    withC(function (C, e) {
+      if (!B || !B.reg || ecartTailles(presentsOf(C, e), C.F, B.reg)) return;
+      B.sel = null;
+      change(function () { B.vs[0] = proposition(C, e, B.reg, K.optsDe(B.reg)); });
+      ui.toast('Nouvelle compo générée : à vous d\'ajuster');
+    });
+  };
+  // en bas : seulement le panneau du joueur touché (pour le déplacer)
   function dockHtml(C, e, c) {
     var html = '', sel = B.sel ? C.F[B.sel.id] : null, nv = B.vs.length;
     if (sel) {
@@ -1129,22 +1244,6 @@ window.MC = window.MC || {};
       }
       html += '<div class="cselp">' + info + moves + '<a class="lnk" href="#/educ/joueur/' + esc(sel.id) + '" style="align-self:flex-start;min-height:32px">Sa fiche</a></div>';
     }
-    var act = '';
-    if (B.mode === 'draft' && nv === 1) act = '<button type="button" class="btn sm" data-act="cPublish" data-v="0">' + icon('send', 16) + ' Publier</button>';
-    else if (B.mode === 'draft') act = '<button type="button" class="btn2 sm" data-act="cPublishWhich">Publier…</button><button type="button" class="btn sm" data-act="cVote">' + icon('podium', 16) + ' Au vote</button>';
-    else if (B.mode === 'edit' && B.dirty) act = '<button type="button" class="btn sm" data-act="cSave">' + icon('check', 16) + ' Enregistrer (v' + (c.version + 1) + ')</button>';
-    else if (B.mode === 'view') act = '<button type="button" class="btn sm" data-act="cCounter">' + icon('swap', 16) + ' Proposer des changements</button>';
-    else if (B.mode === 'counter') act = '<button type="button" class="btn sm pink" data-act="cSendCounter"' + (c && K.diff(c, B.vs[0]).length ? '' : ' disabled') + '>' + icon('send', 16) + ' Envoyer à ' + esc(c ? c.auteurNom : '') + '</button>';
-    else if (B.mode === 'vote') {
-      var mien = (c.votes || {})[C.moi.id], e2 = C.evts[c.evenementId];
-      act = [0, 1].map(function (i) { return '<button type="button" class="' + (mien === i ? 'btn' : 'btn2') + ' sm" data-act="cVoteFor" data-v="' + i + '"' + (mien === i ? ' aria-pressed="true"' : '') + '>' + (mien === i ? icon('check', 16) + ' ' : '') + 'Je vote V' + (i + 1) + '</button>'; }).join('') +
-        (c.auteur === C.moi.id || C.moi.admin || (e2 && jour(e2) === L.today()) ? '<button type="button" class="btn2 sm grey" data-act="cClore">Clore</button>' : '');
-    }
-    // outils du tableau (annuler le dernier geste, réglages, postes) à gauche des boutons
-    var tl = editable() ? '<button type="button" class="ibtn" data-act="cUndo" aria-label="Annuler le dernier changement" title="Annuler le dernier changement"' + (B.undo.length ? '' : ' disabled') + '>' + icon('undo', 18) + '</button>' +
-      (nv === 1 ? '<button type="button" class="ibtn" data-act="cRegl" data-v="0" aria-label="Réglages : format et équipes" title="Réglages">' + icon('settings', 18) + '</button>' : '') +
-      (B.vs[0].reglages.format === 10 ? '<button type="button" class="ibtn" data-act="cPostes" aria-label="Postes d\'après les fiches" title="Postes d\'après les fiches">' + icon('spark', 18) + '</button>' : '') : '';
-    if (act || tl) html += '<div class="row cacts">' + (tl ? '<span class="row ctl">' + tl + '</span>' : '') + act + '</div>';
     return html ? '<div class="cp-bar cdock">' + html + '</div>' : '';
   }
 
@@ -1406,9 +1505,13 @@ window.MC = window.MC || {};
   // une 2e version à côté : une copie, une autre proposition, ou vide
   MC.act.cAddV = function () {
     if (!B || B.vs.length !== 1) return;
-    var d0 = B.vs[0], s0 = d0.reglages.style || 'equilibre', P = B.partie;
+    var d0 = B.vs[0], o0 = K.optsDe(d0.reglages), P = B.partie;
     var opts = P ? [['copie', 'Copie de la version 1', 'Pour la modifier à partir de la même base.']].concat(Object.keys(MODES[P]).filter(function (m) { return m !== d0.reglages.mode; }).map(function (m) { return [m, 'Proposition « ' + MODES[P][m][0] + ' »', MODES[P][m][1]]; })).concat([['vide', 'Vide', 'Tout le monde en « Pas placés ».']]) :
-      [['copie', 'Copie de la version 1', 'Pour la modifier à partir de la même base.']].concat(Object.keys(K.STYLES).filter(function (k) { return k !== s0; }).map(function (k) { return [k, 'Proposition « ' + K.STYLES[k].nom + ' »', K.STYLES[k].texte]; })).concat([['vide', 'Vide', 'Tout le monde en « Pas placés ».']]);
+      // (v50) les mêmes options, sauf une : copains, ou organisation
+      [['copie', 'Copie de la version 1', 'Pour la modifier à partir de la même base.'],
+        ['o:copains', 'Proposition « ' + (o0.copains === 'dabord' ? 'Un copain pour chacun' : 'Copains d\'abord') + ' »', 'Les mêmes options, sauf les copains.'],
+        ['o:orga', 'Proposition « ' + (o0.orga === 'aforte' ? 'Par niveau' : 'A forte') + ' »', 'Les mêmes options, sauf l\'organisation.'],
+        ['vide', 'Vide', 'Tout le monde en « Pas placés ».']];
     ui.modal({
       title: 'Version 2', body: '<p class="lead" style="font-size:14px">Elle s\'affiche à côté de la version 1, niveau par niveau.</p><div class="cstyles">' + opts.map(function (o) { return '<button type="button" class="opt cstyle" data-av="' + o[0] + '"><b>' + esc(o[1]) + '</b><small>' + esc(o[2]) + '</small></button>'; }).join('') + '</div>',
       actions: [{ label: 'Annuler', value: null, cls: 'btn2 grey' }],
@@ -1417,10 +1520,11 @@ window.MC = window.MC || {};
       if (!k) return;
       withC(function (C, e) {
         change(function () {
-          var reg = { format: d0.reglages.format, nb: K.nbOf(d0.reglages), style: d0.reglages.style === 'aforte' ? 'aforte' : '' }, d;   // (v48) « Vide » en A forte : A1, B1…
+          var reg = { format: d0.reglages.format, nb: K.nbOf(d0.reglages), style: K.styleDe(o0), opts: o0 }, d;   // (v48) « Vide » en A forte : A1, B1…
           if (P) reg = JSON.parse(JSON.stringify(d0.reglages));
-          if (k === 'copie') { d = JSON.parse(JSON.stringify(d0)); d.reglages.style = d0.reglages.style === 'aforte' ? 'aforte' : ''; }   // (v48) « A forte » : gardé (alertes)
-          else if (k === 'vide') { if (P) d = K.videEnt(presentsOf(C, e), C.F, reg, L.today()); else { d = K.vide(presentsOf(C, e), reg); d.reglages = { format: reg.format, nb: reg.nb, style: reg.style }; } }
+          if (k === 'copie') d = JSON.parse(JSON.stringify(d0));
+          else if (k === 'vide') { if (P) d = K.videEnt(presentsOf(C, e), C.F, reg, L.today()); else { d = K.vide(presentsOf(C, e), reg); d.reglages = { format: reg.format, nb: reg.nb, style: reg.style, opts: o0 }; } }
+          else if (!P && k.indexOf('o:') === 0) { var o2 = JSON.parse(JSON.stringify(o0)); if (k === 'o:copains') o2.copains = o0.copains === 'dabord' ? 'un' : 'dabord'; else o2.orga = o0.orga === 'aforte' ? 'niveau' : 'aforte'; d = proposition(C, e, reg, o2); }
           else d = proposition(C, e, reg, k);
           B.vs.push(d);
         });
@@ -1433,19 +1537,40 @@ window.MC = window.MC || {};
     ui.modal({ title: 'Supprimer la ' + vName(v).toLowerCase() + ' ?', body: '<p class="lead">On garde l\'autre version seule.</p>', actions: [{ label: 'Supprimer', value: true, cls: 'btn pink' }, { label: 'Annuler', value: false, cls: 'btn2 grey' }] }).then(function (ok) {
       if (!ok) return;
       B.sel = null;
-      change(function () { B.vs.splice(v, 1); });
+      change(function () { B.vs.splice(v, 1); if (!B.partie) B.reg = null; });   // (v50) le panneau des options repart de la version gardée
     });
+  };
+  // « Garder mes placements » : le format et les équipes changent, chacun reste où il est (les joueurs d'une équipe enlevée
+  // passent en « Pas placés » ; les joueurs par équipe ne s'appliquent pas)
+  function garder(d, reg) {
+    var ids = K.idsEquipes(reg), keep = [], banc = (d.banc || []).slice();   // (v48) « A forte » : A1…, B1…
+    d.equipes.forEach(function (t) { if (ids.indexOf(t.id) >= 0) keep.push(t); else t.joueurs.forEach(function (j) { banc.push(j.id); }); });
+    ids.forEach(function (id) { if (!keep.some(function (t) { return t.id === id; })) keep.push({ id: id, niveau: id.charAt(0), joueurs: [] }); });
+    keep.sort(function (a, c2) { return ids.indexOf(a.id) - ids.indexOf(c2.id); });
+    if (reg.format !== 10) keep.forEach(function (t) { t.joueurs.forEach(function (j) { j.poste = ''; }); });
+    var av = d.reglages || {}, o = K.optsDe(av); o.orga = K.optsDe(reg).orga;   // (v50) les autres options : celles avec lesquelles la compo a été faite
+    var memes = JSON.stringify(K.idsEquipes(av)) === JSON.stringify(ids);
+    d.equipes = keep; d.banc = banc; d.reglages = { format: reg.format, nb: K.nbOf(reg), style: K.styleDe(o), opts: o };
+    if (memes && av.tailles) d.reglages.tailles = av.tailles;
+    return d;
+  }
+  // « Garder mes placements » change-t-il quelque chose (format, équipes, organisation) ?
+  function garderChange(a, b) { return K.fmt(a) !== K.fmt(b) || K.optsDe(a).orga !== K.optsDe(b).orga || JSON.stringify(K.idsEquipes(a)) !== JSON.stringify(K.idsEquipes(b)); }
+  // (v50) le panneau du haut : appliquer le format et les équipes sans refaire la compo
+  MC.act.cKeep = function () {
+    if (!B || !B.reg || B.vs.length !== 1 || !garderChange(B.vs[0].reglages, B.reg)) return;
+    change(function () { B.vs[0] = garder(JSON.parse(JSON.stringify(B.vs[0])), B.reg); });   // le panneau garde les options pas encore appliquées
   };
   // réglages d'une version : refaire la proposition (autre style, autres équipes) ou garder les placements
   MC.act.cRegl = function (b) {
     if (!B || !B.vs.length) return;
     var v = Number(b && b.getAttribute('data-v')) || 0, d = B.vs[v];
     if (B.partie) return reglEnt(v, d);
-    var reg = { format: d.reglages.format, nb: JSON.parse(JSON.stringify(K.nbOf(d.reglages))), style: d.reglages.style || 'equilibre', tailles: d.reglages.tailles ? JSON.parse(JSON.stringify(d.reglages.tailles)) : null };
+    var o0 = K.optsDe(d.reglages), reg = { format: d.reglages.format, nb: JSON.parse(JSON.stringify(K.nbOf(d.reglages))), style: K.styleDe(o0), opts: o0, tailles: d.reglages.tailles ? JSON.parse(JSON.stringify(d.reglages.tailles)) : null };
     var IDS = [], FF = {}; withC(function (C, e) { IDS = presentsOf(C, e); FF = C.F; });
     function body() {
       return '<div class="grid2">' + K.FORMATS.map(function (f) { return '<button type="button" class="opt' + (reg.format === f ? ' on' : '') + '" data-rf="' + f + '">Jeu à ' + f + '</button>'; }).join('') + '</div>' +
-        K.NIV.map(function (n) { return stepperHtml(n, reg, null, null, 'data-rn'); }).join('') + stylesHtml(reg.style, 'data-rs') +
+        K.NIV.map(function (n) { return stepperHtml(n, reg, null, null, 'data-rn'); }).join('') + optionsHtml(reg, IDS, FF, { o: 'data-ro', m: 'data-rmt' }) +
         taillesHtml(IDS, FF, reg, 'data-rt', 'data-rte') +   // (v49) les joueurs par équipe
         '<p class="small" style="margin:0">« Proposer à nouveau » refait toute la ' + (B.vs.length > 1 ? vName(v).toLowerCase() : 'compo') + '. « Garder mes placements » ajoute ou enlève seulement des équipes (les joueurs d\'une équipe enlevée passent en « Pas placés » ; les joueurs par équipe ne s\'appliquent pas).</p>';
     }
@@ -1454,10 +1579,11 @@ window.MC = window.MC || {};
       actions: [{ label: 'Proposer à nouveau', value: 'new', cls: 'btn' }, { label: 'Garder mes placements', value: 'keep', cls: 'btn2' }, { label: 'Annuler', value: null, cls: 'btn2 grey' }],
       onOpen: function (host) {
         host.addEventListener('click', function (ev) {
-          var f = ev.target.closest('[data-rf]'), n = ev.target.closest('[data-rn]'), st = ev.target.closest('[data-rs]'), rt = ev.target.closest('[data-rt]'), rte = ev.target.closest('[data-rte]');
+          var f = ev.target.closest('[data-rf]'), n = ev.target.closest('[data-rn]'), ro = ev.target.closest('[data-ro]'), rm = ev.target.closest('[data-rmt]'), rt = ev.target.closest('[data-rt]'), rte = ev.target.closest('[data-rte]');
           if (f) reg.format = Number(f.getAttribute('data-rf'));
           else if (n) { var k = n.getAttribute('data-rn'); reg.nb[k] = Math.max(0, Math.min(6, reg.nb[k] + Number(n.getAttribute('data-d')))); reg.tailles = null; }
-          else if (st) { var av = reg.style; reg.style = st.getAttribute('data-rs'); if ((av === 'aforte') !== (reg.style === 'aforte')) reg.tailles = null; }
+          else if (ro) optChange(reg, ro.getAttribute('data-ro'), ro.getAttribute('data-v'));
+          else if (rm) optChange(reg, 'montees', Number(rm.getAttribute('data-rmt')));
           else if (rt) tailleUn(reg, IDS, FF, rt.getAttribute('data-rt'), Number(rt.getAttribute('data-d')));
           else if (rte) reg.tailles = null;
           else return;
@@ -1470,16 +1596,11 @@ window.MC = window.MC || {};
         change(function () {
           if (r === 'new') {
             if (ecartTailles(presentsOf(C, e), C.F, reg)) { reg.tailles = null; ui.toast('Le total des joueurs par équipe ne fait pas le nombre de présents : équipes équilibrées.'); }
-            B.vs[v] = proposition(C, e, reg, reg.style); return;
+            B.vs[v] = proposition(C, e, reg, K.optsDe(reg)); return;
           }
-          var ids = K.idsEquipes(reg), keep = [], banc = (d.banc || []).slice();   // (v48) « A forte » : A1…, B1…
-          d.equipes.forEach(function (t) { if (ids.indexOf(t.id) >= 0) keep.push(t); else t.joueurs.forEach(function (j) { banc.push(j.id); }); });
-          ids.forEach(function (id) { if (!keep.some(function (t) { return t.id === id; })) keep.push({ id: id, niveau: id.charAt(0), joueurs: [] }); });
-          keep.sort(function (a, c2) { return ids.indexOf(a.id) - ids.indexOf(c2.id); });
-          if (reg.format !== 10) keep.forEach(function (t) { t.joueurs.forEach(function (j) { j.poste = ''; }); });
-          d.equipes = keep; d.banc = banc; d.reglages = { format: reg.format, nb: reg.nb, style: reg.style };   // (v49) les tailles ne s'appliquent pas
-          B.vs[v] = d;
+          B.vs[v] = garder(d, reg);
         });
+        if (!B.partie) B.reg = null;
       });
     });
   };
@@ -1596,7 +1717,7 @@ window.MC = window.MC || {};
       if (!ok || !B) return;
       dropDraft(B.evtId, B.partie); var keepReg = draft ? B.vs[0].reglages : null; B = null;
       app.rerender();
-      if (keepReg) setTimeout(function () { if (B) B.reg = keepReg.partie ? JSON.parse(JSON.stringify(keepReg)) : { format: keepReg.format, nb: K.nbOf(keepReg), style: keepReg.style || 'equilibre' }; app.rerender(); }, 0);
+      if (keepReg) setTimeout(function () { if (B) { B.reg = keepReg.partie ? JSON.parse(JSON.stringify(keepReg)) : regDe(keepReg); if (!keepReg.partie) B.reg.montMain = true; } app.rerender(); }, 0);   // (v50) avec les options
     });
   };
   MC.act.cCounter = function () { if (!B) return; B.mode = 'counter'; B.sel = null; app.rerender(); ui.toast('Déplacez les joueurs, puis envoyez votre proposition'); };
