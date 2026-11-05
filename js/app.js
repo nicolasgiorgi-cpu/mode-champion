@@ -715,6 +715,92 @@ MC.app = (function () {
   }
   MC.rebond = { set: ebSet, spring: ebSpring, state: EB };   // pour les tests
 
+  // ---------- La zone visible décalée (bug d'iOS 26) ----------
+  // (v53) Bug de WebKit (297779), surtout après le clavier : iOS place les éléments fixes et collants par rapport à une « fenêtre
+  // de mise en page » qui n'est plus alignée sur ce qu'on voit (visualViewport.offsetTop ≠ 0, et ça tient jusqu'à ce qu'on tue
+  // l'appli) : la barre du bas se retrouve au milieu de l'écran, la barre du haut sort de l'écran. On mesure l'écart et on recale
+  // ces éléments (--vvt : le haut, --vvb : le bas, voir style.css). Rien ne bouge tant que l'écart est nul : le correctif ne
+  // dépend pas de l'appareil, seulement de ce qui est mesuré. Tout nouvel élément fixe doit utiliser ces deux variables.
+  var VV = { t: 0, b: 0, raf: 0, attente: 0, n: 0, relance: 0 };
+  function vvSource() { return window.__MC_VV || window.visualViewport; }   // __MC_VV : pour les tests (Chromium n'a pas le bug)
+  // un champ qui ouvre vraiment le clavier du téléphone (pas le pavé maison, en lecture seule, ni une case à cocher)
+  var VV_SANS_CLAVIER = /^(checkbox|radio|range|button|submit|reset|file|color|image)$/i;
+  function vvClavier() {
+    var a = document.activeElement;
+    if (!a) return false;
+    if (a.isContentEditable || a.tagName === 'SELECT') return true;
+    if (a.tagName === 'TEXTAREA') return !a.readOnly;
+    return a.tagName === 'INPUT' && !a.readOnly && !VV_SANS_CLAVIER.test(a.type || '');
+  }
+  function vvEcart() {
+    var v = vvSource();
+    // clavier ouvert ou zoom avec les doigts : la zone visible bouge normalement, on ne touche à rien
+    if (!v || vvClavier() || Math.abs((v.scale || 1) - 1) > 0.01) return { t: 0, b: 0 };
+    // le signe du bug, c'est offsetTop (ou une zone visible plus grande que la fenêtre) ; une zone visible seulement plus petite,
+    // c'est le clavier qui se ferme ou la barre d'un navigateur. Pendant le bug, height peut rester trop petit (signalé sur WebKit
+    // et chez Apple) : on ne la retranche pas, sinon la barre du bas ne serait jamais recalée.
+    var t = v.offsetTop || 0, trop = v.height - window.innerHeight;
+    if (Math.abs(t) < 2 && trop < 2) return { t: 0, b: 0 };
+    return { t: Math.abs(t) < 2 ? 0 : Math.round(t), b: Math.round(t + Math.max(0, trop)) };
+  }
+  function vvPose(t, b) {
+    if (t === VV.t && b === VV.b) return;
+    var st = document.documentElement.style;
+    if (t !== VV.t) st.setProperty('--vvt', t + 'px');
+    if (b !== VV.b) st.setProperty('--vvb', b + 'px');
+    VV.t = t; VV.b = b;
+  }
+  // un mini-défilement peut remettre iOS d'aplomb ; jamais sous le doigt ni pendant que la page défile
+  function vvRelance() {
+    if (EB.touching || performance.now() - EB.lastT < 300) return;
+    var x = window.scrollX || 0, y = window.scrollY || 0;
+    EB.lastT = 0;   // ce n'est pas un élan : pas de rebond
+    window.scrollTo(x, y > 0 ? y - 1 : y + 1); window.scrollTo(x, y);
+  }
+  function vvNote(e) {
+    VV.n++;
+    var v = vvSource() || {};
+    try { localStorage.setItem('mc-vue', JSON.stringify({ n: VV.n + (VV.avant || 0), haut: e.t, bas: e.b, vue: Math.round(v.height || 0), fen: window.innerHeight, le: new Date().toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) })); } catch (x) { }
+  }
+  function vvMesure() {
+    VV.raf = 0;
+    var e = vvEcart();
+    if (!e.t && !e.b) { if (VV.attente) { clearTimeout(VV.attente); VV.attente = 0; } vvPose(0, 0); return; }
+    if (VV.t || VV.b) { vvPose(e.t, e.b); return; }   // déjà recalé : on suit l'écart
+    if (VV.attente) return;
+    // le clavier qui se ferme (300 ms environ) ou la barre de Safari qui bouge font un écart de passage : on ne recale que s'il
+    // dure ; le bug, lui, dure jusqu'à ce qu'on tue l'appli
+    VV.attente = setTimeout(function () {
+      VV.attente = 0;
+      var e2 = vvEcart();
+      if (!e2.t && !e2.b) return;
+      vvPose(e2.t, e2.b); vvNote(e2);
+      clearTimeout(VV.relance); VV.relance = setTimeout(function () { vvRelance(); vvDemande(); }, 250);
+    }, 600);
+  }
+  function vvDemande() { if (!VV.raf) VV.raf = (window.requestAnimationFrame || setTimeout)(vvMesure); }
+  function vueDecalee() {
+    try { VV.avant = (JSON.parse(localStorage.getItem('mc-vue') || 'null') || {}).n || 0; } catch (x) { VV.avant = 0; }
+    var v = window.visualViewport;
+    if (v) { v.addEventListener('resize', vvDemande); v.addEventListener('scroll', vvDemande); }
+    ['resize', 'scroll', 'focusin', 'pageshow', 'orientationchange'].forEach(function (n) { window.addEventListener(n, vvDemande, { passive: true }); });
+    // le clavier se ferme : s'il reste un écart, le geste qu'on voit partout pour remettre iOS d'aplomb, puis on mesure
+    window.addEventListener('focusout', function () {
+      vvDemande();
+      clearTimeout(VV.relance);
+      VV.relance = setTimeout(function () { if (!vvClavier() && vvEcart().t) vvRelance(); vvDemande(); }, 320);
+    }, { passive: true });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) vvDemande(); });
+    setInterval(function () { if (!document.hidden) vvDemande(); }, 2000);   // un état figé peut n'envoyer aucun événement
+    vvMesure();
+  }
+  // pour Réglages : rien à dire tant que le décalage n'est jamais arrivé sur cet appareil
+  MC.vueInfo = function () {
+    var d = null; try { d = JSON.parse(localStorage.getItem('mc-vue') || 'null'); } catch (x) { }
+    if (!d || !d.n) return '';
+    return 'Écran décalé, barre recalée ' + d.n + ' fois (haut ' + d.haut + ', bas ' + d.bas + ', vue ' + d.vue + ', fenêtre ' + d.fen + ', ' + d.le + ')' + (VV.t || VV.b ? ' · en cours' : '');
+  };
+
   // ---------- Événements ----------
   function onClick(e) {
     var t = e.target.closest('[data-act]');
@@ -780,6 +866,7 @@ MC.app = (function () {
     }, { passive: true });
     window.addEventListener('pagehide', function () { snap(); hSave(); });
     bindPull();
+    vueDecalee();
     document.addEventListener('visibilitychange', function () { if (document.hidden) { snap(); hSave(); } else verifierVersion(false); });
     window.addEventListener('pageshow', function (ev) { if (ev.persisted) verifierVersion(false); });
     window.addEventListener('online', function () { var o = document.getElementById('offline'); if (o) o.hidden = true; });
