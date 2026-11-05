@@ -94,8 +94,9 @@ with sync_playwright() as p:
     # (v50) les options (liste validée par Nicolas) à la place des styles
     ks = ev(pg, "[...new Set([...document.querySelectorAll('[data-act=\"cOpt\"]')].map(b=>b.getAttribute('data-k')))].join(',')")
     check('(v50) les options : organisation, joueurs par équipe, passerelles, qui change de niveau, copains', ks == 'orga,effectifs,passerelles,change,copains', ks)
-    check('(v50) une passerelle monte en A par défaut (des B avec ⇅A sont présents)', pg.query_selector('.cmont') is not None and pg.inner_text('.cmont output') in ('0', '1'), pg.inner_text('.cmont') if pg.query_selector('.cmont') else '')
+    check('(v50) une passerelle monte en A par défaut (des B avec ⇅A sont présents)', pg.query_selector('.cmont') is not None and pg.inner_text('.cmont output') == '1', pg.inner_text('.cmont') if pg.query_selector('.cmont') else '')
     pg.click('[data-act="cOpt"][data-k="orga"][data-v="aforte"]'); pg.wait_for_timeout(200)
+    pg.click('[data-act="cOpt"][data-k="change"][data-v="tour"]'); pg.wait_for_timeout(200)   # « chacun son tour »
     check('(v48) A forte : la note des équipes', 'les équipes C comptent comme des B' in pg.inner_text('main'))
     pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(900)
     af = ev(pg, """(()=>{const k=Object.keys(localStorage).find(k=>k.indexOf('mc-cdraft:')===0&&k.indexOf('sp-demo-p3')>0); const d=JSON.parse(localStorage.getItem(k)).vs[0]; const F=MC.compos.fiches(MC.app.S.cache.group);
@@ -108,6 +109,9 @@ with sync_playwright() as p:
     check('(v48) A forte : les Débutants répartis dans les équipes B', len(bc) < 2 or max(bc) - min(bc) <= 1, bc)
     shot(pg, 'k04b-aforte', True)
     pg.click('[data-act="cDiscard"]'); pg.wait_for_timeout(300); pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(700)
+    # (relecture v50) « Effacer le brouillon » garde les options
+    check('(v50) brouillon effacé : les options restent (A forte, chacun son tour, 1 montée)', pg.query_selector('[data-act="cOpt"][data-k="orga"][data-v="aforte"].on') is not None and pg.query_selector('[data-act="cOpt"][data-k="change"][data-v="tour"].on') is not None and pg.query_selector('.cmont') is not None and pg.inner_text('.cmont output') == '1', pg.inner_text('.cmont') if pg.query_selector('.cmont') else '')
+    pg.click('[data-act="cOpt"][data-k="change"][data-v="plaquage"]'); pg.wait_for_timeout(200)
     pg.click('[data-act="cOpt"][data-k="orga"][data-v="niveau"]'); pg.wait_for_timeout(200)
     pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(800)
     nteams = len(pg.query_selector_all('.ccol')); nchips = len(pg.query_selector_all('.ccol .cpj'))
@@ -127,6 +131,24 @@ with sync_playwright() as p:
     check('(v50) « Générer une nouvelle compo » : avec les nouvelles options', dr == 'dabord' and pg.query_selector('.cbopt .cbdiff') is None, dr)
     pg.click('[data-act="cUndo"]'); pg.wait_for_timeout(500)
     check('(v50) « Annuler » fait revenir la compo d\'avant', ev(pg, "[...document.querySelectorAll('.ccol .cpj')].map(x=>x.getAttribute('data-id')).join(',')") == avant)
+    # (relecture v50) « Garder mes placements » : seulement le format et les équipes ; les autres options attendent « Générer »
+    check('(v50) rien à garder (seuls les copains changent) : « Garder mes placements » inactif', pg.query_selector('.cbopt .cbdiff') is not None and pg.is_disabled('.cbopt [data-act="cKeep"]'))
+    if not ev(pg, "document.querySelector('.cbopt').open"): pg.click('.cbopt summary'); pg.wait_for_timeout(200)
+    pg.click('.cbopt [data-act="cNb"][data-n="C"][data-d="1"]'); pg.wait_for_timeout(300)
+    pg.click('.cbopt [data-act="cKeep"]'); pg.wait_for_timeout(700)
+    dk = ev(pg, "(()=>{const k=Object.keys(localStorage).find(k=>k.indexOf('mc-cdraft:')===0&&k.indexOf('sp-demo-p3')>0); const d=JSON.parse(localStorage.getItem(k)).vs[0]; return d.equipes.map(t=>t.id).join(',')+'|'+d.reglages.opts.copains;})()")
+    check('(v50) « Garder mes placements » : une équipe de plus, les copains pas appliqués (toujours signalés)', dk == 'A1,B1,C1,C2|un' and pg.query_selector('.cbopt .cbdiff') is not None, dk)
+    pg.click('[data-act="cUndo"]'); pg.wait_for_timeout(500)
+    if not ev(pg, "document.querySelector('.cbopt').open"): pg.click('.cbopt summary'); pg.wait_for_timeout(200)
+    pg.click('.cbopt [data-act="cNb"][data-n="C"][data-d="-1"]'); pg.wait_for_timeout(200)
+    pg.click('.cbopt [data-act="cOpt"][data-k="copains"][data-v="un"]'); pg.wait_for_timeout(300)
+    check('(v50) les options de nouveau celles de la compo', pg.query_selector('.cbopt .cbdiff') is None and len(pg.query_selector_all('.ccol .cavtq')) == 3)
+    # (relecture v50) 2e version « copains d'abord », puis on supprime la 1re : le panneau suit la version gardée
+    pg.click('[data-act="cAddV"]'); pg.wait_for_timeout(300); pg.click('.modal [data-av="o:copains"]'); pg.wait_for_timeout(900)
+    sums = ev(pg, "[...document.querySelectorAll('.cvsum small')].map(x=>x.textContent).join('|')")
+    check('(v50) 2 versions : leurs noms', sums == "un copain pour chacun|copains d'abord", sums)
+    pg.click('.cvsum [data-act="cDelV"][data-v="0"]'); pg.wait_for_timeout(300); pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(700)
+    check('(v50) version 1 supprimée : le panneau montre les options de la version gardée', pg.query_selector('.cbopt') is not None and "copains d'abord" in pg.inner_text('.cbopt summary') and pg.query_selector('.cbopt .cbdiff') is None, pg.inner_text('.cbopt summary') if pg.query_selector('.cbopt') else '')
     pg.evaluate("document.querySelector('.cbopt') && (document.querySelector('.cbopt').open = false)"); pg.wait_for_timeout(200)
     check('avants / arrières sur chaque équipe', len(pg.query_selector_all('.ccol .cavtq')) == 3 and 'AR ' in pg.inner_text('.ccol .cavtq').upper() and '3/4' not in pg.inner_text('.cboard2'))
     secs = ev(pg, "[...document.querySelectorAll('.ccol')].map(c=>[...c.querySelectorAll('.csech span')].map(x=>x.textContent).join('|'))")

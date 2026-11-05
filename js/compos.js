@@ -415,7 +415,7 @@ MC.compos = (function () {
         // (v45) le niveau le plus proche qui a une équipe ; à égalité (un B), une de ses passerelles, sinon C
         var proches = NIV.filter(ok).sort(function (a, b) { return dist(a, n) - dist(b, n) || (a === 'C' ? -1 : 1); });
         var egaux = proches.filter(function (x) { return dist(x, n) === dist(proches[0], n); });
-        var alt = egaux.filter(function (x) { return pasDe(f).indexOf(x) >= 0; })[0] || egaux[0];
+        var alt = egaux.filter(function (x) { return !S.sansPasserelles && pasDe(f).indexOf(x) >= 0; })[0] || egaux[0];
         raisons[id] = 'Pas d\'équipe ' + n + ' : joue en ' + alt + '.';
         n = alt;
       }
@@ -507,7 +507,8 @@ MC.compos = (function () {
         var cand = ids.filter(function (id) { return lv[id] === dep && !fixe[id]; }).sort(function (a, b) {
           var ra = dist(princ[a] || 'B', nx), rb = dist(princ[b] || 'B', nx);
           if (ra !== rb) return ra - rb;   // ceux qui reviennent dans leur niveau, puis les plus proches du niveau visé
-          var xa = pasDe(F[a]).indexOf(nx) >= 0 ? 0 : 1, xb = pasDe(F[b]).indexOf(nx) >= 0 ? 0 : 1;
+          // (v50) « Passerelles : aucune » : avoir une passerelle ne fait pas passer devant
+          var xa = !S.sansPasserelles && pasDe(F[a]).indexOf(nx) >= 0 ? 0 : 1, xb = !S.sansPasserelles && pasDe(F[b]).indexOf(nx) >= 0 ? 0 : 1;
           if (xa !== xb) return xa - xb;
           var pa = plqN(F, a), pb = plqN(F, b);   // pas encore évalué : au milieu (ni le premier à descendre, ni à monter)
           var p = pa !== pb ? (monte ? pb - pa : pa - pb) : 0, t = tourB(a, b, nx);
@@ -559,20 +560,22 @@ MC.compos = (function () {
   function plqN(F, id) { var p = (F[id] || {}).plaquage; return p === null || p === undefined ? 1.5 : p; }   // (v49) pas encore évalué : au milieu
   function forte(ids, F, H, taille, raisons, quoi, O) {
     O = O || {};
-    var As = ids.filter(function (id) { return niveauDe(F[id]) === 'A'; }), fort;
-    if (As.length >= taille) {
-      As.sort(function (a, b) {
-        var pa = pasDe(F[a]).length ? 1 : 0, pb = pasDe(F[b]).length ? 1 : 0, da = dernierEn(H, a, 'B'), db = dernierEn(H, b, 'B');
-        // à plaquage égal, chacun son tour : celui qui a joué en B le plus récemment reste en A (option « chacun son tour » : le tour d'abord)
-        var p = plq(F, b) - plq(F, a), t = da !== db ? (da > db ? -1 : 1) : 0;
-        return pa - pb || (O.change === 'tour' ? t || p : p || t) || (a < b ? -1 : 1);
-      });
-      // (v50) des places pour les passerelles qui montent, à leur tour (sans regarder le plaquage)
-      var pas = ids.filter(function (id) { var n = niveauDe(F[id]); return n && n !== 'A' && pasDe(F[id]).indexOf('A') >= 0; }).sort(function (a, b) {
-        var na = NIV.indexOf(niveauDe(F[a])) - NIV.indexOf(niveauDe(F[b])); if (na) return na;
-        var da = dernierEn(H, a, 'A'), db = dernierEn(H, b, 'A'); if (da !== db) return da < db ? -1 : 1;
-        return nbEn(H, a, 'A') - nbEn(H, b, 'A') || (a < b ? -1 : 1);
-      }).slice(0, Math.min(O.montees ? O.montees * (O.kA || 1) : 0, taille));
+    var sansPas = O.passerelles === 'aucune', As = ids.filter(function (id) { return niveauDe(F[id]) === 'A'; }), fort;
+    // les Confirmés, dans l'ordre où ils restent dans l'équipe forte
+    As.sort(function (a, b) {
+      var pa = pasDe(F[a]).length ? 1 : 0, pb = pasDe(F[b]).length ? 1 : 0, da = dernierEn(H, a, 'B'), db = dernierEn(H, b, 'B');
+      // à plaquage égal, chacun son tour : celui qui a joué en B le plus récemment reste en A (option « chacun son tour » : le tour d'abord)
+      var p = plq(F, b) - plq(F, a), t = da !== db ? (da > db ? -1 : 1) : 0;
+      return pa - pb || (O.change === 'tour' ? t || p : p || t) || (a < b ? -1 : 1);
+    });
+    // (v50) les passerelles qui montent (option : combien par équipe A), à leur tour, sans regarder le plaquage
+    var pas = sansPas ? [] : ids.filter(function (id) { var n = niveauDe(F[id]); return n && n !== 'A' && pasDe(F[id]).indexOf('A') >= 0; }).sort(function (a, b) {
+      var na = NIV.indexOf(niveauDe(F[a])) - NIV.indexOf(niveauDe(F[b])); if (na) return na;
+      var da = dernierEn(H, a, 'A'), db = dernierEn(H, b, 'A'); if (da !== db) return da < db ? -1 : 1;
+      return nbEn(H, a, 'A') - nbEn(H, b, 'A') || (a < b ? -1 : 1);
+    }).slice(0, Math.min(O.montees ? O.montees * (O.kA || 1) : 0, taille));
+    // l'équipe forte est pleine de Confirmés, ou les places libres ne suffisent pas aux montées : des Confirmés laissent leur place
+    if (As.length >= taille || pas.length > taille - As.length) {
       fort = As.slice(0, taille - pas.length).concat(pas);
       pas.forEach(function (id) { var der = dernierEn(H, id, 'A'); raisons[id] = 'Monte en A grâce à sa passerelle : ' + (der ? 'son tour (dernière fois le ' + frDate(der) + ').' : 'son tour, il n\'y a pas encore joué.'); });
       As.slice(taille - pas.length).forEach(function (id) { raisons[id] = pas.length && As.indexOf(id) < taille ? 'Laisse sa place à une passerelle : joue avec les autres.' : quoi[0].toUpperCase() + quoi.slice(1) + ' au complet : joue avec les autres.'; });
@@ -581,7 +584,7 @@ MC.compos = (function () {
       var autres = [];
       ['B', 'C', ''].forEach(function (n) {
         ids.filter(function (id) { return niveauDe(F[id]) === n; }).sort(function (a, b) {
-          var xa = pasDe(F[a]).indexOf('A') >= 0, xb = pasDe(F[b]).indexOf('A') >= 0;
+          var xa = !sansPas && pasDe(F[a]).indexOf('A') >= 0, xb = !sansPas && pasDe(F[b]).indexOf('A') >= 0;   // (v50) « aucune » : le plaquage seul
           if (xa !== xb) return xa ? -1 : 1;
           if (xa) {   // les passerelles : à leur tour (jamais en A / le plus ancien d'abord)
             var da = dernierEn(H, a, 'A'), db = dernierEn(H, b, 'A');
@@ -594,7 +597,7 @@ MC.compos = (function () {
       });
       autres.slice(0, Math.max(0, taille - fort.length)).forEach(function (id) {
         var der = dernierEn(H, id, 'A');
-        raisons[id] = pasDe(F[id]).indexOf('A') >= 0 ? 'Complète ' + quoi + ' grâce à sa passerelle : ' + (der ? 'son tour (dernière fois le ' + frDate(der) + ').' : 'son tour, il n\'y a pas encore joué.')
+        raisons[id] = !sansPas && pasDe(F[id]).indexOf('A') >= 0 ? 'Complète ' + quoi + ' grâce à sa passerelle : ' + (der ? 'son tour (dernière fois le ' + frDate(der) + ').' : 'son tour, il n\'y a pas encore joué.')
           : 'Complète ' + quoi + ' : parmi les meilleurs plaqueurs.';
         fort.push(id);
       });

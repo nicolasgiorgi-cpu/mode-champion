@@ -47,6 +47,32 @@ assert.ok(!dans(p, 'A1').some(id => /^b/.test(id)), 'passerelles : aucune');
 p = K.proposer(ids, F, HM, { format: 5, nb, opts: O({ orga: 'aforte', montees: 1 }) });
 assert.ok(dans(p, 'A1').includes('b1'), 'A forte : b1 monte ' + dans(p, 'A1'));
 
+// ----- (relecture v50) A forte : les montées aussi quand l'équipe A n'est pas pleine de Confirmés -----
+const sp2 = [];
+for (let i = 0; i < 7; i++) sp2.push(['a' + i, 'A', 3]);
+for (let i = 0; i < 9; i++) sp2.push(['b' + i, 'B', i < 2 ? 1 : 3, i < 2 ? 'A' : '']);   // b0 et b1 : ⇅A, plaquage 1
+const F2 = groupe(sp2), ids2 = Object.keys(F2), nb2 = { A: 1, B: 1, C: 0 };
+p = K.proposer(ids2, F2, {}, { format: 5, nb: nb2, opts: O({ orga: 'aforte', montees: 2 }) });
+assert.deepStrictEqual(tailles(p), ['A1:8', 'B1:8']);
+assert.ok(dans(p, 'A1').includes('b0') && dans(p, 'A1').includes('b1'), 'A forte, 7 Confirmés pour 8 places : 2 montées ' + dans(p, 'A1'));
+assert.strictEqual(dans(p, 'A1').filter(id => /^a/.test(id)).length, 6, 'un Confirmé laisse sa place');
+assert.ok(Object.keys(p.raisons).some(id => /^a/.test(id) && /Laisse sa place/.test(p.raisons[id])), J(p.raisons));
+p = K.proposer(ids2, F2, {}, { format: 5, nb: nb2, opts: O({ orga: 'aforte', montees: 1 }) });
+assert.strictEqual(dans(p, 'A1').filter(id => /^b[01]$/.test(id)).length, 1, '1 montée : la place libre');
+// ----- (relecture v50) « Passerelles : aucune » : avoir une passerelle ne fait pas passer devant -----
+p = K.proposer(ids2, F2, {}, { format: 5, nb: nb2, opts: O({ orga: 'aforte', passerelles: 'aucune' }) });
+assert.ok(!dans(p, 'A1').includes('b0') && !dans(p, 'A1').includes('b1'), 'A forte sans passerelle : le meilleur plaqueur complète ' + dans(p, 'A1'));
+assert.ok(!Object.values(p.raisons).some(r => /passerelle/.test(r)), J(p.raisons));
+const sp3 = [];
+for (let i = 0; i < 5; i++) sp3.push(['a' + i, 'A', 3]);
+for (let i = 0; i < 12; i++) sp3.push(['b' + (i < 10 ? '0' : '') + i, 'B', i < 2 ? 1 : 3, i < 2 ? 'A' : '']);   // b00 et b01 : ⇅A, plaquage 1
+const F3 = groupe(sp3), ids3 = Object.keys(F3);
+p = K.proposer(ids3, F3, {}, { format: 5, nb: { A: 1, B: 1, C: 0 }, opts: O({ passerelles: 'aucune' }) });
+assert.deepStrictEqual(tailles(p), ['A1:8', 'B1:9']);
+assert.ok(!dans(p, 'A1').includes('b00') && !dans(p, 'A1').includes('b01'), 'par niveau sans passerelle : les meilleurs plaqueurs montent ' + dans(p, 'A1'));
+p = K.proposer(ids3, F3, {}, { format: 5, nb: { A: 1, B: 1, C: 0 }, opts: O({}) });
+assert.ok(dans(p, 'A1').includes('b00') && dans(p, 'A1').includes('b01'), 'avec les passerelles : elles comblent d\'abord');
+
 // ----- pour équilibrer, qui change de niveau : selon le plaquage, ou chacun son tour -----
 const G = groupe([['a1', 'A', 3], ['a2', 'A', 3], ['a3', 'A', 3], ['b1', 'B', 1], ['b2', 'B', 2], ['b3', 'B', 2], ['b4', 'B', 2], ['b5', 'B', 2], ['c1', 'C', 1]]);
 const HG = { b1: H1('2026-10-25', 'C') };                                      // b1 (1★) est déjà descendu le 25/10
