@@ -396,7 +396,7 @@ MC.app = (function () {
     var items = NAVS[set].filter(function (it) { return (it[0] !== 'skills' && it[0] !== 'p:skills') || MC.ouvert('skills'); });
     navEl.style.setProperty('--n', items.length);
     navEl.setAttribute('aria-label', set === 'k' ? 'Navigation principale' : set === 'p' ? 'Navigation de l\'espace parent' : 'Navigation de l\'espace éduc');
-    navEl.innerHTML = '<span class="brand" aria-hidden="true">' + ui.avatar('M', '#38E8FF', 48).replace('>M<', '>M12<') + '</span>' + items.map(function (it) {
+    navEl.innerHTML = items.map(function (it) {
       var on = active === it[0], n = navBadge(it[0]);
       return '<a href="' + (on ? it[1] : tabHref(it)) + '" class="' + (on ? 'on' : '') + (it[0] === 'skills' && n && !on ? ' gold' : '') + '" style="--tc:' + it[4] + '"' + (on ? ' aria-current="page"' : '') + '>' + ui.icon(it[2], 22) + '<span>' + it[3] + '</span>' +
         (n ? '<span class="nb" aria-label="' + n + (NB_LABEL[it[0]] || '') + '">' + n + '</span>' : '') + '</a>';

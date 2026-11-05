@@ -40,6 +40,7 @@ img{display:block;max-width:100%}
 .big{margin:0;font:italic 900 clamp(42px,12vw,64px)/.86 var(--f-title);text-transform:uppercase;text-shadow:3px 3px 0 var(--pink),-2px -2px 0 var(--cyan)}
 .big.md{font-size:clamp(36px,10vw,52px)}
 .big.sm{font-size:clamp(30px,8.5vw,42px)}
+.big.big1l{white-space:nowrap}   /* (v55) tient sur une ligne : téléphone et iPad */
 .h2{margin:0;font:italic 900 23px/1 var(--f-title);text-transform:uppercase}
 .lead{margin:0;color:var(--muted);font-size:15px;line-height:1.45}
 .head{display:flex;flex-direction:column;gap:9px}
@@ -333,7 +334,6 @@ label.lab{font:600 11px/1.2 var(--f-hud);letter-spacing:.14em;color:var(--dim);t
 .nav a.on{color:var(--tc,var(--cyan));background:linear-gradient(180deg,color-mix(in srgb,var(--tc,var(--cyan)) 14%,transparent),transparent 85%)}
 .nav a.on::before{content:'';position:absolute;left:20%;right:20%;top:-1px;height:3px;background:var(--tc,var(--cyan));box-shadow:0 0 12px var(--tc,var(--cyan))}
 .nav .nb{position:absolute;top:6px;left:calc(50% + 7px);min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--pink);color:#070A12;font:700 11px/18px var(--f-hud);letter-spacing:0;text-align:center}
-.nav .brand{display:none}
 
 /* ---------- barre du haut (la même partout) ---------- */
 .topbar{position:sticky;top:var(--vvt);z-index:15;display:flex;align-items:center;gap:10px;min-height:calc(62px + var(--safe-t));margin:calc(-16px - var(--safe-t)) -16px -4px;padding:calc(9px + var(--safe-t)) 12px 9px;background:#070A12;border-bottom:1px solid var(--line)}
@@ -573,11 +573,12 @@ html.net-busy::before{content:'';position:fixed;top:0;left:0;right:0;height:3px;
 @media (min-width:1000px) and (orientation:landscape){
   .has-nav .screen{margin-left:104px;max-width:1080px;padding-bottom:40px}
   .has-nav .screen.center{margin-left:auto}
-  .nav{left:0;top:0;bottom:0;right:auto;width:104px;height:auto;max-width:none;margin:var(--vvt) 0 calc(-1 * var(--vvb));padding:20px 8px calc(20px + var(--safe-b));display:flex;flex-direction:column;align-items:center;gap:10px;border:0;border-right:1px solid var(--line2)}
-  .nav a{width:88px;height:76px;flex:none;flex-direction:column;gap:7px;font-size:10px}
-  .nav a.on::before{left:-8px;right:auto;top:18%;bottom:18%;width:3px;height:auto}
+  .nav{left:0;top:0;bottom:0;right:auto;width:104px;height:auto;max-width:none;margin:var(--vvt) 0 calc(-1 * var(--vvb));padding:calc(14px + var(--safe-t)) 0 calc(20px + var(--safe-b));display:flex;flex-direction:column;align-items:stretch;gap:10px;border:0;border-right:1px solid var(--line2)}
+  .nav a{width:100%;height:76px;flex:none;flex-direction:column;gap:7px;font-size:10px}
+  /* (v55) le néon collé à la carte, la lumière part vers la droite (pas vers le bas comme sur téléphone) */
+  .nav a.on{background:linear-gradient(90deg,color-mix(in srgb,var(--tc,var(--cyan)) 18%,transparent),transparent 85%)}
+  .nav a.on::before{left:0;right:auto;top:0;bottom:0;width:3px;height:auto}
   .nav .nb{top:8px;left:calc(50% + 10px);right:auto}
-  .nav .brand{display:block;margin-bottom:14px}
   body.has-nav .toast{bottom:calc(24px + var(--safe-b))}
   .home{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:28px}
   .profile-grid{display:grid;grid-template-columns:300px minmax(0,1fr) minmax(0,1fr);gap:24px;align-items:start}
@@ -770,7 +771,10 @@ html.net-busy::before{content:'';position:fixed;top:0;left:0;right:0;height:3px;
 /* grille des cartes */
 .cp-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 12px}
 .cp-wide{grid-column:1/-1}
-.cp-tilt{perspective:900px;filter:drop-shadow(0 12px 20px var(--glow2,rgba(56,232,255,.2)))}
+/* (v55) sur iPhone, l'emblème passait en tout petit en haut à gauche au doigt posé : plus de filter sur la carte ni sur l'emblème qui
+   oscille, plus de fusion (mix-blend-mode) par-dessus lui. La lueur est un calque fixe, à part. */
+.cp-tilt{position:relative;perspective:900px}
+.cp-tilt::before{content:'';position:absolute;left:8%;right:8%;top:16px;bottom:-12px;background:var(--glow2,rgba(56,232,255,.2));filter:blur(16px);z-index:-1;pointer-events:none}
 .cp-card{--rx:0deg;--ry:0deg;--mx:50%;--my:30%;--px:50%;--py:50%;--hyp:0;--cut:18px;position:relative;display:block;width:100%;height:290px;padding:1.5px;border:0;cursor:pointer;text-align:left;color:var(--ink);text-decoration:none;
   background:linear-gradient(160deg,var(--c) 0%,var(--d) 45%,var(--c) 75%,var(--d) 100%);
   clip-path:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,var(--cut) 100%,0 calc(100% - var(--cut)));
@@ -779,18 +783,20 @@ html.net-busy::before{content:'';position:fixed;top:0;left:0;right:0;height:3px;
 .cp-in{height:100%;background:var(--bg2);display:flex;flex-direction:column;overflow:hidden;position:relative;
   clip-path:polygon(0 0,calc(100% - var(--cut) + 1px) 0,100% calc(var(--cut) - 1px),100% 100%,calc(var(--cut) - 1px) 100%,0 calc(100% - var(--cut) + 1px))}
 .cp-holo,.cp-shine{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .4s ease;z-index:3}
-.cp-holo{background:repeating-linear-gradient(110deg,transparent 0%,color-mix(in srgb,var(--c) 55%,transparent) 3%,color-mix(in srgb,var(--c) 30%,#fff) 5%,color-mix(in srgb,var(--c) 55%,transparent) 7%,transparent 11%,color-mix(in srgb,var(--d) 60%,transparent) 15%,transparent 19%);background-size:400% 400%;background-position:var(--px) var(--py);mix-blend-mode:screen}
-.cp-shine{background:radial-gradient(circle at var(--mx) var(--my),rgba(255,255,255,.55) 0%,rgba(255,255,255,.15) 22%,rgba(255,255,255,0) 50%);mix-blend-mode:overlay}
-.cp-card.is-shiny .cp-holo{opacity:calc(.55 + var(--hyp) * .35)}
+.cp-holo{background:repeating-linear-gradient(110deg,transparent 0%,color-mix(in srgb,var(--c) 55%,transparent) 3%,color-mix(in srgb,var(--c) 30%,#fff) 5%,color-mix(in srgb,var(--c) 55%,transparent) 7%,transparent 11%,color-mix(in srgb,var(--d) 60%,transparent) 15%,transparent 19%);background-size:400% 400%;background-position:var(--px) var(--py)}
+.cp-shine{background:radial-gradient(circle at var(--mx) var(--my),rgba(255,255,255,.3) 0%,rgba(255,255,255,.08) 22%,rgba(255,255,255,0) 50%)}
+.cp-card.is-shiny .cp-holo{opacity:calc(.28 + var(--hyp) * .22)}
 .cp-card.is-shiny .cp-shine{opacity:1}
 .cp-art{position:relative;height:112px;flex:none;overflow:hidden;background:repeating-conic-gradient(from -90deg at 50% 100%,color-mix(in srgb,var(--c) 22%,transparent) 0deg 5deg,transparent 5deg 12deg),radial-gradient(circle at 50% 62%,color-mix(in srgb,var(--c) 42%,transparent) 0%,transparent 62%),linear-gradient(180deg,#111A2E 0%,var(--bg2) 100%)}
 .cp-num{position:absolute;top:8px;left:10px;font:700 17px/1 var(--f-hud);color:var(--c);text-shadow:0 0 10px color-mix(in srgb,var(--c) 60%,transparent);z-index:1}
-.cp-emblem{position:absolute;left:50%;top:18px;width:84px;height:84px;margin-left:-42px;color:var(--c);filter:drop-shadow(0 0 9px color-mix(in srgb,var(--c) 80%,transparent));z-index:1;
+.cp-emblem{position:absolute;left:50%;top:18px;width:84px;height:84px;margin-left:-42px;color:var(--c);z-index:1;
   transform:perspective(500px) rotateY(-9deg) rotateX(4deg);animation:cpFloatS 6s ease-in-out infinite;animation-delay:var(--dl,0s)}
 .cp-emblem svg{position:absolute;inset:0;width:100%;height:100%}
+.cp-emblem::before{content:'';position:absolute;inset:-18%;background:radial-gradient(circle,color-mix(in srgb,var(--c) 50%,transparent) 0%,transparent 68%);pointer-events:none}
+.cp-emblem .em-sheen{mix-blend-mode:normal;opacity:.5}
 @keyframes cpFloatS{0%,100%{transform:perspective(500px) rotateY(-11deg) rotateX(5deg)}50%{transform:perspective(500px) rotateY(11deg) rotateX(-4deg)}}
 /* reflet qui passe sur l'emblème (cartes et fiche) : le blason brille, en 3D */
-.em-sheen,.em-holo,.em-shine{position:absolute;inset:0;pointer-events:none;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 4L90 18V48C90 72 72 88 50 97C28 88 10 72 10 48V18Z'/%3E%3C/svg%3E") center/100% 100% no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 4L90 18V48C90 72 72 88 50 97C28 88 10 72 10 48V18Z'/%3E%3C/svg%3E") center/100% 100% no-repeat}
+.em-sheen,.em-holo,.em-holo2,.em-shine{position:absolute;inset:0;pointer-events:none;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 4L90 18V48C90 72 72 88 50 97C28 88 10 72 10 48V18Z'/%3E%3C/svg%3E") center/100% 100% no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 4L90 18V48C90 72 72 88 50 97C28 88 10 72 10 48V18Z'/%3E%3C/svg%3E") center/100% 100% no-repeat}
 .em-sheen{background:linear-gradient(115deg,transparent 38%,rgba(255,255,255,.6) 50%,transparent 62%);background-size:260% 100%;background-position:130% 0;mix-blend-mode:overlay;animation:emSheen 6s ease-in-out infinite;animation-delay:var(--dl,0s)}
 @keyframes emSheen{0%,58%{background-position:130% 0}78%,100%{background-position:-30% 0}}
 .cp-pick{position:absolute;top:8px;right:8px;z-index:2;font:700 10px/1 var(--f-hud);letter-spacing:.1em;color:#070A12;background:var(--c);padding:5px 7px}
@@ -825,15 +831,19 @@ html.net-busy::before{content:'';position:fixed;top:0;left:0;right:0;height:3px;
 .cp-dnum{position:absolute;top:22px;left:18px;font:700 44px/1 var(--f-hud);color:var(--c);text-shadow:0 0 16px color-mix(in srgb,var(--c) 70%,transparent);z-index:1}
 .cp-dart{touch-action:pan-y}
 .cp-dem{--erx:0deg;--ery:0deg;--mx:50%;--my:30%;--px:50%;--py:50%;position:absolute;left:50%;top:40px;width:160px;height:160px;margin-left:-80px;color:var(--c);z-index:1;
-  filter:drop-shadow(0 0 18px color-mix(in srgb,var(--c) 80%,transparent));transform:perspective(600px) rotateX(var(--erx)) rotateY(var(--ery));transition:transform .45s cubic-bezier(.2,.8,.2,1);animation:cpFloat 5s ease-in-out infinite}
+  transform:perspective(600px) rotateX(var(--erx)) rotateY(var(--ery));transition:transform .5s cubic-bezier(.2,.8,.2,1)}
+.cp-dem-fl{position:absolute;inset:0;animation:cpFloat 5s ease-in-out infinite}
+.cp-dem-fl::before{content:'';position:absolute;inset:-22%;background:radial-gradient(circle,color-mix(in srgb,var(--c) 45%,transparent) 0%,transparent 68%);pointer-events:none}
 .cp-dem svg{position:absolute;inset:0;width:100%;height:100%}
-.cp-dem.is-shiny{animation:none;transition:transform .08s linear}
+.cp-dem.is-shiny{transition:transform .08s linear}
 @keyframes cpFloat{0%,100%{transform:perspective(600px) rotateY(-12deg) rotateX(5deg)}50%{transform:perspective(600px) rotateY(12deg) rotateX(-5deg)}}
 .cp-dem .em-holo{background:repeating-linear-gradient(110deg,transparent 0%,color-mix(in srgb,var(--c) 55%,transparent) 3%,color-mix(in srgb,var(--c) 30%,#fff) 5%,color-mix(in srgb,var(--c) 55%,transparent) 7%,transparent 11%,color-mix(in srgb,var(--d) 60%,transparent) 15%,transparent 19%);
   background-size:400% 400%;background-position:var(--px) var(--py);mix-blend-mode:screen;opacity:.35;animation:holoIdle 5s ease-in-out infinite;transition:opacity .35s}
 @keyframes holoIdle{0%,100%{background-position:20% 30%;opacity:.25}50%{background-position:80% 70%;opacity:.55}}
+.cp-dem .em-holo2{background:repeating-linear-gradient(110deg,transparent 0%,color-mix(in srgb,var(--c) 55%,transparent) 3%,color-mix(in srgb,var(--c) 30%,#fff) 5%,color-mix(in srgb,var(--c) 55%,transparent) 7%,transparent 11%,color-mix(in srgb,var(--d) 60%,transparent) 15%,transparent 19%);
+  background-size:400% 400%;background-position:var(--px) var(--py);mix-blend-mode:screen;opacity:0;transition:opacity .35s}
+.cp-dem.is-shiny .em-holo2{opacity:.85}
 .cp-dem .em-shine{background:radial-gradient(circle at var(--mx) var(--my),rgba(255,255,255,.6) 0%,rgba(255,255,255,0) 45%);mix-blend-mode:overlay;opacity:0;transition:opacity .35s}
-.cp-dem.is-shiny .em-holo{animation:none;opacity:.85}
 .cp-dem.is-shiny .em-shine{opacity:1}
 .cp-dtitle{margin:0;font:italic 900 46px/.88 var(--f-title);text-transform:uppercase;text-shadow:3px 3px 0 var(--d)}
 .cp-dsub{font:600 13px/1.2 var(--f-hud);letter-spacing:.16em;color:var(--c);margin-top:6px;text-transform:uppercase}
@@ -947,7 +957,7 @@ body.has-nav:has(.cp-bar) .toast,body.has-nav:has(.cp-act) .toast{bottom:calc(va
 }
 @media (min-width:1000px){ .cp-grid{grid-template-columns:repeat(4,minmax(0,1fr))} }
 @media (min-width:1000px) and (orientation:landscape){ body.has-nav .cp-bar,body.has-nav .cp-act{bottom:calc(10px + var(--safe-b) - var(--vvb))} body.has-nav:has(.cp-bar) .toast,body.has-nav:has(.cp-act) .toast{bottom:calc(96px + var(--safe-b))} }
-@media (prefers-reduced-motion:reduce){ .cp-dem,.cp-emblem,.em-sheen,.cp-dem .em-holo{animation:none} .cp-card{transition:none} }
+@media (prefers-reduced-motion:reduce){ .cp-dem-fl,.cp-emblem,.em-sheen,.cp-dem .em-holo{animation:none} .cp-card{transition:none} }
 
 /* ======================================================================
    COMPOS D'ÉQUIPES (éducs) : événements, tableau de compo, fiche terrain
@@ -1856,10 +1866,10 @@ textarea.txt{min-height:84px;padding:10px 12px;resize:vertical;font:500 16px/1.4
 .li .t2.bvw b{font-weight:700}
 .bvph{display:flex;flex-wrap:wrap;gap:6px}
 .bvph button{min-height:44px;padding:6px 10px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font:600 13px/1.2 var(--f-body);cursor:pointer;text-align:left}
-.bvcard{display:flex;flex-direction:column;gap:10px;padding:12px 14px;border:1.5px solid rgba(255,194,61,.55);background:rgba(255,194,61,.08)}
-.bvc-l{display:flex;gap:10px;align-items:flex-start;font-size:15px;line-height:1.35}
-.bvc-i{font-size:24px;line-height:1;flex:none}
-.bvc-m{display:block;color:var(--soft);font-size:14px;margin-top:3px}
+.bvcard{display:flex;flex-direction:column;gap:12px;padding:14px 16px;border:2px solid var(--gold);background:rgba(255,194,61,.13)}
+.bvc-l{display:flex;gap:12px;align-items:flex-start;font-size:17px;line-height:1.3;font-weight:500}
+.bvc-i{font-size:32px;line-height:1;flex:none}
+.bvc-m{display:block;color:var(--ink);font-size:16px;margin-top:4px;font-weight:400}
 
 /* ===== (v37) arriver d'une alerte ou de la cloche : l'élément visé est montré d'un éclair (js/app.js, cible) ===== */
 .cible-on{animation:cibleEclair 2s ease-out 1}

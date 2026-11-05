@@ -213,7 +213,6 @@
   function bindEmblem(root) {
     var zone = root.querySelector('.cp-dart'), em = root.querySelector('#cp-dem');
     if (!zone || !em) return;
-    var offT;
     function at(cx, cy) {
       var r = em.getBoundingClientRect();
       var x = Math.min(1, Math.max(0, (cx - r.left) / r.width)), y = Math.min(1, Math.max(0, (cy - r.top) / r.height));
@@ -225,11 +224,13 @@
     function off() { em.classList.remove('is-shiny'); em.style.setProperty('--erx', '0deg'); em.style.setProperty('--ery', '0deg'); }
     zone.addEventListener('pointermove', function (e) { if (e.pointerType !== 'touch') at(e.clientX, e.clientY); });
     zone.addEventListener('pointerleave', function (e) { if (e.pointerType !== 'touch') off(); });
-    function onT(e) { var t = e.touches && e.touches[0]; if (!t) return; clearTimeout(offT); at(t.clientX, t.clientY); }
+    function onT(e) { var t = e.touches && e.touches[0]; if (!t) return; at(t.clientX, t.clientY); }
     zone.addEventListener('touchstart', onT, { passive: true });
     zone.addEventListener('touchmove', onT, { passive: true });
-    zone.addEventListener('touchend', function () { offT = setTimeout(off, 700); }, { passive: true });
-    zone.addEventListener('touchcancel', function () { offT = setTimeout(off, 700); }, { passive: true });
+    // (v55) au lâcher, l'emblème repart tout de suite : l'oscillation (.cp-dem-fl) n'a jamais été arrêtée, seul le penchant du doigt
+    // (.cp-dem) revient en douceur. Avant : 700 ms d'attente, puis l'animation repartait de zéro (« figé une seconde »).
+    zone.addEventListener('touchend', off, { passive: true });
+    zone.addEventListener('touchcancel', off, { passive: true });
   }
   function paintPoste(me, id) {
     var p = M.poste(id);
@@ -255,7 +256,7 @@
     }
     if (r >= 0) ranks += '<button type="button" class="cp-rk x" data-act="msnRemove" data-id="' + esc(id) + '" aria-label="Retirer de mon top"><b>×</b><small>RETIRER</small></button>';
     return '<main class="screen" style="' + vars(p) + '">' + MC.kidSubBar('#/mission/postes', 'Les postes', p.nom) +
-      '<div class="cp-dart"><span class="cp-dnum">' + esc(p.n) + '</span><span class="cp-dem" id="cp-dem">' + emblem(p) + '<span class="em-holo"></span><span class="em-sheen"></span><span class="em-shine"></span></span></div>' +
+      '<div class="cp-dart"><span class="cp-dnum">' + esc(p.n) + '</span><span class="cp-dem" id="cp-dem"><span class="cp-dem-fl">' + emblem(p) + '<span class="em-holo"></span><span class="em-holo2"></span><span class="em-sheen"></span><span class="em-shine"></span></span></span></div>' +
       '<div><h1 class="cp-dtitle">' + esc(p.nom) + '</h1><div class="cp-dsub">' + esc(p.numeros) + ' · « ' + esc(p.surnom) + ' »</div><p class="cp-dintro">' + esc(p.intro) + '</p></div>' +
       '<section class="cp-dstats" aria-label="Caractéristiques">' + p.stats.map(function (v, j) { return '<div><span class="l">' + M.LABELS[j] + '</span>' + stars(v, p.color) + '</div>'; }).join('') + '</section>' +
       '<section class="sec"><h2 class="h2">Ses pouvoirs</h2><div class="cp-powers">' + p.pouvoirs.map(function (w) { return '<div class="cp-power">' + qicon(w.icon) + '<b>' + esc(w.titre) + '</b><p>' + esc(w.texte) + '</p></div>'; }).join('') + '</div></section>' +

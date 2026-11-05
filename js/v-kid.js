@@ -191,9 +191,10 @@
     }
     return '<main class="screen">' + kidBar(me, st) + prepaTabs('semaine') +
       '<div class="head"><span class="kicker">' + esc(C.JOURS[type].jour.toUpperCase()) + ' · ' + (cy.semaine > 8 ? 'SEMAINE DU BILAN' : 'SEMAINE ' + cy.semaine + ' / 8') + '</span>' +
-      '<h1 class="big">Mission<br>du jour</h1></div>' +
+      '<h1 class="big big1l">Séance du jour</h1></div>' +   // (v55) pas « Mission » : ça prêtait à confusion avec les vraies missions
+      bravosCarte(me) +   // (v55) en haut de l'accueil, plus franc qu'en bas de la colonne
       '<div class="home"><div>' + mission + '</div><div class="side">' +
-      (MC.accueil ? MC.accueil.kidChecklist(me, st) : '') + bravosCarte(me) +
+      (MC.accueil ? MC.accueil.kidChecklist(me, st) : '') +
       '<section class="sec"><div class="between"><h2 class="h2">Ma semaine</h2><span class="hud" style="color:var(--gold)">' + wk.stars + ' / 6 étoiles</span></div>' +
       '<div class="week">' + days.map(function (d) { return d.strip; }).join('') + '</div>' +
       '<div class="weeklist">' + days.map(function (d) { return d.list; }).join('') + '</div></section>' + aReg +
