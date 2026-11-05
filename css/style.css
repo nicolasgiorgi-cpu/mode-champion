@@ -981,6 +981,23 @@ textarea.txt{width:100%;padding:10px 12px;background:#0C1120;border:1px solid va
 /* réglages */
 .cstep{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--lc)}
 .cnbv{min-width:28px;text-align:center;font:700 22px/1 var(--f-hud)}
+/* (v50) les options d'une compo, et le haut du tableau (options choisies, boutons) */
+.copts{display:flex;flex-direction:column;gap:12px}
+.copt{display:flex;flex-direction:column;gap:6px}
+.copt .mlab{margin:0}
+.copt .opt{min-height:44px}
+.copt>small{color:var(--soft)}
+.cmont{margin-top:2px}
+.cbopt>summary{list-style:none;cursor:pointer;display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px;min-height:44px}
+.cbopt>summary::-webkit-details-marker{display:none}
+.cbopt>summary .mlab{margin:0}
+.cbopt .cbsum{flex:1 1 220px;font:600 13px/1.35 var(--f-body);color:var(--ink)}
+.cbopt .cbdiff{flex-basis:100%;order:3;font:600 12px/1.3 var(--f-body);color:var(--gold)}
+.cbopt>summary .lnk{margin-left:auto}
+.cbopt[open]>summary .lnk{display:none}
+.cbin{display:flex;flex-direction:column;gap:12px;margin-top:10px}
+.ctop{justify-content:space-between}
+.ctop .cact{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-left:auto}
 /* (v49) les joueurs par équipe */
 .ctaild>summary{list-style:none;cursor:pointer;display:flex;align-items:center;flex-wrap:wrap;gap:4px 12px;min-height:44px}
 .ctaild>summary::-webkit-details-marker{display:none}

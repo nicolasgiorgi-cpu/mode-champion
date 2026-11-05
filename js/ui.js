@@ -64,6 +64,9 @@ MC.ui = (function () {
     star: '<path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6-4.9-4.6 6.6-.8z"/>',
     flame: '<path d="M12 22c4 0 7-2.8 7-7 0-3.5-2.2-5.8-4-8-.4 2.2-1.6 3.6-3 4 .2-3.4-1.4-6.4-4-9 .4 3.6-1 5.6-2.4 7.6C4.6 11.4 5 13 5 15c0 4.2 3 7 7 7z"/>',
     shield: '<path d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5z"/>',
+    // (v50) le plaquage moyen d'une équipe : un bouclier « ≈ » (choix de Nicolas, 05/11) ; les bons plaqueurs : un bouclier plein avec une coche
+    shieldavg: '<path d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5z"/><path d="M8 9.8c1.3-1 2.7-1 4 0s2.7 1 4 0M8 13.8c1.3-1 2.7-1 4 0s2.7 1 4 0" stroke-width="1.8"/>',
+    shieldok: '<path d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5z" fill="currentColor"/><path d="M8.5 11.5l2.4 2.4 4.6-4.8" stroke="#070A12" stroke-width="2.2"/>',
     house: '<path d="M3 11l9-7 9 7M5 10v10h14V10M10 20v-5h4v5"/>',
     hang: '<path d="M4 4h16M8 4v4M16 4v4"/><circle cx="12" cy="11" r="2"/><path d="M8 8l4 5 4-5M12 13v4M10 21l2-4 2 4"/>',
     flamingo: '<circle cx="13" cy="4" r="2"/><path d="M13 6v7M9 9l4 2 4-2M13 13l-1 8M13 13l3 3-2 1"/>',
