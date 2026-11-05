@@ -10,10 +10,11 @@ errs = []; res = []
 def check(n, c, i=''): res.append((n, c)); print(('OK  ' if c else 'BAD ') + n, '' if c else i)
 def pin(pg, code, sel='#adultzone'):
     for c in code: pg.click(sel + ' [data-k="%s"]' % c); pg.wait_for_timeout(50)
-EN_LIGNE = {'v': None, 'n': 0}   # la version « en ligne » que voit la vérification (None : la vraie page)
+EN_LIGNE = {'v': None, 'n': 0, 'nav': 0}   # la version « en ligne » que voit la vérification (None : la vraie page) ; nav : chargements de la page
 def page_en_ligne(route, req):
     # seulement la lecture de la page par l'appli, jamais le chargement de la page elle-même (rechargement compris)
-    if req.is_navigation_request() or EN_LIGNE['v'] is None: return route.continue_()
+    if req.is_navigation_request(): EN_LIGNE['nav'] += 1; return route.continue_()
+    if EN_LIGNE['v'] is None: return route.continue_()
     EN_LIGNE['n'] += 1
     r = route.fetch(); html = r.text()
     route.fulfill(response=r, body=re.sub(r'\?v=\d+', '?v=%d' % EN_LIGNE['v'], html))
@@ -24,7 +25,7 @@ def revenir(pg):
     pg.evaluate("document.dispatchEvent(new Event('visibilitychange'))"); pg.wait_for_timeout(1200)
 with sync_playwright() as p:
     b = p.chromium.launch(); pg = b.new_page(viewport={'width': W, 'height': H}, is_mobile=True, has_touch=True)
-    pg.add_init_script('window.__MC_QUIET=1'); pg.on('pageerror', lambda e: errs.append(str(e)))
+    pg.add_init_script('window.__MC_QUIET=1; window.__MC_MAJ_OUVERTURE=-1'); pg.on('pageerror', lambda e: errs.append(str(e)))
     pg.route(re.compile(r'.*/index\.html(\?.*)?$'), page_en_ligne)
     pg.goto(BASE + '#/adultes'); pg.evaluate('localStorage.clear(); sessionStorage.clear()'); pg.reload(); pg.wait_for_timeout(900)
     codes = pg.evaluate('MC.demo.CODES')
@@ -102,7 +103,7 @@ with sync_playwright() as p:
         check('espace de l\'enfant ouvert pour la séance', False, pg.url)
     # ----- 8. (relecture) un parent qui a choisi « tout confirmer » sans encore envoyer, puis des niveaux en cours : jamais -----
     ctx2 = b.new_context(viewport={'width': W, 'height': H}, is_mobile=True, has_touch=True); pg = ctx2.new_page()
-    pg.add_init_script('window.__MC_QUIET=1'); pg.on('pageerror', lambda e: errs.append(str(e)))
+    pg.add_init_script('window.__MC_QUIET=1; window.__MC_MAJ_OUVERTURE=-1'); pg.on('pageerror', lambda e: errs.append(str(e)))
     pg.route(re.compile(r'.*/index\.html(\?.*)?$'), page_en_ligne); EN_LIGNE['v'] = None
     def pad(code):
         for c in code: pg.click('.modal [data-k="%s"], #adultzone [data-k="%s"]' % (c, c)); pg.wait_for_timeout(60)
@@ -129,6 +130,20 @@ with sync_playwright() as p:
         check('parent : niveaux en cours de modification : pas de rechargement', not recharge(pg) and pg.query_selector('[data-act="lvSave"]') is not None)
     else:
         check('parent : « Modifier les niveaux » sur Bilans', False, pg.url)
+    # ----- 9. (v52) à l'ouverture : l'appli ouverte sur une ancienne copie (réseau lent) se recharge d'elle-même -----
+    ctx3 = b.new_context(viewport={'width': W, 'height': H}, is_mobile=True, has_touch=True); pg = ctx3.new_page()
+    pg.add_init_script('window.__MC_QUIET=1'); pg.on('pageerror', lambda e: errs.append(str(e)))
+    pg.route(re.compile(r'.*/index\.html(\?.*)?$'), page_en_ligne); EN_LIGNE['v'] = None
+    pg.goto(BASE); pg.wait_for_timeout(500); pg.evaluate('localStorage.clear(); sessionStorage.clear()'); pg.reload(); pg.wait_for_timeout(800)
+    pg.click('.kidbtn:has-text("TOM")'); pg.wait_for_timeout(300); pad(codes['enfant']); pg.wait_for_timeout(1200)
+    check('(v52) Tom connecté, sur sa semaine', '#/semaine' in pg.url, pg.url)
+    pg.evaluate("sessionStorage.removeItem('mc-maj')")
+    EN_LIGNE['v'] = None; pg.reload(); pg.wait_for_timeout(4500); n0 = EN_LIGNE['nav']
+    pg.reload(); pg.wait_for_timeout(4500)
+    check('(v52) même version : ouverte une seule fois', EN_LIGNE['nav'] == n0 + 1, EN_LIGNE)
+    EN_LIGNE['v'] = ici + 10; n0 = EN_LIGNE['nav']
+    pg.reload(); pg.wait_for_timeout(6000)
+    check('(v52) nouvelle version en ligne : rechargée quelques secondes après l\'ouverture, une seule fois', EN_LIGNE['nav'] == n0 + 2 and '#/semaine' in pg.url, (EN_LIGNE, pg.url))
     b.close()
 print('ERREURS JS:', errs)
 bad = [n for n, c in res if not c]
