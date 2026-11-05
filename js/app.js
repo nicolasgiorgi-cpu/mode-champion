@@ -244,7 +244,7 @@ MC.app = (function () {
 
   var renderSeq = 0, lastPath = null, renderedHash = null;
   function render() {
-    if (MAJ.attend) setTimeout(majRecharger, 0);   // (v51) une nouvelle version attendait un moment calme
+    majEcran();   // (v51) une nouvelle version attend : on la prend en arrivant sur un autre écran, s'il est calme
     try { renderNow(); }
     catch (e) {
       try { console.error(e); } catch (x) { }
@@ -803,16 +803,32 @@ MC.app = (function () {
   // Sur iPhone, revenir dans l'appli la reprend telle qu'elle était en mémoire, sans la recharger : elle pouvait garder
   // l'ancienne version longtemps (Nicolas, 05/11 : « je vois toujours v49 »). En revenant dans l'appli (au plus une fois par
   // minute) ou en tirant pour actualiser, on lit le numéro de version de la page en ligne ; s'il est plus récent, on recharge,
-  // au calme : pas de fenêtre ouverte, pas de saisie en cours, pas pendant une séance, un bilan ou une connexion (sinon au
-  // prochain changement d'écran). L'écran, le défilement et les brouillons sont gardés comme quand l'iPhone ferme l'appli.
-  var MAJ = { v: 0, at: 0, attend: false, enCours: false }, MAJ_KEY = 'mc-maj';
-  var MAJ_PAS = /^\/(go\/[^/]+|bilan\/go|echauffement|calme|noter|mission\/quiz|educ\/skills\/(evaluer|journee)|connexion|adultes\/code|oubli|premiere)$/;
+  // au calme, et seulement sur un écran de consultation (ceux où l'on peut tirer pour actualiser : jamais un écran de saisie,
+  // une séance, un bilan ou une connexion), sans fenêtre ouverte, sans saisie ni envoi en cours ; sinon en arrivant sur un
+  // autre écran calme. L'écran et le défilement sont gardés comme quand l'iPhone ferme l'appli.
+  var MAJ = { v: 0, at: 0, attend: false, enCours: false, chemin: null, essais: 0 }, MAJ_KEY = 'mc-maj';
+  var MAJ_PAS = /^\/(go\/[^/]+|bilan\/go|echauffement|calme|noter|mission\/quiz|educ\/skills\/(evaluer|journee)|connexion|adultes|adultes\/code|qui|oubli|premiere|defi\/[^/]+)$/;
   function versionIci() { var l = document.querySelector('link[href*="style.css"]'), m = l && /[?&]v=(\d+)/.exec(l.getAttribute('href') || ''); return m ? Number(m[1]) : 0; }
   function majCalme() {
-    if (document.hidden || document.querySelector('.modal')) return false;
+    if (document.hidden || document.querySelector('.modal, .bk') || document.body.classList.contains('np-open')) return false;
+    if (document.documentElement.classList.contains('net-busy')) return false;          // un envoi au serveur en cours
+    if (MC.terrainEnAttente && MC.terrainEnAttente()) return false;                     // une fiche terrain pas encore envoyée
     var a = document.activeElement;
     if (a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT' || a.isContentEditable)) return false;
-    return !MAJ_PAS.test(parseHash().path);
+    if (MAJ_PAS.test(parseHash().path)) return false;
+    return pullable();
+  }
+  // en arrivant sur un autre écran (pas un simple redessin du même) : quelques essais, le temps qu'il s'affiche
+  function majEcran() {
+    var p = parseHash().path, autre = p !== MAJ.chemin;
+    MAJ.chemin = p;
+    if (!MAJ.attend || !autre) return;
+    MAJ.essais = 0;
+    setTimeout(function essai() {   // une fois le nouvel écran dessiné
+      if (!MAJ.attend || MAJ.enCours || parseHash().path !== p) return;
+      if (majRecharger() || ++MAJ.essais >= 6) return;
+      setTimeout(essai, 700);
+    }, 0);
   }
   function majRecharger() {
     if (MAJ.enCours) return true;

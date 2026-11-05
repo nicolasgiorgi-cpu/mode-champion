@@ -67,8 +67,31 @@ with sync_playwright() as p:
     pg.evaluate("document.activeElement && document.activeElement.blur()")
     pg.evaluate('void MC.app.pullRefresh()'); pg.wait_for_timeout(1800)
     check('tirer pour actualiser : l\'appli se recharge', recharge(pg) and '#/educ/progres' in pg.url, pg.url)
+    # ----- 6 bis. (relecture) un écran de saisie (les présents, pas encore enregistrés) : jamais, même en revenant -----
+    EN_LIGNE['v'] = ici + 5
+    pg.goto(BASE + '#/educ/evt/sp-demo-p3/presents'); pg.wait_for_timeout(1000)
+    pg.click('main details > summary'); pg.wait_for_timeout(200)
+    pg.locator('[data-act="prToggle"]').first.click(); pg.wait_for_timeout(300)
+    marquer(pg); revenir(pg)
+    check('présents cochés, pas enregistrés : en revenant, pas de rechargement', not recharge(pg) and pg.query_selector('[data-act="prSave"]') is not None)
+    pg.click('#nav a[href="#/educ/plateaux"]'); pg.wait_for_timeout(2500)
+    check('en arrivant sur un écran calme (Plateaux) : rechargée', recharge(pg) and '#/educ/plateaux' in pg.url, pg.url)
+    # ----- 6 ter. (relecture) une mise à jour en attente, puis un toucher sur la fiche terrain : pas de rechargement avant l'envoi -----
+    EN_LIGNE['v'] = ici + 6
+    tid = pg.evaluate("MC.app.S.cache.group.joueurs.find(p=>p.joueur.prenom==='Tom').joueur.id")
+    pg.goto(BASE + '#/educ/joueur/' + tid + '?t=terrain'); pg.wait_for_timeout(1500)
+    if pg.query_selector('.modal'): pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(300)
+    pg.evaluate("void MC.ui.modal({ title: 'Essai', body: '<p>fenêtre</p>', actions: [{ label: 'Fermer', value: true, cls: 'btn' }] })"); pg.wait_for_timeout(300)
+    pg.evaluate('void MC.app.verifierVersion(true)'); pg.wait_for_timeout(1200)
+    pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(300); marquer(pg)
+    niv = pg.evaluate("(document.querySelector('[data-act=\"tkNiv\"]:not(.on)')||{}).getAttribute ? document.querySelector('[data-act=\"tkNiv\"]:not(.on)').getAttribute('data-v') : ''")
+    pg.click('[data-act="tkNiv"][data-v="%s"]' % niv); pg.wait_for_timeout(2500)
+    srv = pg.evaluate("(id) => MC.api.call('group', { token: MC.app.S.adult.token }).then(g => (g.joueurs.find(p => p.joueur.id === id).terrain || {}).niveau || '')", tid)
+    check('niveau touché sur la fiche : pas de rechargement, envoyé au serveur', not recharge(pg) and srv == niv, (niv, srv))
     # ----- 7. pendant une séance : jamais -----
-    EN_LIGNE['v'] = ici + 4
+    EN_LIGNE['v'] = ici + 7
+    pg.goto(BASE + '#/educ/progres'); pg.wait_for_timeout(2500)
+    check('la mise à jour en attente : prise en arrivant sur Progrès', recharge(pg) and '#/educ/progres' in pg.url, pg.url)
     pg.click('.tb-pass') if pg.query_selector('.tb-pass') else None; pg.wait_for_timeout(1800)
     if '#/semaine' in pg.url:
         pg.goto(BASE + '#/go/cros'); pg.wait_for_timeout(1200); marquer(pg)
