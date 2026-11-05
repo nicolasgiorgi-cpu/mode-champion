@@ -118,7 +118,7 @@ with sync_playwright() as p:
     # ----- un brouillon d'entraînement : en haut si l'entraînement est à venir, pas s'il est passé -----
     ev("Object.keys(localStorage).filter(k => k.indexOf('mc-cdraft:') === 0).forEach(k => localStorage.removeItem(k))")
     pg.goto(BASE + '#/educ/evt/sp-demo-e1'); pg.wait_for_timeout(800)
-    ev("""localStorage.setItem('mc-cdraft:' + MC.app.S.adult.id + ':sp-demo-e1:ateliers', '{"vs":[]}'); MC.app.rerender()"""); pg.wait_for_timeout(300)
+    ev("""localStorage.setItem('mc-cdraft:' + ((MC.app.S.adult && MC.app.S.adult.id) || MC.app.S.cache.group.moi.id) + ':sp-demo-e1:ateliers', '{"vs":[]}'); MC.app.rerender()"""); pg.wait_for_timeout(300)
     hautFutur = ev("""document.querySelector('.cpart').getBoundingClientRect().bottom <= document.querySelector('.cpres-card').getBoundingClientRect().top""")
     check('brouillon d\'un entraînement à venir : au-dessus des présents', hautFutur)
     ev("""(() => { MC.app.S.cache.compos.evenements.find(x => x.id === 'sp-demo-e1').debut = '2026-01-07T16:30:00.000Z'; MC.app.rerender(); })()"""); pg.wait_for_timeout(300)
