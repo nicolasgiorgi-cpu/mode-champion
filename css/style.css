@@ -981,6 +981,12 @@ textarea.txt{width:100%;padding:10px 12px;background:#0C1120;border:1px solid va
 /* réglages */
 .cstep{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--lc)}
 .cnbv{min-width:28px;text-align:center;font:700 22px/1 var(--f-hud)}
+/* (v49) les joueurs par équipe */
+.ctails{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.ctail{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:4px 6px 4px 10px;background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--lc)}
+.ctail b{font:italic 900 18px/1 var(--f-title);color:var(--lc)}
+.ctail .ibtn{width:40px;height:40px}
+.ctail .cnbv{min-width:24px;font-size:18px}
 .ibtn:disabled,.btn2:disabled{opacity:.38;cursor:default}
 .cselp .grow,.cdock .grow{flex:1;min-width:0}
 body:has(.cdock .cselp) .toast{top:calc(74px + var(--safe-t));bottom:auto}

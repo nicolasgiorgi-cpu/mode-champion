@@ -23,10 +23,14 @@ const F = groupe([
   ['c1', 'C', 0], ['c2', 'C', 1], ['c3', 'C', 2], ['c4', 'C', 0], ['c5', 'C', 1], ['c6', 'C', 2], ['z', '', null]]);
 const tous = Object.keys(F);
 assert.ok(K.STYLES.aforte && K.STYLES.aforte.nom === 'A forte', 'le style existe');
-let p = K.proposer(tous, F, {}, { format: 5, nb: { A: 1, B: 2, C: 1 } }, '2026-11-04', 'aforte');
+// (v49) par défaut, 19 enfants en 4 équipes : 4 ou 5 chacune, la place en plus va d'abord aux équipes les plus nombreuses (B) ;
+// ici on demande une équipe A de 5 pour voir comment elle se complète
+let p0 = K.proposer(tous, F, {}, { format: 5, nb: { A: 1, B: 2, C: 1 } }, '2026-11-04', 'aforte');
+assert.ok(p0.equipes.every(t => t.joueurs.length === 4 || t.joueurs.length === 5), J(p0.equipes.map(t => t.joueurs.length)));
+let p = K.proposer(tous, F, {}, { format: 5, nb: { A: 1, B: 2, C: 1 }, style: 'aforte', tailles: { A1: 5, B1: 5, B2: 5, B3: 4 } }, '2026-11-04', 'aforte');
 assert.deepStrictEqual(J(p.equipes.map(t => t.id)), ['A1', 'B1', 'B2', 'B3'], 'une équipe A, les équipes C comptent comme des B');
 const A1 = p.equipes[0];
-assert.strictEqual(A1.joueurs.length, 5, 'équipe A pleine : 19 / 4 équipes ≈ 5');
+assert.strictEqual(A1.joueurs.length, 5, 'équipe A de 5, comme demandé');
 ['a1', 'a2', 'a3', 'a4'].forEach(id => assert.strictEqual(ou(p)[id], 'A1', id + ' (A) en A'));
 assert.strictEqual(ou(p).b8, 'A1', 'la place qui reste : d\'abord le B avec ⇅A (pas le meilleur plaqueur b1)');
 assert.ok(/passerelle/.test(p.raisons.b8), p.raisons.b8);
@@ -60,8 +64,8 @@ const R = groupe([['a1', 'A', 3], ['a2', 'A', 3], ['b1', 'B', 2, 'A'], ['b2', 'B
 const HR = { b1: { plateaux: 1, autre: 1, dernierAutre: '2026-10-10', avecCopain: 0, sansCopainSerie: 0, vus: {}, niveaux: {}, postes: {}, liste: [{ date: '2026-10-10', niveau: 'A', autre: true }] } };
 p = K.proposer(Object.keys(R), R, HR, { format: 5, nb: { A: 1, B: 1, C: 0 } }, '2026-11-04', 'aforte');
 assert.deepStrictEqual(J(ids(p.equipes[0]).sort()), ['a1', 'a2', 'b1', 'b2'], 'les deux passerelles complètent l\'équipe A (4 = 8 / 2)');
-p = K.proposer(Object.keys(R), R, HR, { format: 5, nb: { A: 1, B: 2, C: 0 } }, '2026-11-04', 'aforte');
-assert.strictEqual(ou(p).b2, 'A1', 'une seule place (8 / 3 ≈ 3) : b2, qui n\'a jamais joué en A');
+p = K.proposer(Object.keys(R), R, HR, { format: 5, nb: { A: 1, B: 2, C: 0 }, style: 'aforte', tailles: { A1: 3, B1: 3, B2: 2 } }, '2026-11-04', 'aforte');
+assert.strictEqual(ou(p).b2, 'A1', 'une seule place (équipe A de 3) : b2, qui n\'a jamais joué en A');
 assert.strictEqual(ou(p).b1[0], 'B');
 // jeu à 10 : des postes dans chaque équipe ; « 2 versions » : A forte ↔ Équilibrée
 const PO = ['pilier', 'talonneur', 'troisieme-ligne', 'demi-de-melee', 'ouvreur', 'centre', 'ailier'];

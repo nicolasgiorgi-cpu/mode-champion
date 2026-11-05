@@ -1898,6 +1898,11 @@ var Core = (function () {
     var reglages = { format: Number(r.format) === 10 ? 10 : 5, nb: nb };
     // (v48) le style de la proposition du plateau est gardé (« A forte » : les alertes en tiennent compte)
     if (!partie && ['equilibre', 'copains', 'strict', 'aforte'].indexOf(r.style) >= 0) reglages.style = r.style;
+    // (v49) les joueurs voulus par équipe (pour refaire la proposition) : A1…C9, de 0 à 40
+    if (!partie && r.tailles && typeof r.tailles === 'object') {
+      var tl = {}; Object.keys(r.tailles).slice(0, 18).forEach(function (k) { var v = Math.floor(Number(r.tailles[k])); if (/^[ABC][1-9]$/.test(k) && v >= 0 && v <= 40) tl[k] = v; });
+      if (Object.keys(tl).length) reglages.tailles = tl;
+    }
     if (partie) {
       var borne = function (v, a, b, d) { v = Math.floor(Number(v)); return isNaN(v) ? d : v < a ? a : v > b ? b : v; };
       // (v35) les matchs d'entraînement peuvent se jouer avec des postes (jeu à 10, comme les plateaux)
