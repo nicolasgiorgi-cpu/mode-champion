@@ -648,11 +648,10 @@ window.MC = window.MC || {};
   var OPT_TXT = {
     orga: ['Organisation', { niveau: ['Par niveau', 'Une équipe par niveau : A, B, C.'], aforte: ['A forte', 'Une équipe A avec les Confirmés (complétée par les meilleurs B), les autres mélangent B et C.'] }],
     effectifs: ['Joueurs par équipe', { equilibre: ['Équilibrés', 'À un joueur près ; « Ajuster » pour les régler équipe par équipe.'], niveaux: ['Suivre les niveaux', 'Personne ne change de niveau, les passerelles non plus : chaque équipe a les joueurs de son niveau.'] }],
-    passerelles: ['Passerelles', { niveau: ['Par niveau', 'Le nombre de joueurs par équipe décide combien changent de niveau. Parmi ceux qui ont une passerelle, le plaquage d\'abord : les meilleurs montent, les moins avancés descendent.'], roulant: ['Roulant', 'Ceux qui ont une passerelle jouent chacun leur tour, quel que soit le plaquage. Une par équipe monte, même si l\'équipe est pleine : quelqu\'un descend en échange.'] }],
-    change: ['Pour équilibrer, qui change de niveau', { plaquage: ['Selon le plaquage', 'Quand les passerelles ne suffisent pas : les moins avancés descendent, les meilleurs montent.'], tour: ['Chacun son tour', 'Quand les passerelles ne suffisent pas : quel que soit le plaquage.'] }],
+    passerelles: ['Passerelles', { niveau: ['Par niveau', 'Le nombre de joueurs par équipe décide combien changent de niveau. Ceux qui ont une passerelle passent d\'abord, le plaquage en premier : les meilleurs montent, les moins avancés descendent.'], roulant: ['Roulant', 'Ceux qui ont une passerelle jouent chacun leur tour, quel que soit le plaquage. Une par équipe monte, même si l\'équipe est pleine : quelqu\'un descend en échange.'] }],
     copains: ['Copains', { un: ['Un copain pour chacun', 'Quand c\'est possible, le plaquage d\'abord.', 'Un pour chacun'], dabord: ['Copains d\'abord', 'Chacun avec ses copains en priorité.'], sans: ['Sans', 'Les copains ne comptent pas du tout.'] }]
   };
-  var OPT_LIGNE = { effectifs: 'Effectifs', change: 'Qui change de niveau' };   // le nom de la ligne, quand celui des choix est trop long
+  var OPT_LIGNE = { effectifs: 'Effectifs' };   // le nom de la ligne, quand celui des choix est trop long
   // (v54, choix O1 de Nicolas) une ligne par option : un « ? » au début (la règle appliquée), le nom, les choix à droite
   function ligneOpt(aide, label, sous, droite, cls) {
     return '<div class="oli' + (cls ? ' ' + cls : '') + '"><span class="olab">' + aideHtml(aide, 'La règle : ' + label) + '<span>' + label + (sous ? '<small>' + sous + '</small>' : '') + '</span></span>' + droite + '</div>';
@@ -664,9 +663,9 @@ window.MC = window.MC || {};
   // attrO : l'attribut des choix (data-k et data-v)
   function optionsLignes(reg, attrO) {
     var o = K.optsDe(reg);
-    return ['orga', 'effectifs', 'passerelles', 'change', 'copains'].map(function (k) {
-      // (v56) « Suivre les niveaux » : personne ne change de niveau, ces deux lignes n'ont plus d'objet
-      if ((k === 'passerelles' || k === 'change') && o.effectifs === 'niveaux') return '';
+    return ['orga', 'effectifs', 'passerelles', 'copains'].map(function (k) {
+      // (v56) « Suivre les niveaux » : personne ne change de niveau, cette ligne n'a plus d'objet
+      if (k === 'passerelles' && o.effectifs === 'niveaux') return '';
       var T = OPT_TXT[k];
       return ligneOpt('o-' + k, OPT_LIGNE[k] || T[0], '', '<div class="oseg' + (Object.keys(T[1]).length > 2 ? ' trois' : '') + '">' + Object.keys(T[1]).map(function (v) {
         return '<button type="button" class="opt' + (o[k] === v ? ' on' : '') + '" aria-pressed="' + (o[k] === v) + '" ' + attrO + '="' + k + '" data-v="' + v + '">' + (T[1][v][2] || T[1][v][0]) + '</button>';
@@ -697,10 +696,7 @@ window.MC = window.MC || {};
     var o = K.optsDe(reg), tids = K.idsEquipes(reg), bits = ['Jeu à ' + K.fmt(reg), tids.join(' ') || 'aucune équipe', OPT_TXT.orga[1][o.orga][0]];
     if (o.effectifs === 'niveaux') bits.push('effectifs des niveaux');
     else if (ids) { var t = taillesReg(ids, F, reg); bits.push(tids.map(function (id) { return t[id]; }).join(' · ') + ' joueurs'); }
-    if (o.effectifs !== 'niveaux') {
-      bits.push(o.passerelles === 'niveau' ? 'passerelles par niveau' : 'passerelles roulantes');
-      bits.push(o.change === 'tour' ? 'chacun son tour' : 'selon le plaquage');
-    }
+    if (o.effectifs !== 'niveaux') bits.push(o.passerelles === 'niveau' ? 'passerelles par niveau' : 'passerelles roulantes');
     bits.push(o.copains === 'dabord' ? 'copains d\'abord' : o.copains === 'sans' ? 'sans les copains' : 'un copain chacun');
     return bits.join(' · ');
   }
@@ -2054,7 +2050,7 @@ window.MC = window.MC || {};
       '<span>Bouclier vide : pas encore évalué.</span>'
   };
   // (v54) les règles des options de compo, une par ligne
-  ['orga', 'effectifs', 'passerelles', 'change', 'copains'].forEach(function (k) {
+  ['orga', 'effectifs', 'passerelles', 'copains'].forEach(function (k) {
     AIDES['o-' + k] = Object.keys(OPT_TXT[k][1]).map(function (v) { return '<b>' + OPT_TXT[k][1][v][0] + '</b> : ' + OPT_TXT[k][1][v][1]; }).join('<br>');
   });
   AIDES['o-format'] = '<b>Jeu à 5</b> : pas de postes dans la compo ; l\'appli range quand même chaque équipe en avants et arrières, d\'après le poste principal de leur fiche.<br><b>Jeu à 10</b> : chaque joueur a son poste du plateau, par défaut celui de sa fiche.';

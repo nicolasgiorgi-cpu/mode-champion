@@ -93,10 +93,9 @@ with sync_playwright() as p:
     # (v48) le style « A forte » : une équipe A, les autres « B » (les C comptent comme des B)
     # (v50) les options (liste validée par Nicolas) à la place des styles
     ks = ev(pg, "[...new Set([...document.querySelectorAll('[data-act=\"cOpt\"]')].map(b=>b.getAttribute('data-k')))].join(',')")
-    check('(v50) les options : organisation, joueurs par équipe, passerelles, qui change de niveau, copains', ks == 'orga,effectifs,passerelles,change,copains', ks)
+    check('(v56) les options : organisation, joueurs par équipe, passerelles, copains', ks == 'orga,effectifs,passerelles,copains', ks)
     check('(v56) plus de compteur « Montent en A » ; Passerelles : Par niveau ou Roulant, Roulant par défaut', pg.query_selector('.cmont') is None and pg.query_selector('[data-act="cOpt"][data-k="passerelles"][data-v="roulant"].on') is not None and pg.query_selector('[data-act="cOpt"][data-k="passerelles"][data-v="niveau"]') is not None)
     pg.click('[data-act="cOpt"][data-k="orga"][data-v="aforte"]'); pg.wait_for_timeout(200)
-    pg.click('[data-act="cOpt"][data-k="change"][data-v="tour"]'); pg.wait_for_timeout(200)   # « chacun son tour »
     check('(v48) A forte : la note des équipes', 'les équipes C comptent comme des B' in pg.inner_text('main'))
     pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(900)
     af = ev(pg, """(()=>{const k=Object.keys(localStorage).find(k=>k.indexOf('mc-cdraft:')===0&&k.indexOf('sp-demo-p3')>0); const d=JSON.parse(localStorage.getItem(k)).vs[0]; const F=MC.compos.fiches(MC.app.S.cache.group);
@@ -110,8 +109,7 @@ with sync_playwright() as p:
     shot(pg, 'k04b-aforte', True)
     pg.click('[data-act="cDiscard"]'); pg.wait_for_timeout(300); pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(700)
     # (relecture v50) « Effacer le brouillon » garde les options
-    check('(v50) brouillon effacé : les options restent (A forte, chacun son tour)', pg.query_selector('[data-act="cOpt"][data-k="orga"][data-v="aforte"].on') is not None and pg.query_selector('[data-act="cOpt"][data-k="change"][data-v="tour"].on') is not None)
-    pg.click('[data-act="cOpt"][data-k="change"][data-v="plaquage"]'); pg.wait_for_timeout(200)
+    check('(v50) brouillon effacé : les options restent (A forte)', pg.query_selector('[data-act="cOpt"][data-k="orga"][data-v="aforte"].on') is not None)
     pg.click('[data-act="cOpt"][data-k="orga"][data-v="niveau"]'); pg.wait_for_timeout(200)
     pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(800)
     nteams = len(pg.query_selector_all('.ccol')); nchips = len(pg.query_selector_all('.ccol .cpj'))
@@ -141,7 +139,7 @@ with sync_playwright() as p:
     check('(v54) un « ? » au début de chaque ligne', len(lignes) >= 8 and all(lignes), lignes)
     check('(v54) le « ? » est bien au début de la ligne', ev(pg, "[...document.querySelectorAll('.cbopt .oli:not(.otail)')].every(l => { const q = l.querySelector('.aide-q').getBoundingClientRect(), r = l.getBoundingClientRect(); return q.left - r.left < 20 })"))
     check('(v54) rien ne déborde des lignes', ev(pg, "[...document.querySelectorAll('.cbopt .oli, .cbopt .oseg, .cbopt .opt')].every(e => e.scrollWidth <= e.clientWidth + 1)") and noscroll(pg))
-    for k, txt in (('o-orga', 'A forte'), ('o-effectifs', 'Suivre les niveaux'), ('o-passerelles', 'chacun leur tour'), ('o-change', 'Chacun son tour'), ('o-copains', "Copains d'abord"), ('o-format', 'Jeu à 10'), ('o-equipes', 'niveau voisin'), ('o-tailles', 'Ajuster'), ('o-garder', 'Pas placés')):
+    for k, txt in (('o-orga', 'A forte'), ('o-effectifs', 'Suivre les niveaux'), ('o-passerelles', 'chacun leur tour'), ('o-copains', "Copains d'abord"), ('o-format', 'Jeu à 10'), ('o-equipes', 'niveau voisin'), ('o-tailles', 'Ajuster'), ('o-garder', 'Pas placés')):
         pg.evaluate("(k) => document.querySelector('.cbopt .aide-q[data-aide=\"' + k + '\"]').scrollIntoView({ block: 'center' })", k); pg.wait_for_timeout(120)   # défiler ferme la bulle : c'est voulu
         pg.click('.cbopt .aide-q[data-aide="%s"]' % k); pg.wait_for_timeout(120)
         check('(v54) « ? » %s : la règle s\'affiche' % k, pg.query_selector('.aide-bulle') is not None and txt in pg.inner_text('.aide-bulle'), pg.inner_text('.aide-bulle') if pg.query_selector('.aide-bulle') else '')

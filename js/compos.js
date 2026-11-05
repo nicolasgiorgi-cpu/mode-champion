@@ -51,12 +51,13 @@ MC.compos = (function () {
   // orga : par niveau | A forte ; effectifs : équilibrés (tailles réglables) | suivre les niveaux (personne ne change de niveau) ;
   // passerelles (v56, décision de Nicolas) : parmi ceux qui ont une passerelle, qui change de niveau — par niveau (le plaquage d'abord) |
   //   roulant (chacun son tour, et une par équipe au-dessus même si elle est pleine : sinon, quand les Confirmés remplissent l'équipe A, personne ne monte) ;
-  // change : qui change de niveau quand les passerelles ne suffisent pas — selon le plaquage | chacun son tour ; copains : un pour chacun | d'abord | sans
-  var OPTS = { orga: ['niveau', 'aforte'], effectifs: ['equilibre', 'niveaux'], passerelles: ['niveau', 'roulant'], change: ['plaquage', 'tour'], copains: ['un', 'dabord', 'sans'] };
+  // quand les passerelles ne suffisent pas, les enfants sans passerelle changent selon le plaquage (v56 : plus d'option « qui change de niveau », un doublon) ;
+  // copains : un pour chacun | d'abord | sans
+  var OPTS = { orga: ['niveau', 'aforte'], effectifs: ['equilibre', 'niveaux'], passerelles: ['niveau', 'roulant'], copains: ['un', 'dabord', 'sans'] };
   var PAS_ANC = { tour: 'roulant', aucune: 'niveau' };   // (v56) les valeurs d'avant : compos déjà faites, site plus ancien encore ouvert
   function optsDe(reglages, style) {
     var r = reglages || {}, o = r.opts && typeof r.opts === 'object' ? r.opts : null, st = style || r.style || 'equilibre', out = {};
-    var leg = { orga: st === 'aforte' ? 'aforte' : 'niveau', effectifs: st === 'strict' ? 'niveaux' : 'equilibre', passerelles: 'roulant', change: 'plaquage', copains: st === 'copains' ? 'dabord' : 'un' };
+    var leg = { orga: st === 'aforte' ? 'aforte' : 'niveau', effectifs: st === 'strict' ? 'niveaux' : 'equilibre', passerelles: 'roulant', copains: st === 'copains' ? 'dabord' : 'un' };
     Object.keys(OPTS).forEach(function (k) {
       var v = o ? o[k] : undefined;
       if (k === 'passerelles' && PAS_ANC[v]) v = PAS_ANC[v];
@@ -495,7 +496,8 @@ MC.compos = (function () {
           var xa = pasDe(F[a]).indexOf(de) >= 0 ? 0 : 1, xb = pasDe(F[b]).indexOf(de) >= 0 ? 0 : 1;
           if (xa !== xb) return xa - xb;
           var t = tourB(a, b, de), p = plqN(F, a) - plqN(F, b);
-          return (O.change === 'tour' ? t || p : p || t) || (a < b ? -1 : 1);
+          // ceux qui ont une passerelle vers le bas : à leur tour ; les autres : le moins avancé, et à plaquage égal à leur tour
+          return (xa === 0 ? t || p : p || t) || (a < b ? -1 : 1);
         });
         if (ds.length) { lv[ds[0]] = de; fixe[ds[0]] = true; raisons[ds[0]] = 'Laisse sa place à une passerelle : joue en ' + de + '.'; }
       }
@@ -521,8 +523,8 @@ MC.compos = (function () {
           if (xa !== xb) return xa - xb;
           var pa = plqN(F, a), pb = plqN(F, b);   // pas encore évalué : au milieu (ni le premier à descendre, ni à monter)
           var p = pa !== pb ? (monte ? pb - pa : pa - pb) : 0, t = tourB(a, b, nx);
-          // (v50) option « chacun son tour » : le tour avant le plaquage
-          return (O.change === 'tour' ? t || p : p || t) || (a < b ? -1 : 1);
+          // (v56) « Roulant » : ceux qui ont une passerelle à leur tour ; sans passerelle : le plaquage d'abord, quelle que soit l'option
+          return (xa === 0 && O.passerelles === 'roulant' ? t || p : p || t) || (a < b ? -1 : 1);
         });
         if (!cand.length) break;
         lv[cand[0]] = nx;
@@ -573,9 +575,9 @@ MC.compos = (function () {
     // les Confirmés, dans l'ordre où ils restent dans l'équipe forte
     As.sort(function (a, b) {
       var pa = pasDe(F[a]).length ? 1 : 0, pb = pasDe(F[b]).length ? 1 : 0, da = dernierEn(H, a, 'B'), db = dernierEn(H, b, 'B');
-      // à plaquage égal, chacun son tour : celui qui a joué en B le plus récemment reste en A (option « chacun son tour » : le tour d'abord)
+      // à plaquage égal, chacun son tour : celui qui a joué en B le plus récemment reste en A ; (v56) « Roulant » : le tour d'abord pour ceux qui ont une passerelle
       var p = plq(F, b) - plq(F, a), t = da !== db ? (da > db ? -1 : 1) : 0;
-      return pa - pb || (O.change === 'tour' ? t || p : p || t) || (a < b ? -1 : 1);
+      return pa - pb || (pa && O.passerelles === 'roulant' ? t || p : p || t) || (a < b ? -1 : 1);
     });
     // (v50, v56) « Roulant » : les passerelles qui montent, à leur tour, sans regarder le plaquage
     var pas = sansPas ? [] : ids.filter(function (id) { var n = niveauDe(F[id]); return n && n !== 'A' && pasDe(F[id]).indexOf('A') >= 0; }).sort(function (a, b) {

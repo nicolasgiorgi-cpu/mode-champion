@@ -14,7 +14,7 @@ function groupe(spec) {
 const tailles = (p) => J(p.equipes.map(t => t.id + ':' + t.joueurs.length));
 const dans = (p, id) => J(p.equipes.find(t => t.id === id).joueurs.map(j => j.id));
 const H1 = (d, n) => ({ plateaux: 1, autre: 1, dernierAutre: d, avecCopain: 0, sansCopainSerie: 0, vus: {}, niveaux: {}, postes: {}, liste: [{ date: d, niveau: n, autre: true }] });
-const O = (o) => Object.assign({ orga: 'niveau', effectifs: 'equilibre', passerelles: 'roulant', change: 'plaquage', copains: 'un' }, o);
+const O = (o) => Object.assign({ orga: 'niveau', effectifs: 'equilibre', passerelles: 'roulant', copains: 'un' }, o);
 const OM = (o, m) => Object.assign(O(o), { montees: m });
 
 // ----- les anciens styles et les anciennes valeurs -----
@@ -27,6 +27,7 @@ assert.strictEqual(K.optsDe({ opts: { montees: 3 } }).montees, 1, 'plus de compt
 assert.strictEqual(K.optsDe({ opts: { passerelles: 'niveau' } }).montees, 0, 'par niveau : pas de montée forcée');
 assert.strictEqual(K.optsDe({ opts: { effectifs: 'niveaux' } }).montees, 0, 'suivre les niveaux : personne ne bouge');
 assert.strictEqual(K.optsDe({ opts: { copains: 'sans' } }).copains, 'sans');
+assert.ok(!('change' in K.optsDe({ opts: { change: 'tour' } })), 'plus d\'option « qui change de niveau »');
 ['equilibre', 'copains', 'strict', 'aforte'].forEach(s => assert.strictEqual(K.styleDe(K.optsDe({ style: s })), s));
 
 // ----- Roulant : une passerelle par équipe monte, même si l'équipe A est pleine ; Par niveau : seulement si les effectifs le demandent -----
@@ -130,9 +131,19 @@ assert.strictEqual(dans(p, 'A1').length, 8);
 const G = groupe([['a1', 'A', 3], ['a2', 'A', 3], ['a3', 'A', 3], ['b1', 'B', 1], ['b2', 'B', 2], ['b3', 'B', 2], ['b4', 'B', 2], ['b5', 'B', 2], ['c1', 'C', 1]]);
 const HG = { b1: H1('2026-10-25', 'C') };                                      // b1 (1★) est déjà descendu le 25/10
 p = K.proposer(Object.keys(G), G, HG, { format: 5, nb, opts: O({}) });
-assert.ok(dans(p, 'C1').includes('b1'), 'selon le plaquage : le moins avancé descend encore');
-p = K.proposer(Object.keys(G), G, HG, { format: 5, nb, opts: O({ change: 'tour' }) });
-assert.ok(!dans(p, 'C1').includes('b1') && dans(p, 'C1').length === 3, 'chacun son tour : un autre B descend ' + dans(p, 'C1'));
+assert.ok(dans(p, 'C1').includes('b1'), 'sans passerelle, roulant : le plaquage d\'abord, le moins avancé descend encore');
+p = K.proposer(Object.keys(G), G, HG, { format: 5, nb, opts: O({ passerelles: 'niveau' }) });
+assert.ok(dans(p, 'C1').includes('b1'), 'sans passerelle, par niveau : le plaquage d\'abord');
+// à plaquage égal, chacun son tour
+const G3 = groupe([['a1', 'A', 3], ['a2', 'A', 3], ['a3', 'A', 3], ['b1', 'B', 2], ['b2', 'B', 2], ['b3', 'B', 2], ['b4', 'B', 2], ['b5', 'B', 2], ['c1', 'C', 1]]);
+p = K.proposer(Object.keys(G3), G3, { b1: H1('2026-10-25', 'C') }, { format: 5, nb, opts: O({}) });
+assert.ok(!dans(p, 'C1').includes('b1') && dans(p, 'C1').length === 3, 'à plaquage égal : un autre B descend ' + dans(p, 'C1'));
+// une passerelle vers le bas : à son tour en Roulant, le moins avancé en Par niveau
+const G2bis = groupe([['a1', 'A', 3], ['a2', 'A', 3], ['a3', 'A', 3], ['b1', 'B', 1, 'C'], ['b2', 'B', 2, 'C'], ['b3', 'B', 2], ['b4', 'B', 2], ['b5', 'B', 2], ['c1', 'C', 1]]);
+p = K.proposer(Object.keys(G2bis), G2bis, HG, { format: 5, nb, opts: O({ passerelles: 'niveau' }) });
+assert.ok(dans(p, 'C1').includes('b1'), 'par niveau : le moins avancé des passerelles descend ' + dans(p, 'C1'));
+p = K.proposer(Object.keys(G2bis), G2bis, HG, { format: 5, nb, opts: O({}) });
+assert.ok(dans(p, 'C1').includes('b2') && dans(p, 'C1')[0] !== undefined, 'roulant : b2, qui n\'y a pas encore joué, passe avant b1 ' + dans(p, 'C1'));
 
 // ----- suivre les niveaux : personne ne change de niveau, même avec une passerelle -----
 p = K.proposer(Object.keys(G), G, {}, { format: 5, nb, opts: O({ effectifs: 'niveaux' }) });
