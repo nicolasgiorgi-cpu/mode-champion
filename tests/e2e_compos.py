@@ -139,7 +139,7 @@ with sync_playwright() as p:
     check('(v54) un « ? » au début de chaque ligne (v56 : 7 lignes, sans « Qui change de niveau »)', len(lignes) == 7 and all(lignes), lignes)
     check('(v54) le « ? » est bien au début de la ligne', ev(pg, "[...document.querySelectorAll('.cbopt .oli:not(.otail)')].every(l => { const q = l.querySelector('.aide-q').getBoundingClientRect(), r = l.getBoundingClientRect(); return q.left - r.left < 20 })"))
     check('(v54) rien ne déborde des lignes', ev(pg, "[...document.querySelectorAll('.cbopt .oli, .cbopt .oseg, .cbopt .opt')].every(e => e.scrollWidth <= e.clientWidth + 1)") and noscroll(pg))
-    for k, txt in (('o-orga', 'A forte'), ('o-effectifs', 'Suivre les niveaux'), ('o-passerelles', 'chacun leur tour'), ('o-copains', "Copains d'abord"), ('o-format', 'Jeu à 10'), ('o-equipes', 'niveau voisin'), ('o-tailles', 'Ajuster'), ('o-garder', 'Pas placés')):
+    for k, txt in (('o-orga', 'A forte'), ('o-effectifs', 'Suivre les niveaux'), ('o-passerelles', 'à son tour'), ('o-copains', "Copains d'abord"), ('o-format', 'Jeu à 10'), ('o-equipes', 'niveau voisin'), ('o-tailles', 'Ajuster'), ('o-garder', 'Pas placés')):
         pg.evaluate("(k) => document.querySelector('.cbopt .aide-q[data-aide=\"' + k + '\"]').scrollIntoView({ block: 'center' })", k); pg.wait_for_timeout(120)   # défiler ferme la bulle : c'est voulu
         pg.click('.cbopt .aide-q[data-aide="%s"]' % k); pg.wait_for_timeout(120)
         check('(v54) « ? » %s : la règle s\'affiche' % k, pg.query_selector('.aide-bulle') is not None and txt in pg.inner_text('.aide-bulle'), pg.inner_text('.aide-bulle') if pg.query_selector('.aide-bulle') else '')
