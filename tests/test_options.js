@@ -59,6 +59,17 @@ assert.strictEqual(dans(p, 'A1').filter(id => /^a/.test(id)).length, 6, 'un Conf
 assert.ok(Object.keys(p.raisons).some(id => /^a/.test(id) && /Laisse sa place/.test(p.raisons[id])), J(p.raisons));
 p = K.proposer(ids2, F2, {}, { format: 5, nb: nb2, opts: O({ orga: 'aforte', montees: 1 }) });
 assert.strictEqual(dans(p, 'A1').filter(id => /^b[01]$/.test(id)).length, 1, '1 montée : la place libre');
+// un Débutant avec ⇅A monte aussi quand l'équipe A a des places libres (A forte : les Débutants avec ⇅A comptent)
+const sp4 = [];
+for (let i = 0; i < 6; i++) sp4.push(['a' + i, 'A', 3]);
+for (let i = 0; i < 6; i++) sp4.push(['b' + i, 'B', 3]);
+for (let i = 0; i < 4; i++) sp4.push(['c' + i, 'C', 1, i === 0 ? 'A' : '']);
+const F4 = groupe(sp4);
+p = K.proposer(Object.keys(F4), F4, {}, { format: 5, nb: nb2, opts: O({ orga: 'aforte', montees: 1 }) });
+assert.ok(dans(p, 'A1').includes('c0'), 'A forte, places libres : le Débutant avec ⇅A monte ' + dans(p, 'A1'));
+p = K.proposer(Object.keys(F4), F4, {}, { format: 5, nb: nb2, opts: O({ orga: 'aforte', montees: 0 }) });
+assert.ok(!dans(p, 'A1').includes('c0'), 'sans montée : les meilleurs plaqueurs B complètent ' + dans(p, 'A1'));
+
 // ----- (relecture v50) « Passerelles : aucune » : avoir une passerelle ne fait pas passer devant -----
 p = K.proposer(ids2, F2, {}, { format: 5, nb: nb2, opts: O({ orga: 'aforte', passerelles: 'aucune' }) });
 assert.ok(!dans(p, 'A1').includes('b0') && !dans(p, 'A1').includes('b1'), 'A forte sans passerelle : le meilleur plaqueur complète ' + dans(p, 'A1'));

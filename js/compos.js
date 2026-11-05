@@ -560,7 +560,7 @@ MC.compos = (function () {
   function plqN(F, id) { var p = (F[id] || {}).plaquage; return p === null || p === undefined ? 1.5 : p; }   // (v49) pas encore évalué : au milieu
   function forte(ids, F, H, taille, raisons, quoi, O) {
     O = O || {};
-    var sansPas = O.passerelles === 'aucune', As = ids.filter(function (id) { return niveauDe(F[id]) === 'A'; }), fort;
+    var sansPas = O.passerelles === 'aucune', As = ids.filter(function (id) { return niveauDe(F[id]) === 'A'; }), As0 = As.slice(), fort;
     // les Confirmés, dans l'ordre où ils restent dans l'équipe forte
     As.sort(function (a, b) {
       var pa = pasDe(F[a]).length ? 1 : 0, pb = pasDe(F[b]).length ? 1 : 0, da = dernierEn(H, a, 'B'), db = dernierEn(H, b, 'B');
@@ -580,7 +580,9 @@ MC.compos = (function () {
       pas.forEach(function (id) { var der = dernierEn(H, id, 'A'); raisons[id] = 'Monte en A grâce à sa passerelle : ' + (der ? 'son tour (dernière fois le ' + frDate(der) + ').' : 'son tour, il n\'y a pas encore joué.'); });
       As.slice(taille - pas.length).forEach(function (id) { raisons[id] = pas.length && As.indexOf(id) < taille ? 'Laisse sa place à une passerelle : joue avec les autres.' : quoi[0].toUpperCase() + quoi.slice(1) + ' au complet : joue avec les autres.'; });
     } else {
-      fort = As.slice();
+      // (v50) les places libres : d'abord les passerelles qui montent (Débrouillés puis Débutants), puis comme en v48
+      fort = As0.concat(pas);
+      pas.forEach(function (id) { var der = dernierEn(H, id, 'A'); raisons[id] = 'Complète ' + quoi + ' grâce à sa passerelle : ' + (der ? 'son tour (dernière fois le ' + frDate(der) + ').' : 'son tour, il n\'y a pas encore joué.'); });
       var autres = [];
       ['B', 'C', ''].forEach(function (n) {
         ids.filter(function (id) { return niveauDe(F[id]) === n; }).sort(function (a, b) {
@@ -593,7 +595,7 @@ MC.compos = (function () {
             if (na !== nb2) return na - nb2;
           }
           return plq(F, b) - plq(F, a) || (a < b ? -1 : 1);
-        }).forEach(function (id) { autres.push(id); });
+        }).forEach(function (id) { if (pas.indexOf(id) < 0) autres.push(id); });
       });
       autres.slice(0, Math.max(0, taille - fort.length)).forEach(function (id) {
         var der = dernierEn(H, id, 'A');
