@@ -16,6 +16,7 @@ def page_en_ligne(route, req):
     if req.is_navigation_request(): EN_LIGNE['nav'] += 1; return route.continue_()
     if EN_LIGNE['v'] is None: return route.continue_()
     EN_LIGNE['n'] += 1
+    if EN_LIGNE['v'] == -1: return route.abort()   # pas de réseau
     r = route.fetch(); html = r.text()
     route.fulfill(response=r, body=re.sub(r'\?v=\d+', '?v=%d' % EN_LIGNE['v'], html))
 def marquer(pg): pg.evaluate('window.__avant = 1')
@@ -144,6 +145,17 @@ with sync_playwright() as p:
     EN_LIGNE['v'] = ici + 10; n0 = EN_LIGNE['nav']
     pg.reload(); pg.wait_for_timeout(6000)
     check('(v52) nouvelle version en ligne : rechargée quelques secondes après l\'ouverture, une seule fois', EN_LIGNE['nav'] == n0 + 2 and '#/semaine' in pg.url, (EN_LIGNE, pg.url))
+    # (relecture) la lecture à l'ouverture échoue (réseau pas encore là) : un retour dans l'appli juste après relit tout de suite
+    pg.evaluate("sessionStorage.removeItem('mc-maj')"); EN_LIGNE['v'] = -1; pg.reload(); pg.wait_for_timeout(4000)
+    n1 = EN_LIGNE['n']; EN_LIGNE['v'] = ici + 11; nv = EN_LIGNE['nav']
+    revenir(pg); pg.wait_for_timeout(1500)
+    check('(v52) lecture à l\'ouverture ratée : relue en revenant, et rechargée', n1 >= 1 and EN_LIGNE['n'] > n1 and EN_LIGNE['nav'] == nv + 1, (n1, EN_LIGNE))
+    # (relecture) l'écran charge encore ses données au moment de la lecture : quelques essais, puis rechargée sur le même écran
+    pg.wait_for_timeout(3500); pg.evaluate("sessionStorage.removeItem('mc-maj')"); EN_LIGNE['v'] = ici + 12; nv = EN_LIGNE['nav']
+    pg.evaluate("document.documentElement.classList.add('net-busy'); void MC.app.verifierVersion(true)"); pg.wait_for_timeout(1200)
+    pas_encore = EN_LIGNE['nav'] == nv
+    pg.evaluate("document.documentElement.classList.remove('net-busy')"); pg.wait_for_timeout(3000)
+    check('(v52) écran en train de charger : on attend, puis rechargée sur le même écran', pas_encore and EN_LIGNE['nav'] == nv + 1 and '#/semaine' in pg.url, (pas_encore, EN_LIGNE, pg.url))
     b.close()
 print('ERREURS JS:', errs)
 bad = [n for n, c in res if not c]

@@ -830,12 +830,16 @@ MC.app = (function () {
     var p = parseHash().path, autre = p !== MAJ.chemin;
     MAJ.chemin = p;
     if (!MAJ.attend || !autre) return;
+    majEssais(p, 0);
+  }
+  // quelques essais (le temps que l'écran s'affiche, ou que ses données arrivent), tant qu'on reste sur le même écran
+  function majEssais(p, d) {
     MAJ.essais = 0;
-    setTimeout(function essai() {   // une fois le nouvel écran dessiné
+    setTimeout(function essai() {
       if (!MAJ.attend || MAJ.enCours || parseHash().path !== p) return;
       if (majRecharger() || ++MAJ.essais >= 6) return;
       setTimeout(essai, 700);
-    }, 0);
+    }, d);
   }
   function majRecharger() {
     if (MAJ.enCours) return true;
@@ -857,9 +861,14 @@ MC.app = (function () {
     MAJ.at = now;
     return fetch(location.pathname, { cache: 'no-cache', credentials: 'same-origin' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (html) {
       var m = html.indexOf('MC.app.start') >= 0 && /css\/style\.css\?v=(\d+)/.exec(html);
-      MAJ.v = m ? Number(m[1]) : 0;
-      return MAJ.v > ici ? majRecharger() : false;
-    }, function () { return false; });
+      if (!m) { MAJ.at = 0; return false; }   // pas de réponse utile (réseau pas encore là) : on pourra relire tout de suite
+      MAJ.v = Number(m[1]);
+      if (!(MAJ.v > ici)) return false;
+      if (majRecharger()) return true;
+      // l'écran s'affiche ou charge encore ses données (et seulement ça) : quelques essais
+      if (MAJ.attend && (!painted || document.documentElement.classList.contains('net-busy'))) majEssais(parseHash().path, 700);
+      return false;
+    }, function () { MAJ.at = 0; return false; });
   }
 
   // ---------- Appli « hors ligne » ----------
