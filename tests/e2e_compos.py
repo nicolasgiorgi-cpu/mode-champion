@@ -136,7 +136,7 @@ with sync_playwright() as p:
     check('(v54) déplié : beaucoup moins haut qu\'avant (1410 px au téléphone)', hd < 760, hd)
     check('(v54) l\'en-tête ne bouge pas en dépliant, et dit « Replier »', abs(ev(pg, "document.querySelector('.cbopt > summary .ott').getBoundingClientRect().top") - yh) < 1 and 'REPLIER' in pg.inner_text('.cbopt .oac').upper() and 'MODIFIER' not in pg.inner_text('.cbopt .oac').upper(), pg.inner_text('.cbopt .oac'))
     lignes = ev(pg, "[...document.querySelectorAll('.cbopt .oli')].map(e => !!e.querySelector('.aide-q'))")
-    check('(v54) un « ? » au début de chaque ligne', len(lignes) >= 8 and all(lignes), lignes)
+    check('(v54) un « ? » au début de chaque ligne (v56 : 7 lignes, sans « Qui change de niveau »)', len(lignes) == 7 and all(lignes), lignes)
     check('(v54) le « ? » est bien au début de la ligne', ev(pg, "[...document.querySelectorAll('.cbopt .oli:not(.otail)')].every(l => { const q = l.querySelector('.aide-q').getBoundingClientRect(), r = l.getBoundingClientRect(); return q.left - r.left < 20 })"))
     check('(v54) rien ne déborde des lignes', ev(pg, "[...document.querySelectorAll('.cbopt .oli, .cbopt .oseg, .cbopt .opt')].every(e => e.scrollWidth <= e.clientWidth + 1)") and noscroll(pg))
     for k, txt in (('o-orga', 'A forte'), ('o-effectifs', 'Suivre les niveaux'), ('o-passerelles', 'chacun leur tour'), ('o-copains', "Copains d'abord"), ('o-format', 'Jeu à 10'), ('o-equipes', 'niveau voisin'), ('o-tailles', 'Ajuster'), ('o-garder', 'Pas placés')):
