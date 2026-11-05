@@ -23,10 +23,10 @@ const F = groupe([
   ['c1', 'C', 0], ['c2', 'C', 1], ['c3', 'C', 2], ['c4', 'C', 0], ['c5', 'C', 1], ['c6', 'C', 2], ['z', '', null]]);
 const tous = Object.keys(F);
 assert.ok(K.STYLES.aforte && K.STYLES.aforte.nom === 'A forte', 'le style existe');
-// (v49) par défaut, 19 enfants en 4 équipes : 4 ou 5 chacune, la place en plus va d'abord aux équipes les plus nombreuses (B) ;
-// ici on demande une équipe A de 5 pour voir comment elle se complète
+// (v49) par défaut, 19 enfants en 4 équipes : 4 ou 5 chacune, la place en plus va d'abord à l'équipe A (une équipe A pleine, comme en v48)
 let p0 = K.proposer(tous, F, {}, { format: 5, nb: { A: 1, B: 2, C: 1 } }, '2026-11-04', 'aforte');
-assert.ok(p0.equipes.every(t => t.joueurs.length === 4 || t.joueurs.length === 5), J(p0.equipes.map(t => t.joueurs.length)));
+assert.deepStrictEqual(J(p0.equipes.map(t => t.joueurs.length)), [5, 5, 5, 4], 'A1 de 5, comme en v48');
+assert.ok(p0.equipes[0].joueurs.some(j => j.id === 'b8'), 'b8 (⇅A) complète l\'équipe A');
 let p = K.proposer(tous, F, {}, { format: 5, nb: { A: 1, B: 2, C: 1 }, style: 'aforte', tailles: { A1: 5, B1: 5, B2: 5, B3: 4 } }, '2026-11-04', 'aforte');
 assert.deepStrictEqual(J(p.equipes.map(t => t.id)), ['A1', 'B1', 'B2', 'B3'], 'une équipe A, les équipes C comptent comme des B');
 const A1 = p.equipes[0];

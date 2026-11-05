@@ -213,7 +213,8 @@ MC.compos = (function () {
       else if (!aEq[l]) l = NIV.filter(function (x) { return aEq[x]; }).sort(function (a, b) { return dist(a, l) - dist(b, l) || (a === 'C' ? -1 : 1); })[0];
       cnt[l]++;
     });
-    function nat(id) { return cnt[id.charAt(0)] / aEq[id.charAt(0)]; }
+    // « A forte » : la place en plus va d'abord à l'équipe A (une équipe A pleine, comme en v48)
+    function nat(id) { return (af && id.charAt(0) === 'A' ? 1e6 : 0) + cnt[id.charAt(0)] / aEq[id.charAt(0)]; }
     tids.forEach(function (id) { out[id] = base; });
     tids.slice().sort(function (a, b) { return nat(b) - nat(a) || (a < b ? -1 : 1); }).slice(0, extra).forEach(function (id) { out[id]++; });
     return out;
@@ -407,7 +408,7 @@ MC.compos = (function () {
     // 2. les passerelles comblent les écarts d'effectif entre niveaux (d'abord ceux qui attendent leur tour) ; v45 : vers n'importe quel niveau de sa fiche
     var total = ids.length, per = total / tids.length;
     // (v49) les tailles voulues des équipes (Niveaux stricts : les effectifs suivent les niveaux)
-    var cible = S.sansPasserelles ? null : tailles(ids, F, reglages);
+    var cible = S.sansPasserelles ? null : tailles(ids, F, Object.assign({}, reglages, { style: style || (reglages && reglages.style) }));
     function voulu(n) { if (!cible) return nb[n] * per; var s = 0; tids.forEach(function (id) { if (id.charAt(0) === n) s += cible[id]; }); return s; }
     function count(n) { var c = 0; ids.forEach(function (id) { if (lv[id] === n) c++; }); return c; }
     function ecart(n) { return count(n) - voulu(n); }
@@ -469,7 +470,7 @@ MC.compos = (function () {
           if (ra !== rb) return ra - rb;   // ceux qui reviennent dans leur niveau, puis les plus proches du niveau visé
           var xa = pasDe(F[a]).indexOf(nx) >= 0 ? 0 : 1, xb = pasDe(F[b]).indexOf(nx) >= 0 ? 0 : 1;
           if (xa !== xb) return xa - xb;
-          var pa = (F[a] || {}).plaquage || 0, pb = (F[b] || {}).plaquage || 0;
+          var pa = plqN(F, a), pb = plqN(F, b);   // pas encore évalué : au milieu (ni le premier à descendre, ni à monter)
           if (pa !== pb) return monte ? pb - pa : pa - pb;
           var da = dernierEn(H, a, nx), db = dernierEn(H, b, nx);
           if (da !== db) return da < db ? -1 : 1;
@@ -478,6 +479,7 @@ MC.compos = (function () {
         if (!cand.length) break;
         lv[cand[0]] = nx;
         if (princ[cand[0]] === nx) delete raisons[cand[0]];
+        else if (!princ[cand[0]]) raisons[cand[0]] = 'Niveau à renseigner : placé en ' + nx + '.';
         else raisons[cand[0]] = 'Pour équilibrer les équipes : joue en ' + nx + '.';
       }
     }
@@ -516,6 +518,7 @@ MC.compos = (function () {
   // Débrouillés et Débutants, équilibrées (plaquage, niveaux, avants / arrières, postes au jeu à 10, copains).
   var WAF = { taille: 5, plaq: 4 * 5 / 3, bons: 1.5, copain: 1, seul: 0.75, poste: 1.5, niv: 1.5, avar: 1 };
   function plq(F, id) { return (F[id] || {}).plaquage || 0; }
+  function plqN(F, id) { var p = (F[id] || {}).plaquage; return p === null || p === undefined ? 1.5 : p; }   // (v49) pas encore évalué : au milieu
   function forte(ids, F, H, taille, raisons, quoi) {
     var As = ids.filter(function (id) { return niveauDe(F[id]) === 'A'; }), fort;
     if (As.length >= taille) {
@@ -555,7 +558,7 @@ MC.compos = (function () {
   // plateau : nb.A équipes fortes (au moins 1), nb.B + nb.C équipes « B » mélangées
   function proposerAForte(ids, F, H, reglages) {
     var format = fmt(reglages), k = nbAForte(nbOf(reglages)), raisons = {}, equipes = [];
-    var kA = k.A, kB = k.B, cible = tailles(ids, F, reglages), tA = 0;
+    var kA = k.A, kB = k.B, cible = tailles(ids, F, Object.assign({}, reglages, { style: 'aforte' })), tA = 0;
     for (var a = 1; a <= kA; a++) tA += cible['A' + a];
     // sans équipe B : tout le monde dans les équipes A (pas d'équipe « forte » à part)
     var x = kB ? forte(ids, F, H, tA, raisons, 'l\'équipe A') : { fort: ids.slice(), reste: [] };
@@ -650,7 +653,13 @@ MC.compos = (function () {
       if (ts.length > 1) {
         var mx = 0, mn = 99, iMx = 0, iMn = 0;
         st.forEach(function (s, i) { if (s.n > mx) { mx = s.n; iMx = i; } if (s.n < mn) { mn = s.n; iMn = i; } });
-        if (mx - mn >= 2) out.push({ k: 'taille', niveau: 'warn', texte: 'Effectifs déséquilibrés : ' + ts[iMx].id + ' (' + mx + ') et ' + ts[iMn].id + ' (' + mn + ').', fix: bestMove(c, F, H, ts[iMx].id, ts[iMn].id) });
+        // (v49) des tailles réglées : l'écart se mesure à la taille voulue de chaque équipe
+        var tv = c.reglages && c.reglages.tailles, avecT = tv && ts.every(function (t) { return tv[t.id] >= 0; });
+        if (avecT) {
+          var dx = -99, dn = 99, jx = 0, jn = 0;
+          st.forEach(function (s, i) { var e = s.n - tv[ts[i].id]; if (e > dx) { dx = e; jx = i; } if (e < dn) { dn = e; jn = i; } });
+          if (dx >= 1 && dn <= -1 && dx - dn >= 2) out.push({ k: 'taille', niveau: 'warn', texte: 'Effectifs : ' + ts[jx].id + ' ' + st[jx].n + ' (' + tv[ts[jx].id] + ' voulus), ' + ts[jn].id + ' ' + st[jn].n + ' (' + tv[ts[jn].id] + ' voulus).', fix: bestMove(c, F, H, ts[jx].id, ts[jn].id) });
+        } else if (mx - mn >= 2) out.push({ k: 'taille', niveau: 'warn', texte: 'Effectifs déséquilibrés : ' + ts[iMx].id + ' (' + mx + ') et ' + ts[iMn].id + ' (' + mn + ').', fix: bestMove(c, F, H, ts[iMx].id, ts[iMn].id) });
         // (v46) l'écart de plaquage : seulement entre équipes qui ont des enfants évalués
         var hi = -1, lo = -1;
         st.forEach(function (s, i) { if (s.plaq === null) return; if (hi < 0 || s.plaq > st[hi].plaq) hi = i; if (lo < 0 || s.plaq < st[lo].plaq) lo = i; });

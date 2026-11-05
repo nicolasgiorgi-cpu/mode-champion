@@ -45,6 +45,22 @@ const HG = { b1: { plateaux: 1, autre: 1, dernierAutre: '2026-10-25', avecCopain
 p = K.proposer(Object.keys(G), G, HG, { format: 5, nb: { A: 1, B: 1, C: 1 } }, '2026-11-05', 'equilibre');
 assert.deepStrictEqual(tailles(p), ['A1:3', 'B1:3', 'C1:3']);
 assert.strictEqual(ou(p).b1, 'B1', 'b1 est descendu la dernière fois : il reste en B');
+// l'alerte « Effectifs » : avec des tailles réglées, elle compare à la taille voulue de chaque équipe
+const pr2 = K.proposer(ids, F, {}, r2, '2026-11-05', 'equilibre');
+let al = K.alertes({ reglages: r2, equipes: pr2.equipes, banc: [] }, F, {}, ids);
+assert.ok(!al.some(a => a.k === 'taille'), 'B1 12 et B2 8, comme voulu : pas d\'alerte ' + J(al.map(a => a.texte)));
+al = K.alertes({ reglages: { format: 5, nb: r2.nb }, equipes: pr2.equipes, banc: [] }, F, {}, ids);
+assert.ok(al.some(a => a.k === 'taille'), 'sans tailles réglées : 12 et 8, c\'est déséquilibré');
+const pr3 = J(pr2); pr3.equipes[2].joueurs.push(pr3.equipes[1].joueurs.pop()); pr3.equipes[2].joueurs.push(pr3.equipes[1].joueurs.pop());
+al = K.alertes({ reglages: r2, equipes: pr3.equipes, banc: [] }, F, {}, ids);
+const at = al.find(a => a.k === 'taille');
+assert.ok(at && /voulus/.test(at.texte) && at.fix && at.fix.vers === 'B1', 'B1 10 (12 voulus), B2 10 (8 voulus) : signalé, la correction va vers B1 ' + J(at));
+// pas encore évalué / sans niveau : ni les premiers à descendre, et « Niveau à renseigner » reste dit
+const N = groupe([['a1', 'A', 3], ['a2', 'A', 3], ['b1', 'B', 1], ['b2', 'B', null], ['b3', 'B', 2], ['b4', 'B', 2], ['z', '', null]]);
+p = K.proposer(Object.keys(N), N, {}, { format: 5, nb: { A: 1, B: 1, C: 1 } }, '2026-11-05', 'equilibre');
+assert.deepStrictEqual(tailles(p), ['A1:2', 'B1:3', 'C1:2'], J(tailles(p)));
+assert.strictEqual(ou(p).b1, 'C1', 'b1 (1★) descend avant b2 (pas encore évalué)');
+assert.ok(/Niveau à renseigner/.test(p.raisons.z || ''), 'z sans niveau : dit ' + J(p.raisons));
 // « A forte » avec des tailles
 p = K.proposer(ids, F, {}, { format: 5, nb: { A: 1, B: 1, C: 1 }, style: 'aforte', tailles: { A1: 8, B1: 11, B2: 10 } }, '2026-11-05', 'aforte');
 assert.deepStrictEqual(tailles(p), ['A1:8', 'B1:11', 'B2:10']);

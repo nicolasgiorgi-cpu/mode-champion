@@ -82,6 +82,8 @@ with sync_playwright() as p:
     t0 = tl(); vals = [int(x.split(':')[1]) for x in t0]
     npr = ev(pg, "MC.compos.presents(MC.app.S.cache.compos.evenements.find(e=>e.id==='sp-demo-p3')).length")
     check('(v49) joueurs par équipe : équilibrés, le total = les présents', vals and sum(vals) == npr and max(vals) - min(vals) <= 1, (t0, npr))
+    check('(v49) replié, avec le résumé des tailles', not ev(pg, "document.querySelector('.ctaild').open") and all(x.split(':')[0] in pg.inner_text('.ctaild summary') for x in t0), pg.inner_text('.ctaild summary'))
+    pg.click('.ctaild summary'); pg.wait_for_timeout(200)
     pg.click('.ctail >> nth=0 >> [data-act="cTail"][data-d="1"]'); pg.wait_for_timeout(200)
     check('(v49) une place de trop : dit, et « Proposer » attend', 'de trop' in pg.inner_text('.ctailp') and pg.is_disabled('[data-act="cPropose"]'), pg.inner_text('.ctailp'))
     pg.click('.ctail >> nth=1 >> [data-act="cTail"][data-d="-1"]'); pg.wait_for_timeout(200)
@@ -110,6 +112,9 @@ with sync_playwright() as p:
     check('proposition : 3 équipes', nteams == 3, nteams)
     sz = ev(pg, "[...document.querySelectorAll('.clevel:not(.banc) .ccol')].map(c=>c.querySelectorAll('.cpj').length)")
     check('(v49) proposition : effectifs équilibrés', max(sz) - min(sz) <= 1, sz)
+    pg.click('[data-act="cRegl"] >> nth=0'); pg.wait_for_timeout(400)
+    check('(v49) Réglages de la compo : les joueurs par équipe, pour la redemander', pg.query_selector('.modal .ctaild') is not None and pg.query_selector('.modal [data-rt]') is not None)
+    pg.click('.modal button:has-text("Annuler")'); pg.wait_for_timeout(300)
     check('avants / arrières sur chaque équipe', len(pg.query_selector_all('.ccol .cavtq')) == 3 and 'AR ' in pg.inner_text('.ccol .cavtq').upper() and '3/4' not in pg.inner_text('.cboard2'))
     secs = ev(pg, "[...document.querySelectorAll('.ccol')].map(c=>[...c.querySelectorAll('.csech span')].map(x=>x.textContent).join('|'))")
     check('jeu à 5 : sections Avants puis Arrières', all(x.startswith('Avants|Arrières') for x in secs), secs)

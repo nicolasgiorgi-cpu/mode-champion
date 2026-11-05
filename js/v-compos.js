@@ -663,15 +663,16 @@ window.MC = window.MC || {};
     var tids = K.idsEquipes(reg), t = taillesReg(ids, F, reg), s = 0, def = K.taillesDefaut(ids, F, reg), modif = false;
     tids.forEach(function (id) { s += t[id]; if (t[id] !== def[id]) modif = true; });
     if (!tids.length) return '';
-    var d = ids.length - s;
-    return '<section class="sec"><h2 class="h2">Joueurs par équipe</h2><div class="ctails">' + tids.map(function (id) {
+    var d = ids.length - s, ouvert = modif || d;
+    return '<section class="sec"><details class="ctaild"' + (ouvert ? ' open' : '') + '><summary><span class="h2">Joueurs par équipe</span><span class="ctsum">' +
+      tids.map(function (id) { return '<b style="color:' + K.COUL_NIV[id.charAt(0)] + '">' + id + '</b> ' + t[id]; }).join(' · ') + '</span><span class="lnk">Ajuster</span></summary><div class="ctails">' + tids.map(function (id) {
       return '<div class="ctail" style="--lc:' + K.COUL_NIV[id.charAt(0)] + '"><b>' + id + '</b><span class="row" style="gap:4px">' +
         '<button type="button" class="ibtn" ' + attr + '="' + id + '" data-d="-1" aria-label="' + id + ' : un joueur de moins"' + (t[id] <= 0 ? ' disabled' : '') + '>' + icon('minus', 16) + '</button>' +
         '<output class="cnbv">' + t[id] + '</output>' +
         '<button type="button" class="ibtn" ' + attr + '="' + id + '" data-d="1" aria-label="' + id + ' : un joueur de plus"' + (t[id] >= 40 ? ' disabled' : '') + '>' + icon('plus', 16) + '</button></span></div>';
     }).join('') + '</div><p class="small ctailp" style="margin:0' + (d ? ';color:var(--orange)' : '') + '">' +
       (d > 0 ? 'Il reste ' + d + ' enfant' + (d > 1 ? 's' : '') + ' à placer : ' : d < 0 ? (-d) + ' place' + (-d > 1 ? 's' : '') + ' de trop : ' : '') + s + ' joueurs pour ' + ids.length + ' présents' +
-      (!d && !modif ? ', équipes équilibrées' : '') + '.' + (modif ? ' <button type="button" class="lnk" ' + attrEq + '>Équilibrer</button>' : '') + '</p></section>';
+      (!d && !modif ? ', équipes équilibrées' : '') + '.' + (modif ? ' <button type="button" class="lnk" ' + attrEq + '>Équilibrer</button>' : '') + '</p></details></section>';
   }
   function paintReglages(C, e) {
     var ids = presentsOf(C, e), reg = regOf(C, e), cnt = { A: 0, B: 0, C: 0, '': 0 };
@@ -805,7 +806,7 @@ window.MC = window.MC || {};
     var r2 = { format: K.fmt(reg), nb: K.nbOf(reg), style: style || 'equilibre', tailles: reg.tailles || null }, ids = presentsOf(C, e);
     var p = K.proposer(ids, C.F, C.H, r2, L.today(), r2.style);
     var out = { format: r2.format, nb: r2.nb, style: r2.style };
-    if (r2.style !== 'strict') out.tailles = K.tailles(ids, C.F, r2);   // (v49) les tailles utilisées (pour la refaire)
+    if (r2.style !== 'strict' && reg.tailles && !ecartTailles(ids, C.F, r2)) out.tailles = K.tailles(ids, C.F, r2);   // (v49) seulement des tailles réglées
     return { reglages: out, equipes: p.equipes, banc: p.banc, raisons: p.raisons };
   }
   function autreStyle(s) { return s === 'copains' || s === 'aforte' ? 'equilibre' : 'copains'; }   // (v48) A forte ↔ Équilibrée
@@ -1446,7 +1447,7 @@ window.MC = window.MC || {};
       return '<div class="grid2">' + K.FORMATS.map(function (f) { return '<button type="button" class="opt' + (reg.format === f ? ' on' : '') + '" data-rf="' + f + '">Jeu à ' + f + '</button>'; }).join('') + '</div>' +
         K.NIV.map(function (n) { return stepperHtml(n, reg, null, null, 'data-rn'); }).join('') + stylesHtml(reg.style, 'data-rs') +
         taillesHtml(IDS, FF, reg, 'data-rt', 'data-rte') +   // (v49) les joueurs par équipe
-        '<p class="small" style="margin:0">« Proposer à nouveau » refait toute la ' + (B.vs.length > 1 ? vName(v).toLowerCase() : 'compo') + '. « Garder mes placements » ajoute ou enlève seulement des équipes (les joueurs d\'une équipe enlevée passent en « Pas placés »).</p>';
+        '<p class="small" style="margin:0">« Proposer à nouveau » refait toute la ' + (B.vs.length > 1 ? vName(v).toLowerCase() : 'compo') + '. « Garder mes placements » ajoute ou enlève seulement des équipes (les joueurs d\'une équipe enlevée passent en « Pas placés » ; les joueurs par équipe ne s\'appliquent pas).</p>';
     }
     ui.modal({
       title: B.vs.length > 1 ? 'Réglages · ' + vName(v) : 'Réglages', body: '<div class="sec creg">' + body() + '</div>',
@@ -1476,8 +1477,7 @@ window.MC = window.MC || {};
           ids.forEach(function (id) { if (!keep.some(function (t) { return t.id === id; })) keep.push({ id: id, niveau: id.charAt(0), joueurs: [] }); });
           keep.sort(function (a, c2) { return ids.indexOf(a.id) - ids.indexOf(c2.id); });
           if (reg.format !== 10) keep.forEach(function (t) { t.joueurs.forEach(function (j) { j.poste = ''; }); });
-          d.equipes = keep; d.banc = banc; d.reglages = { format: reg.format, nb: reg.nb, style: reg.style };
-          if (reg.tailles && reg.style !== 'strict') d.reglages.tailles = reg.tailles;
+          d.equipes = keep; d.banc = banc; d.reglages = { format: reg.format, nb: reg.nb, style: reg.style };   // (v49) les tailles ne s'appliquent pas
           B.vs[v] = d;
         });
       });
