@@ -1,5 +1,5 @@
-// (v50) Les options d'une compo de plateau (liste validée par Nicolas, 05/11) : organisation, joueurs par équipe, passerelles
-// (dont combien montent en A par équipe A), qui change de niveau pour équilibrer, copains ; les anciens « styles » s'y ramènent.
+// (v50, v56) Les options d'une compo de plateau : organisation, joueurs par équipe, passerelles (par niveau | roulant),
+// qui change de niveau quand les passerelles ne suffisent pas, copains (un pour chacun | d'abord | sans) ; les anciens « styles » s'y ramènent.
 // Lancer : sh outils/fabriquer-serveur.sh && node tests/test_options.js
 const fs = require('fs'), vm = require('vm'), assert = require('assert'), path = require('path');
 const ctx = { window: {}, console, Date, Math, JSON }; ctx.window = ctx; vm.createContext(ctx);
@@ -14,17 +14,22 @@ function groupe(spec) {
 const tailles = (p) => J(p.equipes.map(t => t.id + ':' + t.joueurs.length));
 const dans = (p, id) => J(p.equipes.find(t => t.id === id).joueurs.map(j => j.id));
 const H1 = (d, n) => ({ plateaux: 1, autre: 1, dernierAutre: d, avecCopain: 0, sansCopainSerie: 0, vus: {}, niveaux: {}, postes: {}, liste: [{ date: d, niveau: n, autre: true }] });
-const O = (o) => Object.assign({ orga: 'niveau', effectifs: 'equilibre', passerelles: 'tour', change: 'plaquage', copains: 'un', montees: 0 }, o);
+const O = (o) => Object.assign({ orga: 'niveau', effectifs: 'equilibre', passerelles: 'roulant', change: 'plaquage', copains: 'un' }, o);
+const OM = (o, m) => Object.assign(O(o), { montees: m });
 
-// ----- les anciens styles -----
-assert.deepStrictEqual(J(K.optsDe({ style: 'strict' })), O({ effectifs: 'niveaux', passerelles: 'aucune' }));
-assert.deepStrictEqual(J(K.optsDe({}, 'copains')), O({ copains: 'dabord' }));
-assert.deepStrictEqual(J(K.optsDe({ style: 'aforte' })), O({ orga: 'aforte' }));
-assert.strictEqual(K.optsDe({ opts: { passerelles: 'aucune', montees: 2 } }).montees, 0, 'sans passerelle : personne ne monte');
-assert.strictEqual(K.optsDe({ opts: { montees: 9 } }).montees, 3, '3 au plus');
+// ----- les anciens styles et les anciennes valeurs -----
+assert.deepStrictEqual(J(K.optsDe({ style: 'strict' })), OM({ effectifs: 'niveaux' }, 0));
+assert.deepStrictEqual(J(K.optsDe({}, 'copains')), OM({ copains: 'dabord' }, 1));
+assert.deepStrictEqual(J(K.optsDe({ style: 'aforte' })), OM({ orga: 'aforte' }, 1));
+assert.strictEqual(K.optsDe({ opts: { passerelles: 'tour' } }).passerelles, 'roulant', '« À leur tour » devient « Roulant »');
+assert.strictEqual(K.optsDe({ opts: { passerelles: 'aucune' } }).passerelles, 'niveau', '« Aucune » devient « Par niveau »');
+assert.strictEqual(K.optsDe({ opts: { montees: 3 } }).montees, 1, 'plus de compteur : une par équipe');
+assert.strictEqual(K.optsDe({ opts: { passerelles: 'niveau' } }).montees, 0, 'par niveau : pas de montée forcée');
+assert.strictEqual(K.optsDe({ opts: { effectifs: 'niveaux' } }).montees, 0, 'suivre les niveaux : personne ne bouge');
+assert.strictEqual(K.optsDe({ opts: { copains: 'sans' } }).copains, 'sans');
 ['equilibre', 'copains', 'strict', 'aforte'].forEach(s => assert.strictEqual(K.styleDe(K.optsDe({ style: s })), s));
 
-// ----- les passerelles qui montent en A, même quand l'équipe A est pleine -----
+// ----- Roulant : une passerelle par équipe monte, même si l'équipe A est pleine ; Par niveau : seulement si les effectifs le demandent -----
 const spec = [];
 for (let i = 0; i < 10; i++) spec.push(['a' + i, 'A', 3]);
 spec[9] = ['a9', 'A', 3, 'B'];                                                 // un Confirmé avec ⇅B
@@ -32,59 +37,96 @@ for (let i = 0; i < 10; i++) spec.push(['b' + i, 'B', i < 2 ? 1 : 2, i < 2 ? 'A'
 for (let i = 0; i < 9; i++) spec.push(['c' + i, 'C', 1]);
 const F = groupe(spec), ids = Object.keys(F), nb = { A: 1, B: 1, C: 1 };
 const HM = { b0: H1('2026-10-20', 'A') };                                      // b0 a joué en A le 20/10 : b1 d'abord
-let p = K.proposer(ids, F, HM, { format: 5, nb, opts: O({}) });
-assert.ok(!dans(p, 'A1').some(id => /^b/.test(id)), 'aucune montée demandée : l\'équipe A pleine de Confirmés');
-p = K.proposer(ids, F, HM, { format: 5, nb, opts: O({ montees: 1 }) });
+let p = K.proposer(ids, F, HM, { format: 5, nb, opts: O({ passerelles: 'niveau' }) });
+assert.ok(!dans(p, 'A1').some(id => /^b/.test(id)), 'par niveau : l\'équipe A reste pleine de Confirmés ' + dans(p, 'A1'));
+p = K.proposer(ids, F, HM, { format: 5, nb, opts: O({}) });
 assert.deepStrictEqual(tailles(p), ['A1:10', 'B1:10', 'C1:9'], 'les effectifs restent');
-assert.ok(dans(p, 'A1').includes('b1') && !dans(p, 'A1').includes('b0'), 'b1 monte (son tour : jamais en A), sans être le meilleur plaqueur ' + dans(p, 'A1'));
+assert.ok(dans(p, 'A1').includes('b1') && !dans(p, 'A1').includes('b0'), 'roulant : b1 monte (son tour : jamais en A), sans être le meilleur plaqueur ' + dans(p, 'A1'));
+assert.strictEqual(dans(p, 'A1').filter(id => /^b/.test(id)).length, 1, 'une seule par équipe A');
 assert.ok(dans(p, 'B1').includes('a9'), 'a9 (⇅B) laisse sa place');
 assert.ok(/passerelle/.test(p.raisons.b1) && /Laisse sa place/.test(p.raisons.a9), J(p.raisons));
-p = K.proposer(ids, F, HM, { format: 5, nb, opts: O({ montees: 2 }) });
-assert.ok(dans(p, 'A1').includes('b0') && dans(p, 'A1').includes('b1'), '2 montées');
-p = K.proposer(ids, F, HM, { format: 5, nb, opts: O({ montees: 1, passerelles: 'aucune' }) });
-assert.ok(!dans(p, 'A1').some(id => /^b/.test(id)), 'passerelles : aucune');
-// A forte : une place pour la passerelle dans l'équipe A pleine
-p = K.proposer(ids, F, HM, { format: 5, nb, opts: O({ orga: 'aforte', montees: 1 }) });
-assert.ok(dans(p, 'A1').includes('b1'), 'A forte : b1 monte ' + dans(p, 'A1'));
+// le cas de Nicolas : 10 Confirmés, 13 Débrouillés, 6 Débutants, 3 équipes : 10 / 10 / 9, l'équipe A est juste pleine
+const spN = [];
+for (let i = 0; i < 10; i++) spN.push(['a' + i, 'A', 3]);
+for (let i = 0; i < 13; i++) spN.push(['b' + (i < 10 ? '0' : '') + i, 'B', 2, i < 2 ? 'A' : '']);
+for (let i = 0; i < 6; i++) spN.push(['c' + i, 'C', 1]);
+const FN = groupe(spN);
+p = K.proposer(Object.keys(FN), FN, {}, { format: 5, nb, opts: O({ passerelles: 'niveau' }) });
+assert.deepStrictEqual(tailles(p), ['A1:10', 'B1:10', 'C1:9']);
+assert.strictEqual(dans(p, 'A1').filter(id => /^b/.test(id)).length, 0, 'par niveau, 10 Confirmés pour 10 places : personne ne monte');
+p = K.proposer(Object.keys(FN), FN, {}, { format: 5, nb, opts: O({}) });
+assert.deepStrictEqual(tailles(p), ['A1:10', 'B1:10', 'C1:9']);
+assert.strictEqual(dans(p, 'A1').filter(id => /^b/.test(id)).length, 1, 'roulant, 10 Confirmés pour 10 places : une passerelle monte quand même');
 
-// ----- (relecture v50) A forte : les montées aussi quand l'équipe A n'est pas pleine de Confirmés -----
+// ----- Roulant : aussi de C vers B -----
+const spC = [];
+for (let i = 0; i < 8; i++) spC.push(['a' + i, 'A', 3]);
+for (let i = 0; i < 8; i++) spC.push(['b' + i, 'B', 2, i === 7 ? 'C' : '']);   // b7 : ⇅C
+for (let i = 0; i < 8; i++) spC.push(['c' + i, 'C', 1, i < 2 ? 'B' : '']);     // c0 et c1 : ⇅B
+const FC = groupe(spC), HC = { c0: H1('2026-10-20', 'B') };
+p = K.proposer(Object.keys(FC), FC, HC, { format: 5, nb, opts: O({}) });
+assert.deepStrictEqual(tailles(p), ['A1:8', 'B1:8', 'C1:8']);
+assert.ok(dans(p, 'B1').includes('c1') && !dans(p, 'B1').includes('c0'), 'c1 monte en B, à son tour ' + dans(p, 'B1'));
+assert.ok(dans(p, 'C1').includes('b7') && /Laisse sa place/.test(p.raisons.b7), 'b7 (⇅C) laisse sa place ' + J(p.raisons));
+assert.ok(/Monte en B/.test(p.raisons.c1), J(p.raisons));
+p = K.proposer(Object.keys(FC), FC, HC, { format: 5, nb, opts: O({ passerelles: 'niveau' }) });
+assert.ok(!dans(p, 'B1').some(id => /^c/.test(id)), 'par niveau : l\'équipe B pleine, personne ne monte ' + dans(p, 'B1'));
+
+// ----- quand l'équipe A manque de monde : par niveau le plaquage d'abord, roulant le tour d'abord -----
+const spT = [];
+for (let i = 0; i < 7; i++) spT.push(['a' + i, 'A', 3]);
+spT.push(['b0', 'B', 3, 'A'], ['b1', 'B', 1, 'A']);                            // b0 : bon plaqueur, déjà monté ; b1 : moins avancé, jamais monté
+for (let i = 2; i < 9; i++) spT.push(['b' + i, 'B', 2]);
+const FT = groupe(spT), HT = { b0: H1('2026-10-20', 'A') }, nbT = { A: 1, B: 1, C: 0 };
+p = K.proposer(Object.keys(FT), FT, HT, { format: 5, nb: nbT, opts: O({ passerelles: 'niveau' }) });
+assert.deepStrictEqual(tailles(p), ['A1:8', 'B1:8']);
+assert.ok(dans(p, 'A1').includes('b0') && !dans(p, 'A1').includes('b1'), 'par niveau : le meilleur plaqueur monte ' + dans(p, 'A1'));
+assert.ok(/plaquage/.test(p.raisons.b0), J(p.raisons));
+p = K.proposer(Object.keys(FT), FT, HT, { format: 5, nb: nbT, opts: O({}) });
+assert.ok(dans(p, 'A1').includes('b1') && !dans(p, 'A1').includes('b0'), 'roulant : celui qui n\'y a pas encore joué monte ' + dans(p, 'A1'));
+
+// ----- A forte -----
+p = K.proposer(ids, F, HM, { format: 5, nb, opts: O({ orga: 'aforte' }) });
+assert.ok(dans(p, 'A1').includes('b1'), 'A forte, roulant : b1 monte ' + dans(p, 'A1'));
+p = K.proposer(ids, F, HM, { format: 5, nb, opts: O({ orga: 'aforte', passerelles: 'niveau' }) });
+assert.ok(!dans(p, 'A1').some(id => /^b/.test(id)), 'A forte, par niveau : l\'équipe A pleine de Confirmés ' + dans(p, 'A1'));
 const sp2 = [];
 for (let i = 0; i < 7; i++) sp2.push(['a' + i, 'A', 3]);
 for (let i = 0; i < 9; i++) sp2.push(['b' + i, 'B', i < 2 ? 1 : 3, i < 2 ? 'A' : '']);   // b0 et b1 : ⇅A, plaquage 1
 const F2 = groupe(sp2), ids2 = Object.keys(F2), nb2 = { A: 1, B: 1, C: 0 };
-p = K.proposer(ids2, F2, {}, { format: 5, nb: nb2, opts: O({ orga: 'aforte', montees: 2 }) });
+p = K.proposer(ids2, F2, {}, { format: 5, nb: nb2, opts: O({ orga: 'aforte' }) });
 assert.deepStrictEqual(tailles(p), ['A1:8', 'B1:8']);
-assert.ok(dans(p, 'A1').includes('b0') && dans(p, 'A1').includes('b1'), 'A forte, 7 Confirmés pour 8 places : 2 montées ' + dans(p, 'A1'));
-assert.strictEqual(dans(p, 'A1').filter(id => /^a/.test(id)).length, 6, 'un Confirmé laisse sa place');
-assert.ok(Object.keys(p.raisons).some(id => /^a/.test(id) && /Laisse sa place/.test(p.raisons[id])), J(p.raisons));
-p = K.proposer(ids2, F2, {}, { format: 5, nb: nb2, opts: O({ orga: 'aforte', montees: 1 }) });
-assert.strictEqual(dans(p, 'A1').filter(id => /^b[01]$/.test(id)).length, 1, '1 montée : la place libre');
-// un Débutant avec ⇅A monte aussi quand l'équipe A a des places libres (A forte : les Débutants avec ⇅A comptent)
+assert.strictEqual(dans(p, 'A1').filter(id => /^b[01]$/.test(id)).length, 1, 'A forte, 7 Confirmés pour 8 places : 1 passerelle monte ' + dans(p, 'A1'));
+assert.strictEqual(dans(p, 'A1').filter(id => /^a/.test(id)).length, 7, 'les Confirmés restent');
+// un Débutant avec ⇅A monte aussi quand l'équipe A a des places libres
 const sp4 = [];
 for (let i = 0; i < 6; i++) sp4.push(['a' + i, 'A', 3]);
 for (let i = 0; i < 6; i++) sp4.push(['b' + i, 'B', 3]);
 for (let i = 0; i < 4; i++) sp4.push(['c' + i, 'C', 1, i === 0 ? 'A' : '']);
 const F4 = groupe(sp4);
-p = K.proposer(Object.keys(F4), F4, {}, { format: 5, nb: nb2, opts: O({ orga: 'aforte', montees: 1 }) });
+p = K.proposer(Object.keys(F4), F4, {}, { format: 5, nb: nb2, opts: O({ orga: 'aforte' }) });
 assert.ok(dans(p, 'A1').includes('c0'), 'A forte, places libres : le Débutant avec ⇅A monte ' + dans(p, 'A1'));
-p = K.proposer(Object.keys(F4), F4, {}, { format: 5, nb: nb2, opts: O({ orga: 'aforte', montees: 0 }) });
-assert.ok(!dans(p, 'A1').includes('c0'), 'sans montée : les meilleurs plaqueurs B complètent ' + dans(p, 'A1'));
+// A forte, par niveau : parmi les passerelles, le meilleur plaqueur
+const sp5 = [];
+for (let i = 0; i < 7; i++) sp5.push(['a' + i, 'A', 3]);
+sp5.push(['b0', 'B', 3, 'A'], ['b1', 'B', 1, 'A']);
+for (let i = 2; i < 9; i++) sp5.push(['b' + i, 'B', 3]);
+const F5 = groupe(sp5), H5 = { b0: H1('2026-10-20', 'A') };
+p = K.proposer(Object.keys(F5), F5, H5, { format: 5, nb: nb2, opts: O({ orga: 'aforte', passerelles: 'niveau' }) });
+assert.ok(dans(p, 'A1').includes('b0') && !dans(p, 'A1').includes('b1'), 'A forte, par niveau : le meilleur plaqueur des passerelles ' + dans(p, 'A1'));
+assert.ok(/plaquage/.test(p.raisons.b0), J(p.raisons));
+p = K.proposer(Object.keys(F5), F5, H5, { format: 5, nb: nb2, opts: O({ orga: 'aforte' }) });
+assert.ok(dans(p, 'A1').includes('b1') && !dans(p, 'A1').includes('b0'), 'A forte, roulant : celui qui n\'y a pas joué ' + dans(p, 'A1'));
 
-// ----- (relecture v50) « Passerelles : aucune » : avoir une passerelle ne fait pas passer devant -----
-p = K.proposer(ids2, F2, {}, { format: 5, nb: nb2, opts: O({ orga: 'aforte', passerelles: 'aucune' }) });
-assert.ok(!dans(p, 'A1').includes('b0') && !dans(p, 'A1').includes('b1'), 'A forte sans passerelle : le meilleur plaqueur complète ' + dans(p, 'A1'));
-assert.ok(!Object.values(p.raisons).some(r => /passerelle/.test(r)), J(p.raisons));
+// ----- quand les passerelles ne suffisent pas : avoir une passerelle passe devant, puis selon le plaquage ou chacun son tour -----
 const sp3 = [];
 for (let i = 0; i < 5; i++) sp3.push(['a' + i, 'A', 3]);
 for (let i = 0; i < 12; i++) sp3.push(['b' + (i < 10 ? '0' : '') + i, 'B', i < 2 ? 1 : 3, i < 2 ? 'A' : '']);   // b00 et b01 : ⇅A, plaquage 1
 const F3 = groupe(sp3), ids3 = Object.keys(F3);
-p = K.proposer(ids3, F3, {}, { format: 5, nb: { A: 1, B: 1, C: 0 }, opts: O({ passerelles: 'aucune' }) });
+p = K.proposer(ids3, F3, {}, { format: 5, nb: { A: 1, B: 1, C: 0 }, opts: O({ passerelles: 'niveau' }) });
 assert.deepStrictEqual(tailles(p), ['A1:8', 'B1:9']);
-assert.ok(!dans(p, 'A1').includes('b00') && !dans(p, 'A1').includes('b01'), 'par niveau sans passerelle : les meilleurs plaqueurs montent ' + dans(p, 'A1'));
-p = K.proposer(ids3, F3, {}, { format: 5, nb: { A: 1, B: 1, C: 0 }, opts: O({}) });
-assert.ok(dans(p, 'A1').includes('b00') && dans(p, 'A1').includes('b01'), 'avec les passerelles : elles comblent d\'abord');
-
-// ----- pour équilibrer, qui change de niveau : selon le plaquage, ou chacun son tour -----
+assert.ok(dans(p, 'A1').includes('b00') && dans(p, 'A1').includes('b01'), 'les passerelles comblent d\'abord ' + dans(p, 'A1'));
+assert.strictEqual(dans(p, 'A1').length, 8);
 const G = groupe([['a1', 'A', 3], ['a2', 'A', 3], ['a3', 'A', 3], ['b1', 'B', 1], ['b2', 'B', 2], ['b3', 'B', 2], ['b4', 'B', 2], ['b5', 'B', 2], ['c1', 'C', 1]]);
 const HG = { b1: H1('2026-10-25', 'C') };                                      // b1 (1★) est déjà descendu le 25/10
 p = K.proposer(Object.keys(G), G, HG, { format: 5, nb, opts: O({}) });
@@ -92,10 +134,34 @@ assert.ok(dans(p, 'C1').includes('b1'), 'selon le plaquage : le moins avancé de
 p = K.proposer(Object.keys(G), G, HG, { format: 5, nb, opts: O({ change: 'tour' }) });
 assert.ok(!dans(p, 'C1').includes('b1') && dans(p, 'C1').length === 3, 'chacun son tour : un autre B descend ' + dans(p, 'C1'));
 
-// ----- joueurs par équipe : suivre les niveaux -----
+// ----- suivre les niveaux : personne ne change de niveau, même avec une passerelle -----
 p = K.proposer(Object.keys(G), G, {}, { format: 5, nb, opts: O({ effectifs: 'niveaux' }) });
 assert.deepStrictEqual(tailles(p), ['A1:3', 'B1:5', 'C1:1']);
+const G2 = groupe([['a1', 'A', 3], ['b1', 'B', 2, 'A'], ['b2', 'B', 2, 'A'], ['b3', 'B', 2, 'A'], ['b4', 'B', 2], ['c1', 'C', 1, 'B']]);
+p = K.proposer(Object.keys(G2), G2, {}, { format: 5, nb, opts: O({ effectifs: 'niveaux' }) });
+assert.deepStrictEqual(tailles(p), ['A1:1', 'B1:4', 'C1:1'], 'les passerelles restent aussi dans leur niveau');
+assert.deepStrictEqual(J(Object.keys(p.raisons)), [], J(p.raisons));
 assert.deepStrictEqual(J(K.idsEquipes({ nb, opts: O({ orga: 'aforte' }) })), ['A1', 'B1', 'B2'], 'A forte : les équipes d\'après les options');
+
+// ----- copains : « Sans », ils ne comptent pas du tout -----
+const spCop = [];
+for (let i = 0; i < 12; i++) spCop.push(['b' + (i < 10 ? '0' : '') + i, 'B', [3, 3, 2, 2, 2, 2, 1, 1, 1, 1, 0, 0][i]]);
+const FCop = groupe(spCop), nbCop = { A: 0, B: 2, C: 0 };
+const FSansAmis = J(FCop);
+FCop.b00.copains = ['b01']; FCop.b01.copains = ['b00']; FCop.b10.copains = ['b02'];
+const HCop = { b00: Object.assign(H1('2026-10-20', 'B'), { sansCopainSerie: 2 }) };
+const eqs = (q) => JSON.stringify(q.equipes.map(t => t.joueurs.map(j => j.id).sort()));
+p = K.proposer(Object.keys(FCop), FCop, HCop, { format: 5, nb: nbCop, opts: O({ copains: 'sans' }) });
+assert.strictEqual(eqs(p), eqs(K.proposer(Object.keys(FSansAmis), FSansAmis, HCop, { format: 5, nb: nbCop, opts: O({ copains: 'sans' }) })), 'la compo est la même que si personne n\'avait de copain');
+assert.ok(!Object.values(p.raisons).some(r => /Avec /.test(r)), J(p.raisons));
+const avecUn = K.proposer(Object.keys(FCop), FCop, HCop, { format: 5, nb: nbCop, opts: O({}) });
+assert.strictEqual(avecUn.equipes.find(t => t.joueurs.some(j => j.id === 'b00')).joueurs.some(j => j.id === 'b01'), true, 'un pour chacun : b00 avec b01');
+const cAlerte = (c) => K.alertes({ reglages: { format: 5, nb: nbCop, opts: O({ copains: c }) }, equipes: p.equipes, banc: [] }, FCop, HCop).filter(a => a.k === 'copain').length;
+const seule = p.equipes.find(t => t.joueurs.some(j => j.id === 'b00')).joueurs.some(j => j.id === 'b01');
+if (!seule) assert.ok(cAlerte('un') > 0, 'avec l\'option normale, l\'alerte existe');
+assert.strictEqual(cAlerte('sans'), 0, '« Sans » : pas d\'alerte sur les copains');
+p = K.proposer(ids2, F2, {}, { format: 5, nb: nb2, opts: O({ orga: 'aforte', copains: 'sans' }) });
+assert.deepStrictEqual(tailles(p), ['A1:8', 'B1:8'], 'A forte sans les copains');
 
 // ----- serveur : les options sont gardées -----
 const { makeEnv } = require('./gas_mock.js');
@@ -105,9 +171,15 @@ let r = g.call({ action: 'adultLogin', code }); const tok = r.token;
 const P = {};
 ['Tom', 'Léa'].forEach(n => { r = g.call({ action: 'addPlayer', token: tok, prenom: n, familleNom: 'Famille ' + n }); P[n] = r.joueur.id; });
 r = g.call({ action: 'setEvenement', token: tok, titre: 'Plateau - Essai', debut: '2026-11-21', sorte: 'plateau', presents: [P.Tom, P['Léa']] });
-r = g.call({ action: 'saveCompo', token: tok, evenementId: r.evenement.id, reglages: { format: 5, nb: { A: 1, B: 1 }, style: 'equilibre', opts: { orga: 'niveau', effectifs: 'equilibre', passerelles: 'tour', change: 'tour', copains: 'pirate', montees: 2, autre: 'x' } },
-  equipes: [{ id: 'A1', niveau: 'A', joueurs: [{ id: P.Tom }] }, { id: 'B1', niveau: 'B', joueurs: [{ id: P['Léa'] }] }], banc: [] });
+const eq = [{ id: 'A1', niveau: 'A', joueurs: [{ id: P.Tom }] }, { id: 'B1', niveau: 'B', joueurs: [{ id: P['Léa'] }] }];
+const evId = r.evenement.id;
+r = g.call({ action: 'saveCompo', token: tok, evenementId: evId, reglages: { format: 5, nb: { A: 1, B: 1 }, style: 'equilibre', opts: { orga: 'niveau', effectifs: 'equilibre', passerelles: 'niveau', change: 'tour', copains: 'sans', pirate: 'x' } }, equipes: eq, banc: [] });
 assert.ok(r.ok, JSON.stringify(r));
-assert.deepStrictEqual(r.compo.reglages.opts, { orga: 'niveau', effectifs: 'equilibre', passerelles: 'tour', change: 'tour', montees: 2 }, 'gardées (les valeurs inconnues écartées)');
+assert.deepStrictEqual(r.compo.reglages.opts, { orga: 'niveau', effectifs: 'equilibre', passerelles: 'niveau', change: 'tour', copains: 'sans' }, 'gardées (les valeurs inconnues écartées)');
+// un site plus ancien encore ouvert : ses valeurs restent acceptées
+r = g.call({ action: 'setEvenement', token: tok, titre: 'Plateau - Essai 2', debut: '2026-11-28', sorte: 'plateau', presents: [P.Tom, P['Léa']] });
+r = g.call({ action: 'saveCompo', token: tok, evenementId: r.evenement.id, reglages: { format: 5, nb: { A: 1, B: 1 }, style: 'equilibre', opts: { passerelles: 'tour', copains: 'pirate', montees: 2 } }, equipes: eq, banc: [] });
+assert.ok(r.ok, JSON.stringify(r));
+assert.deepStrictEqual(r.compo.reglages.opts, { passerelles: 'tour', montees: 2 }, 'anciennes valeurs gardées');
 
 console.log('test_options : OK');

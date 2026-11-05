@@ -1903,7 +1903,7 @@ var Core = (function () {
     if (!partie && ['equilibre', 'copains', 'strict', 'aforte'].indexOf(r.style) >= 0) reglages.style = r.style;
     // (v50) les options de la compo (voir optsDe dans js/compos.js)
     if (!partie && r.opts && typeof r.opts === 'object') {
-      var OK = { orga: ['niveau', 'aforte'], effectifs: ['equilibre', 'niveaux'], passerelles: ['tour', 'aucune'], change: ['plaquage', 'tour'], copains: ['un', 'dabord'] }, op = {};
+      var OK = { orga: ['niveau', 'aforte'], effectifs: ['equilibre', 'niveaux'], passerelles: ['niveau', 'roulant', 'tour', 'aucune'], change: ['plaquage', 'tour'], copains: ['un', 'dabord', 'sans'] }, op = {};   // (v56) « tour » et « aucune » : un site plus ancien encore ouvert
       Object.keys(OK).forEach(function (k) { if (OK[k].indexOf(r.opts[k]) >= 0) op[k] = r.opts[k]; });
       var mt = Math.floor(Number(r.opts.montees)); if (mt >= 0 && mt <= 3) op.montees = mt;
       if (Object.keys(op).length) reglages.opts = op;

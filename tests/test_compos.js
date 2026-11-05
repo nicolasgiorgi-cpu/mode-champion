@@ -32,7 +32,7 @@ const where = {};
 p.equipes.forEach(t => t.joueurs.forEach(j => { assert.ok(!where[j.id], 'placé deux fois ' + j.id); where[j.id] = t; }));
 assert.strictEqual(Object.keys(where).length, 26, 'tout le monde est placé');
 // chacun dans son niveau ou dans celui de sa passerelle
-ids.forEach(id => { const t = where[id]; assert.ok(t.niveau === F[id].niveau || t.niveau === F[id].passerelle, id + ' en ' + t.id); });
+ids.forEach(id => { const t = where[id]; assert.ok(t.niveau === F[id].niveau || t.niveau === F[id].passerelle || /Laisse sa place/.test(p.raisons[id]), id + ' en ' + t.id); });   // (v56) Roulant : quelqu'un laisse sa place à une passerelle
 // effectifs : 26 joueurs / 4 équipes → 6 ou 7 partout
 p.equipes.forEach(t => assert.ok(t.joueurs.length >= 6 && t.joueurs.length <= 7, t.id + ' ' + t.joueurs.length));
 // plaquage équilibré entre B1 et B2
@@ -237,7 +237,7 @@ pStrict.equipes.forEach(t => t.joueurs.forEach(j => assert.strictEqual(t.niveau,
 const pCop = K.proposer(ids, F, {}, { format: 5, nb }, '2026-10-19', 'copains');
 function nbAvec(pp) { let n = 0; pp.equipes.forEach(t => { const st = K.stats(t, F, 5); n += st.avecCopain; }); return n; }
 assert.ok(nbAvec(pCop) >= nbAvec(K.proposer(ids, F, {}, { format: 5, nb }, '2026-10-19', 'equilibre')), 'copains d\'abord : au moins autant d\'enfants avec un copain');
-pCop.equipes.forEach(t => t.joueurs.forEach(j => assert.ok(t.niveau === F[j.id].niveau || t.niveau === F[j.id].passerelle)));
+pCop.equipes.forEach(t => t.joueurs.forEach(j => assert.ok(t.niveau === F[j.id].niveau || t.niveau === F[j.id].passerelle || /Laisse sa place/.test(pCop.raisons[j.id]))));
 
 // ----- historique : niveaux et postes joués, copains -----
 const evH = { e1: { id: 'e1', titre: 'Plateau 1', debut: '2026-09-20T10:00' }, e2: { id: 'e2', titre: 'Plateau 2', debut: '2026-10-04T10:00' }, e3: { id: 'e3', titre: 'Plateau 3', debut: '2026-11-04T10:00' } };

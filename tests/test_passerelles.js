@@ -88,7 +88,7 @@ const R = {};
 ['b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7'].forEach(id => { R[id] = { id, prenom: id, niveau: 'B', passerelle: '', plaquage: 2, voeux: [], postesOk: [], copains: [] }; });
 R.b1.passerelle = 'AC';
 const HR = { b1: { plateaux: 1, autre: 1, dernierAutre: '2026-10-10', avecCopain: 0, sansCopainSerie: 0, vus: {}, niveaux: {}, postes: {}, liste: [{ date: '2026-10-10', niveau: 'C', autre: true }] } };
-const rr = K.proposer(Object.keys(R), R, HR, { format: 5, nb: { A: 1, B: 1, C: 0 } });
+const rr = K.proposer(Object.keys(R), R, HR, { format: 5, nb: { A: 1, B: 1, C: 0 }, opts: { passerelles: 'niveau' } });   // (v56) par niveau : l'équipe A pleine, personne ne monte
 const al = K.alertes(rr, R, HR).filter(a => a.k === 'rotation');
 assert.ok(al.length && /b1 \(B→A\)/.test(al[0].texte), 'alerte : ' + JSON.stringify(al));
 

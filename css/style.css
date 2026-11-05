@@ -1006,8 +1006,9 @@ textarea.txt{width:100%;padding:10px 12px;background:#0C1120;border:1px solid va
 .olab small{display:block;margin-top:2px;font:400 12px/1.25 var(--f-body);color:var(--dim)}
 .oli .aide-q,.ogarde .aide-q{position:relative;flex:none;margin:0 8px 0 0}
 .oli .aide-q::after,.ogarde .aide-q::after{content:'';position:absolute;inset:-11px}
-.oseg{flex:0 0 min(190px,52%);display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border:1px solid var(--line2)}
+.oseg{flex:0 0 min(190px,52%);display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);border:1px solid var(--line2)}
 .oseg.court{flex-basis:112px}
+.oseg.trois{flex-basis:min(244px,68%)}   /* (v56) les copains : 3 choix */
 .oseg .opt{min-height:42px;padding:2px 3px;border:1.5px solid transparent;background:none;color:var(--muted);font:700 11px/1.1 var(--f-hud);letter-spacing:.03em}
 @media (max-width:359px){.oseg .opt{font-size:10px;letter-spacing:0}}
 .oseg .opt.on{border-color:var(--cyan);background:color-mix(in srgb,var(--cyan) 14%,transparent);color:var(--cyan)}
@@ -1107,6 +1108,11 @@ body:has(.cdock .cselp) .toast{top:calc(74px + var(--safe-t) + var(--vvt));botto
 .cvote small{color:var(--muted)}
 .cvote.mine{border-color:var(--violet);background:rgba(180,140,255,.1)}
 .calert-top.vote{border-color:var(--violet);background:rgba(180,140,255,.09)}
+/* (v56) la compo faite : en haut de la page d'un plateau ou d'un entraînement, plus grande et en surbrillance (bord et fond, pas d'ombre) */
+.li.ccompo{min-height:76px;padding:14px;border:2px solid var(--green);background:rgba(61,255,176,.13)}
+.li.ccompo.vote{border-color:var(--violet);background:rgba(180,140,255,.16)}
+.li.ccompo .t1{font-size:18px;letter-spacing:.03em}
+.li.ccompo .t2{font-size:14px;color:var(--soft);margin-top:5px}
 .calertw>summary{list-style:none;cursor:pointer;min-height:40px;align-items:center}
 .calertw>summary::-webkit-details-marker{display:none}
 .calertw[open]>summary{margin-bottom:8px}
