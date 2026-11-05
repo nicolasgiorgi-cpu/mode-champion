@@ -1020,7 +1020,7 @@ textarea.txt{width:100%;padding:10px 12px;background:#0C1120;border:1px solid va
 .ctail .cnbv{min-width:24px;font-size:18px}
 .ibtn:disabled,.btn2:disabled{opacity:.38;cursor:default}
 .cselp .grow,.cdock .grow{flex:1;min-width:0}
-body:has(.cdock .cselp) .toast{top:calc(74px + var(--safe-t));bottom:auto}
+body:has(.cdock .cselp) .toast{top:calc(74px + var(--safe-t) + var(--vvt));bottom:auto}
 /* état de la compo */
 .cstate{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border:1px solid var(--line2);background:var(--panel);font-size:14px;line-height:1.4}
 .cstate svg{flex:none;margin-top:1px}

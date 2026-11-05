@@ -723,13 +723,25 @@ MC.app = (function () {
   // dépend pas de l'appareil, seulement de ce qui est mesuré. Tout nouvel élément fixe doit utiliser ces deux variables.
   var VV = { t: 0, b: 0, raf: 0, attente: 0, n: 0, relance: 0 };
   function vvSource() { return window.__MC_VV || window.visualViewport; }   // __MC_VV : pour les tests (Chromium n'a pas le bug)
-  function vvClavier() { var a = document.activeElement; return !!(a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT' || a.isContentEditable)); }
+  // un champ qui ouvre vraiment le clavier du téléphone (pas le pavé maison, en lecture seule, ni une case à cocher)
+  var VV_SANS_CLAVIER = /^(checkbox|radio|range|button|submit|reset|file|color|image)$/i;
+  function vvClavier() {
+    var a = document.activeElement;
+    if (!a) return false;
+    if (a.isContentEditable || a.tagName === 'SELECT') return true;
+    if (a.tagName === 'TEXTAREA') return !a.readOnly;
+    return a.tagName === 'INPUT' && !a.readOnly && !VV_SANS_CLAVIER.test(a.type || '');
+  }
   function vvEcart() {
     var v = vvSource();
     // clavier ouvert ou zoom avec les doigts : la zone visible bouge normalement, on ne touche à rien
     if (!v || vvClavier() || Math.abs((v.scale || 1) - 1) > 0.01) return { t: 0, b: 0 };
-    var t = v.offsetTop || 0, b = t + v.height - window.innerHeight;
-    return { t: Math.abs(t) < 2 ? 0 : Math.round(t), b: Math.abs(b) < 2 ? 0 : Math.round(b) };
+    // le signe du bug, c'est offsetTop (ou une zone visible plus grande que la fenêtre) ; une zone visible seulement plus petite,
+    // c'est le clavier qui se ferme ou la barre d'un navigateur. Pendant le bug, height peut rester trop petit (signalé sur WebKit
+    // et chez Apple) : on ne la retranche pas, sinon la barre du bas ne serait jamais recalée.
+    var t = v.offsetTop || 0, trop = v.height - window.innerHeight;
+    if (Math.abs(t) < 2 && trop < 2) return { t: 0, b: 0 };
+    return { t: Math.abs(t) < 2 ? 0 : Math.round(t), b: Math.round(t + Math.max(0, trop)) };
   }
   function vvPose(t, b) {
     if (t === VV.t && b === VV.b) return;
@@ -747,7 +759,8 @@ MC.app = (function () {
   }
   function vvNote(e) {
     VV.n++;
-    try { localStorage.setItem('mc-vue', JSON.stringify({ n: VV.n + (VV.avant || 0), haut: e.t, bas: e.b, le: new Date().toISOString().slice(0, 16) })); } catch (x) { }
+    var v = vvSource() || {};
+    try { localStorage.setItem('mc-vue', JSON.stringify({ n: VV.n + (VV.avant || 0), haut: e.t, bas: e.b, vue: Math.round(v.height || 0), fen: window.innerHeight, le: new Date().toISOString().slice(0, 16) })); } catch (x) { }
   }
   function vvMesure() {
     VV.raf = 0;
@@ -755,14 +768,15 @@ MC.app = (function () {
     if (!e.t && !e.b) { if (VV.attente) { clearTimeout(VV.attente); VV.attente = 0; } vvPose(0, 0); return; }
     if (VV.t || VV.b) { vvPose(e.t, e.b); return; }   // déjà recalé : on suit l'écart
     if (VV.attente) return;
-    // le clavier qui se ferme ou la barre de Safari qui bouge font un écart de passage : on ne recale que s'il dure
+    // le clavier qui se ferme (300 ms environ) ou la barre de Safari qui bouge font un écart de passage : on ne recale que s'il
+    // dure ; le bug, lui, dure jusqu'à ce qu'on tue l'appli
     VV.attente = setTimeout(function () {
       VV.attente = 0;
       var e2 = vvEcart();
       if (!e2.t && !e2.b) return;
       vvPose(e2.t, e2.b); vvNote(e2);
-      clearTimeout(VV.relance); VV.relance = setTimeout(vvRelance, 250);
-    }, 180);
+      clearTimeout(VV.relance); VV.relance = setTimeout(function () { vvRelance(); vvDemande(); }, 250);
+    }, 600);
   }
   function vvDemande() { if (!VV.raf) VV.raf = (window.requestAnimationFrame || setTimeout)(vvMesure); }
   function vueDecalee() {
@@ -770,11 +784,11 @@ MC.app = (function () {
     var v = window.visualViewport;
     if (v) { v.addEventListener('resize', vvDemande); v.addEventListener('scroll', vvDemande); }
     ['resize', 'scroll', 'focusin', 'pageshow', 'orientationchange'].forEach(function (n) { window.addEventListener(n, vvDemande, { passive: true }); });
-    // le clavier se ferme : le geste qu'on voit partout pour remettre iOS d'aplomb, puis on mesure
+    // le clavier se ferme : s'il reste un écart, le geste qu'on voit partout pour remettre iOS d'aplomb, puis on mesure
     window.addEventListener('focusout', function () {
       vvDemande();
       clearTimeout(VV.relance);
-      VV.relance = setTimeout(function () { if (!vvClavier()) { vvRelance(); vvDemande(); } }, 320);
+      VV.relance = setTimeout(function () { if (!vvClavier() && vvEcart().t) vvRelance(); vvDemande(); }, 320);
     }, { passive: true });
     document.addEventListener('visibilitychange', function () { if (!document.hidden) vvDemande(); });
     setInterval(function () { if (!document.hidden) vvDemande(); }, 2000);   // un état figé peut n'envoyer aucun événement
@@ -784,7 +798,7 @@ MC.app = (function () {
   MC.vueInfo = function () {
     var d = null; try { d = JSON.parse(localStorage.getItem('mc-vue') || 'null'); } catch (x) { }
     if (!d || !d.n) return '';
-    return 'Barre décalée par iOS, recalée ' + d.n + ' fois (' + (d.bas || d.haut) + ' px, ' + d.le.replace('T', ' à ') + ')' + (VV.t || VV.b ? ' · en cours' : '');
+    return 'Écran décalé, barre recalée ' + d.n + ' fois (haut ' + d.haut + ', bas ' + d.bas + ', vue ' + d.vue + ', fenêtre ' + d.fen + ', ' + d.le.replace('T', ' à ') + ')' + (VV.t || VV.b ? ' · en cours' : '');
   };
 
   // ---------- Événements ----------
