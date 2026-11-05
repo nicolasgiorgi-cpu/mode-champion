@@ -198,6 +198,35 @@ MC.compos = (function () {
   function nbEn(H, id, n) { return hOf(H, id).liste.filter(function (x) { return x.autre && x.niveau === n; }).length; }
 
   // ---------- Nombre d'équipes conseillé par niveau ----------
+  // (v49) le nombre de joueurs voulu dans chaque équipe d'un plateau : équilibré par défaut (écart d'un joueur au plus) ;
+  // les places en plus vont aux équipes des niveaux les plus nombreux (le moins d'enfants à changer de niveau).
+  // Demande de Nicolas (05/11) : « il faut que le nombre d'enfants soit équilibré », réglable équipe par équipe.
+  function taillesDefaut(ids, F, reglages) {
+    var tids = idsEquipes(reglages), k = tids.length, out = {};
+    if (!k) return out;
+    var n = ids.length, base = Math.floor(n / k), extra = n - base * k, af = reglages && reglages.style === 'aforte';
+    var aEq = {}; tids.forEach(function (id) { aEq[id.charAt(0)] = (aEq[id.charAt(0)] || 0) + 1; });
+    var cnt = { A: 0, B: 0, C: 0 };
+    ids.forEach(function (id) {
+      var l = niveauDe(F[id]) || 'B';
+      if (af) l = l === 'A' ? 'A' : 'B';
+      else if (!aEq[l]) l = NIV.filter(function (x) { return aEq[x]; }).sort(function (a, b) { return dist(a, l) - dist(b, l) || (a === 'C' ? -1 : 1); })[0];
+      cnt[l]++;
+    });
+    // « A forte » : la place en plus va d'abord à l'équipe A (une équipe A pleine, comme en v48)
+    function nat(id) { return (af && id.charAt(0) === 'A' ? 1e6 : 0) + cnt[id.charAt(0)] / aEq[id.charAt(0)]; }
+    tids.forEach(function (id) { out[id] = base; });
+    tids.slice().sort(function (a, b) { return nat(b) - nat(a) || (a < b ? -1 : 1); }).slice(0, extra).forEach(function (id) { out[id]++; });
+    return out;
+  }
+  // les tailles réglées si elles vont (les mêmes équipes, le bon total), sinon celles par défaut
+  function tailles(ids, F, reglages) {
+    var t = reglages && reglages.tailles, tids = idsEquipes(reglages), s = 0;
+    if (t && typeof t === 'object' && tids.length && tids.every(function (id) { var v = t[id]; if (!(v >= 0) || Math.floor(v) !== v) return false; s += v; return true; }) && s === ids.length) {
+      var o = {}; tids.forEach(function (id) { o[id] = t[id]; }); return o;
+    }
+    return taillesDefaut(ids, F, reglages);
+  }
   function suggestNb(ids, F, format) {
     var T = TAILLE[format === 10 ? 10 : 5], c = { A: 0, B: 0, C: 0 }, nb = {};
     ids.forEach(function (id) { c[niveauDe(F[id]) || 'B']++; });
@@ -285,7 +314,7 @@ MC.compos = (function () {
   function scoreEquipe(t, cx, F, H, format) {
     var sp = 0, sb = 0, s = 0, W = cx.w;
     t.forEach(function (id) { var p = (F[id] || {}).plaquage || 0; sp += p; if (p >= BON) sb++; });
-    s += W.taille * Math.abs(t.length - cx.avgN);
+    s += W.taille * Math.abs(t.length - (t.cible !== undefined ? t.cible : cx.avgN));   // (v49) la taille voulue de l'équipe
     if (t.length) s += W.plaq * Math.abs(sp / t.length - cx.mean);
     s += W.bons * Math.abs(sb - cx.avgB);
     if (format === 10) s += W.poste * apparier(t, F).manquants.length;
@@ -330,7 +359,8 @@ MC.compos = (function () {
         // déplacement d'un joueur de l'équipe la plus nombreuse vers l'autre
         [[a, b], [b, a]].forEach(function (ab) {
           var from = teams[ab[0]], to = teams[ab[1]];
-          if (from.length - to.length < 2) return;
+          // (v49) aussi vers une équipe sous sa taille voulue, depuis une équipe au-dessus de la sienne
+          if (from.length - to.length < 2 && !(from.cible !== undefined && from.length > from.cible && to.length < to.cible)) return;
           for (var m = 0; m < from.length; m++) {
             var id = from.splice(m, 1)[0]; to.push(id);
             var nf = sc(ab[0]), nt = sc(ab[1]), d2 = nf + nt - ts[ab[0]] - ts[ab[1]];
@@ -377,8 +407,11 @@ MC.compos = (function () {
     });
     // 2. les passerelles comblent les écarts d'effectif entre niveaux (d'abord ceux qui attendent leur tour) ; v45 : vers n'importe quel niveau de sa fiche
     var total = ids.length, per = total / tids.length;
+    // (v49) les tailles voulues des équipes (Niveaux stricts : les effectifs suivent les niveaux)
+    var cible = S.sansPasserelles ? null : tailles(ids, F, Object.assign({}, reglages, { style: style || (reglages && reglages.style) }));
+    function voulu(n) { if (!cible) return nb[n] * per; var s = 0; tids.forEach(function (id) { if (id.charAt(0) === n) s += cible[id]; }); return s; }
     function count(n) { var c = 0; ids.forEach(function (id) { if (lv[id] === n) c++; }); return c; }
-    function ecart(n) { return count(n) - nb[n] * per; }
+    function ecart(n) { return count(n) - voulu(n); }
     var guard = S.sansPasserelles ? 60 : 0;
     // ceux qui jouent dans leur niveau et ont une passerelle vers « to », dans l'ordre de leur tour (par niveau visé, v45)
     function candidats(from, to) {
@@ -418,6 +451,38 @@ MC.compos = (function () {
         raisons[m.id] = 'Joue en ' + m.to + ' grâce à sa passerelle : ' + (der ? 'son tour (dernière fois le ' + frDate(der) + ').' : 'son tour, il n\'y a pas encore joué.');
       });
     }
+    // 2 bis. (v49) les effectifs restent déséquilibrés (pas assez de passerelles) : des enfants changent de niveau voisin,
+    // d'abord ceux qui reviennent dans leur niveau, puis vers le haut les meilleurs plaqueurs, vers le bas les moins avancés,
+    // et à plaquage égal chacun son tour (celui qui a changé de niveau le moins récemment)
+    if (cible) {
+      for (var g2 = 0; g2 < 80; g2++) {
+        var pr = null;
+        NIV.forEach(function (from) { NIV.forEach(function (to) {
+          if (from === to || !ok(to)) return;
+          if (ecart(from) >= 1 && ecart(to) <= -1 && (!pr || dist(from, to) < dist(pr[0], pr[1]))) pr = [from, to];
+        }); });
+        if (!pr) break;
+        var dir = NIV.indexOf(pr[1]) > NIV.indexOf(pr[0]) ? 1 : -1, nx = NIV[NIV.indexOf(pr[0]) + dir];
+        if (!ok(nx)) nx = pr[1];
+        var monte = NIV.indexOf(nx) < NIV.indexOf(pr[0]), dep = pr[0];
+        var cand = ids.filter(function (id) { return lv[id] === dep; }).sort(function (a, b) {
+          var ra = dist(princ[a] || 'B', nx), rb = dist(princ[b] || 'B', nx);
+          if (ra !== rb) return ra - rb;   // ceux qui reviennent dans leur niveau, puis les plus proches du niveau visé
+          var xa = pasDe(F[a]).indexOf(nx) >= 0 ? 0 : 1, xb = pasDe(F[b]).indexOf(nx) >= 0 ? 0 : 1;
+          if (xa !== xb) return xa - xb;
+          var pa = plqN(F, a), pb = plqN(F, b);   // pas encore évalué : au milieu (ni le premier à descendre, ni à monter)
+          if (pa !== pb) return monte ? pb - pa : pa - pb;
+          var da = dernierEn(H, a, nx), db = dernierEn(H, b, nx);
+          if (da !== db) return da < db ? -1 : 1;
+          return a < b ? -1 : 1;
+        });
+        if (!cand.length) break;
+        lv[cand[0]] = nx;
+        if (princ[cand[0]] === nx) delete raisons[cand[0]];
+        else if (!princ[cand[0]]) raisons[cand[0]] = 'Niveau à renseigner : placé en ' + nx + '.';
+        else raisons[cand[0]] = 'Pour équilibrer les équipes : joue en ' + nx + '.';
+      }
+    }
     // 3. dans chaque niveau : serpentin par étoiles de plaquage, puis échanges
     var equipes = [];
     NIV.forEach(function (n) {
@@ -425,7 +490,7 @@ MC.compos = (function () {
       var list = ids.filter(function (id) { return lv[id] === n; });
       list.sort(function (a, b) { var d = ((F[b] || {}).plaquage || 0) - ((F[a] || {}).plaquage || 0); return d || (a < b ? -1 : 1); });
       var k = nb[n], teams = [];
-      for (var i = 0; i < k; i++) teams.push([]);
+      for (var i = 0; i < k; i++) { teams.push([]); if (cible) teams[i].cible = cible[n + (i + 1)]; }
       list.forEach(function (id, i) { var r = Math.floor(i / k), c = i % k; teams[r % 2 ? k - 1 - c : c].push(id); });
       ameliorer(teams, F, H, format, S.w);
       teams.forEach(function (t, i) {
@@ -453,6 +518,7 @@ MC.compos = (function () {
   // Débrouillés et Débutants, équilibrées (plaquage, niveaux, avants / arrières, postes au jeu à 10, copains).
   var WAF = { taille: 5, plaq: 4 * 5 / 3, bons: 1.5, copain: 1, seul: 0.75, poste: 1.5, niv: 1.5, avar: 1 };
   function plq(F, id) { return (F[id] || {}).plaquage || 0; }
+  function plqN(F, id) { var p = (F[id] || {}).plaquage; return p === null || p === undefined ? 1.5 : p; }   // (v49) pas encore évalué : au milieu
   function forte(ids, F, H, taille, raisons, quoi) {
     var As = ids.filter(function (id) { return niveauDe(F[id]) === 'A'; }), fort;
     if (As.length >= taille) {
@@ -492,13 +558,15 @@ MC.compos = (function () {
   // plateau : nb.A équipes fortes (au moins 1), nb.B + nb.C équipes « B » mélangées
   function proposerAForte(ids, F, H, reglages) {
     var format = fmt(reglages), k = nbAForte(nbOf(reglages)), raisons = {}, equipes = [];
-    var kA = k.A, kB = k.B;
+    var kA = k.A, kB = k.B, cible = tailles(ids, F, Object.assign({}, reglages, { style: 'aforte' })), tA = 0;
+    for (var a = 1; a <= kA; a++) tA += cible['A' + a];
     // sans équipe B : tout le monde dans les équipes A (pas d'équipe « forte » à part)
-    var x = kB ? forte(ids, F, H, Math.round(ids.length / (kA + kB) * kA), raisons, 'l\'équipe A') : { fort: ids.slice(), reste: [] };
+    var x = kB ? forte(ids, F, H, tA, raisons, 'l\'équipe A') : { fort: ids.slice(), reste: [] };
     x.reste.forEach(function (id) { if (!niveauDe(F[id])) raisons[id] = 'Niveau à renseigner : placé en B.'; });
     function pose(list, k, n, w, tri) {
       if (!k) return;
       var teams = serpentin(list.slice().sort(tri), k);
+      teams.forEach(function (t, i) { t.cible = cible[n + (i + 1)]; });
       ameliorer(teams, F, H, format, w);
       teams.forEach(function (t, i) {
         var po = format === 10 ? apparier(t, F).poste : {};
@@ -585,7 +653,13 @@ MC.compos = (function () {
       if (ts.length > 1) {
         var mx = 0, mn = 99, iMx = 0, iMn = 0;
         st.forEach(function (s, i) { if (s.n > mx) { mx = s.n; iMx = i; } if (s.n < mn) { mn = s.n; iMn = i; } });
-        if (mx - mn >= 2) out.push({ k: 'taille', niveau: 'warn', texte: 'Effectifs déséquilibrés : ' + ts[iMx].id + ' (' + mx + ') et ' + ts[iMn].id + ' (' + mn + ').', fix: bestMove(c, F, H, ts[iMx].id, ts[iMn].id) });
+        // (v49) des tailles réglées : l'écart se mesure à la taille voulue de chaque équipe
+        var tv = c.reglages && c.reglages.tailles, avecT = tv && ts.every(function (t) { return tv[t.id] >= 0; });
+        if (avecT) {
+          var dx = -99, dn = 99, jx = 0, jn = 0;
+          st.forEach(function (s, i) { var e = s.n - tv[ts[i].id]; if (e > dx) { dx = e; jx = i; } if (e < dn) { dn = e; jn = i; } });
+          if (dx >= 1 && dn <= -1 && dx - dn >= 2) out.push({ k: 'taille', niveau: 'warn', texte: 'Effectifs : ' + ts[jx].id + ' ' + st[jx].n + ' (' + tv[ts[jx].id] + ' voulus), ' + ts[jn].id + ' ' + st[jn].n + ' (' + tv[ts[jn].id] + ' voulus).', fix: bestMove(c, F, H, ts[jx].id, ts[jn].id) });
+        } else if (mx - mn >= 2) out.push({ k: 'taille', niveau: 'warn', texte: 'Effectifs déséquilibrés : ' + ts[iMx].id + ' (' + mx + ') et ' + ts[iMn].id + ' (' + mn + ').', fix: bestMove(c, F, H, ts[iMx].id, ts[iMn].id) });
         // (v46) l'écart de plaquage : seulement entre équipes qui ont des enfants évalués
         var hi = -1, lo = -1;
         st.forEach(function (s, i) { if (s.plaq === null) return; if (hi < 0 || s.plaq > st[hi].plaq) hi = i; if (lo < 0 || s.plaq < st[lo].plaq) lo = i; });
@@ -985,7 +1059,7 @@ MC.compos = (function () {
 
   return {
     NIV: NIV, NOM_NIV: NOM_NIV, COUL_NIV: COUL_NIV, POSTES10: POSTES10, SEUIL: SEUIL, BON: BON, TAILLE: TAILLE, FORMATS: FORMATS,
-    fiches: fiches, historique: historique, hOf: hOf, suggestNb: suggestNb, teamIds: teamIds, nomsCourts: nomsCourts, idsEquipes: idsEquipes, nbAForte: nbAForte, nbOf: nbOf, fmt: fmt,
+    fiches: fiches, historique: historique, hOf: hOf, suggestNb: suggestNb, teamIds: teamIds, nomsCourts: nomsCourts, idsEquipes: idsEquipes, tailles: tailles, taillesDefaut: taillesDefaut, nbAForte: nbAForte, nbOf: nbOf, fmt: fmt,
     pasDe: pasDe, lettresPas: lettresPas, joueEn: joueEn,
     proposer: proposer, vide: vide, stats: stats, alertes: alertes, apparier: apparier, scoreNiveau: scoreNiveau,
     moveTo: moveTo, swap: swap, setPoste: setPoste, where: where, diff: diff, presents: presents, attente: attente, retirer: retirer, sorteDuTitre: sorteDuTitre,

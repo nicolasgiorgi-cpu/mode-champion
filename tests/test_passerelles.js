@@ -38,7 +38,9 @@ const ids = Object.keys(F);
 const p = K.proposer(ids, F, {}, { format: 5, nb: { A: 1, B: 1, C: 1 } });
 const ou = {}; p.equipes.forEach(t => t.joueurs.forEach(j => { ou[j.id] = t.niveau; }));
 assert.strictEqual(ou.c1, 'A', 'c1 joue en A grâce à sa passerelle : ' + JSON.stringify(p.raisons && p.raisons.c1));
-ids.forEach(id => assert.ok(ou[id] === F[id].niveau || K.pasDe(F[id]).indexOf(ou[id]) >= 0, id + ' en ' + ou[id]));
+// (v49) hors de son niveau : par sa passerelle, ou pour équilibrer les effectifs (dit dans les raisons)
+ids.forEach(id => assert.ok(ou[id] === F[id].niveau || K.pasDe(F[id]).indexOf(ou[id]) >= 0 || /équilibrer/.test(p.raisons[id] || ''), id + ' en ' + ou[id]));
+const tl = p.equipes.map(t => t.joueurs.length); assert.ok(Math.max(...tl) - Math.min(...tl) <= 1, '(v49) effectifs équilibrés : ' + tl);
 
 // ----- deux passerelles : un B qui peut aller en A ou en C, selon le manque -----
 const G = {};
@@ -63,7 +65,10 @@ assert.strictEqual(o1.a3, 'B', 'pas d\'équipe A : un A avec ⇅C joue en B comm
 const P2 = JSON.parse(JSON.stringify(P1)); P2.b1.passerelle = 'A'; P2.b2.passerelle = '';
 r1 = K.proposer(Object.keys(P2), P2, {}, { format: 5, nb: { A: 1, B: 0, C: 1 } });
 o1 = {}; r1.equipes.forEach(t => t.joueurs.forEach(j => { o1[j.id] = t.niveau; }));
-assert.strictEqual(o1.b2, 'C', 'pas d\'équipe B : un B sans passerelle joue en C (comme avant)');
+// (v49) pas d'équipe B, 3 Confirmés seulement : l'équipe A est complétée pour équilibrer, d'abord par des B (plus proches que les C)
+const enA = r1.equipes.find(t => t.niveau === 'A').joueurs.map(j => j.id), enC = r1.equipes.find(t => t.niveau === 'C').joueurs.map(j => j.id);
+assert.ok(Math.abs(enA.length - enC.length) <= 1, 'effectifs équilibrés : ' + enA.length + '/' + enC.length);
+assert.ok(enA.every(id => !/^c/.test(id)), 'pas de Débutant monté en A tant qu\'il y a des B : ' + enA);
 assert.strictEqual(o1.b1, 'A', 'pas d\'équipe B : un B avec ⇅A joue en A');
 
 // ----- les passerelles vers le niveau voisin d'abord : un Débrouillé monte en A avant un Débutant -----

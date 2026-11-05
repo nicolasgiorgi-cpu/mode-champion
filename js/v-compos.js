@@ -646,12 +646,41 @@ window.MC = window.MC || {};
       return '<button type="button" class="opt cstyle' + (cur === k ? ' on' : '') + '" aria-pressed="' + (cur === k) + '" ' + attr + '="' + k + '"><b>' + esc(S.nom) + '</b><small>' + esc(S.texte) + '</small></button>';
     }).join('') + '</div>';
   }
+  // (v49) le nombre de joueurs de chaque équipe : équilibré par défaut, réglable équipe par équipe (demande de Nicolas, 05/11) ;
+  // le total doit faire le nombre de présents
+  function taillesReg(ids, F, reg) {
+    var tids = K.idsEquipes(reg), t = reg.tailles;
+    if (t && Object.keys(t).length === tids.length && tids.every(function (id) { return t[id] >= 0; })) return t;
+    return K.taillesDefaut(ids, F, reg);
+  }
+  function ecartTailles(ids, F, reg) {
+    if (reg.style === 'strict') return 0;
+    var t = taillesReg(ids, F, reg), s = 0; K.idsEquipes(reg).forEach(function (id) { s += t[id]; });
+    return ids.length - s;
+  }
+  function taillesHtml(ids, F, reg, attr, attrEq) {
+    if (reg.style === 'strict') return '<section class="sec"><h2 class="h2">Joueurs par équipe</h2><p class="small" style="margin:0">Niveaux stricts : chacun dans son niveau, les effectifs suivent les niveaux.</p></section>';
+    var tids = K.idsEquipes(reg), t = taillesReg(ids, F, reg), s = 0, def = K.taillesDefaut(ids, F, reg), modif = false;
+    tids.forEach(function (id) { s += t[id]; if (t[id] !== def[id]) modif = true; });
+    if (!tids.length) return '';
+    var d = ids.length - s, ouvert = modif || d;
+    return '<section class="sec"><details class="ctaild"' + (ouvert ? ' open' : '') + '><summary><span class="h2">Joueurs par équipe</span><span class="ctsum">' +
+      tids.map(function (id) { return '<b style="color:' + K.COUL_NIV[id.charAt(0)] + '">' + id + '</b> ' + t[id]; }).join(' · ') + '</span><span class="lnk">Ajuster</span></summary><div class="ctails">' + tids.map(function (id) {
+      return '<div class="ctail" style="--lc:' + K.COUL_NIV[id.charAt(0)] + '"><b>' + id + '</b><span class="row" style="gap:4px">' +
+        '<button type="button" class="ibtn" ' + attr + '="' + id + '" data-d="-1" aria-label="' + id + ' : un joueur de moins"' + (t[id] <= 0 ? ' disabled' : '') + '>' + icon('minus', 16) + '</button>' +
+        '<output class="cnbv">' + t[id] + '</output>' +
+        '<button type="button" class="ibtn" ' + attr + '="' + id + '" data-d="1" aria-label="' + id + ' : un joueur de plus"' + (t[id] >= 40 ? ' disabled' : '') + '>' + icon('plus', 16) + '</button></span></div>';
+    }).join('') + '</div><p class="small ctailp" style="margin:0' + (d ? ';color:var(--orange)' : '') + '">' +
+      (d > 0 ? 'Il reste ' + d + ' enfant' + (d > 1 ? 's' : '') + ' à placer : ' : d < 0 ? (-d) + ' place' + (-d > 1 ? 's' : '') + ' de trop : ' : '') + s + ' joueurs pour ' + ids.length + ' présents' +
+      (!d && !modif ? ', équipes équilibrées' : '') + '.' + (modif ? ' <button type="button" class="lnk" ' + attrEq + '>Équilibrer</button>' : '') + '</p></details></section>';
+  }
   function paintReglages(C, e) {
     var ids = presentsOf(C, e), reg = regOf(C, e), cnt = { A: 0, B: 0, C: 0, '': 0 };
     ids.forEach(function (id) { cnt[(C.F[id] || {}).niveau || '']++; });
     var af = reg.style === 'aforte' ? K.nbAForte(reg.nb) : null, tot = af ? af.A + af.B : reg.nb.A + reg.nb.B + reg.nb.C, sug = K.suggestNb(ids, C.F, reg.format);
     var per = tot ? Math.round(ids.length / tot * 10) / 10 : 0;
     var noLv = ids.filter(function (id) { return !(C.F[id] || {}).niveau; });
+    var ok = tot && !ecartTailles(ids, C.F, reg);   // (v49) le total des joueurs par équipe = les présents
     return '<main class="screen">' + MC.educBar(C.g, 'Compo · ' + e.titre, '#/educ/evt/' + e.id, e.titre) +
       '<div class="head"><span class="kicker" style="color:var(--gold)">' + esc(quand(e)) + ' · ' + ids.length + ' présents</span><h1 class="big sm">Préparer la compo</h1></div>' +
       (ids.length < 2 ? '<div class="empty">Cochez d\'abord les présents sur la page de l\'événement.</div><a class="btn2" href="#/educ/evt/' + esc(e.id) + '">Les présents</a></main>' :
@@ -664,8 +693,9 @@ window.MC = window.MC || {};
       graphePresents(C, ids, 'plateau') +
       '<section class="sec"><h2 class="h2">La proposition</h2>' + stylesHtml(reg.style, 'data-act="cStyle" data-v') +
       (af ? '<p class="small" style="margin:0">A forte : ' + af.A + ' équipe' + (af.A > 1 ? 's' : '') + ' A, ' + af.B + ' équipe' + (af.B > 1 ? 's' : '') + ' B (les équipes C comptent comme des B : Débrouillés et Débutants mélangés' + (reg.nb.B + reg.nb.C > 9 ? ' ; 9 équipes B au plus' : '') + ').</p>' : '') + '</section>' +
-      '<div class="sec"><button type="button" class="btn" data-act="cPropose"' + (tot ? '' : ' disabled') + '>' + icon('spark', 18) + ' Proposer une compo</button>' +
-      '<button type="button" class="btn2" data-act="cPropose2"' + (tot ? '' : ' disabled') + '>' + icon('swap', 16) + ' Proposer 2 versions côte à côte</button>' +
+      taillesHtml(ids, C.F, reg, 'data-act="cTail" data-t', 'data-act="cTailEq"') +
+      '<div class="sec"><button type="button" class="btn" data-act="cPropose"' + (ok ? '' : ' disabled') + '>' + icon('spark', 18) + ' Proposer une compo</button>' +
+      '<button type="button" class="btn2" data-act="cPropose2"' + (ok ? '' : ' disabled') + '>' + icon('swap', 16) + ' Proposer 2 versions côte à côte</button>' +
       '<button type="button" class="btn2 grey" data-act="cZero"' + (tot ? '' : ' disabled') + '>Partir de zéro</button>' +
       '<p class="small" style="margin:0">Avec 2 versions, vous les construisez côte à côte, puis vous en publiez une ou vous les soumettez au vote des éducs. Tout se déplace ensuite d\'un geste.</p></div></main>');
   }
@@ -755,8 +785,12 @@ window.MC = window.MC || {};
     });
   };
   MC.act.cFmt = function (b) { if (!B || !B.reg) return; B.reg.format = Number(b.getAttribute('data-v')); app.rerender(); };
-  MC.act.cNb = function (b) { if (!B || !B.reg) return; var n = b.getAttribute('data-n'); B.reg.nb[n] = Math.max(0, Math.min(6, B.reg.nb[n] + Number(b.getAttribute('data-d')))); app.rerender(); };
-  MC.act.cStyle = function (b) { if (!B || !B.reg) return; B.reg.style = b.getAttribute('data-v'); app.rerender(); };
+  MC.act.cNb = function (b) { if (!B || !B.reg) return; var n = b.getAttribute('data-n'); B.reg.nb[n] = Math.max(0, Math.min(6, B.reg.nb[n] + Number(b.getAttribute('data-d')))); B.reg.tailles = null; app.rerender(); };
+  MC.act.cStyle = function (b) { if (!B || !B.reg) return; var av = B.reg.style; B.reg.style = b.getAttribute('data-v'); if ((av === 'aforte') !== (B.reg.style === 'aforte')) B.reg.tailles = null; app.rerender(); };
+  // (v49) une équipe : un joueur de plus ou de moins ; « Équilibrer » revient aux tailles par défaut
+  function tailleUn(reg, ids, F, id, d) { var t = JSON.parse(JSON.stringify(taillesReg(ids, F, reg))); t[id] = Math.max(0, Math.min(40, (t[id] || 0) + d)); reg.tailles = t; }
+  MC.act.cTail = function (b) { withC(function (C, e) { if (!B.reg) return; tailleUn(B.reg, presentsOf(C, e), C.F, b.getAttribute('data-t'), Number(b.getAttribute('data-d'))); app.rerender(); }); };
+  MC.act.cTailEq = function () { if (!B || !B.reg) return; B.reg.tailles = null; app.rerender(); };
   function withC(fn) {
     var g = app.S.cache.group, cd = app.S.cache.compos;
     if (!g || !cd || !B) return;
@@ -769,8 +803,11 @@ window.MC = window.MC || {};
       var q = K.proposerEnt(presentsOf(C, e), C.F, C.H, r, L.today());
       return { reglages: q.reglages, equipes: q.equipes, banc: q.banc, raisons: q.raisons };
     }
-    var p = K.proposer(presentsOf(C, e), C.F, C.H, reg, L.today(), style);
-    return { reglages: { format: K.fmt(reg), nb: K.nbOf(reg), style: style || 'equilibre' }, equipes: p.equipes, banc: p.banc, raisons: p.raisons };
+    var r2 = { format: K.fmt(reg), nb: K.nbOf(reg), style: style || 'equilibre', tailles: reg.tailles || null }, ids = presentsOf(C, e);
+    var p = K.proposer(ids, C.F, C.H, r2, L.today(), r2.style);
+    var out = { format: r2.format, nb: r2.nb, style: r2.style };
+    if (r2.style !== 'strict' && reg.tailles && !ecartTailles(ids, C.F, r2)) out.tailles = K.tailles(ids, C.F, r2);   // (v49) seulement des tailles réglées
+    return { reglages: out, equipes: p.equipes, banc: p.banc, raisons: p.raisons };
   }
   function autreStyle(s) { return s === 'copains' || s === 'aforte' ? 'equilibre' : 'copains'; }   // (v48) A forte ↔ Équilibrée
   MC.act.cPropose = function () {
@@ -1404,21 +1441,25 @@ window.MC = window.MC || {};
     if (!B || !B.vs.length) return;
     var v = Number(b && b.getAttribute('data-v')) || 0, d = B.vs[v];
     if (B.partie) return reglEnt(v, d);
-    var reg = { format: d.reglages.format, nb: JSON.parse(JSON.stringify(K.nbOf(d.reglages))), style: d.reglages.style || 'equilibre' };
+    var reg = { format: d.reglages.format, nb: JSON.parse(JSON.stringify(K.nbOf(d.reglages))), style: d.reglages.style || 'equilibre', tailles: d.reglages.tailles ? JSON.parse(JSON.stringify(d.reglages.tailles)) : null };
+    var IDS = [], FF = {}; withC(function (C, e) { IDS = presentsOf(C, e); FF = C.F; });
     function body() {
       return '<div class="grid2">' + K.FORMATS.map(function (f) { return '<button type="button" class="opt' + (reg.format === f ? ' on' : '') + '" data-rf="' + f + '">Jeu à ' + f + '</button>'; }).join('') + '</div>' +
         K.NIV.map(function (n) { return stepperHtml(n, reg, null, null, 'data-rn'); }).join('') + stylesHtml(reg.style, 'data-rs') +
-        '<p class="small" style="margin:0">« Proposer à nouveau » refait toute la ' + (B.vs.length > 1 ? vName(v).toLowerCase() : 'compo') + '. « Garder mes placements » ajoute ou enlève seulement des équipes (les joueurs d\'une équipe enlevée passent en « Pas placés »).</p>';
+        taillesHtml(IDS, FF, reg, 'data-rt', 'data-rte') +   // (v49) les joueurs par équipe
+        '<p class="small" style="margin:0">« Proposer à nouveau » refait toute la ' + (B.vs.length > 1 ? vName(v).toLowerCase() : 'compo') + '. « Garder mes placements » ajoute ou enlève seulement des équipes (les joueurs d\'une équipe enlevée passent en « Pas placés » ; les joueurs par équipe ne s\'appliquent pas).</p>';
     }
     ui.modal({
       title: B.vs.length > 1 ? 'Réglages · ' + vName(v) : 'Réglages', body: '<div class="sec creg">' + body() + '</div>',
       actions: [{ label: 'Proposer à nouveau', value: 'new', cls: 'btn' }, { label: 'Garder mes placements', value: 'keep', cls: 'btn2' }, { label: 'Annuler', value: null, cls: 'btn2 grey' }],
       onOpen: function (host) {
         host.addEventListener('click', function (ev) {
-          var f = ev.target.closest('[data-rf]'), n = ev.target.closest('[data-rn]'), st = ev.target.closest('[data-rs]');
+          var f = ev.target.closest('[data-rf]'), n = ev.target.closest('[data-rn]'), st = ev.target.closest('[data-rs]'), rt = ev.target.closest('[data-rt]'), rte = ev.target.closest('[data-rte]');
           if (f) reg.format = Number(f.getAttribute('data-rf'));
-          else if (n) { var k = n.getAttribute('data-rn'); reg.nb[k] = Math.max(0, Math.min(6, reg.nb[k] + Number(n.getAttribute('data-d')))); }
-          else if (st) reg.style = st.getAttribute('data-rs');
+          else if (n) { var k = n.getAttribute('data-rn'); reg.nb[k] = Math.max(0, Math.min(6, reg.nb[k] + Number(n.getAttribute('data-d')))); reg.tailles = null; }
+          else if (st) { var av = reg.style; reg.style = st.getAttribute('data-rs'); if ((av === 'aforte') !== (reg.style === 'aforte')) reg.tailles = null; }
+          else if (rt) tailleUn(reg, IDS, FF, rt.getAttribute('data-rt'), Number(rt.getAttribute('data-d')));
+          else if (rte) reg.tailles = null;
           else return;
           host.querySelector('.creg').innerHTML = body();
         });
@@ -1427,13 +1468,16 @@ window.MC = window.MC || {};
       if (!r) return;
       withC(function (C, e) {
         change(function () {
-          if (r === 'new') { B.vs[v] = proposition(C, e, reg, reg.style); return; }
+          if (r === 'new') {
+            if (ecartTailles(presentsOf(C, e), C.F, reg)) { reg.tailles = null; ui.toast('Le total des joueurs par équipe ne fait pas le nombre de présents : équipes équilibrées.'); }
+            B.vs[v] = proposition(C, e, reg, reg.style); return;
+          }
           var ids = K.idsEquipes(reg), keep = [], banc = (d.banc || []).slice();   // (v48) « A forte » : A1…, B1…
           d.equipes.forEach(function (t) { if (ids.indexOf(t.id) >= 0) keep.push(t); else t.joueurs.forEach(function (j) { banc.push(j.id); }); });
           ids.forEach(function (id) { if (!keep.some(function (t) { return t.id === id; })) keep.push({ id: id, niveau: id.charAt(0), joueurs: [] }); });
           keep.sort(function (a, c2) { return ids.indexOf(a.id) - ids.indexOf(c2.id); });
           if (reg.format !== 10) keep.forEach(function (t) { t.joueurs.forEach(function (j) { j.poste = ''; }); });
-          d.equipes = keep; d.banc = banc; d.reglages = { format: reg.format, nb: reg.nb, style: reg.style };
+          d.equipes = keep; d.banc = banc; d.reglages = { format: reg.format, nb: reg.nb, style: reg.style };   // (v49) les tailles ne s'appliquent pas
           B.vs[v] = d;
         });
       });
