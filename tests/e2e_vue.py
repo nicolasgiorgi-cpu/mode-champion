@@ -141,7 +141,7 @@ with sync_playwright() as p:
     check('Réglages : le décalage est dit, avec le nombre de fois et les hauteurs', 'recalée 3 fois' in pg.inner_text('main') and 'fenêtre %d' % IH in pg.inner_text('main'), pg.inner_text('main')[-200:])
     pg.evaluate("localStorage.removeItem('mc-vue')"); pg.goto(BASE + '#/educ/entrainements'); pg.wait_for_timeout(500); pg.goto(BASE + '#/educ/reglages'); pg.wait_for_timeout(700)
     check('Réglages : rien si jamais arrivé', 'recalée' not in pg.inner_text('main'))
-    check('pas de défilement de côté', pg.evaluate('document.scrollingElement.scrollWidth <= innerWidth + 1'))
+    check('pas de défilement de côté', pg.evaluate('document.scrollingElement.scrollWidth <= document.documentElement.clientWidth + 1'))
     check('aucune erreur', not errs, errs)
     b.close()
 bad = [n for n, c in res if not c]

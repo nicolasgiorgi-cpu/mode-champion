@@ -295,6 +295,7 @@ MC.app = (function () {
   }
   function paint(html, o) {
     if (html === null || html === undefined) return;
+    if (EB.raf) ebStop();   // (v54) un redessin pendant le ressort : la barre du haut est remplacée, l'animation ne la retiendrait plus
     var y = window.scrollY;
     root.innerHTML = html;
     ui.mountAnims(root);
@@ -640,8 +641,10 @@ MC.app = (function () {
   }
   // ressort à amortissement critique : x(t) = (x0 + (v0 + w·x0)·t)·e^(−w·t) ; départ en x0 (px), vitesse v0 (px/s)
   // (v54) le ressort est calculé d'avance et confié à l'animation du navigateur (element.animate), plus image par image dans le
-  // script : elle tourne à part, à la cadence de l'écran. Sur un écran 120 Hz (iPad Pro), les images du script restent à 60 par
-  // seconde (requestAnimationFrame dans Safari) alors que le défilement natif est à 120 : on sentait une latence en arrivant au bout.
+  // script. Essai, cause non prouvée : Nicolas sent une latence au bout des pages sur iPad Pro (120 Hz), pas sur iPhone (60 Hz) ;
+  // requestAnimationFrame reste à 60 images par seconde dans Safari alors que le défilement natif va à 120. Ça rend le retour plus
+  // fluide, mais pas le démarrage : l'arrêt au bout passe toujours par l'événement scroll. Si la latence reste, seul le rebond
+  // natif (overscroll-behavior) n'a plus de script à cet endroit : c'est une décision de Nicolas.
   function ebAnimFin() {
     if (EB.anim) { EB.anim.onfinish = null; EB.anim.cancel(); EB.anim = null; }
     if (EB.animBar) { EB.animBar.cancel(); EB.animBar = null; }

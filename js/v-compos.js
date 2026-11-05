@@ -2098,11 +2098,13 @@ window.MC = window.MC || {};
     if (!q) { if (!e.target.closest || !e.target.closest('.aide-bulle')) aideFerme(); return; }
     e.preventDefault();
     if (q.classList.contains('ouvert')) { aideFerme(); return; }   // déjà ouverte (toucher court) : un 2e toucher la ferme
-    aideTenu = { q: q, t: Date.now() }; aideOuvre(q);
+    // (v54) la bulle attend 120 ms : un doigt qui part défiler depuis un « ? » ne la fait pas clignoter (les « ? » des options sont en colonne à gauche)
+    if (aideTenu) clearTimeout(aideTenu.h);
+    aideTenu = { q: q, t: Date.now(), vu: false, h: setTimeout(function () { if (aideTenu && aideTenu.q === q) { aideTenu.vu = true; aideOuvre(q); } }, 120) };
   });
   // relâché après un appui long : la bulle se ferme ; après un toucher court : elle reste ouverte jusqu'au toucher suivant
-  document.addEventListener('pointerup', function () { if (aideTenu) { var long = Date.now() - aideTenu.t >= 400; aideTenu = null; if (long) aideFerme(); } });
-  document.addEventListener('pointercancel', function () { if (aideTenu) { aideTenu = null; aideFerme(); } });
+  document.addEventListener('pointerup', function () { if (aideTenu) { var a = aideTenu; aideTenu = null; clearTimeout(a.h); if (!a.vu) aideOuvre(a.q); else if (Date.now() - a.t >= 400) aideFerme(); } });
+  document.addEventListener('pointercancel', function () { if (aideTenu) { clearTimeout(aideTenu.h); aideTenu = null; aideFerme(); } });
   document.addEventListener('click', function (e) {
     var q = e.target.closest && e.target.closest('.aide-q'); if (!q) return;
     if (q.closest('summary')) e.preventDefault();   // (v54) le « ? » dans une ligne qui se déplie : il ne la déplie pas

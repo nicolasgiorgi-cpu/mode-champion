@@ -11,7 +11,7 @@ tag = '%dx%d' % (W, H)
 res = []; errs = []
 def check(n, c, i=''): res.append((n, c)); print(('OK  ' if c else 'BAD ') + n, '' if c else i)
 def shot(pg, name, full=False): pg.screenshot(path=OUT + tag + '-' + name + '.png', full_page=full)
-def noscroll(pg): return pg.evaluate('document.scrollingElement.scrollWidth <= innerWidth + 1')
+def noscroll(pg): return pg.evaluate('document.scrollingElement.scrollWidth <= document.documentElement.clientWidth + 1')   # (v54) pas innerWidth : en mobile, il grandit avec la page
 def ev(pg, js): return pg.evaluate(js)
 def nbp(pg): return pg.evaluate("(function(){var a=document.querySelectorAll('#nav a')[1];var n=a&&a.querySelector('.nb');return n?n.textContent:''})()")
 with sync_playwright() as p:
@@ -148,6 +148,20 @@ with sync_playwright() as p:
         pg.evaluate("document.querySelector('.aide-bulle') && document.querySelector('.aide-q.ouvert').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))"); pg.wait_for_timeout(80)
         check('(v54) « ? » %s : un 2e toucher ferme la bulle' % k, pg.query_selector('.aide-bulle') is None)
     check('(v54) le « ? » de la ligne des joueurs ne la déplie pas', not ev(pg, "document.querySelector('.cbopt .ctaild').open"))
+    # beaucoup d'équipes : le résumé des joueurs passe à la ligne, rien ne se chevauche ni ne sort de l'écran
+    for i in range(4): pg.click('.cbopt [data-act="cNb"][data-n="B"][data-d="1"]'); pg.wait_for_timeout(120)
+    ot = ev(pg, "(() => { const o = document.querySelector('.otail .olab').getBoundingClientRect(), c = document.querySelector('.otail .ctsum').getBoundingClientRect(), l = document.querySelector('.otail summary .lnk').getBoundingClientRect(), v = document.documentElement.clientWidth; return { n: document.querySelector('.otail .ctsum').textContent, chevauche: c.top < o.bottom - 1 && c.left < o.right - 1, sort: Math.max(c.right, l.right) > v, large: document.scrollingElement.scrollWidth > v + 1 } })()")
+    check('(v54) 7 équipes : la ligne des joueurs ne se chevauche pas et reste dans l\'écran', not ot['chevauche'] and not ot['sort'] and not ot['large'] and 'B4' in ot['n'], ot)
+    for i in range(4): pg.click('.cbopt [data-act="cNb"][data-n="B"][data-d="-1"]'); pg.wait_for_timeout(120)
+    # le doigt qui part défiler depuis un « ? » : pas de bulle
+    pg.evaluate("document.querySelector('.cbopt .aide-q[data-aide=\"o-orga\"]').scrollIntoView({ block: 'center' })"); pg.wait_for_timeout(120)
+    pg.evaluate("(() => { const q = document.querySelector('.cbopt .aide-q[data-aide=\"o-orga\"]'); q.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); document.dispatchEvent(new PointerEvent('pointercancel', { bubbles: true })); })()"); pg.wait_for_timeout(200)
+    check('(v54) un défilement qui démarre sur un « ? » : pas de bulle', pg.query_selector('.aide-bulle') is None)
+    # le doigt tenu : la bulle s'ouvre, et se ferme au lâcher
+    pg.evaluate("document.querySelector('.cbopt .aide-q[data-aide=\"o-orga\"]').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))"); pg.wait_for_timeout(500)
+    tenu = pg.query_selector('.aide-bulle') is not None
+    pg.evaluate("document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }))"); pg.wait_for_timeout(80)
+    check('(v54) doigt tenu sur un « ? » : la bulle, fermée au lâcher', tenu and pg.query_selector('.aide-bulle') is None, tenu)
     if ev(pg, "document.querySelector('.cbopt').open"): pg.click('.cbopt > summary .ott'); pg.wait_for_timeout(250)
     check('(v54) replié : le résumé revient, l\'en-tête dit « Modifier »', 'Jeu à' in pg.inner_text('.cbopt summary') and 'MODIFIER' in pg.inner_text('.cbopt .oac').upper())
     avant = ev(pg, "[...document.querySelectorAll('.ccol .cpj')].map(x=>x.getAttribute('data-id')).join(',')")

@@ -69,6 +69,10 @@ with sync_playwright() as p:
             check('(v54) ressort : joué par l\'animation du navigateur, sur la page et la barre du haut, sans décalage écrit à la main', an['page'] == 1 and an['barre'] == 1 and an['ecrit'] == '', an)
             pg.wait_for_timeout(900)
             check('(v54) ressort fini : plus aucune animation, état remis à zéro', pg.evaluate("document.getElementById('app').getAnimations().length === 0 && document.querySelector('#app .topbar').getAnimations().length === 0 && !MC.rebond.state.raf && !MC.rebond.state.anim"))
+            # un redessin pendant le ressort : il s'arrête, la barre du haut n'est pas laissée sans animation
+            pg.evaluate("MC.rebond.spring(0, -1500)"); pg.wait_for_timeout(60); pg.evaluate("MC.app.render()"); pg.wait_for_timeout(120)
+            rd = pg.evaluate("({ page: document.getElementById('app').getAnimations().length, raf: MC.rebond.state.raf })")
+            check('(v54) un redessin pendant le ressort : il s\'arrête proprement', rd['page'] == 0 and not rd['raf'] and ty(pg, '#app') == 0, rd)
             # un doigt posé pendant le ressort : il s'arrête tout de suite
             pg.evaluate("MC.rebond.spring(0, -1500)"); pg.wait_for_timeout(80)
             touch(cdp, 'touchStart', W // 2, int(H * 0.5)); pg.wait_for_timeout(40)
