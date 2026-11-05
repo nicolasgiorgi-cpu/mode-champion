@@ -807,12 +807,15 @@ MC.app = (function () {
   // une séance, un bilan ou une connexion), sans fenêtre ouverte, sans saisie ni envoi en cours ; sinon en arrivant sur un
   // autre écran calme. L'écran et le défilement sont gardés comme quand l'iPhone ferme l'appli.
   var MAJ = { v: 0, at: 0, attend: false, enCours: false, chemin: null, essais: 0 }, MAJ_KEY = 'mc-maj';
+  // les écrans qui gardent des choix en mémoire avant de les envoyer (fiche terrain, confirmations, niveaux…) le disent ici
+  var ATTENTES = [];
+  function enAttente(fn) { if (typeof fn === 'function') ATTENTES.push(fn); }
   var MAJ_PAS = /^\/(go\/[^/]+|bilan\/go|echauffement|calme|noter|mission\/quiz|educ\/skills\/(evaluer|journee)|connexion|adultes|adultes\/code|qui|oubli|premiere|defi\/[^/]+)$/;
   function versionIci() { var l = document.querySelector('link[href*="style.css"]'), m = l && /[?&]v=(\d+)/.exec(l.getAttribute('href') || ''); return m ? Number(m[1]) : 0; }
   function majCalme() {
     if (document.hidden || document.querySelector('.modal, .bk') || document.body.classList.contains('np-open')) return false;
     if (document.documentElement.classList.contains('net-busy')) return false;          // un envoi au serveur en cours
-    if (MC.terrainEnAttente && MC.terrainEnAttente()) return false;                     // une fiche terrain pas encore envoyée
+    if (ATTENTES.some(function (f) { try { return f(); } catch (e) { return true; } })) return false;   // des choix pas encore envoyés
     var a = document.activeElement;
     if (a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT' || a.isContentEditable)) return false;
     if (MAJ_PAS.test(parseHash().path)) return false;
@@ -870,7 +873,7 @@ MC.app = (function () {
     setKid: setKid, setAdult: setAdult, loadMe: loadMe, setMe: setMe, swr: swr, kidCall: kidCall, adultCall: adultCall,
     lsGet: lsGet, lsSet: lsSet, current: function () { return current; },
     back: back, canBack: canBack, homeOf: homeOf, setUrl: setUrl, spaceOf: spaceOf, onRefresh: onRefresh, pullRefresh: pullRefresh, pullable: pullable,
-    verifierVersion: verifierVersion,
+    verifierVersion: verifierVersion, enAttente: enAttente,
     refreshNav: refreshNav, setNav: setNav, rememberTab: rememberTab, cibleRearmer: cibleRearmer,
     sharedDevice: sharedDevice, setShared: setShared, adultUnlocked: adultUnlocked, touchAdult: touchAdult, lockAdult: lockAdult,
     touchKid: touchKid, takeTarget: takeTarget, recents: recents, lastProfile: lastProfile

@@ -1891,7 +1891,7 @@ window.MC = window.MC || {};
   // pend : ce qui attend de partir ; avant : l'état enregistré avant le 1er toucher ; vol : l'« avant » de l'envoi en cours.
   var TS = { pend: {}, avant: {}, vol: null, timer: 0, busy: false };
   // (v51) une fiche terrain touchée mais pas encore envoyée : l'appli attend avant de se mettre à jour
-  MC.terrainEnAttente = function () { return TS.busy || Object.keys(TS.pend).length > 0; };
+  app.enAttente(function () { return TS.busy || Object.keys(TS.pend).length > 0; });
   function copie(x) { return x === undefined ? null : JSON.parse(JSON.stringify(x)); }
   // même fiche terrain (sans l'auteur ni l'heure) ?
   function memeTerrain(a, b) {

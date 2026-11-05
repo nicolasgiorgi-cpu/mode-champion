@@ -100,6 +100,35 @@ with sync_playwright() as p:
         check('pendant une séance : pas de rechargement', on_go and not recharge(pg), pg.url)
     else:
         check('espace de l\'enfant ouvert pour la séance', False, pg.url)
+    # ----- 8. (relecture) un parent qui a choisi « tout confirmer » sans encore envoyer, puis des niveaux en cours : jamais -----
+    ctx2 = b.new_context(viewport={'width': W, 'height': H}, is_mobile=True, has_touch=True); pg = ctx2.new_page()
+    pg.add_init_script('window.__MC_QUIET=1'); pg.on('pageerror', lambda e: errs.append(str(e)))
+    pg.route(re.compile(r'.*/index\.html(\?.*)?$'), page_en_ligne); EN_LIGNE['v'] = None
+    def pad(code):
+        for c in code: pg.click('.modal [data-k="%s"], #adultzone [data-k="%s"]' % (c, c)); pg.wait_for_timeout(60)
+    pg.goto(BASE); pg.wait_for_timeout(500); pg.evaluate('localStorage.clear(); sessionStorage.clear()'); pg.reload(); pg.wait_for_timeout(800)
+    codes = pg.evaluate('MC.demo.CODES')
+    pg.click('.kidbtn:has-text("TOM")'); pg.wait_for_timeout(300); pad(codes['enfant']); pg.wait_for_timeout(900)
+    pg.goto(BASE + '#/bilan'); pg.wait_for_timeout(800)
+    pg.evaluate("(function(){var b=MC.bilan.ensure(MC.app.S.me); b.v.pompes='21'; b.v.squats='44'; b.v.burpees='19'; MC.bilan.save();})()")
+    pg.goto(BASE + '#/profil'); pg.wait_for_timeout(300); pg.goto(BASE + '#/bilan'); pg.wait_for_timeout(800)
+    pg.click('#bil_send'); pg.wait_for_timeout(1200); pg.click('.modal .btn'); pg.wait_for_timeout(700)
+    pg.goto(BASE + '#/reglages'); pg.wait_for_timeout(600); pg.click('[data-act="logoutKid"]'); pg.wait_for_timeout(500)
+    pg.goto(BASE + '#/adultes'); pg.wait_for_timeout(600); pg.click('[data-act="adultPick"][data-nom="Tom"]'); pg.wait_for_timeout(300); pad(codes['parent']); pg.wait_for_timeout(1300)
+    pg.click('[data-act="decAll"]'); pg.wait_for_timeout(300)
+    vu = pg.locator('[data-decbar]').count() > 0 and pg.is_visible('[data-decbar] >> nth=0')
+    EN_LIGNE['v'] = ici + 8; marquer(pg); revenir(pg); pg.wait_for_timeout(800)
+    check('parent : « tout confirmer » choisi, pas envoyé : en revenant, pas de rechargement', vu and not recharge(pg) and pg.is_visible('[data-decbar] >> nth=0'), pg.url)
+    pg.goto(BASE + '#/parent/bilans'); pg.wait_for_timeout(1500)
+    if pg.query_selector('[data-act="lvEdit"]'):
+        pg.click('[data-act="lvEdit"]'); pg.wait_for_timeout(200)
+        pk = pg.query_selector('[data-act="lvPick"]:not(.on)')
+        if pk: pk.click(); pg.wait_for_timeout(200)
+        pg.evaluate("sessionStorage.removeItem('mc-maj')"); EN_LIGNE['v'] = ici + 9; marquer(pg)
+        pg.evaluate('void MC.app.verifierVersion(true)'); pg.wait_for_timeout(1500)
+        check('parent : niveaux en cours de modification : pas de rechargement', not recharge(pg) and pg.query_selector('[data-act="lvSave"]') is not None)
+    else:
+        check('parent : « Modifier les niveaux » sur Bilans', False, pg.url)
     b.close()
 print('ERREURS JS:', errs)
 bad = [n for n, c in res if not c]
