@@ -94,7 +94,7 @@ with sync_playwright() as p:
     # (v50) les options (liste validée par Nicolas) à la place des styles
     ks = ev(pg, "[...new Set([...document.querySelectorAll('[data-act=\"cOpt\"]')].map(b=>b.getAttribute('data-k')))].join(',')")
     check('(v56) les options : organisation, joueurs par équipe, passerelles, copains', ks == 'orga,effectifs,passerelles,copains', ks)
-    check('(v56) plus de compteur « Montent en A » ; Passerelles : Par niveau ou Roulant, Roulant par défaut', pg.query_selector('.cmont') is None and pg.query_selector('[data-act="cOpt"][data-k="passerelles"][data-v="roulant"].on') is not None and pg.query_selector('[data-act="cOpt"][data-k="passerelles"][data-v="niveau"]') is not None)
+    check('(v56) plus de compteur « Montent en A » ; Passerelles : Plaquage d\'abord ou Roulant, Roulant par défaut', pg.query_selector('.cmont') is None and pg.query_selector('[data-act="cOpt"][data-k="passerelles"][data-v="roulant"].on') is not None and pg.query_selector('[data-act="cOpt"][data-k="passerelles"][data-v="niveau"]') is not None)
     pg.click('[data-act="cOpt"][data-k="orga"][data-v="aforte"]'); pg.wait_for_timeout(200)
     check('(v48) A forte : la note des équipes', 'les équipes C comptent comme des B' in pg.inner_text('main'))
     pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(900)

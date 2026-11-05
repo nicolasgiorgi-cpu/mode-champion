@@ -49,7 +49,7 @@ MC.compos = (function () {
   function idsEquipes(reglages) { var nb = nbOf(reglages); return teamIds(optsDe(reglages).orga === 'aforte' ? nbAForte(nb) : nb); }
   // (v50) les options d'une compo de plateau (liste validée par Nicolas, 05/11) ; les anciens « styles » s'y ramènent :
   // orga : par niveau | A forte ; effectifs : équilibrés (tailles réglables) | suivre les niveaux (personne ne change de niveau) ;
-  // passerelles (v56, décision de Nicolas) : parmi ceux qui ont une passerelle, qui change de niveau — par niveau (le plaquage d'abord) |
+  // passerelles (v56, décision de Nicolas) : parmi ceux qui ont une passerelle, qui change de niveau — niveau (à l'écran : « Plaquage d'abord ») |
   //   roulant (chacun son tour, et une par équipe au-dessus même si elle est pleine : sinon, quand les Confirmés remplissent l'équipe A, personne ne monte) ;
   // quand les passerelles ne suffisent pas, les enfants sans passerelle changent selon le plaquage (v56 : plus d'option « qui change de niveau », un doublon) ;
   // copains : un pour chacun | d'abord | sans

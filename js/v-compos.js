@@ -648,7 +648,7 @@ window.MC = window.MC || {};
   var OPT_TXT = {
     orga: ['Organisation', { niveau: ['Par niveau', 'Une équipe par niveau : A, B, C.'], aforte: ['A forte', 'Une équipe A avec les Confirmés (complétée par les meilleurs B), les autres mélangent B et C.'] }],
     effectifs: ['Joueurs par équipe', { equilibre: ['Équilibrés', 'À un joueur près ; « Ajuster » pour les régler équipe par équipe.'], niveaux: ['Suivre les niveaux', 'Personne ne change de niveau, les passerelles non plus : chaque équipe a les joueurs de son niveau.'] }],
-    passerelles: ['Passerelles', { niveau: ['Par niveau', 'Le nombre de joueurs par équipe décide combien changent de niveau. Ceux qui ont une passerelle passent d\'abord, le plaquage en premier : les meilleurs montent, les moins avancés descendent.'], roulant: ['Roulant', 'Ceux qui ont une passerelle jouent chacun leur tour, quel que soit le plaquage. Une par équipe monte, même si l\'équipe est pleine : quelqu\'un descend en échange.'] }],
+    passerelles: ['Passerelles', { niveau: ['Plaquage d\'abord', 'Le nombre de joueurs par équipe décide combien changent de niveau. Ceux qui ont une passerelle passent d\'abord, le plaquage en premier : les meilleurs montent, les moins avancés descendent.'], roulant: ['Roulant', 'Ceux qui ont une passerelle jouent chacun leur tour, quel que soit le plaquage. Une par équipe monte, même si l\'équipe est pleine : quelqu\'un descend en échange.'] }],
     copains: ['Copains', { un: ['Un copain pour chacun', 'Quand c\'est possible, le plaquage d\'abord.', 'Un pour chacun'], dabord: ['Copains d\'abord', 'Chacun avec ses copains en priorité.'], sans: ['Sans', 'Les copains ne comptent pas du tout.'] }]
   };
   var OPT_LIGNE = { effectifs: 'Effectifs' };   // le nom de la ligne, quand celui des choix est trop long
@@ -696,7 +696,7 @@ window.MC = window.MC || {};
     var o = K.optsDe(reg), tids = K.idsEquipes(reg), bits = ['Jeu à ' + K.fmt(reg), tids.join(' ') || 'aucune équipe', OPT_TXT.orga[1][o.orga][0]];
     if (o.effectifs === 'niveaux') bits.push('effectifs des niveaux');
     else if (ids) { var t = taillesReg(ids, F, reg); bits.push(tids.map(function (id) { return t[id]; }).join(' · ') + ' joueurs'); }
-    if (o.effectifs !== 'niveaux') bits.push(o.passerelles === 'niveau' ? 'passerelles par niveau' : 'passerelles roulantes');
+    if (o.effectifs !== 'niveaux') bits.push(o.passerelles === 'niveau' ? 'passerelles : plaquage d\'abord' : 'passerelles roulantes');
     bits.push(o.copains === 'dabord' ? 'copains d\'abord' : o.copains === 'sans' ? 'sans les copains' : 'un copain chacun');
     return bits.join(' · ');
   }

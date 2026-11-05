@@ -1,5 +1,5 @@
 # (v56) Le bouclier rouge quel que soit le niveau de l'enfant, la compo faite en haut de la page d'un plateau ou d'un entraînement,
-# les joueurs par équipe juste sous le nombre d'équipes, Passerelles « Par niveau » ou « Roulant », Copains « Sans ».
+# les joueurs par équipe juste sous le nombre d'équipes, Passerelles « Plaquage d'abord » ou « Roulant », Copains « Sans ».
 # Site de démo (sh tests/mkdemo.sh), puis : python3 tests/e2e_v56.py 390 844 · 1180 820 · 820 1180
 import sys, json
 from playwright.sync_api import sync_playwright
@@ -62,7 +62,7 @@ with sync_playwright() as p:
     check('préparer : « Joueurs par équipe » juste sous le nombre d\'équipes', ordre['suivant'], ordre)
     check('préparer : plus de « Montent en A »', 'Montent en A' not in pg.inner_text('main') and pg.query_selector('.cmont') is None)
     vals = ev("""[...document.querySelectorAll('[data-act="cOpt"][data-k="passerelles"]')].map(b => b.textContent)""")
-    check('Passerelles : Par niveau ou Roulant', vals == ['Par niveau', 'Roulant'], vals)
+    check('Passerelles : Plaquage d\'abord ou Roulant', vals == ["Plaquage d'abord", 'Roulant'], vals)
     check('plus de ligne « Qui change de niveau »', pg.query_selector('[data-k="change"]') is None and 'Qui change' not in pg.inner_text('main'))
     check('Roulant par défaut', pg.query_selector('[data-act="cOpt"][data-k="passerelles"][data-v="roulant"].on') is not None)
     cop = ev("""[...document.querySelectorAll('[data-act="cOpt"][data-k="copains"]')].map(b => b.textContent)""")
@@ -106,14 +106,14 @@ with sync_playwright() as p:
     check('changer les passerelles : « pas encore appliquées »', pg.query_selector('.cbopt .cbdiff') is not None)
     pg.click('.cbopt [data-act="cRegen"]'); pg.wait_for_timeout(700)
     o2 = ev("""(() => { const k = Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0); return JSON.parse(localStorage.getItem(k)).vs[0].reglages.opts })()""")
-    check('générer : avec « Par niveau »', o2['passerelles'] == 'niveau' and o2['montees'] == 0, o2)
-    check('le résumé dit « passerelles par niveau »', 'passerelles par niveau' in ev("document.querySelector('.cbopt .cbsum').textContent"), ev("document.querySelector('.cbopt .cbsum').textContent"))
+    check('générer : avec « Plaquage d\'abord »', o2['passerelles'] == 'niveau' and o2['montees'] == 0, o2)
+    check('le résumé dit « plaquage d\'abord »', "passerelles : plaquage d'abord" in ev("document.querySelector('.cbopt .cbsum').textContent"), ev("document.querySelector('.cbopt .cbsum').textContent"))
     pg.click('.cbopt summary .ott') if not ev("document.querySelector('.cbopt').open") else None
     pg.wait_for_timeout(150)
     pg.evaluate("document.querySelector('.cbopt .aide-q[data-aide=\"o-passerelles\"]').scrollIntoView({ block: 'center' })"); pg.wait_for_timeout(120)
     pg.click('.cbopt .aide-q[data-aide="o-passerelles"]'); pg.wait_for_timeout(150)
     t = pg.inner_text('.aide-bulle') if pg.query_selector('.aide-bulle') else ''
-    check('le « ? » des passerelles explique les deux choix', 'Par niveau' in t and 'Roulant' in t, t)
+    check('le « ? » des passerelles explique les deux choix', ("Plaquage d'abord" in t or 'Plaquage d’abord' in t) and 'Roulant' in t, t)
     check('aucune erreur', not errs, errs)
     b.close()
 bad = [n for n, c in res if not c]
