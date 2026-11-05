@@ -240,7 +240,7 @@
     app.setUrl(location.hash.replace(/([?&])k=[^&]*(&|$)/, function (_, a, z) { return z ? a : ''; }));
   };
   // le numéro de version (celui des fichiers, ?v=…) : pour vérifier que l'appli est à jour
-  function versionLine() { var l = document.querySelector('link[href*="style.css"]'), m = l && /v=(\d+)/.exec(l.getAttribute('href')); return m ? '<p class="small" style="margin:0;text-align:center;color:var(--dim)">Version ' + m[1] + '</p>' : ''; }
+  function versionLine() { var l = document.querySelector('link[href*="style.css"]'), m = l && /v=(\d+)/.exec(l.getAttribute('href')); var vue = MC.vueInfo ? MC.vueInfo() : ''; return m ? '<p class="small" style="margin:0;text-align:center;color:var(--dim)">Version ' + m[1] + (vue ? '<br>' + esc(vue) : '') + '</p>' : ''; }
   function parentBar(fam, d, title) {
     var k = d.joueur, many = fam.enfants.length > 1;
     var who = (many ? '<button type="button" class="tb-switch" data-act="parentPick" aria-label="Enfant suivi : ' + esc(k.prenom) + '. Changer">' : '<span class="tb-switch" style="cursor:default">') +
