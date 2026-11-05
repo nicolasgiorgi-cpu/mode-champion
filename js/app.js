@@ -244,6 +244,7 @@ MC.app = (function () {
 
   var renderSeq = 0, lastPath = null, renderedHash = null;
   function render() {
+    majEcran();   // (v51) une nouvelle version attend : on la prend en arrivant sur un autre écran, s'il est calme
     try { renderNow(); }
     catch (e) {
       try { console.error(e); } catch (x) { }
@@ -495,6 +496,7 @@ MC.app = (function () {
     return !NOPULL.test(parseHash().path);
   }
   function pullRefresh() {
+    verifierVersion(true);   // (v51) tirer pour actualiser : aussi l'appli elle-même, si une nouvelle version est en ligne
     var o = current.route.opts, jobs = [];
     if (o.kid && S.kid) {
       var who = S.kid.joueur.id;
@@ -778,7 +780,8 @@ MC.app = (function () {
     }, { passive: true });
     window.addEventListener('pagehide', function () { snap(); hSave(); });
     bindPull();
-    document.addEventListener('visibilitychange', function () { if (document.hidden) { snap(); hSave(); } });
+    document.addEventListener('visibilitychange', function () { if (document.hidden) { snap(); hSave(); } else verifierVersion(false); });
+    window.addEventListener('pageshow', function (ev) { if (ev.persisted) verifierVersion(false); });
     window.addEventListener('online', function () { var o = document.getElementById('offline'); if (o) o.hidden = true; });
     window.addEventListener('offline', function () { var o = document.getElementById('offline'); if (o) o.hidden = false; });
     if (navigator.onLine === false) { var off = document.getElementById('offline'); if (off) off.hidden = false; }
@@ -796,6 +799,65 @@ MC.app = (function () {
     registerSW();
   }
 
+  // ---------- (v51) Une nouvelle version en ligne : l'appli se recharge d'elle-même ----------
+  // Sur iPhone, revenir dans l'appli la reprend telle qu'elle était en mémoire, sans la recharger : elle pouvait garder
+  // l'ancienne version longtemps (Nicolas, 05/11 : « je vois toujours v49 »). En revenant dans l'appli (au plus une fois par
+  // minute) ou en tirant pour actualiser, on lit le numéro de version de la page en ligne ; s'il est plus récent, on recharge,
+  // au calme, et seulement sur un écran de consultation (ceux où l'on peut tirer pour actualiser : jamais un écran de saisie,
+  // une séance, un bilan ou une connexion), sans fenêtre ouverte, sans saisie ni envoi en cours ; sinon en arrivant sur un
+  // autre écran calme. L'écran et le défilement sont gardés comme quand l'iPhone ferme l'appli.
+  var MAJ = { v: 0, at: 0, attend: false, enCours: false, chemin: null, essais: 0 }, MAJ_KEY = 'mc-maj';
+  // les écrans qui gardent des choix en mémoire avant de les envoyer (fiche terrain, confirmations, niveaux…) le disent ici
+  var ATTENTES = [];
+  function enAttente(fn) { if (typeof fn === 'function') ATTENTES.push(fn); }
+  var MAJ_PAS = /^\/(go\/[^/]+|bilan\/go|echauffement|calme|noter|mission\/quiz|educ\/skills\/(evaluer|journee)|connexion|adultes|adultes\/code|qui|oubli|premiere|defi\/[^/]+)$/;
+  function versionIci() { var l = document.querySelector('link[href*="style.css"]'), m = l && /[?&]v=(\d+)/.exec(l.getAttribute('href') || ''); return m ? Number(m[1]) : 0; }
+  function majCalme() {
+    if (document.hidden || document.querySelector('.modal, .bk') || document.body.classList.contains('np-open')) return false;
+    if (document.documentElement.classList.contains('net-busy')) return false;          // un envoi au serveur en cours
+    if (ATTENTES.some(function (f) { try { return f(); } catch (e) { return true; } })) return false;   // des choix pas encore envoyés
+    var a = document.activeElement;
+    if (a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT' || a.isContentEditable)) return false;
+    if (MAJ_PAS.test(parseHash().path)) return false;
+    return pullable();
+  }
+  // en arrivant sur un autre écran (pas un simple redessin du même) : quelques essais, le temps qu'il s'affiche
+  function majEcran() {
+    var p = parseHash().path, autre = p !== MAJ.chemin;
+    MAJ.chemin = p;
+    if (!MAJ.attend || !autre) return;
+    MAJ.essais = 0;
+    setTimeout(function essai() {   // une fois le nouvel écran dessiné
+      if (!MAJ.attend || MAJ.enCours || parseHash().path !== p) return;
+      if (majRecharger() || ++MAJ.essais >= 6) return;
+      setTimeout(essai, 700);
+    }, 0);
+  }
+  function majRecharger() {
+    if (MAJ.enCours) return true;
+    if (!(MAJ.v > versionIci())) { MAJ.attend = false; return false; }
+    if (!majCalme()) { MAJ.attend = true; return false; }
+    MAJ.attend = false;
+    // jamais deux fois de suite pour la même version (si la page rechargée était encore l'ancienne : réseau trop lent)
+    var deja = null; try { deja = JSON.parse(sessionStorage.getItem(MAJ_KEY) || 'null'); } catch (e) { }
+    if (deja && deja.v === MAJ.v && Date.now() - deja.t < 5 * 60000) return false;
+    try { sessionStorage.setItem(MAJ_KEY, JSON.stringify({ v: MAJ.v, t: Date.now() })); } catch (e) { }
+    MAJ.enCours = true; snap(); hSave();
+    try { location.reload(); } catch (e) { MAJ.enCours = false; return false; }
+    return true;
+  }
+  function verifierVersion(tout) {
+    var ici = versionIci(), now = Date.now();
+    if (!ici || !window.fetch) return Promise.resolve(false);
+    if (!tout && now - MAJ.at < 60000) return Promise.resolve(MAJ.v > ici ? majRecharger() : false);
+    MAJ.at = now;
+    return fetch(location.pathname, { cache: 'no-cache', credentials: 'same-origin' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (html) {
+      var m = html.indexOf('MC.app.start') >= 0 && /css\/style\.css\?v=(\d+)/.exec(html);
+      MAJ.v = m ? Number(m[1]) : 0;
+      return MAJ.v > ici ? majRecharger() : false;
+    }, function () { return false; });
+  }
+
   // ---------- Appli « hors ligne » ----------
   // Le service worker garde une copie de l'appli sur l'appareil : elle s'ouvre même quand le réseau
   // traîne (iPhone qui sort de veille, Wi-Fi capricieux). Les données passent toujours par le serveur.
@@ -811,6 +873,7 @@ MC.app = (function () {
     setKid: setKid, setAdult: setAdult, loadMe: loadMe, setMe: setMe, swr: swr, kidCall: kidCall, adultCall: adultCall,
     lsGet: lsGet, lsSet: lsSet, current: function () { return current; },
     back: back, canBack: canBack, homeOf: homeOf, setUrl: setUrl, spaceOf: spaceOf, onRefresh: onRefresh, pullRefresh: pullRefresh, pullable: pullable,
+    verifierVersion: verifierVersion, enAttente: enAttente,
     refreshNav: refreshNav, setNav: setNav, rememberTab: rememberTab, cibleRearmer: cibleRearmer,
     sharedDevice: sharedDevice, setShared: setShared, adultUnlocked: adultUnlocked, touchAdult: touchAdult, lockAdult: lockAdult,
     touchKid: touchKid, takeTarget: takeTarget, recents: recents, lastProfile: lastProfile

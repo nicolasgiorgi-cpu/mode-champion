@@ -42,6 +42,7 @@
 
   // ---------- Confirmer / refuser : on choisit d'abord (ça s'allume), puis on valide tout d'un coup ----------
   var dec = {}; // id du résultat → 'ok' | 'refuse' (choix pas encore envoyés)
+  app.enAttente(function () { return Object.keys(dec).length > 0; });   // (v51) pas de mise à jour de l'appli avant l'envoi
   function decBtns(r) {
     var d = dec[r.id] || '', refused = r.statut === 'refuse';
     return '<span class="decis" data-rid="' + esc(r.id) + '">' +
@@ -778,6 +779,7 @@
 
   // ---------- niveaux : on passe en mode « modifier », on choisit, puis on enregistre ----------
   var lvDraft = null;
+  app.enAttente(function () { return !!lvDraft; });   // (v51) des niveaux en cours de modification
   MC.act.lvEdit = function (b) { lvDraft = { id: b.getAttribute('data-id'), niv: {} }; app.rerender(); };
   MC.act.lvCancel = function () { lvDraft = null; app.rerender(); };
   MC.act.lvPick = function (b) { if (!lvDraft) return; lvDraft.niv[b.getAttribute('data-cle')] = Number(b.getAttribute('data-v')); app.rerender(); };

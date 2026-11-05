@@ -705,6 +705,8 @@ window.MC = window.MC || {};
         '</main>';
     });
   }, { adult: 'e', nav: 'e:progres', bg: '#33122A' });
+  // (v51) une date limite choisie mais pas enregistrée : l'appli attend avant de se mettre à jour
+  app.enAttente(function () { var i = document.getElementById('mfin'); return !!(i && i.value !== i.defaultValue); });
   MC.act.mFin = function (b) {
     var el = document.getElementById('mfin'), id = b.getAttribute('data-id');
     b.disabled = true;
