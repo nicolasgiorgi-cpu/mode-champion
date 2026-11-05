@@ -9,7 +9,7 @@ OK, BAD = [], []
 def check(name, cond, info=''):
     (OK if cond else BAD).append(name)
     print('OK ' if cond else 'BAD', name, '' if cond else info)
-def noscroll(pg): return pg.evaluate('document.scrollingElement.scrollWidth <= innerWidth + 1')
+def noscroll(pg): return pg.evaluate('document.scrollingElement.scrollWidth <= document.documentElement.clientWidth + 1')
 
 with sync_playwright() as p:
     b = p.chromium.launch(); ctx = b.new_context(viewport={'width': W, 'height': H}, is_mobile=W < 700, has_touch=True); pg = ctx.new_page()

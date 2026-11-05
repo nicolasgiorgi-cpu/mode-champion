@@ -123,7 +123,7 @@ with sync_playwright() as p:
     pg.goto(BASE + '#/parent'); pg.wait_for_timeout(900); pg.click('.tb-pass'); pg.wait_for_timeout(1800)
     pg.goto(BASE + '#/semaine?c=bravos'); pg.wait_for_timeout(1800)
     check('enfant : la carte des bravos à l\'écran', visible(pg, '[data-cible="bravos"]') is True)
-    check('pas de défilement de côté', pg.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'))
+    check('pas de défilement de côté', pg.evaluate('document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1'))
     b.close()
 bad = [n for n, c in res if not c]
 print('e2e_liens %dx%d : %d/%d' % (W, H, len(res) - len(bad), len(res)), len(bad), 'BAD', 'ERREURS JS :', errs or 'aucune')

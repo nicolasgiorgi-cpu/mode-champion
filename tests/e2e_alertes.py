@@ -21,7 +21,7 @@ def actifs(pg, role): return [r for r in rows(pg) if r['role'] == role and r['ac
 def toast(pg): return pg.inner_text('#toast') if pg.query_selector('#toast') else ''
 def sw(pg): return pg.query_selector('[data-act="alerteToggle"]')
 def coche(pg): el = sw(pg); return el.get_attribute('aria-checked') if el else None
-def sans_debord(pg): return pg.evaluate('document.documentElement.scrollWidth <= innerWidth + 1')
+def sans_debord(pg): return pg.evaluate('document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1')
 def config_firebase(pg):
     # la configuration publique de Firebase, côté serveur (propriété FCM_WEB) : ici une fausse
     pg.evaluate("""k => { var d = JSON.parse(localStorage.getItem(k)); d.props.FCM_WEB = JSON.stringify({ apiKey: 'demo', authDomain: 'demo.example', projectId: 'demo', messagingSenderId: '1', appId: '1:1:web:1', vapidKey: 'demo-vapid' }); localStorage.setItem(k, JSON.stringify(d)); }""", DEMO)

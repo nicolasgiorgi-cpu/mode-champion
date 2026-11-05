@@ -10,7 +10,7 @@ errs = []; res = []
 def check(n, c, i=''): res.append((n, c)); print(('OK  ' if c else 'BAD ') + n, '' if c else i)
 def pin(pg, code, sel='#adultzone'):
     for c in code: pg.click(sel + ' [data-k="%s"]' % c); pg.wait_for_timeout(50)
-def sans_debord(pg): return pg.evaluate('document.documentElement.scrollWidth <= innerWidth + 1')
+def sans_debord(pg): return pg.evaluate('document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1')
 def mes_bravos(pg, jid):
     return pg.evaluate("(function(){var g=MC.app.S.cache.group,p=g.joueurs.filter(function(x){return x.joueur.id==='%s';})[0];return (p.bravos||[]).filter(function(b){return b.parQui===g.moi.id;});})()" % jid)
 with sync_playwright() as p:

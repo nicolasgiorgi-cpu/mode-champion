@@ -191,7 +191,7 @@
     }
     return '<main class="screen">' + kidBar(me, st) + prepaTabs('semaine') +
       '<div class="head"><span class="kicker">' + esc(C.JOURS[type].jour.toUpperCase()) + ' · ' + (cy.semaine > 8 ? 'SEMAINE DU BILAN' : 'SEMAINE ' + cy.semaine + ' / 8') + '</span>' +
-      '<h1 class="big big1l">Séance du jour</h1></div>' +   // (v55) pas « Mission » : ça prêtait à confusion avec les vraies missions
+      '<h1 class="big">Séance du jour</h1></div>' +   // (v55) pas « Mission » : ça prêtait à confusion avec les vraies missions
       bravosCarte(me) +   // (v55) en haut de l'accueil, plus franc qu'en bas de la colonne
       '<div class="home"><div>' + mission + '</div><div class="side">' +
       (MC.accueil ? MC.accueil.kidChecklist(me, st) : '') +

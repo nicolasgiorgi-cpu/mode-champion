@@ -229,7 +229,7 @@ with sync_playwright() as p:
         pg.set_viewport_size({'width': 360, 'height': 780}); pg.wait_for_timeout(500)
         cp = pg.evaluate("[...document.querySelectorAll('#tlist .tfrow')].filter(l => { const ps = [...l.querySelectorAll('.tpp')]; if (!ps.length) return false; const t = l.querySelector('.tps').getBoundingClientRect(); return ps[ps.length - 1].getBoundingClientRect().right > t.right + 1 || l.querySelector('.tctl').getBoundingClientRect().right > l.getBoundingClientRect().right + 1; }).map(l => l.querySelector('.tnm').textContent)")
         check('(v48) 360 px : aucune pastille de poste coupée, rien ne déborde', not cp, cp)
-        check('(v48) 360 px : pas de défilement horizontal', pg.evaluate('document.scrollingElement.scrollWidth <= innerWidth + 1'))
+        check('(v48) 360 px : pas de défilement horizontal', pg.evaluate('document.scrollingElement.scrollWidth <= document.documentElement.clientWidth + 1'))
         pg.set_viewport_size({'width': W, 'height': H}); pg.wait_for_timeout(300)
     check('aucune erreur JS', not errs, errs)
     b.close()

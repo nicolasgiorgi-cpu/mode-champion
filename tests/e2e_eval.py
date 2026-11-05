@@ -11,7 +11,7 @@ tag = '%dx%d' % (W, H)
 res = []; errs = []
 def check(n, c, i=''): res.append((n, c)); print(('OK  ' if c else 'BAD ') + n, '' if c else i)
 def shot(pg, name, full=True): pg.screenshot(path=OUT + tag + '-' + name + '.png', full_page=full)
-def noscroll(pg): return pg.evaluate('document.scrollingElement.scrollWidth <= innerWidth + 1')
+def noscroll(pg): return pg.evaluate('document.scrollingElement.scrollWidth <= document.documentElement.clientWidth + 1')
 def go(pg, h, t=800): pg.goto(BASE + h); pg.wait_for_timeout(t)
 def main_txt(pg): return (pg.inner_text('main') if pg.query_selector('main') else '').lower()   # en minuscules : certains titres sont en capitales (CSS)
 def pin(pg, code, sel):

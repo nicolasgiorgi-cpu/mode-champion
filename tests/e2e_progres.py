@@ -12,7 +12,7 @@ def nomodal(pg):
     for _ in range(3):
         if pg.query_selector('.modal'): pg.keyboard.press('Escape'); pg.wait_for_timeout(250)
 EDUC = "MC.api.call('educsListe',{}).then(l=>MC.api.call('adultLogin',{role:'e',educId:l.educs.find(e=>e.nom==='Coach Nico').id,code:MC.demo.CODES.educ})).then(r=>{MC.app.setAdult({token:r.token,role:r.role,nom:r.nom,admin:r.admin});location.hash=%r})"
-HSCROLL = "document.scrollingElement.scrollWidth <= innerWidth + 1"
+HSCROLL = "document.scrollingElement.scrollWidth <= document.documentElement.clientWidth + 1"
 def hash_(pg): return pg.evaluate('location.hash')
 def etoiles_de(pg, prenom, d, e):
     return pg.evaluate("(a) => MC.api.call('group', { token: MC.app.S.adult.token }).then(g => { const p = g.joueurs.find(x => x.joueur.prenom === a[0]); return (p.etoiles || []).some(x => x.domaine === a[1] && x.etoile === a[2]); })", [prenom, d, e])

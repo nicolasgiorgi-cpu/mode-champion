@@ -11,7 +11,7 @@ def check(n, c, i=''): res.append((n, c)); print(('OK  ' if c else 'BAD ') + n, 
 def pin(pg, code, sel='#adultzone'):
     for c in code: pg.click(sel + ' [data-k="%s"]' % c); pg.wait_for_timeout(50)
 def ev(pg, js, arg=None): return pg.evaluate(js) if arg is None else pg.evaluate(js, arg)
-def sans_debord(pg): return pg.evaluate('document.documentElement.scrollWidth <= innerWidth + 1')
+def sans_debord(pg): return pg.evaluate('document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1')
 def une_ligne(pg, sel): return pg.evaluate("(s => { const l = [...document.querySelectorAll(s)].map(b => Math.round(b.getBoundingClientRect().top)); return l.length > 1 && new Set(l).size === 1; })('%s')" % sel)
 def barres(pg, cle):
     return pg.evaluate("""k => [...document.querySelectorAll('details[data-rp="' + k + '"] .pbar')].map(b => [b.children[0].textContent, b.querySelector('.n').textContent])""", cle)

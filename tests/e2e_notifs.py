@@ -12,7 +12,7 @@ def pin(pg, code, sel='#adultzone'):
 def nb(pg):
     el = pg.query_selector('.topbar [data-cloche] .tb-nb')
     return el.inner_text() if el else ''
-def sans_debord(pg): return pg.evaluate('document.documentElement.scrollWidth <= innerWidth + 1')
+def sans_debord(pg): return pg.evaluate('document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1')
 with sync_playwright() as p:
     b = p.chromium.launch(); pg = b.new_page(viewport={'width': W, 'height': H}, is_mobile=True, has_touch=True)
     pg.add_init_script('window.__MC_QUIET=1'); pg.on('pageerror', lambda e: errs.append(str(e)))

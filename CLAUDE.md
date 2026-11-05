@@ -68,7 +68,7 @@ Le site est servi par GitHub Pages depuis `main`, racine du dépôt. Le serveur 
 
 - Aucun effet stylisé (ombres de couleur, texte doublé) sur les éléments d'interface (boutons, étiquettes, éléments très clairs). Seuls les grands titres gardent le style. Pas de dégradé ni de flou en haut de l'écran qui gêne la lecture.
 - Téléphone d'abord, tablette bien traitée : la navigation iPad (rail à gauche en paysage, barre en bas en portrait) ne change pas.
-- Emblèmes animés (cartes de postes, v55) : pas de `filter` ni de `mix-blend-mode` sur la carte, sur l'emblème ni par-dessus : sur iPhone, l'emblème passait en tout petit en haut à gauche au doigt posé. L'animation d'oscillation reste sur un élément à part de ce que le doigt fait pencher : elle ne s'arrête jamais.
+- Emblèmes animés (cartes de postes et fiche d'un poste, v55) : pas de `filter` ni de `mix-blend-mode` sur la carte, sur l'emblème ni par-dessus : sur iPhone, l'emblème passait en tout petit en haut à gauche au doigt posé. L'animation d'oscillation reste sur un élément à part de ce que le doigt fait pencher : elle ne s'arrête jamais.
 - Ne pas complexifier l'interface : elle porte déjà beaucoup de concepts. Passer le téléphone d'un adulte à l'enfant doit rester simple.
 - Les éducateurs sont bénévoles et débordés : toute saisie ou validation doit très peu les solliciter, se faire après la séance, en 15 minutes maximum. Les enfants ne voient pas les étoiles Skills avant la fin de l'entraînement.
 - Textes pour les enfants : courts, simples, valorisants ; jamais de formulation qui prête à erreur (ex. hors-jeu au ruck : ne jamais parler du pied).

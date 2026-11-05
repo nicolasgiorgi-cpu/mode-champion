@@ -1,4 +1,4 @@
-# (v55) L'interface enfant : « Séance du jour » sur une ligne, bravos en haut, rail de l'iPad, emblèmes de « Choisis ton poste ».
+# (v55) L'interface enfant : « Séance du jour » (une ligne avec la vraie police, vérifiée à part), bravos en haut, rail de l'iPad, emblèmes de « Choisis ton poste ».
 # Site de démo (sh tests/mkdemo.sh), puis : python3 tests/e2e_v55.py 390 844 · 1180 820 · 820 1180
 import sys
 from playwright.sync_api import sync_playwright
@@ -22,7 +22,9 @@ with sync_playwright() as p:
     t = pg.inner_text('main h1.big')
     check('le titre : « Séance du jour »', t.upper().replace('\n', ' ') == 'SÉANCE DU JOUR', t)
     check('plus de « Mission du jour » nulle part sur l\'accueil', 'MISSION DU JOUR' not in pg.inner_text('main').upper().replace('\n', ' '))
-    check('le titre sur une seule ligne', pg.evaluate("(() => { const h = document.querySelector('main h1.big'), r = document.createRange(); r.selectNodeContents(h); return r.getClientRects().length === 1 && !h.querySelector('br') && getComputedStyle(h).whiteSpace === 'nowrap' })()"))
+    check('le titre : pas de retour à la ligne forcé, et il ne peut pas déborder si la police manque', pg.evaluate("(() => { const h = document.querySelector('main h1.big'); return !h.querySelector('br') && getComputedStyle(h).whiteSpace === 'normal' })()"))
+    # la vraie police n'est pas chargée ici (pas de réseau) : avec une police de secours plus large, le titre se replie, la page ne s'élargit pas
+    check('accueil : pas de défilement de côté', pg.evaluate('document.scrollingElement.scrollWidth <= document.documentElement.clientWidth + 1'), pg.evaluate('[document.scrollingElement.scrollWidth, document.documentElement.clientWidth]'))
     # les bravos, en haut de l'accueil
     pos = pg.evaluate("(() => { const b = document.querySelector('.bvcard'), s = document.querySelector('.mission'), h = document.querySelector('main h1.big'); return b && s ? { avantSeance: b.getBoundingClientRect().bottom <= s.getBoundingClientRect().top, apresTitre: b.getBoundingClientRect().top >= h.getBoundingClientRect().bottom, large: b.getBoundingClientRect().width } : null })()")
     check('les bravos : tout de suite sous le titre, avant la séance', pos and pos['avantSeance'] and pos['apresTitre'], pos)
@@ -43,6 +45,12 @@ with sync_playwright() as p:
     st = pg.evaluate("""(() => { const c = s => getComputedStyle(document.querySelector(s)); return { tilt: c('.cp-tilt').filter, em: c('.cp-emblem').filter, holo: c('.cp-holo').mixBlendMode, shine: c('.cp-shine').mixBlendMode, sheen: c('.cp-emblem .em-sheen').mixBlendMode } })()""")
     check('cartes : pas de filter sur la carte ni sur l\'emblème', st['tilt'] == 'none' and st['em'] == 'none', st)
     check('cartes : pas de fusion par-dessus l\'emblème', st['holo'] == 'normal' and st['shine'] == 'normal' and st['sheen'] == 'normal', st)
+    check('la carte « Aide-moi à choisir » : pas de filter sur son emblème non plus', pg.evaluate("getComputedStyle(document.querySelector('.cp-qem')).filter") == 'none')
+    regles = pg.evaluate("""(() => { const l = []; for (const f of document.styleSheets) { let rr; try { rr = f.cssRules } catch (e) { continue } for (const r of rr) if (r.selectorText) l.push([r.selectorText, r.style.mixBlendMode, r.style.opacity]); } return l })()""")
+    fus = [r[0] for r in regles if r[1] and ('cp-' in r[0] or 'em-' in r[0] or 'sk-' in r[0])]
+    check('aucune fusion dans les styles des cartes, de la fiche ni des Skills', not fus, fus)
+    g5 = [r[2] for r in regles if r[0] == '.sk-card.sk-g5.is-shiny .cp-holo']
+    check('carte Légende : le voile suit la même règle que les autres cartes', g5 and '.28 +' in g5[0], g5)
     box0 = pg.evaluate("(() => { const r = document.querySelector('.cp-card:not(.cp-q) .cp-emblem').getBoundingClientRect(); return [r.width, r.height] })()")
     pg.evaluate("document.querySelector('.cp-card:not(.cp-q)').scrollIntoView({block:'center'})"); pg.wait_for_timeout(200)
     c = pg.evaluate("(() => { const r = document.querySelector('.cp-card:not(.cp-q)').getBoundingClientRect(); return [r.left + r.width * .7, r.top + r.height * .6] })()")
@@ -65,7 +73,7 @@ with sync_playwright() as p:
     check('doigt levé : l\'oscillation n\'a pas repris de zéro', apres['etat'] == 'running' and apres['t'] > sous['t'], apres)
     idle = pg.evaluate("(() => { const a = document.querySelector('.cp-dem .em-holo').getAnimations(); return a.length })()")
     check('doigt levé : le reflet de fond n\'a pas été coupé', idle > 0, idle)
-    check('pas de défilement de côté', pg.evaluate('document.scrollingElement.scrollWidth <= document.documentElement.clientWidth + 1'))
+    check('fiche : pas de défilement de côté', pg.evaluate('document.scrollingElement.scrollWidth <= document.documentElement.clientWidth + 1'))
     check('aucune erreur', not errs, errs)
     b.close()
 bad = [n for n, c in res if not c]

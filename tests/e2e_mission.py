@@ -13,7 +13,7 @@ def shot(pg, name): pg.screenshot(path=OUT + tag + '-' + name + '.png', full_pag
 def full(pg, name): pg.screenshot(path=OUT + tag + '-' + name + '.png', full_page=True)
 def pin(pg, code, sel='.modal'):
     for c in code: pg.click('%s [data-k="%s"]' % (sel, c)); pg.wait_for_timeout(40)
-def noscroll(pg): return pg.evaluate('document.scrollingElement.scrollWidth <= innerWidth + 1')
+def noscroll(pg): return pg.evaluate('document.scrollingElement.scrollWidth <= document.documentElement.clientWidth + 1')
 def nb(pg): return pg.evaluate("(function(){var a=document.querySelectorAll('#nav a')[1];var n=a&&a.querySelector('.nb');return n?+n.textContent:0})()")
 def close_news(pg):
     for k in ['.modal.sheet-news', '.modal.sheet-bvn']:
