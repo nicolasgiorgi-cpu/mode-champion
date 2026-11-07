@@ -215,10 +215,10 @@ MC.compos = (function () {
     });
     return H;
   }
-  // (v57) qui a vraiment joué : jamais un enfant absent sur Spond (sauf ajouté à la main) ni retiré ; une compo faite avec
-  // « tout le groupe » garde les absents dans les équipes : on ne compte alors que les présents, dès que Spond a des réponses
-  // Dès que l'événement dit quelque chose (présents, absents, retraits) : seulement les présents, et dans une compo des présents,
-  // ceux placés en attendant leur réponse ; un enfant décoché ou pas dans l'événement n'a pas joué. Rien du tout : la compo fait foi.
+  // (v57) qui a vraiment joué : jamais un enfant absent sur Spond (sauf ajouté à la main) ni retiré (une compo faite avec « tout
+  // le groupe » garde les absents dans les équipes). Dès que l'événement dit quelque chose (présents, absents, retraits) : seulement
+  // les présents, et dans une compo des présents, ceux placés en attendant leur réponse ; un enfant décoché ou pas dans
+  // l'événement n'a pas joué. Rien du tout : la compo fait foi.
   function aJoue(c, e) {
     var ret = e.retraits || [], aj = e.ajouts || [], abs = e.absents || [];
     var tous = c.reglages && c.reglages.base === 'tous', p = presents(e), att = attente(e);

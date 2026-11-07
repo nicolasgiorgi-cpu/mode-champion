@@ -215,6 +215,15 @@ with sync_playwright() as p:
     check('passer de l\'équipe 1 à la 2 d\'un toucher', w == [('E2', 'pilier')], w)
     for i in range(7): pg.click('.modal .mbtns button[data-i="0"]'); pg.wait_for_timeout(250)
     check('OK jusqu\'au bout : la fenêtre se ferme', pg.query_selector('.modal') is None)
+    # (3e relecture) chaque version a sa règle : V1 les présents, V2 « tout le groupe » ; sur V2, ceux qui ne sont pas dans
+    # l'événement Spond restent « hors Spond » (pas barrés) et comptent dans l'effectif
+    pg.click('[data-act="cAddV"]'); pg.wait_for_timeout(400); pg.click('.modal [data-av="copie"]'); pg.wait_for_timeout(700)
+    pg.click('[data-act="cRegl"][data-v="1"]'); pg.wait_for_timeout(500)
+    pg.click('.modal [data-rb="tous"]'); pg.wait_for_timeout(300); pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(1000)
+    v2 = ev("""(() => { const col = document.querySelector('.clevel:not(.banc) .cvcols').children[1], eqs = [...col.querySelectorAll('.ccol')];
+      return { gone: col.querySelectorAll('.cpj.gone').length, hors: col.querySelectorAll('.cpj .chors').length, n: eqs.reduce((a, c) => a + +c.querySelector('.chd .cn').textContent, 0), puces: col.querySelectorAll('.cpj').length }; })()""")
+    check('2 versions : V2 « tout le groupe » garde sa propre règle (hors Spond, pas barrés, comptés)', v2['hors'] > 0 and v2['gone'] == 0 and v2['n'] == v2['puces'], v2)
+    check('2 versions : pas de défilement de côté', noscroll())
     check('matchs : pas de défilement de côté', noscroll())
     b.close()
 bad = [n for n, c in res if not c]
