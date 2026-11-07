@@ -533,7 +533,7 @@ window.MC = window.MC || {};
         nn + ' groupe' + (nn > 1 ? 's ' : ' ') + m + (r.separer ? ', avants / arrières à part' : '') + ' (' + c.equipes.map(function (t) { return t.joueurs.length; }).join(', ') + ')');
       pill = '<span class="pill" style="--pc:var(--green)">Publiés</span>';
     } else if (dr) { t2 = 'Brouillon en cours'; pill = '<span class="pill" style="--pc:var(--gold)">Brouillon</span>'; }
-    else t2 = past ? 'Pas faits' : P === 'ateliers' ? 'Groupes par niveau, équilibrés ou avec un groupe A fort, avants et arrières ensemble ou à part' : 'Par niveau ou équilibrés, 1 ou 2 matchs';
+    else t2 = past ? 'Pas faits' : P === 'ateliers' ? 'Groupes par niveau, équilibrés ou avec un groupe A fort, avants et arrières ensemble ou à part' : 'Deux équipes équilibrées, jeu à 10 avec postes';   // (v57)
     return '<a class="li cpart' + (c ? ' ok ccompo' + (c.statut === 'vote' ? ' vote' : '') : '') + '" href="' + lienCompo(esc(e.id), P) + '"><span class="cpnum">' + (c ? icon('check', 14) : n) + '</span><span class="grow"><span class="t1">' + NOM_PARTIE[P] + '</span><span class="t2">' + t2 + '</span></span>' + pill + icon('right', 16) + '</a>';
   }
   MC.act.prToggle = function (b) {
@@ -815,9 +815,7 @@ window.MC = window.MC || {};
     }).join('') + '</div><p class="small" style="margin:0">' + co.av + ' avant' + (co.av > 1 ? 's' : '') + ' · ' + co.ar + ' arrière' + (co.ar > 1 ? 's' : '') + (co.les2 ? ' · dont ' + co.les2 + ' qui jouent les deux' : '') +
       (co.sans ? ' · <span style="color:var(--orange)">' + co.sans + ' sans poste</span> (placés là où il manque du monde)' : '') + ', d\'après le poste principal de leur fiche.</p></section>';
     html += '<section class="sec"><h2 class="h2">Combien ?</h2>';
-    if (!at) html += '<p class="small" style="margin:0">Jeu à 10 : chaque joueur a son poste du match, par défaut celui de sa fiche ; touchez-le pour lui en donner un autre, juste pour ce match.</p>' +
-      stepGen('nbMatchs', 'Matchs', (reg.nbMatchs > 1 ? '4 équipes : Équipe 1 contre Équipe 2, Équipe 3 contre Équipe 4' : '2 équipes : Équipe 1 contre Équipe 2') + ' · environ ' + par(ids.length, reg.nbMatchs * 2) + ' par équipe', reg.nbMatchs, 1, 2, A.n);
-    else if (!reg.separer) html += stepGen('n', 'Groupes', 'environ ' + par(ids.length, reg.n) + ' par groupe', reg.n, 1, 8, A.n);
+    if (!reg.separer) html += stepGen('n', 'Groupes', 'environ ' + par(ids.length, reg.n) + ' par groupe', reg.n, 1, 8, A.n);
     else {
       var nav = co.av, nar = co.ar;
       for (var i = 0; i < co.sans; i++) { if (nav / reg.nAv <= nar / reg.nAr) nav++; else nar++; }
@@ -1689,11 +1687,11 @@ window.MC = window.MC || {};
       ui.toast('Postes repris des fiches (poste principal d\'abord)');
     });
   };
-  // une 2e version à côté : une copie, une autre proposition, ou vide
+  // une 2e version à côté : une copie, une autre proposition, ou vide ; (v57) les matchs sont toujours équilibrés : pas d'autre proposition
   MC.act.cAddV = function () {
     if (!B || B.vs.length !== 1) return;
     var d0 = B.vs[0], o0 = K.optsDe(d0.reglages), P = B.partie;
-    var opts = P ? [['copie', 'Copie de la version 1', 'Pour la modifier à partir de la même base.']].concat(Object.keys(MODES[P]).filter(function (m) { return m !== d0.reglages.mode; }).map(function (m) { return [m, 'Proposition « ' + MODES[P][m][0] + ' »', MODES[P][m][1]]; })).concat([['vide', 'Vide', 'Tout le monde en « Pas placés ».']]) :
+    var opts = P ? [['copie', 'Copie de la version 1', 'Pour la modifier à partir de la même base.']].concat(Object.keys(MODES[P]).filter(function (m) { return m !== d0.reglages.mode && P !== 'matchs'; }).map(function (m) { return [m, 'Proposition « ' + MODES[P][m][0] + ' »', MODES[P][m][1]]; })).concat([['vide', 'Vide', 'Tout le monde en « Pas placés ».']]) :
       // (v50) les mêmes options, sauf une : copains, ou organisation
       [['copie', 'Copie de la version 1', 'Pour la modifier à partir de la même base.'],
         ['o:copains', 'Proposition « ' + (o0.copains === 'un' ? 'Copains d\'abord' : 'Un copain pour chacun') + ' »', 'Les mêmes options, sauf les copains.'],
