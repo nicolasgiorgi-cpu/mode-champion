@@ -105,12 +105,23 @@ with sync_playwright() as p:
     pg.click('.cbopt [data-act="cNb"][data-n="B"][data-d="-1"]'); pg.wait_for_timeout(200)
     pg.click('.cbopt > summary'); pg.wait_for_timeout(200)
     check('annuler : de nouveau A1 et B1', [t['id'] for t in draft('sp-demo-p3')['equipes']] == ['A1', 'B1'])
+    ev("MC.api.DEMO = false; MC.app.rerender()"); pg.wait_for_timeout(400)
+    check('hors démo : « Actualiser » sur la ligne Spond', pg.query_selector('.cspond [data-act="cSync"]') is not None)
+    ev("MC.api.DEMO = true; MC.app.rerender()"); pg.wait_for_timeout(400)
+    check('« À regarder » : ceux qui ne sont pas dans l\'événement Spond, à part', "pas dans l'événement Spond" in pg.inner_text('main'))
+    gone = ev("[...document.querySelectorAll('.ccol:not(.banc) .cpj.gone')].map(b => b.getAttribute('data-id'))")
 
     # ----- 3. la fenêtre poste par poste (plateau : boutons A et B) -----
     pg.click('[data-act="cParPoste"]'); pg.wait_for_timeout(700)
     check('poste par poste : s\'ouvre sur les piliers, 7 postes en haut', pg.inner_text('.modal h2').split('\n')[0].upper().endswith('PILIERS') and len(pg.query_selector_all('.modal .ppn')) == 7)
     lab = ev("[...document.querySelector('.modal .pprow').querySelectorAll('.ppb')].map(b => b.textContent)")
     check('un bouton par équipe : A et B', lab == ['A', 'B'], lab)
+    dd = draft('sp-demo-p3')
+    for pp in ('pilier', 'talonneur', 'troisieme-ligne', 'demi-de-melee', 'ouvreur', 'centre', 'ailier'):
+        attendu = '·'.join(str(len([j for j in t['joueurs'] if j['poste'] == pp and j['id'] not in gone])) for t in dd['equipes'])
+        vu = ev("document.querySelector('.modal .ppn[data-pp=\"%s\"] small').textContent" % pp)
+        if vu != attendu: break
+    check('la barre des postes ne compte pas les absents (comme le tableau)', len(gone) > 0 and vu == attendu, (pp, vu, attendu, gone))
     check('les boutons font au moins 44 px', ev("[...document.querySelectorAll('.modal .ppb')].every(b => b.getBoundingClientRect().width >= 43.5 && b.getBoundingClientRect().height >= 43.5)"))
     po = ev("""(() => { const F = MC.compos.fiches(MC.app.S.cache.group), K = MC.compos; return [...document.querySelectorAll('.modal .pprow')].map(r => { const f = F[r.querySelector('.ppb').getAttribute('data-ppid')], pf = f.postesOk.length ? K.prefDe(f) : [], ps = K.postesDe(f).slice().sort((a, b) => (pf.indexOf(a) >= 0 ? 0 : 1) - (pf.indexOf(b) >= 0 ? 0 : 1) || K.ORDRE.indexOf(a) - K.ORDRE.indexOf(b));
       const txt = r.querySelector('.cprm').textContent; let i = -1; return ps.every(p => { const j = txt.indexOf(K.nomPoste(p), i + 1); const ok = j > i; i = j; return ok; }); }).every(Boolean); })()""")
@@ -164,6 +175,28 @@ with sync_playwright() as p:
     pg.click('[data-act="cBase"][data-v="tous"]'); pg.wait_for_timeout(400)
     check('« Tout le groupe » : une équipe A, une équipe B, « Proposer » possible', ev("[...document.querySelectorAll('.cstep .cnbv')].map(o => o.textContent).join(',')") == '1,1,0' and not ev("document.querySelector('[data-act=cPropose]').disabled") and pg.query_selector('.cbaseh') is None)
     check('« Tout le groupe » : les compteurs disent « enfants », pas « présents »', 'enfant' in pg.inner_text('.cstep') and 'présent' not in pg.inner_text('.cstep'))
+    # l'enfant « Test » n'entre pas dans « tout le groupe » (I7)
+    ev("(() => { const p = MC.app.S.cache.group.joueurs.find(p => p.joueur.actif); window.__T = [p, p.joueur.prenom]; p.joueur.prenom = 'Test'; MC.app.rerender(); })()"); pg.wait_for_timeout(400)
+    check('l\'enfant « Test » n\'est pas dans « tout le groupe »', ('pour %d enfants' % (ntous - 1)) in ev("document.querySelector('main').textContent"), ev("(document.querySelector('.ctailp') || {}).textContent"))
+    ev("(() => { window.__T[0].joueur.prenom = window.__T[1]; MC.app.rerender(); })()"); pg.wait_for_timeout(400)
+
+    # ----- (2e relecture) un événement fait à la main : pas coché = absent ; compo des présents : un décoché ne tient plus de place -----
+    eid2 = ev("""MC.loadGroup().then(g => { const ids = g.joueurs.filter(p => p.joueur.actif).slice(0, 12).map(p => p.joueur.id); return MC.app.adultCall('setEvenement', { titre: 'Plateau 10 - Essai', debut: '2026-12-19T09:00:00.000Z', lieu: 'Essai', sorte: 'plateau', presents: ids }); }).then(r => MC.loadCompos(true).then(() => r.evenement.id))""")
+    pg.goto(BASE + '#/educ/compo/' + eid2); pg.wait_for_timeout(1200)
+    pg.click('[data-act="cBase"][data-v="tous"]'); pg.wait_for_timeout(400)
+    pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(1200)
+    m = ev("""(() => { const eqs = [...document.querySelectorAll('.ccol')].filter(c => c.querySelector('.chd .cn'));
+      return { n: eqs.reduce((a, c) => a + +c.querySelector('.chd .cn').textContent, 0), gone: document.querySelectorAll('.cpj.gone').length, neutres: document.querySelectorAll('.cpj .chors').length,
+        alerte: document.querySelector('main').textContent.indexOf("pas dans l'événement") >= 0 }; })()""")
+    check('à la main, tout le groupe : les non-cochés sont absents (barrés), les équipes ne comptent que les 12 cochés', m['n'] == 12 and m['gone'] == ntous - 12 and m['neutres'] == 0 and not m['alerte'], m)
+    pg.click('[data-act="cDiscard"]'); pg.wait_for_timeout(300); pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(700)
+    pg.click('[data-act="cBase"][data-v="presents"]'); pg.wait_for_timeout(300)
+    pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(1200)
+    d2 = draft(eid2); vic = d2['equipes'][0]['joueurs'][0]['id']; n0 = len(d2['equipes'][0]['joueurs'])
+    ev("""([e, id]) => MC.app.adultCall('setEvenement', { id: e, marques: { [id]: false } }).then(() => MC.loadCompos(true))""", [eid2, vic])
+    pg.goto(BASE + '#/educ/compo/' + eid2 + '?x=1'); pg.wait_for_timeout(1200)
+    c0 = ev("""(id) => { const col = document.querySelector('.ccol'), b = col.querySelector('.cpj[data-id="' + id + '"]'); return { gone: !!b && b.classList.contains('gone'), n: +col.querySelector('.chd .cn').textContent, hd: col.querySelector('.cavtq').textContent }; }""", vic)
+    check('compo des présents : un enfant décoché est barré et ne compte plus dans son équipe', c0['gone'] and c0['n'] == n0 - 1 and '1 absent' in c0['hd'], (c0, n0))
 
     # ----- 4. les matchs d'un entraînement : deux équipes, boutons 1 et 2 -----
     pg.goto(BASE + '#/educ/compo/sp-demo-e1?p=matchs'); pg.wait_for_timeout(1200)

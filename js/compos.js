@@ -217,14 +217,17 @@ MC.compos = (function () {
   }
   // (v57) qui a vraiment joué : jamais un enfant absent sur Spond (sauf ajouté à la main) ni retiré ; une compo faite avec
   // « tout le groupe » garde les absents dans les équipes : on ne compte alors que les présents, dès que Spond a des réponses
+  // Dès que l'événement dit quelque chose (présents, absents, retraits) : seulement les présents, et dans une compo des présents,
+  // ceux placés en attendant leur réponse ; un enfant décoché ou pas dans l'événement n'a pas joué. Rien du tout : la compo fait foi.
   function aJoue(c, e) {
     var ret = e.retraits || [], aj = e.ajouts || [], abs = e.absents || [];
-    var tous = c.reglages && c.reglages.base === 'tous', p = presents(e);
-    var spond = (e.presents || []).length + abs.length > 0;
+    var tous = c.reglages && c.reglages.base === 'tous', p = presents(e), att = attente(e);
+    var info = p.length + abs.length + ret.length > 0;
     return function (id) {
       if (ret.indexOf(id) >= 0) return false;
       if (abs.indexOf(id) >= 0 && aj.indexOf(id) < 0) return false;
-      return !(tous && spond) || p.indexOf(id) >= 0;
+      if (!info) return true;
+      return p.indexOf(id) >= 0 || (!tous && att.indexOf(id) >= 0);
     };
   }
   function hOf(H, id) { return (H && H[id]) || { plateaux: 0, entrainements: 0, autre: 0, dernierAutre: '', avecCopain: 0, sansCopainSerie: 0, vus: {}, niveaux: {}, postes: {}, liste: [] }; }

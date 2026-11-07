@@ -1916,7 +1916,7 @@ var Core = (function () {
     if (partie) {
       var borne = function (v, a, b, d) { v = Math.floor(Number(v)); return isNaN(v) ? d : v < a ? a : v > b ? b : v; };
       // (v35) les matchs d'entraînement peuvent se jouer avec des postes (jeu à 10, comme les plateaux)
-      reglages = { format: partie === 'matchs' && Number(r.format) === 10 ? 10 : 5, nb: nb, partie: partie, mode: r.mode === 'equilibre' ? 'equilibre' : r.mode === 'aforte' && partie === 'ateliers' ? 'aforte' : 'niveau', separer: partie === 'ateliers' && !!r.separer,
+      reglages = { format: partie === 'matchs' && Number(r.format) === 10 ? 10 : 5, nb: nb, partie: partie, mode: r.mode === 'equilibre' || (partie === 'matchs' && r.mode !== 'niveau') ? 'equilibre' : r.mode === 'aforte' && partie === 'ateliers' ? 'aforte' : 'niveau',   /* (v57) les matchs : équilibrés par défaut */ separer: partie === 'ateliers' && !!r.separer,
         n: borne(r.n, 1, 8, 3), nAv: borne(r.nAv, 1, 4, 1), nAr: borne(r.nAr, 1, 4, 1), nbMatchs: borne(r.nbMatchs, 1, 2, 1) };   // (v57) un seul match par défaut (2 : un site plus ancien encore ouvert)
     }
     // (v57) la compo part de tout le groupe (pas seulement des présents) : plateau, ou matchs d'un entraînement

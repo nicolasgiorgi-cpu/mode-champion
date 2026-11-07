@@ -162,6 +162,6 @@ assert.strictEqual(r.compo.reglages.mode, 'aforte', 'ateliers « A forte » gard
 assert.deepStrictEqual(r.compo.equipes.map(t => [t.id, t.nom, t.bloc]), [['FA', 'A', 'A'], ['FB1', 'B1', 'B']]);
 r = g.call({ action: 'saveCompo', token: tok, evenementId: ee.id, partie: 'matchs', version: 0, reglages: { partie: 'matchs', mode: 'aforte', nbMatchs: 1 },
   equipes: [{ id: 'E1', nom: 'Équipe 1', bloc: 'm1', joueurs: [{ id: P.Tom }] }, { id: 'E2', nom: 'Équipe 2', bloc: 'm1', joueurs: [{ id: P.Hugo }] }], banc: [] });
-assert.strictEqual(r.compo.reglages.mode, 'niveau', 'les matchs n\'ont pas ce mode');
+assert.strictEqual(r.compo.reglages.mode, 'equilibre', 'les matchs n\'ont pas ce mode : (v57) équilibrés, leur mode par défaut');
 
 console.log('test_aforte : OK');

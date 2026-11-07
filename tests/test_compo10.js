@@ -101,6 +101,18 @@ pl.equipes.forEach(t => assert.ok(t.joueurs.every(j => !!j.poste), t.id + ' : to
   const e2 = { e2: { id: 'e2', titre: 'Plateau 4', debut: '2026-12-06T09:00:00.000Z', presents: [], absents: [], sansReponse: [], ajouts: [], retraits: [] } };
   Hh = K.historique([Object.assign(J(compo), { evenementId: 'e2', reglages: { format: 10, nb: { A: 1, B: 1, C: 0 }, base: 'tous' } })], e2, HF, '2026-12-10');
   assert.strictEqual(Hh.pb.plateaux, 1, 'pas de réponses Spond : tout le monde compte');
+  // (2e relecture) un retiré des présents ; un enfant décoché (ni présent, ni absent, ni sans réponse) ; des ajouts à la main seulement
+  const base = { titre: 'Plateau 5', debut: '2026-12-07T09:00:00.000Z', absents: [], sansReponse: [], ajouts: [], retraits: [] };
+  const cl = (ev) => Object.assign(J(compo), { evenementId: ev.id, reglages: { format: 10, nb: { A: 1, B: 1, C: 0 } } });
+  let e3 = Object.assign({}, base, { id: 'e3', presents: ['pa', 'pb', 'pc', 'pn'], retraits: ['pc'] });
+  Hh = K.historique([cl(e3)], { e3 }, HF, '2026-12-10');
+  assert.ok(!Hh.pc, 'retiré des présents : pas compté'); assert.strictEqual(Hh.pb.plateaux, 1);
+  e3 = Object.assign({}, base, { id: 'e3', source: 'manuel', presents: ['pa', 'pc'] });
+  Hh = K.historique([cl(e3)], { e3 }, HF, '2026-12-10');
+  assert.ok(!Hh.pb && !Hh.pn, 'compo des présents, enfant décoché ensuite : pas compté'); assert.strictEqual(Hh.pc.plateaux, 1);
+  e3 = Object.assign({}, base, { id: 'e3', presents: [], ajouts: ['pa', 'pb'], sansReponse: ['pn'] });
+  Hh = K.historique([Object.assign(cl(e3), { reglages: { format: 10, nb: { A: 1, B: 1, C: 0 }, base: 'tous' } })], { e3 }, HF, '2026-12-10');
+  assert.ok(Hh.pa && Hh.pb && !Hh.pn && !Hh.pc, 'tout le groupe, seulement des ajouts à la main : seuls eux comptent');
 }
 
 // ----- matchs : reprendre d'anciens matchs à 4 équipes donne 2 équipes (relecture v57, I3) -----
@@ -154,4 +166,10 @@ assert.ok(r.ok, JSON.stringify(r)); assert.ok(!('base' in r.compo.reglages), 'je
 r = g.call({ action: 'saveCompo', token: nico, evenementId: ee.id, compoId: g.call({ action: 'compos', token: nico }).compos.filter(c => c.evenementId === ee.id && c.partie === 'matchs')[0].id, version: 1, partie: 'matchs',
   reglages: { partie: 'matchs', format: 10, mode: 'equilibre' }, equipes: [{ id: 'E1', nom: 'Équipe 1', bloc: 'm1', joueurs: [{ id: P.Tom, poste: 'pilier' }] }], banc: [] });
 assert.ok(r.ok, JSON.stringify(r)); assert.strictEqual(r.compo.reglages.nbMatchs, 1, 'matchs : un seul match par défaut');
+r = g.call({ action: 'saveCompo', token: nico, evenementId: ee.id, compoId: r.compo.id, version: r.compo.version, partie: 'matchs',
+  reglages: { partie: 'matchs', format: 10 }, equipes: [{ id: 'E1', nom: 'Équipe 1', bloc: 'm1', joueurs: [{ id: P.Tom, poste: 'pilier' }] }], banc: [] });
+assert.ok(r.ok, JSON.stringify(r)); assert.strictEqual(r.compo.reglages.mode, 'equilibre', 'matchs : équilibrés par défaut');
+r = g.call({ action: 'saveCompo', token: nico, evenementId: ee.id, compoId: r.compo.id, version: r.compo.version, partie: 'matchs',
+  reglages: { partie: 'matchs', format: 10, mode: 'niveau', nbMatchs: 2 }, equipes: [{ id: 'E1', nom: 'Équipe 1', bloc: 'm1', joueurs: [{ id: P.Tom, poste: 'pilier' }] }], banc: [] });
+assert.ok(r.ok, JSON.stringify(r)); assert.strictEqual(r.compo.reglages.mode, 'niveau', 'un site plus ancien (2 matchs par niveau) : gardé');
 console.log('test_compo10 : OK');

@@ -93,6 +93,8 @@ window.MC = window.MC || {};
   function absentsOf(C, e) {
     var p = K.presents(e), out = [];
     (e.absents || []).concat(e.retraits || []).forEach(function (id) { if (C.actifs[id] && p.indexOf(id) < 0 && out.indexOf(id) < 0) out.push(id); });
+    // un événement fait à la main : dès qu'un enfant est coché, ceux qui ne le sont pas sont absents
+    if (e.source !== 'spond' && p.length) tousOf(C).forEach(function (id) { if (p.indexOf(id) < 0 && out.indexOf(id) < 0) out.push(id); });
     return out;
   }
   // les joueurs d'une compo publiée qui ne viennent plus (répondu absent, retirés des présents) ;
@@ -397,7 +399,14 @@ window.MC = window.MC || {};
   // ======================================================================
   // Un événement : les présents, la compo
   // ======================================================================
-  var ATT = null;   // réponses Spond pour le tableau affiché : { pres: {id:1}, att: {id:1} } (null : on ne marque rien)
+  var ATT = null;   // réponses Spond pour le tableau affiché : { pres: {id:1}, att: {id:1}, abs: {id:1}, tous } (null : on ne marque rien)
+  // (v57) hors du jeu : barré « absent » sur la compo et ne tient pas de place (effectif, places tenues, plaquage, alertes).
+  // Compo des présents : un joueur placé qui n'est plus présent ni en attente de réponse ; tout le groupe : les vrais absents
+  function horsJeu(id) { if (!ATT || ATT.pres[id] || ATT.att[id]) return false; return ATT.tous ? !!ATT.abs[id] : true; }
+  function sansHorsJeu(t) {
+    var js = t.joueurs.filter(function (j) { return !horsJeu(j.id); });
+    return js.length === t.joueurs.length ? t : { id: t.id, niveau: t.niveau, bloc: t.bloc, nom: t.nom, joueurs: js };
+  }
   var PR = { evtId: null, chg: {} };   // présents modifiés (id → true présent / false absent), en attente d'enregistrement
   app.route('/educ/evt/:id', function (p, q, cur) {
     return both().then(function (r) {
@@ -1011,8 +1020,7 @@ window.MC = window.MC || {};
   // rangés en sections : les avants en haut (piliers, talonneur, 3es lignes), les arrières dessous (9, 10, centres, ailiers)
   function team(C, t, v, d, moved, ed) {
     // (v57) les absents (Spond, retirés) restent affichés mais ne tiennent pas de place : places tenues, postes à couvrir, plaquage moyen
-    var nAbs = ATT && ATT.abs ? t.joueurs.filter(function (j) { return ATT.abs[j.id] && !ATT.pres[j.id]; }).length : 0;
-    var tc = nAbs ? { id: t.id, niveau: t.niveau, bloc: t.bloc, nom: t.nom, joueurs: t.joueurs.filter(function (j) { return !(ATT.abs[j.id] && !ATT.pres[j.id]); }) } : t;
+    var tc = sansHorsJeu(t), nAbs = t.joueurs.length - tc.joueurs.length;
     var st = K.stats(tc, C.F, d.reglages.format), fmt10 = d.reglages.format === 10;
     var absTxt = nAbs ? ' · <b class="cabsn">' + nAbs + ' absent' + (nAbs > 1 ? 's' : '') + '</b>' : '';
     // (v35) un match d'entraînement à moins de 10 : chacun a son poste, mais pas de « 5/5 » en rouge ni de places vides partout
@@ -1064,7 +1072,7 @@ window.MC = window.MC || {};
     // groupe, les absents encore « Pas placés » sont marqués aussi
     // (v57) tout le groupe : « absent » seulement pour un vrai absent ; pas dans l'événement : une marque neutre (« hors Spond »)
     var att = ATT && ATT.att[j.id], nonP = ATT && (t || (ATT.tous && d.equipes)) && !ATT.pres[j.id] && !att;
-    var gone = nonP && (!ATT.tous || !!ATT.abs[j.id]), hors = nonP && !gone, avecPoste = gone && t && d.reglages.format === 10;
+    var gone = nonP && horsJeu(j.id), hors = nonP && !gone, avecPoste = gone && t && d.reglages.format === 10;
     return '<li><button type="button" class="cpj' + (on ? ' sel' : '') + (moved ? ' moved' : '') + (gone ? ' gone' : '') + '" data-act="cPick" data-v="' + v + '" data-id="' + esc(j.id) + '" aria-pressed="' + !!on + '">' +
       '<span class="cpn">' + esc(f.prenom) + '</span>' + (gone && !avecPoste ? '<span class="cpo cabs">absent</span>' : tag) + '<span class="row cfls">' + (avecPoste ? '<span class="cfl cabsf" title="Absent sur Spond (ou retiré des présents)">absent</span>' : '') + (hors ? '<span class="cfl chors" title="' + esc(ATT.horsT) + '">' + esc(ATT.horsLab) + '</span>' : '') + (att ? '<span class="cfl catt" title="Pas encore répondu sur Spond">' + icon('clock', 12) + '</span>' : '') + starsMini(f.plaquage, sousRep) + lv + heart + (f.niveau ? '' : '<span class="cfl cq" title="Niveau à renseigner">?</span>') + '</span></button></li>';
   }
@@ -1128,8 +1136,10 @@ window.MC = window.MC || {};
     return '<div class="cboard2">' + html + '</div>';
   }
   // résumé d'une version (pour comparer) : alertes, écart de plaquage, copains
+  // une compo sans ceux qui sont hors du jeu (pour les alertes, comme les en-têtes d'équipe)
+  function sansHorsJeuC(d) { var ids = []; d.equipes.forEach(function (t) { t.joueurs.forEach(function (j) { if (horsJeu(j.id)) ids.push(j.id); }); }); return ids.length ? K.retirer(d, ids) : d; }
   function resume(C, d, presents) {
-    var al = alertesOf(C, d, presents), avec = 0, ont = 0, gap = 0;
+    var al = alertesFull(C, d, presents, Object.keys((ATT && ATT.att) || {})), avec = 0, ont = 0, gap = 0;   // (v57) le même compte que la liste
     K.blocsDe(d).forEach(function (n) {
       var st = d.equipes.filter(function (t) { return K.blocDe(t) === n; }).map(function (t) { return K.stats(t, C.F, d.reglages.format); });
       st.forEach(function (s) { avec += s.avecCopain; ont += s.ontCopains; });
@@ -1145,12 +1155,12 @@ window.MC = window.MC || {};
     var enAtt = placed.filter(function (id) { return presents.indexOf(id) < 0 && att.indexOf(id) >= 0; });
     var partis = placed.filter(function (id) { return presents.indexOf(id) < 0 && att.indexOf(id) < 0; });
     // (v57) tout le groupe : les absents ne tiennent pas de place (postes à couvrir, effectifs) ; ceux qui ne sont pas dans l'événement, à part
-    var tous = baseTous(d.reglages), abs = ATT && ATT.abs ? ATT.abs : {}, hors = [];
-    if (tous) { hors = partis.filter(function (id) { return !abs[id]; }); partis = partis.filter(function (id) { return abs[id]; }); }
-    var absPl = placed.filter(function (id) { return abs[id] && presents.indexOf(id) < 0; });
-    var al = alertesOf(C, absPl.length ? K.retirer(d, absPl) : d, presents);
+    var tous = baseTous(d.reglages), hors = [];
+    if (tous) { hors = partis.filter(function (id) { return !horsJeu(id); }); partis = partis.filter(horsJeu); }
+    var al = alertesOf(C, sansHorsJeuC(d), presents);
     function noms(l) { return l.map(function (id) { return nom(C, id); }).join(', '); }
-    if (hors.length) al.unshift({ k: 'hors', niveau: 'info', texte: 'Dans une équipe, pas dans l\'événement' + (ATT && ATT.horsLab === 'hors Spond' ? ' Spond' : '') + ' (ni présent, ni absent, ni sans réponse) : ' + noms(hors) + '.', fix: { t: 'out', ids: hors, lab: 'Retirer', texte: 'Retiré' + (hors.length > 1 ? 's' : '') + ' : ' + noms(hors) } });
+    // pas dans l'événement Spond (pas relié, autre catégorie) ; un événement fait à la main sans aucun coché : rien à dire
+    if (hors.length && ATT && ATT.horsLab === 'hors Spond') al.unshift({ k: 'hors', niveau: 'info', texte: 'Dans une équipe, pas dans l\'événement Spond (ni présent, ni absent, ni sans réponse) : ' + noms(hors) + '.', fix: { t: 'out', ids: hors, lab: 'Retirer', texte: 'Retiré' + (hors.length > 1 ? 's' : '') + ' : ' + noms(hors) } });
     if (enAtt.length) al.unshift({ k: 'attente', niveau: 'info', texte: 'Placé' + (enAtt.length > 1 ? 's' : '') + ' en attendant sa réponse sur Spond : ' + noms(enAtt) + '. S\'il répond « non », l\'appli le signale ici.' });
     if (partis.length) al.unshift({ k: 'parti', niveau: 'warn', texte: (baseTous(d.reglages) ? (partis.length > 1 ? 'Absents (sur Spond ou retirés des présents), dans une équipe : ' : 'Absent (sur Spond ou retiré des présents), dans une équipe : ') :
       partis.length > 1 ? 'Ne viennent plus (absents sur Spond ou retirés des présents) : ' : 'Ne vient plus (absent sur Spond ou retiré des présents) : ') + noms(partis) + '.', fix: { t: 'out', ids: partis, lab: 'Retirer', texte: 'Retiré' + (partis.length > 1 ? 's' : '') + ' : ' + noms(partis) } });
@@ -1547,12 +1557,14 @@ window.MC = window.MC || {};
         dd.equipes.forEach(function (t) { t.joueurs.forEach(function (j) { add(j.id); }); });
         bancOf(dd, pres).forEach(add); att.forEach(add);
         if (baseTous(dd.reglages)) tousOf(C).forEach(add);
-        // (v57) « absent » : répondu non ou retiré ; ni présent, ni absent, ni sans réponse : pas dans l'événement
-        out.forEach(function (id) { var non = pres.indexOf(id) < 0 && !ATTx[id]; ABS[id] = non && absL.indexOf(id) >= 0; HORS[id] = non && !ABS[id]; });
+        out.forEach(function (id) { ABS[id] = dehors(id); HORS[id] = pres.indexOf(id) < 0 && !ATTx[id] && !ABS[id]; });
         return out;
       }
+      // (v57) comme sur le tableau (horsJeu) : « absent » ne tient pas de place ; compo des présents : ni présent ni en attente ;
+      // tout le groupe : répondu non, retiré (à la main : pas coché) ; sinon, pas dans l'événement (« hors Spond »)
+      function dehors(id) { if (pres.indexOf(id) >= 0 || ATTx[id]) return false; return baseTous(d().reglages) ? absL.indexOf(id) >= 0 : true; }
       function niveaux() { var n = []; d().equipes.forEach(function (t) { if (t.niveau && n.indexOf(t.niveau) < 0) n.push(t.niveau); }); return n; }
-      function nb(t, p) { return t.joueurs.filter(function (j) { return j.poste === p; }).length; }
+      function nb(t, p) { return t.joueurs.filter(function (j) { return j.poste === p && !dehors(j.id); }).length; }   // les absents ne tiennent pas la place
       function place(id) { var dd = d(), w = K.where(dd, id); return w && w.t >= 0 ? { t: dd.equipes[w.t], j: dd.equipes[w.t].joueurs[w.j] } : null; }
       function titre() {
         var i = K.ORDRE.indexOf(S.p);
@@ -1571,9 +1583,10 @@ window.MC = window.MC || {};
       function equipesHtml() {
         var dd = d();
         return '<div class="ppeqs">' + dd.equipes.map(function (t) {
-          var st = K.stats(t, C.F, 10), n = nb(t, S.p), bes = K.BESOIN[S.p];
+          var js = t.joueurs.filter(function (j) { return !dehors(j.id); }), na = t.joueurs.length - js.length;
+          var st = K.stats({ id: t.id, niveau: t.niveau, joueurs: js }, C.F, 10), n = nb(t, S.p), bes = K.BESOIN[S.p];
           return '<div class="ppeq" style="--lc:' + coulEq(t, dd) + '"><b>' + esc(labelEq(t)) + '</b><span class="ppc' + (n < bes ? ' bad' : '') + '">' + n + ' ' + esc((n > 1 ? NOMPL[S.p] : NOMP[S.p]).toLowerCase()) + '</span>' +
-            '<small>' + st.n + ' joueur' + (st.n > 1 ? 's' : '') + ' · ' + icon('shieldavg', 11) + ' ' + (st.plaq === null ? '—' : virg(st.plaq)) + '</small></div>';
+            '<small>' + st.n + ' joueur' + (st.n > 1 ? 's' : '') + (na ? ' · <b class="cabsn">' + na + ' absent' + (na > 1 ? 's' : '') + '</b>' : '') + ' · ' + icon('shieldavg', 11) + ' ' + (st.plaq === null ? '—' : virg(st.plaq)) + '</small></div>';
         }).join('') + '</div>';
       }
       function rowHtml(id) {
