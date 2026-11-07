@@ -188,10 +188,11 @@ MC.compos = (function () {
       return (ORDRE_PARTIE[a.c.partie || ''] || 0) - (ORDRE_PARTIE[b.c.partie || ''] || 0);
     });
     past.forEach(function (x) {
-      var date = String(x.e.debut).slice(0, 10), sorte = x.c.partie || 'plateau';
+      var date = String(x.e.debut).slice(0, 10), sorte = x.c.partie || 'plateau', joue = aJoue(x.c, x.e);
       (x.c.equipes || []).forEach(function (t) {
-        var ids = (t.joueurs || []).map(function (j) { return j.id; });
-        (t.joueurs || []).forEach(function (j) {
+        var js = (t.joueurs || []).filter(function (j) { return joue(j.id); });
+        var ids = js.map(function (j) { return j.id; });
+        js.forEach(function (j) {
           var o = h(j.id), f = F[j.id] || {}, cps = (f.copains || []).filter(function (c) { return c !== j.id && ids.indexOf(c) >= 0; });
           if (sorte === 'plateau') o.plateaux++; else o.entrainements++;
           // hors de son niveau : seulement dans une équipe ou un groupe qui a un niveau (pas dans des groupes mélangés)
@@ -213,6 +214,18 @@ MC.compos = (function () {
       });
     });
     return H;
+  }
+  // (v57) qui a vraiment joué : jamais un enfant absent sur Spond (sauf ajouté à la main) ni retiré ; une compo faite avec
+  // « tout le groupe » garde les absents dans les équipes : on ne compte alors que les présents, dès que Spond a des réponses
+  function aJoue(c, e) {
+    var ret = e.retraits || [], aj = e.ajouts || [], abs = e.absents || [];
+    var tous = c.reglages && c.reglages.base === 'tous', p = presents(e);
+    var spond = (e.presents || []).length + abs.length > 0;
+    return function (id) {
+      if (ret.indexOf(id) >= 0) return false;
+      if (abs.indexOf(id) >= 0 && aj.indexOf(id) < 0) return false;
+      return !(tous && spond) || p.indexOf(id) >= 0;
+    };
   }
   function hOf(H, id) { return (H && H[id]) || { plateaux: 0, entrainements: 0, autre: 0, dernierAutre: '', avecCopain: 0, sansCopainSerie: 0, vus: {}, niveaux: {}, postes: {}, liste: [] }; }
   // (v45) la rotation se compte par niveau de passerelle : la dernière fois (et combien de fois) qu'il a joué en n hors de son niveau
@@ -1108,6 +1121,18 @@ MC.compos = (function () {
     });
     o.banc = ids.filter(function (id) { return !dans[id]; });
     o.raisons = {};
+    // (v57) les matchs : toujours deux équipes équilibrées ; d'anciens matchs à 2 matchs (4 équipes) se regroupent,
+    // l'équipe 3 avec la 1, la 4 avec la 2 (sans niveau, un seul match)
+    if (o.reglages && o.reglages.partie === 'matchs') {
+      var base = o.reglages.base, fmt0 = o.reglages.format;
+      if (o.equipes.length > 2) {
+        o.equipes.slice(2).forEach(function (t, i) { o.equipes[i % 2].joueurs = o.equipes[i % 2].joueurs.concat(t.joueurs); });
+        o.equipes = o.equipes.slice(0, 2);
+      }
+      o.equipes.forEach(function (t, i) { t.niveau = ''; t.bloc = 'm1'; t.id = 'E' + (i + 1); t.nom = 'Équipe ' + (i + 1); });
+      o.reglages = regEnt({ partie: 'matchs', base: base }, ids, F);
+      o.reglages.format = fmt0 === 10 ? 10 : 5;   // le passage aux postes (ci-dessous) se fait d'après le format d'origine
+    }
     // (v35) des matchs d'avant la v35 (sans postes) : ils passent avec postes, ceux des fiches
     if (o.reglages && o.reglages.partie === 'matchs' && o.reglages.format !== 10) {
       o.reglages.format = 10;

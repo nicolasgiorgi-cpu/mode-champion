@@ -85,14 +85,22 @@ window.MC = window.MC || {};
   function attenteOf(C, e) { return K.attente(e).filter(function (id) { return C.actifs[id]; }); }
   // (v57, demande de Nicolas du 07/11) au jeu à 10 (plateau ou matchs), une compo part des présents (par défaut) ou de tout
   // le groupe : les absents et ceux qui n'ont pas répondu sur Spond y sont alors marqués, sans que l'appli touche aux équipes
-  function tousOf(C) { return C.g.joueurs.filter(function (p) { return C.actifs[p.joueur.id]; }).map(function (p) { return p.joueur.id; }); }
+  function tousOf(C) { return C.g.joueurs.filter(function (p) { return C.actifs[p.joueur.id] && !/^test$/i.test(p.joueur.prenom || ''); }).map(function (p) { return p.joueur.id; }); }   // sans l'enfant « Test » (comme la liste Enfants)
   function baseTous(reg) { return !!reg && reg.base === 'tous' && K.fmt(reg) === 10; }
   function idsBase(C, e, reg) { return baseTous(reg) ? tousOf(C) : presentsOf(C, e); }
-  // les joueurs d'une compo publiée qui ne viennent plus (répondu absent, retirés des présents)
+  // (v57) les absents : répondu « non » sur Spond (sauf ajoutés à la main) ou retirés des présents ; un enfant qui n'est pas
+  // dans l'événement (pas relié à Spond, autre catégorie, pas coché) n'est pas « absent »
+  function absentsOf(C, e) {
+    var p = K.presents(e), out = [];
+    (e.absents || []).concat(e.retraits || []).forEach(function (id) { if (C.actifs[id] && p.indexOf(id) < 0 && out.indexOf(id) < 0) out.push(id); });
+    return out;
+  }
+  // les joueurs d'une compo publiée qui ne viennent plus (répondu absent, retirés des présents) ;
+  // (v57) partie de tout le groupe : seulement les vrais absents
   function partisDe(C, e, c) {
     if (!c || !c.equipes) return [];
-    var pres = presentsOf(C, e), att = attenteOf(C, e), out = [];
-    c.equipes.forEach(function (t) { t.joueurs.forEach(function (j) { if (pres.indexOf(j.id) < 0 && att.indexOf(j.id) < 0 && out.indexOf(j.id) < 0) out.push(j.id); }); });
+    var pres = presentsOf(C, e), att = attenteOf(C, e), abs = baseTous(c.reglages) ? absentsOf(C, e) : null, out = [];
+    c.equipes.forEach(function (t) { t.joueurs.forEach(function (j) { if (pres.indexOf(j.id) < 0 && att.indexOf(j.id) < 0 && (!abs || abs.indexOf(j.id) >= 0) && out.indexOf(j.id) < 0) out.push(j.id); }); });
     return out;
   }
   function jour(e) { return String(e.debut || '').slice(0, 10); }
@@ -646,8 +654,9 @@ window.MC = window.MC || {};
     return B.reg;
   }
   function stepperHtml(n, reg, cnt, sug, attr) {
+    var mot = baseTous(reg) ? ' enfant' : ' présent';   // (v57) « tout le groupe » : les enfants du groupe, pas les présents
     return '<div class="cstep" style="--lc:' + K.COUL_NIV[n] + '"><span class="row" style="gap:8px">' + niveauTag(n) + '<span><b>' + K.NOM_NIV[n] + '</b>' +
-      (cnt ? '<small class="small" style="display:block">' + cnt[n] + ' présent' + (cnt[n] > 1 ? 's' : '') + (sug && sug[n] !== reg.nb[n] ? ' · conseillé : ' + sug[n] : '') + '</small>' : '') + '</span></span>' +
+      (cnt ? '<small class="small" style="display:block">' + cnt[n] + mot + (cnt[n] > 1 ? 's' : '') + (sug && sug[n] !== reg.nb[n] ? ' · conseillé : ' + sug[n] : '') + '</small>' : '') + '</span></span>' +
       '<span class="row" style="gap:6px"><button type="button" class="ibtn" ' + attr + '="' + n + '" data-d="-1" aria-label="Une équipe ' + n + ' de moins"' + (reg.nb[n] <= 0 ? ' disabled' : '') + '>' + icon('minus', 18) + '</button>' +
       '<output class="cnbv">' + reg.nb[n] + '</output><button type="button" class="ibtn" ' + attr + '="' + n + '" data-d="1" aria-label="Une équipe ' + n + ' de plus"' + (reg.nb[n] >= 6 ? ' disabled' : '') + '>' + icon('plus', 18) + '</button></span></div>';
   }
@@ -744,9 +753,17 @@ window.MC = window.MC || {};
     ].map(function (o) {
       var on = (o[0] === 'tous') === tous;
       return '<button type="button" class="opt cstyle' + (on ? ' on' : '') + '" aria-pressed="' + on + '" ' + attr + '="' + o[0] + '"><b>' + o[1] + '</b><small>' + o[2] + '</small></button>';
-    }).join('') + '</div></section>';
+    }).join('') + '</div>' +
+      (!tous && np < 2 && nt >= 2 ? '<p class="small cbaseh" style="margin:0;color:var(--orange)">Pas encore assez de présents' + (e.source === 'spond' ? ' sur Spond' : '') + ' : choisissez « Tout le groupe » pour préparer la compo dès maintenant.</p>' : '') + '</section>';
   }
-  MC.act.cBase = function (b) { if (!B || !B.reg) return; if (b.getAttribute('data-v') === 'tous') B.reg.base = 'tous'; else delete B.reg.base; B.reg.tailles = null; redessine(); };
+  // (v57) changer de base refait le nombre d'équipes conseillé (plateau) : sinon, parti de 0 présent, il restait à 0
+  MC.act.cBase = function (b) {
+    if (!B || !B.reg) return;
+    if (b.getAttribute('data-v') === 'tous') B.reg.base = 'tous'; else delete B.reg.base;
+    B.reg.tailles = null;
+    if (!B.partie) withC(function (C, e) { B.reg.nb = K.suggestNb(idsBase(C, e, B.reg), C.F, B.reg.format); });
+    redessine();
+  };
   function paintReglages(C, e) {
     var reg = regOf(C, e), ids = idsBase(C, e, reg), cnt = { A: 0, B: 0, C: 0, '': 0 };
     ids.forEach(function (id) { cnt[(C.F[id] || {}).niveau || '']++; });
@@ -866,7 +883,7 @@ window.MC = window.MC || {};
   // (v57) changer de format reprend le nombre d'équipes conseillé pour ce format (au jeu à 10 : une équipe A, une équipe B)
   MC.act.cFmt = function (b) {
     if (!B || !B.reg) return; var f = Number(b.getAttribute('data-v'));
-    if (f !== B.reg.format) withC(function (C, e) { B.reg.nb = K.suggestNb(presentsOf(C, e), C.F, f); B.reg.tailles = null; });
+    if (f !== B.reg.format) withC(function (C, e) { B.reg.nb = K.suggestNb(idsBase(C, e, { format: f, base: B.reg.base }), C.F, f); B.reg.tailles = null; });
     B.reg.format = f; redessine();
   };
   function redessine() { if (B && B.vs && B.vs.length && B.mode !== 'reglages') rerenderKeep(); else app.rerender(); }
@@ -970,14 +987,6 @@ window.MC = window.MC || {};
   // le titre d'un match : « Équipe 1 contre Équipe 2 », d'après ses équipes
   function contreDe(l) { return l.map(function (t) { return K.nomEq(t); }).join(' contre '); }
   function alertesOf(C, d, presents) { return d.reglages && d.reglages.partie ? K.alertesEnt(d, C.F, presents) : K.alertes(d, C.F, C.H, presents); }
-  function remplTxt(r) {
-    var o = [];
-    if (r.av) o.push(r.av + ' avant' + (r.av > 1 ? 's' : ''));
-    if (r.ar) o.push(r.ar + ' arrière' + (r.ar > 1 ? 's' : ''));
-    if (r.les2) o.push(r.les2 + ' polyvalent' + (r.les2 > 1 ? 's' : ''));
-    if (r.inconnus) o.push(r.inconnus + ' sans poste');
-    return o.join(', ');
-  }
   // une section de l'équipe : « Avants », « Arrières », « Remplaçants », « Pas encore de poste »
   // o : { compte, bad, slots: [postes libres] (places vides à toucher, rangées avec les joueurs), plus: html après la liste }
   function secHtml(C, t, v, d, moved, nom, list, o) {
@@ -1001,16 +1010,20 @@ window.MC = window.MC || {};
   // une équipe : en-tête (effectif, plaquage, copains, passerelles, avants / arrières) puis ses joueurs,
   // rangés en sections : les avants en haut (piliers, talonneur, 3es lignes), les arrières dessous (9, 10, centres, ailiers)
   function team(C, t, v, d, moved, ed) {
-    var st = K.stats(t, C.F, d.reglages.format), fmt10 = d.reglages.format === 10;
+    // (v57) les absents (Spond, retirés) restent affichés mais ne tiennent pas de place : places tenues, postes à couvrir, plaquage moyen
+    var nAbs = ATT && ATT.abs ? t.joueurs.filter(function (j) { return ATT.abs[j.id] && !ATT.pres[j.id]; }).length : 0;
+    var tc = nAbs ? { id: t.id, niveau: t.niveau, bloc: t.bloc, nom: t.nom, joueurs: t.joueurs.filter(function (j) { return !(ATT.abs[j.id] && !ATT.pres[j.id]); }) } : t;
+    var st = K.stats(tc, C.F, d.reglages.format), fmt10 = d.reglages.format === 10;
+    var absTxt = nAbs ? ' · <b class="cabsn">' + nAbs + ' absent' + (nAbs > 1 ? 's' : '') + '</b>' : '';
     // (v35) un match d'entraînement à moins de 10 : chacun a son poste, mais pas de « 5/5 » en rouge ni de places vides partout
     var petit = fmt10 && d.reglages.partie === 'matchs' && st.n < 10, places = !petit || st.n >= 8;
     var sansP = fmt10 && st.inconnus ? ' · <b class="csp">Sans poste ' + st.inconnus + '</b>' : '';   // (v35) à régler
     var sel = B && B.sel && B.sel.v === v ? B.sel.id : null, w = sel ? K.where(d, sel) : null;
     var dest = !!sel && ed && (!w || w.t < 0 || d.equipes[w.t].id !== t.id);
     // (v57) au jeu à 10, chacun a un poste, remplaçants compris : Av et Ar = les places tenues sur le terrain, Remp. = les joueurs en plus
-    var avtq = petit ? '<span class="cavtq" title="Avants et arrières (postes du match)">Av ' + st.avTous + ' · Ar ' + st.arTous + (st.rempl > st.avTous - st.av + st.arTous - st.ar ? ' · Remp. ' + (st.rempl - (st.avTous - st.av + st.arTous - st.ar)) : '') + sansP + '</span>'
-      : fmt10 ? '<span class="cavtq' + (st.av < 5 || st.ar < 5 ? ' bad' : '') + '" title="Places tenues sur le terrain : avants et arrières' + (st.rempl ? ' · remplaçants : les joueurs en plus, à leur poste' : '') + '">Av ' + st.av + '/5 · Ar ' + st.ar + '/5' + (st.rempl ? ' · Remp. ' + st.rempl : '') + sansP + '</span>'
-      : '<span class="cavtq" title="D\'après le poste principal de la fiche ; ⇄ = peuvent jouer avant et arrière ; ? = pas encore de poste">Av ' + st.av + ' · Ar ' + st.ar + (st.les2 ? ' · ⇄' + st.les2 : '') + (st.inconnus ? ' · ?' + st.inconnus : '') + '</span>';
+    var avtq = petit ? '<span class="cavtq" title="Avants et arrières (postes du match)">Av ' + st.avTous + ' · Ar ' + st.arTous + (st.rempl > st.avTous - st.av + st.arTous - st.ar ? ' · Remp. ' + (st.rempl - (st.avTous - st.av + st.arTous - st.ar)) : '') + sansP + absTxt + '</span>'
+      : fmt10 ? '<span class="cavtq' + (st.av < 5 || st.ar < 5 ? ' bad' : '') + '" title="Places tenues sur le terrain : avants et arrières' + (st.rempl ? ' · remplaçants : les joueurs en plus, à leur poste' : '') + '">Av ' + st.av + '/5 · Ar ' + st.ar + '/5' + (st.rempl ? ' · Remp. ' + st.rempl : '') + sansP + absTxt + '</span>'
+      : '<span class="cavtq" title="D\'après le poste principal de la fiche ; ⇄ = peuvent jouer avant et arrière ; ? = pas encore de poste">Av ' + st.av + ' · Ar ' + st.ar + (st.les2 ? ' · ⇄' + st.les2 : '') + (st.inconnus ? ' · ?' + st.inconnus : '') + absTxt + '</span>';
     var sc = K.sections(t, C.F, d.reglages.format), miss = ed && fmt10 && places ? st.manquants : [];
     var corps = fmt10
       // (v57) les avants (tous, remplaçants compris), en rouge s'il manque une place ; les places vides (+) restent à toucher
@@ -1049,9 +1062,11 @@ window.MC = window.MC || {};
     // réponse Spond : en attente (horloge) ou plus là (barré, « absent »)
     // (v57) au jeu à 10, l'absent garde son poste (la pastille « absent » passe avec les autres marques) ; en partant de tout le
     // groupe, les absents encore « Pas placés » sont marqués aussi
-    var att = ATT && ATT.att[j.id], gone = ATT && (t || (ATT.tous && d.equipes)) && !ATT.pres[j.id] && !att, avecPoste = gone && t && d.reglages.format === 10;
+    // (v57) tout le groupe : « absent » seulement pour un vrai absent ; pas dans l'événement : une marque neutre (« hors Spond »)
+    var att = ATT && ATT.att[j.id], nonP = ATT && (t || (ATT.tous && d.equipes)) && !ATT.pres[j.id] && !att;
+    var gone = nonP && (!ATT.tous || !!ATT.abs[j.id]), hors = nonP && !gone, avecPoste = gone && t && d.reglages.format === 10;
     return '<li><button type="button" class="cpj' + (on ? ' sel' : '') + (moved ? ' moved' : '') + (gone ? ' gone' : '') + '" data-act="cPick" data-v="' + v + '" data-id="' + esc(j.id) + '" aria-pressed="' + !!on + '">' +
-      '<span class="cpn">' + esc(f.prenom) + '</span>' + (gone && !avecPoste ? '<span class="cpo cabs">absent</span>' : tag) + '<span class="row cfls">' + (avecPoste ? '<span class="cfl cabsf" title="Absent sur Spond (ou retiré des présents)">absent</span>' : '') + (att ? '<span class="cfl catt" title="Pas encore répondu sur Spond">' + icon('clock', 12) + '</span>' : '') + starsMini(f.plaquage, sousRep) + lv + heart + (f.niveau ? '' : '<span class="cfl cq" title="Niveau à renseigner">?</span>') + '</span></button></li>';
+      '<span class="cpn">' + esc(f.prenom) + '</span>' + (gone && !avecPoste ? '<span class="cpo cabs">absent</span>' : tag) + '<span class="row cfls">' + (avecPoste ? '<span class="cfl cabsf" title="Absent sur Spond (ou retiré des présents)">absent</span>' : '') + (hors ? '<span class="cfl chors" title="' + esc(ATT.horsT) + '">' + esc(ATT.horsLab) + '</span>' : '') + (att ? '<span class="cfl catt" title="Pas encore répondu sur Spond">' + icon('clock', 12) + '</span>' : '') + starsMini(f.plaquage, sousRep) + lv + heart + (f.niveau ? '' : '<span class="cfl cq" title="Niveau à renseigner">?</span>') + '</span></button></li>';
   }
   // le banc d'une version : « Pas placés » + les présents arrivés après la compo (venus sans répondre…)
   function bancOf(d, presents) {
@@ -1125,11 +1140,17 @@ window.MC = window.MC || {};
   }
   // les alertes d'une version + en tête : les absents (à retirer en un geste) et ceux placés en attente de réponse
   function alertesFull(C, d, presents, att) {
-    var al = alertesOf(C, d, presents); att = att || [];
+    att = att || [];
     var placed = []; d.equipes.forEach(function (t) { t.joueurs.forEach(function (j) { placed.push(j.id); }); });
     var enAtt = placed.filter(function (id) { return presents.indexOf(id) < 0 && att.indexOf(id) >= 0; });
     var partis = placed.filter(function (id) { return presents.indexOf(id) < 0 && att.indexOf(id) < 0; });
+    // (v57) tout le groupe : les absents ne tiennent pas de place (postes à couvrir, effectifs) ; ceux qui ne sont pas dans l'événement, à part
+    var tous = baseTous(d.reglages), abs = ATT && ATT.abs ? ATT.abs : {}, hors = [];
+    if (tous) { hors = partis.filter(function (id) { return !abs[id]; }); partis = partis.filter(function (id) { return abs[id]; }); }
+    var absPl = placed.filter(function (id) { return abs[id] && presents.indexOf(id) < 0; });
+    var al = alertesOf(C, absPl.length ? K.retirer(d, absPl) : d, presents);
     function noms(l) { return l.map(function (id) { return nom(C, id); }).join(', '); }
+    if (hors.length) al.unshift({ k: 'hors', niveau: 'info', texte: 'Dans une équipe, pas dans l\'événement' + (ATT && ATT.horsLab === 'hors Spond' ? ' Spond' : '') + ' (ni présent, ni absent, ni sans réponse) : ' + noms(hors) + '.', fix: { t: 'out', ids: hors, lab: 'Retirer', texte: 'Retiré' + (hors.length > 1 ? 's' : '') + ' : ' + noms(hors) } });
     if (enAtt.length) al.unshift({ k: 'attente', niveau: 'info', texte: 'Placé' + (enAtt.length > 1 ? 's' : '') + ' en attendant sa réponse sur Spond : ' + noms(enAtt) + '. S\'il répond « non », l\'appli le signale ici.' });
     if (partis.length) al.unshift({ k: 'parti', niveau: 'warn', texte: (baseTous(d.reglages) ? (partis.length > 1 ? 'Absents (sur Spond ou retirés des présents), dans une équipe : ' : 'Absent (sur Spond ou retiré des présents), dans une équipe : ') :
       partis.length > 1 ? 'Ne viennent plus (absents sur Spond ou retirés des présents) : ' : 'Ne vient plus (absent sur Spond ou retiré des présents) : ') + noms(partis) + '.', fix: { t: 'out', ids: partis, lab: 'Retirer', texte: 'Retiré' + (partis.length > 1 ? 's' : '') + ' : ' + noms(partis) } });
@@ -1146,7 +1167,9 @@ window.MC = window.MC || {};
   }
   function paintBoard(C, e) {
     var vs = B.vs, nv = vs.length, c = compoOf(C.cd, e.id, B.partie), presents = presentsOf(C, e), att = attenteOf(C, e);
-    ATT = { pres: {}, att: {}, tous: baseTous(vs[0].reglages) }; presents.forEach(function (id) { ATT.pres[id] = 1; }); att.forEach(function (id) { ATT.att[id] = 1; });
+    ATT = { pres: {}, att: {}, abs: {}, tous: baseTous(vs[0].reglages), horsLab: e.source === 'spond' ? 'hors Spond' : 'pas coché',
+      horsT: e.source === 'spond' ? 'Pas dans l\'événement Spond (pas relié, autre catégorie…)' : 'Pas coché dans les présents' };
+    presents.forEach(function (id) { ATT.pres[id] = 1; }); att.forEach(function (id) { ATT.att[id] = 1; }); absentsOf(C, e).forEach(function (id) { ATT.abs[id] = 1; });
     var fmt = vs[0].reglages.format, P = B.partie;
     // ce qui change : par rapport à la compo publiée (modif, contre-proposition), ou entre les 2 versions
     var moved = vs.map(function () { return {}; });
@@ -1207,10 +1230,12 @@ window.MC = window.MC || {};
   // tout de suite (sinon toutes les heures) ; l'appli ne change rien aux équipes (demande de Nicolas du 07/11)
   function spondHtml(C, e) {
     if (!ATT || !ATT.tous) return '';
-    var np = Object.keys(ATT.pres).length, na = Object.keys(ATT.att).length, nt = tousOf(C).length, nab = Math.max(0, nt - np - na);
+    var np = 0, na = 0, nab = 0, nh = 0;
+    tousOf(C).forEach(function (id) { if (ATT.pres[id]) np++; else if (ATT.att[id]) na++; else if (ATT.abs[id]) nab++; else nh++; });
     return '<div class="between cspond"><span class="small">' + icon('refresh', 14) + ' ' + (e.source === 'spond' ? 'Spond' : 'Présents') + ' : ' + np + ' présent' + (np > 1 ? 's' : '') +
-      (nab ? ' · <b style="color:var(--pink)">' + nab + ' absent' + (nab > 1 ? 's' : '') + '</b>' : '') + (na ? ' · <b style="color:var(--gold)">' + na + ' sans réponse</b>' : '') + ', marqués dans la compo' + '</span>' +
-      (e.source === 'spond' ? '<button type="button" class="btn2 sm" data-act="cSync">' + icon('refresh', 14) + ' Actualiser</button>' : '') + '</div>';
+      (nab ? ' · <b style="color:var(--pink)">' + nab + ' absent' + (nab > 1 ? 's' : '') + '</b>' : '') + (na ? ' · <b style="color:var(--gold)">' + na + ' sans réponse</b>' : '') +
+      (nh ? ' · ' + nh + ' ' + (e.source === 'spond' ? 'pas sur l\'événement' : 'pas cochés') : '') + ', marqués dans la compo' + '</span>' +
+      (e.source === 'spond' && !MC.api.DEMO ? '<button type="button" class="btn2 sm" data-act="cSync">' + icon('refresh', 14) + ' Actualiser</button>' : '') + '</div>';
   }
   // le vote en cours : qui a voté quoi, la majorité à atteindre
   function voteState(C, c) {
@@ -1352,7 +1377,7 @@ window.MC = window.MC || {};
     // personne de choisi : composer l'équipe (jeu à 10 : la 1re place vide, dans l'ordre des postes)
     var d = B.vs[v], t = d.equipes.filter(function (x) { return x.id === tid; })[0];
     if (!t) return;
-    if (d.reglages.format !== 10) return composer(v, tid, '*');
+    if (d.reglages.format !== 10) return composer(v, tid);
     var m = K.stats(t, K.fiches(app.S.cache.group), 10).manquants;
     parPoste(v, m.length ? m[0] : K.ORDRE[0]);   // (v57) poste par poste
   };
@@ -1365,7 +1390,7 @@ window.MC = window.MC || {};
       placer(v, id, tid, p);
       return;
     }
-    if (B.vs[v] && B.vs[v].reglages.format === 10 && p !== '*') parPoste(v, p || K.ORDRE[0]); else composer(v, tid, p);   // (v57) jeu à 10 : poste par poste
+    if (B.vs[v] && B.vs[v].reglages.format === 10) parPoste(v, p && p !== '*' ? p : K.ORDRE[0]); else composer(v, tid);   // (v57) jeu à 10 : poste par poste
   };
   // place un joueur dans une équipe (p : poste du plateau, '' remplaçant, '*' jeu à 5) ; renvoie l'équipe qu'il quitte
   function placer(v, id, tid, p) {
@@ -1423,28 +1448,16 @@ window.MC = window.MC || {};
     if (d && d.matches && d.matches('details[data-rp]')) RP.ouvert[d.getAttribute('data-rp')] = d.open;
   }, true);
   MC.graphePostes = graphePostes;
-  // Composer une équipe : la liste des joueurs à placer, les mieux adaptés d'abord.
-  // Jeu à 10 : place par place, dans l'ordre (piliers, talonneur, 3es lignes, 9, 10, centre, ailiers), puis les remplaçants.
-  // Jeu à 5 : on ajoute les joueurs un par un, la liste reste ouverte.
-  function composer(v, tid, p0) {
+  // Composer une équipe (jeu à 5, groupes d'ateliers) : la liste des joueurs à placer, les mieux adaptés d'abord ; on ajoute
+  // les joueurs un par un, la liste reste ouverte. (v57) Le jeu à 10 passe par « Poste par poste » (parPoste).
+  function composer(v, tid) {
     withC(function (C, e) {
-      var S = { p: p0 };
+      var S = { p: '*' };
       function d() { return B && B.vs[v]; }
       function T() { var dd = d(); return dd && dd.equipes.filter(function (x) { return x.id === tid; })[0]; }
-      function manquants() { return K.stats(T(), C.F, 10).manquants; }
-      // la place suivante : la 1re libre à partir du poste courant (apres : strictement après), sinon on repart du début
-      function suivante(apres) {
-        var m = manquants(), r = K.ORDRE.indexOf(S.p);
-        if (!m.length) return null;
-        var n = m.filter(function (x) { var i = K.ORDRE.indexOf(x); return apres ? i > r : i >= r; })[0];
-        return n || m[0];
-      }
       function titre() {
         var t = T(), nv = B.vs.length > 1 ? ' <small style="font-size:14px;color:var(--dim)">· ' + vName(v) + '</small>' : '';
-        if (S.p === '*') return esc(labelEq(t)) + ' · ajouter' + nv;
-        if (S.p === '') return esc(labelEq(t)) + ' · remplaçants' + nv;
-        var m = manquants(), libres = m.filter(function (x) { return x === S.p; }).length;
-        return esc(labelEq(t)) + ' · ' + NOMP[S.p] + nv + '<small class="cpk-sub">' + (10 - m.length) + ' place' + (10 - m.length > 1 ? 's' : '') + ' prise' + (10 - m.length > 1 ? 's' : '') + ' sur 10' + (libres > 1 ? ' · encore ' + libres + ' ' + NOMP[S.p].toLowerCase() + 's à choisir' : '') + '</small>';
+        return esc(labelEq(t)) + ' · ajouter' + nv;
       }
       function rowHtml(id, t) {
         var f = C.F[id] || { prenom: '?', copains: [] }, w = K.where(d(), id), ou = 'Pas placé';
@@ -1481,26 +1494,13 @@ window.MC = window.MC || {};
           var rows = '<div class="cprows">' + ids.sort(tri).map(function (id) { return rowHtml(id, t); }).join('') + '</div>';
           return ferme ? '<details class="cpgrp"><summary class="mlab">' + lab + ' (' + ids.length + ')</summary>' + rows + '</details>' : '<div class="cpgrp"><span class="mlab">' + lab + ' (' + ids.length + ')</span>' + rows + '</div>';
         }
-        var html = '';
-        if (S.p && S.p !== '*') {
-          var princ = pool.filter(function (id) { return K.lienPoste(C.F[id] || {}, S.p) === 'pref'; });
-          var peut = pool.filter(function (id) { return princ.indexOf(id) < 0 && K.postesDe(C.F[id]).indexOf(S.p) >= 0; });
-          var autres = pool.filter(function (id) { return princ.indexOf(id) < 0 && peut.indexOf(id) < 0; });
-          html = groupe(NOMP[S.p] + ' en poste principal', princ) + groupe('Peuvent jouer ' + NOMP[S.p].toLowerCase(), peut) +
-            (!princ.length && !peut.length ? '<p class="small" style="margin:0">Personne n\'a ce poste dans sa fiche : choisissez parmi les autres.</p>' : '') +
-            groupe('Les autres', autres, princ.length + peut.length > 0);
-        } else {
-          var libres = pool.filter(function (id) { return !placeAilleurs(id); }), ailleurs = pool.filter(placeAilleurs);
-          html = groupe('Pas placés', libres) + (!libres.length ? '<p class="small" style="margin:0">Tous les présents sont placés.</p>' : '') + groupe('Dans une autre équipe', ailleurs, true);
-        }
-        return '<p class="small" style="margin:0">' + (S.p === '*' ? 'Touchez les joueurs à ajouter : la liste reste ouverte.' : S.p === '' ? 'Touchez un joueur : il entre comme remplaçant.' : 'Touchez le joueur qui prend la place ; on passe ensuite à la suivante.') + ' ' + (t.bloc === 'av' ? 'Les avants' : t.bloc === 'ar' ? 'Les arrières' : t.niveau ? 'Ceux de son niveau' : 'Ceux qui ne sont pas encore placés') + ' d\'abord.</p>' + html;
+        var libres = pool.filter(function (id) { return !placeAilleurs(id); }), ailleurs = pool.filter(placeAilleurs);
+        var html = groupe('Pas placés', libres) + (!libres.length ? '<p class="small" style="margin:0">Tous les présents sont placés.</p>' : '') + groupe('Dans une autre équipe', ailleurs, true);
+        return '<p class="small" style="margin:0">' + 'Touchez les joueurs à ajouter : la liste reste ouverte.' + ' ' + (t.bloc === 'av' ? 'Les avants' : t.bloc === 'ar' ? 'Les arrières' : t.niveau ? 'Ceux de son niveau' : 'Ceux qui ne sont pas encore placés') + ' d\'abord.</p>' + html;
       }
       ui.modal({
         title: '<span class="cpk-title"></span>', body: '<div class="cpick"></div>',
-        actions: (S.p && S.p !== '*' ? [{ label: 'Passer cette place', cls: 'btn2 grey', onClick: function (host) {
-          var n = suivante(true);
-          if (n && n !== S.p) { S.p = n; paint(host); } else ui.toast('C\'est la seule place libre.');
-        } }] : []).concat([{ label: 'Terminé', value: null, cls: 'btn' }]),
+        actions: [{ label: 'Terminé', value: null, cls: 'btn' }],
         onOpen: function (host, close) {
           host.classList.add('cpk');
           paint(host);
@@ -1508,15 +1508,8 @@ window.MC = window.MC || {};
             var r = ev.target.closest('[data-pk]');
             if (!r || !B || !editable()) return;
             var id = r.getAttribute('data-pk');
-            placer(v, id, tid, S.p);
+            placer(v, id, tid, '*');
             if (!T()) return close(null);
-            if (S.p && S.p !== '*') {
-              var n = suivante(false);
-              if (n) S.p = n;
-              else { S.p = ''; ui.toast(labelEq(T()) + ' : les 10 places sont prises. Ajoutez des remplaçants ou fermez.'); }
-              var pb = host.querySelector('.mbtns button[data-i="0"]');
-              if (S.p === '' && pb && /Passer/.test(pb.textContent)) pb.remove();
-            }
             paint(host);
           });
         }
@@ -1545,7 +1538,7 @@ window.MC = window.MC || {};
     withC(function (C, e) {
       var S = { p: K.ORDRE.indexOf(p0) >= 0 ? p0 : K.ORDRE[0], ouvert: {} };
       function d() { return B && B.vs[v]; }
-      var pres = presentsOf(C, e), att = attenteOf(C, e), ABS = {}, ATTx = {};
+      var pres = presentsOf(C, e), att = attenteOf(C, e), ABS = {}, ATTx = {}, HORS = {}, absL = absentsOf(C, e);
       att.forEach(function (id) { ATTx[id] = 1; });
       // le vivier : les joueurs de la version, ses « Pas placés », les présents, ceux qui n'ont pas répondu ; tout le groupe s'il le faut
       function vivierIds() {
@@ -1554,7 +1547,8 @@ window.MC = window.MC || {};
         dd.equipes.forEach(function (t) { t.joueurs.forEach(function (j) { add(j.id); }); });
         bancOf(dd, pres).forEach(add); att.forEach(add);
         if (baseTous(dd.reglages)) tousOf(C).forEach(add);
-        out.forEach(function (id) { ABS[id] = pres.indexOf(id) < 0 && !ATTx[id]; });
+        // (v57) « absent » : répondu non ou retiré ; ni présent, ni absent, ni sans réponse : pas dans l'événement
+        out.forEach(function (id) { var non = pres.indexOf(id) < 0 && !ATTx[id]; ABS[id] = non && absL.indexOf(id) >= 0; HORS[id] = non && !ABS[id]; });
         return out;
       }
       function niveaux() { var n = []; d().equipes.forEach(function (t) { if (t.niveau && n.indexOf(t.niveau) < 0) n.push(t.niveau); }); return n; }
@@ -1568,7 +1562,10 @@ window.MC = window.MC || {};
         var eqs = d().equipes;
         return '<div class="ppnav" role="group" aria-label="Les postes">' + K.ORDRE.map(function (p) {
           var court = eqs.some(function (t) { return nb(t, p) < K.BESOIN[p]; });
-          return '<button type="button" class="ppn' + (p === S.p ? ' on' : '') + (court ? ' court' : '') + '" data-pp="' + p + '" aria-pressed="' + (p === S.p) + '" aria-label="' + esc(NOMPL[p]) + '"><b>' + COURT[p] + '</b><small>' + eqs.map(function (t) { return nb(t, p); }).join('·') + '</small></button>';
+          // (v57) au-delà de 3 équipes, les comptes ne tiennent plus dans la tuile : les places qui manquent (ou ✓)
+          var manque = 0; eqs.forEach(function (t) { manque += Math.max(0, K.BESOIN[p] - nb(t, p)); });
+          var cpt = eqs.length > 3 ? (manque ? '−' + manque : '✓') : eqs.map(function (t) { return nb(t, p); }).join('·');
+          return '<button type="button" class="ppn' + (p === S.p ? ' on' : '') + (court ? ' court' : '') + '" data-pp="' + p + '" aria-pressed="' + (p === S.p) + '" aria-label="' + esc(NOMPL[p]) + (manque ? ', ' + manque + ' place' + (manque > 1 ? 's' : '') + ' à prendre' : '') + '"><b>' + COURT[p] + '</b><small>' + cpt + '</small></button>';
         }).join('') + '</div>';
       }
       function equipesHtml() {
@@ -1580,14 +1577,14 @@ window.MC = window.MC || {};
         }).join('') + '</div>';
       }
       function rowHtml(id) {
-        var f = C.F[id], dd = d(), pl = place(id), ps = K.postesDe(f), nivs = niveaux();
+        var f = C.F[id], dd = d(), pl = place(id), ps = postesRanges(f), nivs = niveaux();   // même ordre que la liste Enfants
         var ou = pl ? labelEq(pl.t) + ' · ' + (pl.j.poste ? COURT[pl.j.poste] : 'sans poste') : '';
         var btns = dd.equipes.map(function (t) {
           var on = !!pl && pl.t.id === t.id && pl.j.poste === S.p, el = K.eligible(f, t, nivs);
           return '<button type="button" class="ppb' + (on ? ' on' : '') + (el ? '' : ' hors') + '" style="--lc:' + coulEq(t, dd) + '" data-ppid="' + esc(id) + '" data-ppt="' + esc(t.id) + '" aria-pressed="' + on + '" aria-label="' + esc(f.prenom) + ' : ' + esc(labelEq(t)) + (el ? '' : ', hors de son niveau') + '">' + esc(eqCourt(dd, t)) + '</button>';
         }).join('');
-        return '<div class="pprow' + (ABS[id] ? ' abs' : '') + '"><span class="ppi"><span class="row" style="gap:8px;min-width:0">' + niveauTag(f.niveau, true) + '<b class="cprn">' + esc(f.prenom) + '</b>' + starsMini(f.plaquage) + '</span>' +
-          '<span class="cprm">' + (ABS[id] ? '<span class="pptag abs">absent</span> ' : ATTx[id] ? '<span class="pptag att">' + icon('clock', 11) + ' pas répondu</span> ' : '') +
+        return '<div class="pprow' + (ABS[id] ? ' abs' : '') + (dd.equipes.length > 3 ? ' many' : '') + '"><span class="ppi"><span class="row" style="gap:8px;min-width:0">' + niveauTag(f.niveau, true) + '<b class="cprn">' + esc(f.prenom) + '</b>' + starsMini(f.plaquage) + '</span>' +
+          '<span class="cprm">' + (ABS[id] ? '<span class="pptag abs">absent</span> ' : ATTx[id] ? '<span class="pptag att">' + icon('clock', 11) + ' pas répondu</span> ' : HORS[id] ? '<span class="pptag hors">' + (e.source === 'spond' ? 'hors Spond' : 'pas coché') + '</span> ' : '') +
           (ps.length ? ps.map(function (x) { return (S.p === x ? '<b>' : '') + esc(K.nomPoste(x)) + (f.postesOk && f.postesOk.length && ps.length > 1 && K.lienPoste(f, x) === 'pref' ? '★' : '') + (S.p === x ? '</b>' : ''); }).join(', ') : 'pas encore de poste') +
           (ou && !(pl.j.poste === S.p) ? ' · <span class="cpr-ou">' + esc(ou) + '</span>' : '') + '</span></span><span class="ppbs">' + btns + '</span></div>';
       }
@@ -1738,6 +1735,7 @@ window.MC = window.MC || {};
     var memes = JSON.stringify(K.idsEquipes(av)) === JSON.stringify(ids);
     d.equipes = keep; d.banc = banc; d.reglages = { format: reg.format, nb: K.nbOf(reg), style: K.styleDe(o), opts: o };
     if (memes && av.tailles) d.reglages.tailles = av.tailles;
+    if (baseTous(reg)) d.reglages.base = 'tous';   // (v57) « tout le groupe » reste choisi
     return d;
   }
   // « Garder mes placements » change-t-il quelque chose (format, équipes, organisation) ?
@@ -1999,9 +1997,14 @@ window.MC = window.MC || {};
   // (sans postes réglés : ses vœux, en contour, sans ★)
   // (v46) dans l'ordre des postes : pilier, talonneur, 3e ligne, 9, 10, centre, ailier (le préféré : la pastille pleine) ;
   // (v57, demande de Nicolas) le poste préféré ★ toujours le plus à gauche, puis les autres dans l'ordre des postes
+  // (v57) les postes d'une fiche dans l'ordre d'affichage : les préférés d'abord, puis pilier → ailier
+  function postesRanges(f) {
+    var pf = (f.postesOk || []).length ? K.prefDe(f) : [];
+    return K.postesDe(f).slice().sort(function (a, b) { return (pf.indexOf(a) >= 0 ? 0 : 1) - (pf.indexOf(b) >= 0 ? 0 : 1) || K.ORDRE.indexOf(a) - K.ORDRE.indexOf(b); });
+  }
   function pillsPostes(f) {
     var pf = f.postesOk.length ? K.prefDe(f) : [];
-    var ps = K.postesDe(f).slice().sort(function (a, b) { return (pf.indexOf(a) >= 0 ? 0 : 1) - (pf.indexOf(b) >= 0 ? 0 : 1) || K.ORDRE.indexOf(a) - K.ORDRE.indexOf(b); });
+    var ps = postesRanges(f);
     if (!ps.length) return '<span class="tpp none">pas de poste</span>';
     return ps.map(function (p) {
       var pr = pf.indexOf(p) >= 0;

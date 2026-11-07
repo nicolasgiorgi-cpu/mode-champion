@@ -401,7 +401,7 @@ with sync_playwright() as p:
     check('matchs : plus de chasubles contre maillots', 'CHASUBLES' not in pg.inner_text('main').upper() and 'ÉQUIPE 1 CONTRE ÉQUIPE 2' in pg.inner_text('main').upper())
     pg.click('[data-act="cReprise"]'); pg.wait_for_timeout(900)
     eq = ev(pg, "[...document.querySelectorAll('.ccol:not(.banc) .ctid')].map(x=>x.textContent).join(',')")
-    check('matchs : repris du dernier entraînement (tels quels)', eq in ('Équipe 1,Équipe 2', 'Équipe 1,Équipe 2,Équipe 3,Équipe 4'), eq)
+    check('(v57) matchs : repris du dernier entraînement, toujours deux équipes', eq == 'Équipe 1,Équipe 2', eq)
     pg.click('[data-act="cDiscard"]'); pg.wait_for_timeout(300); pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(700)
     pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(1000)
     mh = ev(pg, "[...document.querySelectorAll('.clevel .clvh')].map(x=>x.textContent.split(' ·')[0]).join('|')")

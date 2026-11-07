@@ -333,6 +333,8 @@ pe.equipes.forEach(t => {
   assert.strictEqual(st.avTous + st.arTous, postes.length);
   // au-delà des places : un de ses postes de fiche
   t.joueurs.forEach(j => { if (j.poste && FE[j.id].postesOk.length) assert.ok(FE[j.id].postesOk.indexOf(j.poste) >= 0 || st.parPoste[j.poste] <= K.BESOIN[j.poste], j.id + ' : ' + j.poste); });
+  // un joueur dont c'est le poste principal le garde, si sa place n'est pas déjà prise par un autre « principal »
+  t.joueurs.forEach(j => { if (j.poste && FE[j.id].postesOk.length && FE[j.id].postesOk.indexOf(j.poste) < 0) assert.ok(FE[j.id].postesOk.every(p => t.joueurs.some(x => x.poste === p && x.id !== j.id)), j.id + ' : ' + j.poste); });
 });
 // les deux équipes couvrent autant de postes (le poste compte dans l'équilibre)
 const manq = pe.equipes.map(t => K.apparier(t.joueurs.map(j => j.id), FE).manquants.length);

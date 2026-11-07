@@ -79,6 +79,46 @@ const pl = K.proposer(Object.keys(H), H, {}, { format: 10, nb: { A: 1, B: 1, C: 
 assert.deepStrictEqual(J(pl.equipes.map(t => t.id)), ['A1', 'B1']);
 pl.equipes.forEach(t => assert.ok(t.joueurs.every(j => !!j.poste), t.id + ' : tout le monde a un poste (remplaçants compris)'));
 
+// ----- l'historique : un absent laissé dans une compo « tout le groupe » n'a pas joué (relecture v57, B1) -----
+{
+  const HF = { pb: fiche('pb', 'B', 2, ['centre'], null, 'A'), pa: fiche('pa', 'A', 3, ['pilier']), pc: fiche('pc', 'B', 2, ['ailier'], null, 'A'), pn: fiche('pn', 'B', 1, ['ailier']) };
+  const evts = { e1: { id: 'e1', titre: 'Plateau 3', debut: '2026-12-05T09:00:00.000Z', presents: ['pa', 'pc'], absents: ['pb'], sansReponse: ['pn'], ajouts: [], retraits: [] } };
+  const compo = { statut: 'publiee', evenementId: 'e1', reglages: { format: 10, nb: { A: 1, B: 1, C: 0 }, base: 'tous' },
+    equipes: [{ id: 'A1', niveau: 'A', joueurs: [{ id: 'pa', n: 'A', poste: 'pilier' }, { id: 'pb', n: 'B', poste: 'centre' }, { id: 'pc', n: 'B', poste: 'ailier' }] }, { id: 'B1', niveau: 'B', joueurs: [{ id: 'pn', n: 'B', poste: 'ailier' }] }] };
+  let Hh = K.historique([compo], evts, HF, '2026-12-10');
+  assert.ok(!Hh.pb, 'absent sur Spond : ni plateau, ni passerelle comptés');
+  assert.ok(!Hh.pn, 'tout le groupe : sans réponse, pas compté');
+  assert.strictEqual(Hh.pc.plateaux, 1); assert.strictEqual(Hh.pc.autre, 1, 'le présent en passerelle : son tour compte');
+  assert.deepStrictEqual(J(Hh.pa.liste[0].avec), ['pc'], 'les coéquipiers : seulement ceux qui ont joué');
+  // ajouté à la main malgré son « non » sur Spond : il a joué
+  evts.e1.ajouts = ['pb'];
+  assert.strictEqual(K.historique([compo], evts, HF, '2026-12-10').pb.autre, 1);
+  // une compo des présents : un absent placé (il a répondu « non » après) ne compte pas non plus ; sans réponse placé, si
+  evts.e1.ajouts = []; delete compo.reglages.base;
+  Hh = K.historique([compo], evts, HF, '2026-12-10');
+  assert.ok(!Hh.pb, 'absent : pas compté'); assert.strictEqual(Hh.pn.plateaux, 1, 'placé en attendant sa réponse : compté comme avant');
+  // un événement sans réponse Spond du tout (ajouté à la main, rien de coché) : on compte la compo
+  const e2 = { e2: { id: 'e2', titre: 'Plateau 4', debut: '2026-12-06T09:00:00.000Z', presents: [], absents: [], sansReponse: [], ajouts: [], retraits: [] } };
+  Hh = K.historique([Object.assign(J(compo), { evenementId: 'e2', reglages: { format: 10, nb: { A: 1, B: 1, C: 0 }, base: 'tous' } })], e2, HF, '2026-12-10');
+  assert.strictEqual(Hh.pb.plateaux, 1, 'pas de réponses Spond : tout le monde compte');
+}
+
+// ----- matchs : reprendre d'anciens matchs à 4 équipes donne 2 équipes (relecture v57, I3) -----
+{
+  const MF = {}; ['m1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7', 'm8'].forEach((id, i) => { MF[id] = fiche(id, i < 4 ? 'A' : 'C', 2, [i % 2 ? 'ailier' : 'pilier']); });
+  const old = { reglages: { partie: 'matchs', format: 10, mode: 'niveau', nbMatchs: 2, nb: { A: 0, B: 0, C: 0 } }, equipes: [
+    { id: 'E1', nom: 'Équipe 1', niveau: 'A', bloc: 'm1', joueurs: [{ id: 'm1', poste: 'pilier' }, { id: 'm2', poste: 'ailier' }] },
+    { id: 'E2', nom: 'Équipe 2', niveau: 'A', bloc: 'm1', joueurs: [{ id: 'm3', poste: 'pilier' }, { id: 'm4', poste: 'ailier' }] },
+    { id: 'E3', nom: 'Équipe 3', niveau: 'C', bloc: 'm2', joueurs: [{ id: 'm5', poste: 'pilier' }, { id: 'm6', poste: 'ailier' }] },
+    { id: 'E4', nom: 'Équipe 4', niveau: 'C', bloc: 'm2', joueurs: [{ id: 'm7', poste: 'pilier' }, { id: 'm8', poste: 'ailier' }] }] };
+  const rp = K.reprendre(old, Object.keys(MF).filter(id => id !== 'm8'), MF);
+  assert.deepStrictEqual(J(rp.equipes.map(t => t.id)), ['E1', 'E2'], 'deux équipes');
+  assert.deepStrictEqual(J(rp.equipes.map(t => t.joueurs.map(j => j.id))), [['m1', 'm2', 'm5', 'm6'], ['m3', 'm4', 'm7']], 'la 3 avec la 1, la 4 avec la 2 ; l\'absent sort');
+  rp.equipes.forEach(t => { assert.strictEqual(t.niveau, ''); assert.strictEqual(t.bloc, 'm1'); });
+  assert.strictEqual(rp.reglages.mode, 'equilibre'); assert.strictEqual(rp.reglages.nbMatchs, 1); assert.strictEqual(rp.reglages.format, 10);
+  assert.ok(rp.equipes.every(t => t.joueurs.every(j => !!j.poste)), 'chacun garde un poste');
+}
+
 // ----- matchs : réglages -----
 assert.strictEqual(K.regEnt({ partie: 'matchs', base: 'tous' }, [], {}).base, 'tous');
 assert.ok(!('base' in K.regEnt({ partie: 'matchs' }, [], {})), 'par défaut : les présents (rien d\'écrit)');
@@ -108,4 +148,10 @@ assert.ok(r.ok, JSON.stringify(r)); assert.ok(!('base' in r.compo.reglages), 'at
 r = g.call({ action: 'saveCompo', token: nico, evenementId: ep.id, compoId: g.call({ action: 'compos', token: nico }).compos.filter(c => c.evenementId === ep.id)[0].id, version: 1,
   reglages: { format: 10, nb: { A: 1, B: 1 }, base: 'pirate' }, equipes: [{ id: 'A1', niveau: 'A', joueurs: [{ id: P.Tom, poste: 'pilier' }] }], banc: [] });
 assert.ok(r.ok, JSON.stringify(r)); assert.ok(!('base' in r.compo.reglages), 'une autre valeur : ignorée (les présents)');
+r = g.call({ action: 'saveCompo', token: nico, evenementId: ep.id, compoId: r.compo.id, version: r.compo.version,
+  reglages: { format: 5, nb: { A: 1, B: 1 }, base: 'tous' }, equipes: [{ id: 'A1', niveau: 'A', joueurs: [{ id: P.Tom }] }], banc: [] });
+assert.ok(r.ok, JSON.stringify(r)); assert.ok(!('base' in r.compo.reglages), 'jeu à 5 : toujours les présents');
+r = g.call({ action: 'saveCompo', token: nico, evenementId: ee.id, compoId: g.call({ action: 'compos', token: nico }).compos.filter(c => c.evenementId === ee.id && c.partie === 'matchs')[0].id, version: 1, partie: 'matchs',
+  reglages: { partie: 'matchs', format: 10, mode: 'equilibre' }, equipes: [{ id: 'E1', nom: 'Équipe 1', bloc: 'm1', joueurs: [{ id: P.Tom, poste: 'pilier' }] }], banc: [] });
+assert.ok(r.ok, JSON.stringify(r)); assert.strictEqual(r.compo.reglages.nbMatchs, 1, 'matchs : un seul match par défaut');
 console.log('test_compo10 : OK');
