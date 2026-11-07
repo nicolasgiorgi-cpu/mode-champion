@@ -134,8 +134,8 @@ assert.ok(q.equipes.every(t => /^[A-Za-z0-9]{1,6}$/.test(t.id)), q.equipes.map(t
 q = K.proposerEnt(tous, F, {}, { partie: 'ateliers', mode: 'aforte', n: 1 }, '2026-11-04');
 assert.strictEqual(q.equipes.length, 1);
 assert.strictEqual(q.reglages.mode, 'equilibre', 'un seul groupe : des groupes équilibrés (pas « 1 groupe avec un groupe A fort »)');
-// les matchs n'ont pas ce mode
-assert.strictEqual(K.regEnt({ partie: 'matchs', mode: 'aforte' }, tous, F).mode, 'niveau');
+// les matchs n'ont pas ce mode ; (v57) les matchs sont toujours équilibrés (deux équipes avec tout le monde)
+assert.strictEqual(K.regEnt({ partie: 'matchs', mode: 'aforte' }, tous, F).mode, 'equilibre');
 
 // ----- serveur : le style du plateau et le mode des ateliers sont gardés -----
 const { makeEnv } = require('./gas_mock.js');

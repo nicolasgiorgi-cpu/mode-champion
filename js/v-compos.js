@@ -83,6 +83,11 @@ window.MC = window.MC || {};
   function presentsOf(C, e) { return K.presents(e).filter(function (id) { return C.actifs[id]; }); }
   // pas encore répondu sur Spond : plaçables en attendant leur réponse
   function attenteOf(C, e) { return K.attente(e).filter(function (id) { return C.actifs[id]; }); }
+  // (v57, demande de Nicolas du 07/11) au jeu à 10 (plateau ou matchs), une compo part des présents (par défaut) ou de tout
+  // le groupe : les absents et ceux qui n'ont pas répondu sur Spond y sont alors marqués, sans que l'appli touche aux équipes
+  function tousOf(C) { return C.g.joueurs.filter(function (p) { return C.actifs[p.joueur.id]; }).map(function (p) { return p.joueur.id; }); }
+  function baseTous(reg) { return !!reg && reg.base === 'tous' && K.fmt(reg) === 10; }
+  function idsBase(C, e, reg) { return baseTous(reg) ? tousOf(C) : presentsOf(C, e); }
   // les joueurs d'une compo publiée qui ne viennent plus (répondu absent, retirés des présents)
   function partisDe(C, e, c) {
     if (!c || !c.equipes) return [];
@@ -434,7 +439,8 @@ window.MC = window.MC || {};
       if (nb >= 2) {
         var fmt = jour(e) >= '2026-12-01' ? 10 : 5;
         var lastP = C.cd.compos.filter(function (x) { return x.statut === 'publiee' && !x.partie; }).sort(function (a, b) { return a.maj < b.maj ? 1 : -1; })[0];
-        if (lastP && lastP.reglages && lastP.reglages.format) fmt = lastP.reglages.format;
+        var leP = lastP && C.evts[lastP.evenementId];   // (v57) comme regOf : en décembre, pas le format d'un plateau d'avant
+        if (lastP && lastP.reglages && lastP.reglages.format && !(fmt === 10 && (!leP || jour(leP) < '2026-12-01'))) fmt = lastP.reglages.format;
         var sug = K.suggestNb(pres, C.F, fmt);
         var parts = ['A', 'B', 'C'].filter(function (n) { return sug[n]; }).map(function (n, i) { return sug[n] + (i ? ' ' : (sug[n] > 1 ? ' équipes ' : ' équipe ')) + n; });
         if (parts.length) conseil = '<p class="small" style="margin:0">' + nb + ' présents, jeu à ' + fmt + '. Conseillé : ' + parts.join(', ') + '. Une proposition en un geste, ou 2 versions côte à côte à soumettre au vote des éducs.</p>';
@@ -631,9 +637,10 @@ window.MC = window.MC || {};
       return B.reg;
     }
     var ids = presentsOf(C, e), format = jour(e) >= '2026-12-01' ? 10 : 5;
-    // reprendre le format du dernier plateau
+    // reprendre le format du dernier plateau ; (v57) à partir de décembre (jeu à 10), seulement un plateau de décembre ou après
     var last = C.cd.compos.filter(function (c) { return c.statut === 'publiee' && !c.partie; }).sort(function (a, b) { return a.maj < b.maj ? 1 : -1; })[0];   // (v35) pas un match d'entraînement
-    if (last && last.reglages && last.reglages.format) format = last.reglages.format;
+    var le = last && C.evts[last.evenementId];
+    if (last && last.reglages && last.reglages.format && !(format === 10 && (!le || jour(le) < '2026-12-01'))) format = last.reglages.format;
     B.reg = { format: format, nb: K.suggestNb(ids, C.F, format), style: 'equilibre' };
     B.reg.opts = K.optsDe(B.reg);
     return B.reg;
@@ -725,33 +732,47 @@ window.MC = window.MC || {};
         '<output class="cnbv">' + t[id] + '</output>' +
         '<button type="button" class="ibtn" ' + attr + '="' + id + '" data-d="1" aria-label="' + id + ' : un joueur de plus"' + (t[id] >= 40 ? ' disabled' : '') + '>' + icon('plus', 16) + '</button></span></div>';
     }).join('') + '</div><p class="small ctailp" style="margin:0' + (d ? ';color:var(--orange)' : '') + '">' +
-      (d > 0 ? 'Il reste ' + d + ' enfant' + (d > 1 ? 's' : '') + ' à placer : ' : d < 0 ? (-d) + ' place' + (-d > 1 ? 's' : '') + ' de trop : ' : '') + s + ' joueurs pour ' + ids.length + ' présents' +
+      (d > 0 ? 'Il reste ' + d + ' enfant' + (d > 1 ? 's' : '') + ' à placer : ' : d < 0 ? (-d) + ' place' + (-d > 1 ? 's' : '') + ' de trop : ' : '') + s + ' joueurs pour ' + ids.length + (baseTous(reg) ? ' enfants' : ' présents') +
       (!d && !modif ? ', équipes équilibrées' : '') + '.' + (modif ? ' <button type="button" class="lnk" ' + attrEq + '>Équilibrer</button>' : '') + '</p></details>' + (ligne ? '</div>' : '</section>');
   }
+  // (v57) « Avec qui ? » : les présents ou tout le groupe (jeu à 10) ; attr : l'attribut des deux boutons
+  function baseHtml(C, e, reg, attr) {
+    var np = presentsOf(C, e).length, nt = tousOf(C).length, tous = baseTous(reg);
+    return '<section class="sec"><h2 class="h2">Avec qui ?</h2><div class="cstyles c2">' + [
+      ['presents', 'Les présents', np + ' présent' + (np > 1 ? 's' : '') + (e.source === 'spond' ? ' d\'après Spond' : '') + '.'],
+      ['tous', 'Tout le groupe', nt + ' enfants. Les absents et ceux qui n\'ont pas répondu sont marqués dans la compo.']
+    ].map(function (o) {
+      var on = (o[0] === 'tous') === tous;
+      return '<button type="button" class="opt cstyle' + (on ? ' on' : '') + '" aria-pressed="' + on + '" ' + attr + '="' + o[0] + '"><b>' + o[1] + '</b><small>' + o[2] + '</small></button>';
+    }).join('') + '</div></section>';
+  }
+  MC.act.cBase = function (b) { if (!B || !B.reg) return; if (b.getAttribute('data-v') === 'tous') B.reg.base = 'tous'; else delete B.reg.base; B.reg.tailles = null; redessine(); };
   function paintReglages(C, e) {
-    var ids = presentsOf(C, e), reg = regOf(C, e), cnt = { A: 0, B: 0, C: 0, '': 0 };
+    var reg = regOf(C, e), ids = idsBase(C, e, reg), cnt = { A: 0, B: 0, C: 0, '': 0 };
     ids.forEach(function (id) { cnt[(C.F[id] || {}).niveau || '']++; });
     var af = K.optsDe(reg).orga === 'aforte' ? K.nbAForte(reg.nb) : null, tot = af ? af.A + af.B : reg.nb.A + reg.nb.B + reg.nb.C, sug = K.suggestNb(ids, C.F, reg.format);
     var per = tot ? Math.round(ids.length / tot * 10) / 10 : 0;
     var noLv = ids.filter(function (id) { return !(C.F[id] || {}).niveau; });
     var ok = tot && !ecartTailles(ids, C.F, reg);   // (v49) le total des joueurs par équipe = les présents
     return '<main class="screen">' + MC.educBar(C.g, 'Compo · ' + e.titre, '#/educ/evt/' + e.id, e.titre) +
-      '<div class="head"><span class="kicker" style="color:var(--gold)">' + esc(quand(e)) + ' · ' + ids.length + ' présents</span><h1 class="big sm">Préparer la compo</h1></div>' +
-      (ids.length < 2 ? '<div class="empty">Cochez d\'abord les présents sur la page de l\'événement.</div><a class="btn2" href="#/educ/evt/' + esc(e.id) + '">Les présents</a></main>' :
+      '<div class="head"><span class="kicker" style="color:var(--gold)">' + esc(quand(e)) + ' · ' + presentsOf(C, e).length + ' présents</span><h1 class="big sm">Préparer la compo</h1></div>' +
+      (ids.length < 2 && !(reg.format === 10 && tousOf(C).length >= 2) ? '<div class="empty">Cochez d\'abord les présents sur la page de l\'événement.</div><a class="btn2" href="#/educ/evt/' + esc(e.id) + '">Les présents</a></main>' :
       '<section class="sec"><h2 class="h2">Le format</h2><div class="grid2">' + K.FORMATS.map(function (f) {
         return '<button type="button" class="opt' + (reg.format === f ? ' on' : '') + '" aria-pressed="' + (reg.format === f) + '" data-act="cFmt" data-v="' + f + '">Jeu à ' + f + '</button>';
-      }).join('') + '</div><p class="small" style="margin:0">' + (reg.format === 10 ? 'Jeu à 10 : chaque joueur a son poste du plateau, par défaut celui de sa fiche (mêlée 3 + 2, demi de mêlée, ouvreur, 1 centre, 2 ailiers).' : 'Jeu à 5 : pas de postes dans la compo ; l\'appli range quand même chaque équipe en avants et arrières, d\'après le poste principal de leur fiche.') + '</p></section>' +
+      }).join('') + '</div><p class="small" style="margin:0">' + (reg.format === 10 ? 'Jeu à 10 : chaque joueur a son poste du plateau, remplaçants compris, par défaut celui de sa fiche (mêlée 3 + 2, demi de mêlée, ouvreur, 1 centre, 2 ailiers).' : 'Jeu à 5 : pas de postes dans la compo ; l\'appli range quand même chaque équipe en avants et arrières, d\'après le poste principal de leur fiche.') + '</p></section>' +
+      (reg.format === 10 ? baseHtml(C, e, reg, 'data-act="cBase" data-v') : '') +
       '<section class="sec"><h2 class="h2">Équipes par niveau</h2>' + stepperHtml('A', reg, cnt, sug, 'data-act="cNb" data-n') + stepperHtml('B', reg, cnt, sug, 'data-act="cNb" data-n') + stepperHtml('C', reg, cnt, sug, 'data-act="cNb" data-n') +
       '<p class="small" style="margin:0">' + tot + ' équipe' + (tot > 1 ? 's' : '') + (tot ? ', environ ' + virg(per) + ' joueurs par équipe' : '') + '. Un niveau sans équipe joue dans le niveau voisin.</p>' +
       (noLv.length ? '<p class="small" style="margin:0;color:var(--orange)">Sans niveau (placés en B en attendant) : ' + noLv.map(function (id) { return esc(nom(C, id)); }).join(', ') + '. <a href="#/educ/joueurs">Fiche terrain</a></p>' : '') + '</section>' +
       taillesHtml(ids, C.F, reg, 'data-act="cTail" data-t', 'data-act="cTailEq"') +   // (v56) juste sous le nombre d'équipes
-      graphePresents(C, ids, 'plateau') +
+      graphePresents(C, ids, 'plateau', baseTous(reg)) +
       '<section class="sec"><h2 class="h2">Les options</h2>' + optionsHtml(reg, 'data-act="cOpt" data-k') +
       (af ? '<p class="small" style="margin:0">A forte : ' + af.A + ' équipe' + (af.A > 1 ? 's' : '') + ' A, ' + af.B + ' équipe' + (af.B > 1 ? 's' : '') + ' B (les équipes C comptent comme des B : Débrouillés et Débutants mélangés' + (reg.nb.B + reg.nb.C > 9 ? ' ; 9 équipes B au plus' : '') + ').</p>' : '') + '</section>' +
       '<div class="sec"><button type="button" class="btn" data-act="cPropose"' + (ok ? '' : ' disabled') + '>' + icon('spark', 18) + ' Proposer une compo</button>' +
       '<button type="button" class="btn2" data-act="cPropose2"' + (ok ? '' : ' disabled') + '>' + icon('swap', 16) + ' Proposer 2 versions côte à côte</button>' +
-      '<button type="button" class="btn2 grey" data-act="cZero"' + (tot ? '' : ' disabled') + '>Partir de zéro</button>' +
-      '<p class="small" style="margin:0">Avec 2 versions, vous les construisez côte à côte, puis vous en publiez une ou vous les soumettez au vote des éducs. Tout se déplace ensuite d\'un geste.</p></div></main>');
+      (reg.format === 10 ? '<button type="button" class="btn2" data-act="cZero10"' + (tot ? '' : ' disabled') + '>' + icon('board', 16) + ' Poste par poste, à la main</button>' :
+        '<button type="button" class="btn2 grey" data-act="cZero"' + (tot ? '' : ' disabled') + '>Partir de zéro</button>') +
+      '<p class="small" style="margin:0">' + (reg.format === 10 ? '« Poste par poste » : les piliers, puis le talonneur, les 3es lignes… ; pour chaque poste, vous prenez autant d\'enfants que vous voulez dans chaque équipe. ' : '') + 'Avec 2 versions, vous les construisez côte à côte, puis vous en publiez une ou vous les soumettez au vote des éducs. Tout se déplace ensuite d\'un geste.</p></div></main>');
   }
   // ---------- réglages d'un entraînement : par niveau ou équilibrés ; ateliers : avants et arrières ensemble ou séparés ----------
   function stepsHtml(C, e, P) {
@@ -779,8 +800,12 @@ window.MC = window.MC || {};
   }
   function par(n, k) { return k ? virg(Math.round(n / k * 10) / 10) : '0'; }
   // le contenu des réglages (écran, ou fenêtre « Refaire ») ; attrs : les attributs des boutons
-  function regEntHtml(C, reg, ids, A) {
+  function regEntHtml(C, reg, ids, A, e) {
     var at = reg.partie === 'ateliers', M = MODES[reg.partie], co = cotes(C, ids);
+    // (v57, demande de Nicolas du 07/11) les matchs : deux équipes équilibrées avec tout le monde, et « Avec qui ? »
+    if (!at) return '<section class="sec"><h2 class="h2">Les équipes</h2><p class="small" style="margin:0">Deux équipes équilibrées (niveaux, plaquage, postes) : Équipe 1 contre Équipe 2, environ ' + par(ids.length, 2) + ' par équipe. ' +
+      'Jeu à 10 : chacun a son poste du match, remplaçants compris, par défaut celui de sa fiche ; touchez un joueur pour lui en donner un autre, juste pour ce match.</p></section>' +
+      baseHtml(C, e, reg, A.base);
     var html = '<section class="sec"><h2 class="h2">' + (at ? 'Les groupes' : 'Les matchs') + '</h2><div class="cstyles' + (at ? '' : ' c2') + '">' + Object.keys(M).map(function (m) {
       return '<button type="button" class="opt cstyle' + (reg.mode === m ? ' on' : '') + '" aria-pressed="' + (reg.mode === m) + '" ' + A.mode + '="' + m + '"><b>' + M[m][0] + '</b><small>' + M[m][1] + '</small></button>';
     }).join('') + '</div></section>';
@@ -802,20 +827,21 @@ window.MC = window.MC || {};
     return html + '</section>';
   }
   function paintReglagesEnt(C, e) {
-    var ids = presentsOf(C, e), reg = regOf(C, e), at = B.partie === 'ateliers', last = derniere(C, e, B.partie);
+    var reg = regOf(C, e), ids = idsBase(C, e, reg), at = B.partie === 'ateliers', last = derniere(C, e, B.partie);
     var le = last ? C.evts[last.evenementId] : null, autre = autreMode(reg.mode);
     var avant = at ? '' : (function () { var ca = compoOf(C.cd, e.id, 'ateliers'); return ca ? '' : '<p class="small" style="margin:0;color:var(--gold)">Les ateliers ne sont pas encore faits : <a href="' + lienCompo(esc(e.id), 'ateliers') + '">commencer par les ateliers</a>, ou faire les matchs d\'abord.</p>'; })();
     return '<main class="screen">' + MC.educBar(C.g, (at ? 'Ateliers' : 'Matchs') + ' · ' + e.titre, '#/educ/evt/' + e.id, e.titre) +
-      '<div class="head"><span class="kicker" style="color:var(--gold)">' + esc(quand(e)) + ' · ' + ids.length + ' présents</span><h1 class="big sm">' + NOM_PARTIE[B.partie] + '</h1></div>' +
+      '<div class="head"><span class="kicker" style="color:var(--gold)">' + esc(quand(e)) + ' · ' + presentsOf(C, e).length + ' présents</span><h1 class="big sm">' + NOM_PARTIE[B.partie] + '</h1></div>' +
       stepsHtml(C, e, B.partie) + avant +
-      (ids.length < 2 ? '<div class="empty">Cochez d\'abord les présents sur la page de l\'entraînement.</div><a class="btn2" href="#/educ/evt/' + esc(e.id) + '">Les présents</a></main>' :
-      regEntHtml(C, reg, ids, { mode: 'data-act="cEMode" data-v', sep: 'data-act="cESep" data-v', n: 'data-act="cEN" data-k' }) +
-      (at ? '' : graphePresents(C, ids, 'matchs')) +
-      '<div class="sec"><button type="button" class="btn" data-act="cPropose">' + icon('spark', 18) + (at ? ' Proposer les groupes' : ' Proposer les matchs') + '</button>' +
-      '<button type="button" class="btn2" data-act="cPropose2">' + icon('swap', 16) + ' 2 versions côte à côte (' + minus(MODES[B.partie][reg.mode][0]) + ' et ' + minus(MODES[B.partie][autre][0]) + ')</button>' +
+      (ids.length < 2 && !(!at && tousOf(C).length >= 2) ? '<div class="empty">Cochez d\'abord les présents sur la page de l\'entraînement.</div><a class="btn2" href="#/educ/evt/' + esc(e.id) + '">Les présents</a></main>' :
+      regEntHtml(C, reg, ids, { mode: 'data-act="cEMode" data-v', sep: 'data-act="cESep" data-v', n: 'data-act="cEN" data-k', base: 'data-act="cBase" data-v' }, e) +
+      (at ? '' : graphePresents(C, ids, 'matchs', baseTous(reg))) +
+      '<div class="sec"><button type="button" class="btn" data-act="cPropose"' + (ids.length < 2 ? ' disabled' : '') + '>' + icon('spark', 18) + (at ? ' Proposer les groupes' : ' Proposer les 2 équipes') + '</button>' +
+      (at ? '<button type="button" class="btn2" data-act="cPropose2">' + icon('swap', 16) + ' 2 versions côte à côte (' + minus(MODES[B.partie][reg.mode][0]) + ' et ' + minus(MODES[B.partie][autre][0]) + ')</button>' :
+        '<button type="button" class="btn2" data-act="cZero10"' + (ids.length < 2 ? ' disabled' : '') + '>' + icon('board', 16) + ' Poste par poste, à la main</button>') +   // (v57) les matchs : plus de 2 versions « par niveau / équilibrés »
       (last ? '<button type="button" class="btn2" data-act="cReprise">' + icon('refresh', 16) + ' Reprendre ' + (at ? 'les groupes' : 'les équipes') + ' du ' + esc(ui.fmtDate(jour(le))) + '</button>' : '') +
-      '<button type="button" class="btn2 grey" data-act="cZero">Partir de zéro</button>' +
-      '<p class="small" style="margin:0">Tout se déplace ensuite d\'un geste : touchez un joueur, puis son ' + (at ? 'groupe' : 'équipe') + '. Un éduc publie ; le jour même, tous les éducs peuvent corriger.</p></div></main>');
+      (at ? '<button type="button" class="btn2 grey" data-act="cZero">Partir de zéro</button>' : '') +
+      '<p class="small" style="margin:0">' + (at ? '' : '« Poste par poste » : les piliers, puis le talonneur, les 3es lignes… ; pour chaque poste, vous prenez autant d\'enfants que vous voulez dans chaque équipe. ') + 'Tout se déplace ensuite d\'un geste : touchez un joueur, puis son ' + (at ? 'groupe' : 'équipe') + '. Un éduc publie ; le jour même, tous les éducs peuvent corriger.</p></div></main>');
   }
   // (v48) la 2e version à côté : par niveau ↔ équilibrés ; A forte ↔ équilibrés
   function autreMode(m) { return m === 'equilibre' ? 'niveau' : 'equilibre'; }
@@ -832,13 +858,19 @@ window.MC = window.MC || {};
     withC(function (C, e) {
       var last = derniere(C, e, B.partie);
       if (!last) return;
-      var d = K.reprendre(last, presentsOf(C, e), C.F), le = C.evts[last.evenementId];
+      var d = K.reprendre(last, idsBase(C, e, B.reg), C.F), le = C.evts[last.evenementId];
+      if (baseTous(B.reg)) d.reglages.base = 'tous'; else delete d.reglages.base;   // (v57) avec qui : le choix d'aujourd'hui
       B.vs = [d]; B.mode = 'draft'; B.dirty = true; B.sel = null; saveDraft();
       ui.toast('Repris du ' + ui.fmtDate(jour(le)) + (d.banc.length ? ' : ' + d.banc.length + ' à placer (« Pas placés »)' : ''));
       app.rerender(); window.scrollTo(0, 0);
     });
   };
-  MC.act.cFmt = function (b) { if (!B || !B.reg) return; B.reg.format = Number(b.getAttribute('data-v')); redessine(); };
+  // (v57) changer de format reprend le nombre d'équipes conseillé pour ce format (au jeu à 10 : une équipe A, une équipe B)
+  MC.act.cFmt = function (b) {
+    if (!B || !B.reg) return; var f = Number(b.getAttribute('data-v'));
+    if (f !== B.reg.format) withC(function (C, e) { B.reg.nb = K.suggestNb(presentsOf(C, e), C.F, f); B.reg.tailles = null; });
+    B.reg.format = f; redessine();
+  };
   function redessine() { if (B && B.vs && B.vs.length && B.mode !== 'reglages') rerenderKeep(); else app.rerender(); }
   MC.act.cNb = function (b) {
     if (!B || !B.reg) return; var n = b.getAttribute('data-n'); B.reg.nb[n] = Math.max(0, Math.min(6, B.reg.nb[n] + Number(b.getAttribute('data-d')))); B.reg.tailles = null;
@@ -850,7 +882,7 @@ window.MC = window.MC || {};
   };
   // (v49) une équipe : un joueur de plus ou de moins ; « Équilibrer » revient aux tailles par défaut
   function tailleUn(reg, ids, F, id, d) { var t = JSON.parse(JSON.stringify(taillesReg(ids, F, reg))); t[id] = Math.max(0, Math.min(40, (t[id] || 0) + d)); reg.tailles = t; }
-  MC.act.cTail = function (b) { withC(function (C, e) { if (!B.reg) return; tailleUn(B.reg, presentsOf(C, e), C.F, b.getAttribute('data-t'), Number(b.getAttribute('data-d'))); redessine(); }); };
+  MC.act.cTail = function (b) { withC(function (C, e) { if (!B.reg) return; tailleUn(B.reg, idsBase(C, e, B.reg), C.F, b.getAttribute('data-t'), Number(b.getAttribute('data-d'))); redessine(); }); };
   MC.act.cTailEq = function () { if (!B || !B.reg) return; B.reg.tailles = null; redessine(); };
   function withC(fn) {
     var g = app.S.cache.group, cd = app.S.cache.compos;
@@ -862,13 +894,14 @@ window.MC = window.MC || {};
   function proposition(C, e, reg, x) {
     if (B && B.partie) {
       var r = JSON.parse(JSON.stringify(reg)); if (x === 'niveau' || x === 'equilibre' || x === 'aforte') r.mode = x;
-      var q = K.proposerEnt(presentsOf(C, e), C.F, C.H, r, L.today());
+      var q = K.proposerEnt(idsBase(C, e, reg), C.F, C.H, r, L.today());
       return { reglages: q.reglages, equipes: q.equipes, banc: q.banc, raisons: q.raisons };
     }
-    var o = x && typeof x === 'object' ? x : K.optsDe(reg), ids = presentsOf(C, e), memes = o.orga === K.optsDe(reg).orga && o.effectifs === K.optsDe(reg).effectifs;
+    var o = x && typeof x === 'object' ? x : K.optsDe(reg), ids = idsBase(C, e, reg), memes = o.orga === K.optsDe(reg).orga && o.effectifs === K.optsDe(reg).effectifs;
     var r2 = { format: K.fmt(reg), nb: K.nbOf(reg), style: K.styleDe(o), opts: o, tailles: memes ? reg.tailles || null : null };
     var p = K.proposer(ids, C.F, C.H, r2, L.today());
     var out = { format: r2.format, nb: r2.nb, style: r2.style, opts: o };
+    if (baseTous(reg)) out.base = 'tous';   // (v57) la compo part de tout le groupe
     if (o.effectifs !== 'niveaux' && r2.tailles && !ecartTailles(ids, C.F, r2)) out.tailles = K.tailles(ids, C.F, r2);   // (v49) seulement des tailles réglées
     return { reglages: out, equipes: p.equipes, banc: p.banc, raisons: p.raisons };
   }
@@ -906,14 +939,20 @@ window.MC = window.MC || {};
       app.rerender(); window.scrollTo(0, 0);
     });
   };
-  MC.act.cZero = function () {
+  // une compo vide (tout le monde en « Pas placés ») ; renvoie vrai si elle est faite
+  function zero() {
+    var ok = false;
     withC(function (C, e) {
-      var reg = B.reg, d;
-      if (B.partie) d = K.videEnt(presentsOf(C, e), C.F, reg, L.today());
-      else { var oz = K.optsDe(reg); d = K.vide(presentsOf(C, e), reg); d.reglages = { format: reg.format, nb: K.nbOf(reg), style: K.styleDe(oz), opts: oz }; }
-      B.vs = [d]; B.mode = 'draft'; B.dirty = true; saveDraft(); app.rerender(); window.scrollTo(0, 0);
+      var reg = B.reg, d, ids = idsBase(C, e, reg);
+      if (B.partie) d = K.videEnt(ids, C.F, reg, L.today());
+      else { var oz = K.optsDe(reg); d = K.vide(ids, reg); d.reglages = { format: reg.format, nb: K.nbOf(reg), style: K.styleDe(oz), opts: oz }; if (baseTous(reg)) d.reglages.base = 'tous'; }
+      B.vs = [d]; B.mode = 'draft'; B.dirty = true; B.sel = null; saveDraft(); app.rerender(); window.scrollTo(0, 0); ok = true;
     });
-  };
+    return ok;
+  }
+  MC.act.cZero = function () { zero(); };
+  // (v57) jeu à 10 : partir d'une compo vide et choisir poste par poste, en commençant par les piliers
+  MC.act.cZero10 = function () { if (B && B.reg && zero()) parPoste(0, K.ORDRE[0]); };
 
   // ---------- le tableau ----------
   // couleur d'une équipe : son niveau, sinon une couleur par groupe (équipes de match comprises)
@@ -970,15 +1009,17 @@ window.MC = window.MC || {};
     var sansP = fmt10 && st.inconnus ? ' · <b class="csp">Sans poste ' + st.inconnus + '</b>' : '';   // (v35) à régler
     var sel = B && B.sel && B.sel.v === v ? B.sel.id : null, w = sel ? K.where(d, sel) : null;
     var dest = !!sel && ed && (!w || w.t < 0 || d.equipes[w.t].id !== t.id);
-    var avtq = petit ? '<span class="cavtq" title="Avants et arrières (postes du match)">Av ' + st.av + ' · Ar ' + st.ar + (st.rempl ? ' · Remp. ' + st.rempl : '') + sansP + '</span>'
-      : fmt10 ? '<span class="cavtq' + (st.av < 5 || st.ar < 5 ? ' bad' : '') + '" title="Avants et arrières (postes du plateau)' + (st.rempl ? ' · remplaçants : ' + remplTxt(st.remplTypes) : '') + '">Av ' + st.av + '/5 · Ar ' + st.ar + '/5' + (st.rempl ? ' · Remp. ' + st.rempl : '') + sansP + '</span>'
+    // (v57) au jeu à 10, chacun a un poste, remplaçants compris : Av et Ar = les places tenues sur le terrain, Remp. = les joueurs en plus
+    var avtq = petit ? '<span class="cavtq" title="Avants et arrières (postes du match)">Av ' + st.avTous + ' · Ar ' + st.arTous + (st.rempl > st.avTous - st.av + st.arTous - st.ar ? ' · Remp. ' + (st.rempl - (st.avTous - st.av + st.arTous - st.ar)) : '') + sansP + '</span>'
+      : fmt10 ? '<span class="cavtq' + (st.av < 5 || st.ar < 5 ? ' bad' : '') + '" title="Places tenues sur le terrain : avants et arrières' + (st.rempl ? ' · remplaçants : les joueurs en plus, à leur poste' : '') + '">Av ' + st.av + '/5 · Ar ' + st.ar + '/5' + (st.rempl ? ' · Remp. ' + st.rempl : '') + sansP + '</span>'
       : '<span class="cavtq" title="D\'après le poste principal de la fiche ; ⇄ = peuvent jouer avant et arrière ; ? = pas encore de poste">Av ' + st.av + ' · Ar ' + st.ar + (st.les2 ? ' · ⇄' + st.les2 : '') + (st.inconnus ? ' · ?' + st.inconnus : '') + '</span>';
     var sc = K.sections(t, C.F, d.reglages.format), miss = ed && fmt10 && places ? st.manquants : [];
     var corps = fmt10
-      ? secHtml(C, t, v, d, moved, 'Avants', sc.av, { compte: petit ? st.av : st.av + '/5', bad: !petit && st.av !== 5, slots: miss.filter(function (p) { return K.typePoste(p) === 'av'; }) }) +
-        secHtml(C, t, v, d, moved, 'Arrières', sc.ar, { compte: petit ? st.ar : st.ar + '/5', bad: !petit && st.ar !== 5, slots: miss.filter(function (p) { return K.typePoste(p) === 'ar'; }) }) +
+      // (v57) les avants (tous, remplaçants compris), en rouge s'il manque une place ; les places vides (+) restent à toucher
+      ? secHtml(C, t, v, d, moved, 'Avants', sc.av, { compte: st.avTous, bad: !petit && st.av !== 5, slots: miss.filter(function (p) { return K.typePoste(p) === 'av'; }) }) +
+        secHtml(C, t, v, d, moved, 'Arrières', sc.ar, { compte: st.arTous, bad: !petit && st.ar !== 5, slots: miss.filter(function (p) { return K.typePoste(p) === 'ar'; }) }) +
         secHtml(C, t, v, d, moved, 'Sans poste', sc.sans, { bad: true }) +
-        secHtml(C, t, v, d, moved, 'Remplaçants', sc.rempl, { plus: ed ? (petit && st.manquants.length ? slotHtml(v, t, st.manquants[0], '+ Ajouter un joueur', false) : slotHtml(v, t, '', '+ Remplaçant', false)) : '' })
+        secHtml(C, t, v, d, moved, 'Remplaçants sans poste', sc.rempl, { plus: ed && petit && st.manquants.length ? slotHtml(v, t, st.manquants[0], '+ Ajouter un joueur', false) : '' })
       : t.bloc === 'av' || t.bloc === 'ar'
         // un groupe d'avants ou d'arrières : une seule liste, rangée par poste
         ? (sc.av.length + sc.ar.length + sc.sans.length ? '<div class="csec"><ul class="cpl">' + sc.av.concat(sc.ar, sc.sans).map(function (j) { return chip(C, t, j, v, d, moved[j.id]); }).join('') + '</ul></div>' : '') + (ed ? slotHtml(v, t, '*', '+ Ajouter des joueurs', false) : '')
@@ -1008,9 +1049,11 @@ window.MC = window.MC || {};
     else tag = ty ? '<span class="cpo ty">' + (ty === 'av' ? 'Av' : ty === 'ar' ? 'Ar' : 'Av·Ar') + '</span>' : '';
     var on = B && B.sel && B.sel.v === v && B.sel.id === j.id;
     // réponse Spond : en attente (horloge) ou plus là (barré, « absent »)
-    var att = ATT && ATT.att[j.id], gone = ATT && t && !ATT.pres[j.id] && !att;
+    // (v57) au jeu à 10, l'absent garde son poste (la pastille « absent » passe avec les autres marques) ; en partant de tout le
+    // groupe, les absents encore « Pas placés » sont marqués aussi
+    var att = ATT && ATT.att[j.id], gone = ATT && (t || (ATT.tous && d.equipes)) && !ATT.pres[j.id] && !att, avecPoste = gone && t && d.reglages.format === 10;
     return '<li><button type="button" class="cpj' + (on ? ' sel' : '') + (moved ? ' moved' : '') + (gone ? ' gone' : '') + '" data-act="cPick" data-v="' + v + '" data-id="' + esc(j.id) + '" aria-pressed="' + !!on + '">' +
-      '<span class="cpn">' + esc(f.prenom) + '</span>' + (gone ? '<span class="cpo cabs">absent</span>' : tag) + '<span class="row cfls">' + (att ? '<span class="cfl catt" title="Pas encore répondu sur Spond">' + icon('clock', 12) + '</span>' : '') + starsMini(f.plaquage, sousRep) + lv + heart + (f.niveau ? '' : '<span class="cfl cq" title="Niveau à renseigner">?</span>') + '</span></button></li>';
+      '<span class="cpn">' + esc(f.prenom) + '</span>' + (gone && !avecPoste ? '<span class="cpo cabs">absent</span>' : tag) + '<span class="row cfls">' + (avecPoste ? '<span class="cfl cabsf" title="Absent sur Spond (ou retiré des présents)">absent</span>' : '') + (att ? '<span class="cfl catt" title="Pas encore répondu sur Spond">' + icon('clock', 12) + '</span>' : '') + starsMini(f.plaquage, sousRep) + lv + heart + (f.niveau ? '' : '<span class="cfl cq" title="Niveau à renseigner">?</span>') + '</span></button></li>';
   }
   // le banc d'une version : « Pas placés » + les présents arrivés après la compo (venus sans répondre…)
   function bancOf(d, presents) {
@@ -1056,7 +1099,7 @@ window.MC = window.MC || {};
     var bancs = vs.map(function (d) { return bancOf(d, o.presents); });
     var selV = B && B.sel ? B.sel.v : -1;
     if (bancs.some(function (b) { return b.length; }) || (selV >= 0 && o.ed)) {
-      html += '<section class="clevel banc"><h3 class="clvh">Pas placés <span class="small">· présents sans équipe, blessés…</span></h3><div class="cvcols nv' + nv + '">' + bancs.map(function (banc, v) {
+      html += '<section class="clevel banc"><h3 class="clvh">Pas placés <span class="small">· ' + (ATT && ATT.tous ? 'pas encore dans une équipe (absents marqués)' : 'présents sans équipe, blessés…') + '</span></h3><div class="cvcols nv' + nv + '">' + bancs.map(function (banc, v) {
         var bdest = o.ed && selV === v && banc.indexOf(B.sel.id) < 0;
         return '<div class="cvcol"><section class="ccol banc"><button type="button" class="chd' + (bdest ? ' dest' : '') + '" data-act="cTeam" data-v="' + v + '" data-t="banc"' + (bdest ? '' : ' tabindex="-1"') + '><span class="row" style="justify-content:space-between;width:100%"><b class="ctid" style="font-size:14px">' + (nv > 1 ? 'V' + (v + 1) : 'Pas placés') + '</b><span class="cn">' + banc.length + '</span></span>' +
           (bdest ? '<span class="cdest">' + icon('down', 12) + ' Ici</span>' : '') + '</button><ul class="cpl">' + banc.map(function (id) { return chip(C, null, { id: id }, v, vs[v], (o.moved[v] || {})[id]); }).join('') + '</ul></section></div>';
@@ -1090,7 +1133,8 @@ window.MC = window.MC || {};
     var partis = placed.filter(function (id) { return presents.indexOf(id) < 0 && att.indexOf(id) < 0; });
     function noms(l) { return l.map(function (id) { return nom(C, id); }).join(', '); }
     if (enAtt.length) al.unshift({ k: 'attente', niveau: 'info', texte: 'Placé' + (enAtt.length > 1 ? 's' : '') + ' en attendant sa réponse sur Spond : ' + noms(enAtt) + '. S\'il répond « non », l\'appli le signale ici.' });
-    if (partis.length) al.unshift({ k: 'parti', niveau: 'warn', texte: (partis.length > 1 ? 'Ne viennent plus (absents sur Spond ou retirés des présents) : ' : 'Ne vient plus (absent sur Spond ou retiré des présents) : ') + noms(partis) + '.', fix: { t: 'out', ids: partis, lab: 'Retirer', texte: 'Retiré' + (partis.length > 1 ? 's' : '') + ' : ' + noms(partis) } });
+    if (partis.length) al.unshift({ k: 'parti', niveau: 'warn', texte: (baseTous(d.reglages) ? (partis.length > 1 ? 'Absents (sur Spond ou retirés des présents), dans une équipe : ' : 'Absent (sur Spond ou retiré des présents), dans une équipe : ') :
+      partis.length > 1 ? 'Ne viennent plus (absents sur Spond ou retirés des présents) : ' : 'Ne vient plus (absent sur Spond ou retiré des présents) : ') + noms(partis) + '.', fix: { t: 'out', ids: partis, lab: 'Retirer', texte: 'Retiré' + (partis.length > 1 ? 's' : '') + ' : ' + noms(partis) } });
     return al;
   }
   function alertesHtml(C, d, v, presents, nv, att) {
@@ -1104,7 +1148,7 @@ window.MC = window.MC || {};
   }
   function paintBoard(C, e) {
     var vs = B.vs, nv = vs.length, c = compoOf(C.cd, e.id, B.partie), presents = presentsOf(C, e), att = attenteOf(C, e);
-    ATT = { pres: {}, att: {} }; presents.forEach(function (id) { ATT.pres[id] = 1; }); att.forEach(function (id) { ATT.att[id] = 1; });
+    ATT = { pres: {}, att: {}, tous: baseTous(vs[0].reglages) }; presents.forEach(function (id) { ATT.pres[id] = 1; }); att.forEach(function (id) { ATT.att[id] = 1; });
     var fmt = vs[0].reglages.format, P = B.partie;
     // ce qui change : par rapport à la compo publiée (modif, contre-proposition), ou entre les 2 versions
     var moved = vs.map(function () { return {}; });
@@ -1146,9 +1190,10 @@ window.MC = window.MC || {};
     var ed = editable();
     var suite = P === 'ateliers' ? '<a class="btn2" href="' + lienCompo(esc(e.id), 'matchs') + '">' + icon('right', 16) + ' Ensuite : les matchs</a>' : '';
     return '<main class="screen cscreen">' + MC.educBar(C.g, (P ? (P === 'ateliers' ? 'Ateliers' : 'Matchs') : 'Compo') + ' · ' + e.titre, '#/educ/evt/' + e.id, e.titre) +
-      '<div class="head"><span class="kicker" style="color:var(--gold)">' + esc(quand(e)) + ' · ' + presents.length + ' présents' + (P ? '' : ' · jeu à ' + fmt) + '</span><h1 class="big sm">' + (P ? NOM_PARTIE[P] : 'La compo') + '</h1></div>' +
-      (P ? stepsHtml(C, e, P) : '') + state + topHtml(C, e, c) + avBlock + cmp +
-      '<p class="small" style="margin:0">' + (ed ? 'Touchez un joueur, puis son ' + (P === 'ateliers' ? 'groupe' : 'équipe') + ' d\'arrivée (ou un joueur d\'' + (P === 'ateliers' ? 'un autre groupe' : 'une autre équipe') + ' : ils s\'échangent). Pour ' + (P === 'ateliers' ? 'remplir un groupe' : 'composer une équipe') + ', touchez son nom' + (fmt === 10 ? ' ou une place vide (+)' : ' ou « + Ajouter des joueurs »') + '.' + (nv > 1 ? ' Chaque version se modifie à part.' : '') : 'Touchez un joueur pour voir sa fiche.') + (communes ? ' <b style="color:var(--yellow)">Entourés</b> : placés autrement d\'une version à l\'autre.' : '') + '</p>' +
+      '<div class="head"><span class="kicker" style="color:var(--gold)">' + esc(quand(e)) + ' · ' + (ATT.tous ? tousOf(C).length + ' enfants · ' : '') + presents.length + ' présents' + (P ? '' : ' · jeu à ' + fmt) + '</span><h1 class="big sm">' + (P ? NOM_PARTIE[P] : 'La compo') + '</h1></div>' +
+      (P ? stepsHtml(C, e, P) : '') + state + topHtml(C, e, c) + avBlock + cmp + spondHtml(C, e) +
+      '<p class="small" style="margin:0">' + (ed ? 'Touchez un joueur, puis son ' + (P === 'ateliers' ? 'groupe' : 'équipe') + ' d\'arrivée (ou un joueur d\'' + (P === 'ateliers' ? 'un autre groupe' : 'une autre équipe') + ' : ils s\'échangent). Pour ' + (P === 'ateliers' ? 'remplir un groupe' : 'composer une équipe') + ', touchez son nom' + (fmt === 10 ? ', une place vide (+) ou « Poste par poste »' : ' ou « + Ajouter des joueurs »') + '.' + (nv > 1 ? ' Chaque version se modifie à part.' : '') : 'Touchez un joueur pour voir sa fiche.') + (communes ? ' <b style="color:var(--yellow)">Entourés</b> : placés autrement d\'une version à l\'autre.' : '') + '</p>' +
+      (ed && fmt === 10 && nv === 1 ? '<button type="button" class="btn2" data-act="cParPoste" data-v="0">' + icon('board', 16) + ' Poste par poste</button>' : '') +   // (v57)
       '<p class="small clegend"><span>' + icon('shieldavg', 12) + ' plaquage moyen</span><span>' + icon('shieldok', 12) + ' bons plaqueurs</span>' + (vs.every(sansCop) ? '' : '<span>' + icon('heart', 11) + ' avec un copain</span>') + '<span>⇅ hors niveau</span>' + (P ? '' : '<span>' + bouclier(2, 'mini', true) + ' sous le repère de l\'équipe</span>') + '<span>Av avants · Ar arrières</span></p>' +
       boardHtml(C, { vs: vs, presents: presents, attente: att, moved: moved, ed: ed }) +
       '<section class="sec">' + vs.map(function (d, v) { return alertesHtml(C, d, v, presents, nv, att); }).join('') + '</section>' +
@@ -1159,6 +1204,15 @@ window.MC = window.MC || {};
         B.mode === 'edit' && B.dirty ? '<button type="button" class="lnk" data-act="cDiscard" style="align-self:flex-start">Annuler mes changements (revenir à la version ' + c.version + ')</button>' : '') +
       (c && B.mode !== 'counter' && (c.auteur === C.moi.id || C.moi.admin) ? '<button type="button" class="lnk" data-act="cRetirer" style="align-self:flex-start">' + (c.statut === 'vote' ? 'Retirer le vote (repartir de zéro)' : 'Retirer cette compo (repartir de zéro)') + '</button>' : '') +
       dockHtml(C, e, c) + '</main>';
+  }
+  // (v57) une compo partie de tout le groupe : les réponses Spond du moment (marquées dans la compo), et « Actualiser » pour les relire
+  // tout de suite (sinon toutes les heures) ; l'appli ne change rien aux équipes (demande de Nicolas du 07/11)
+  function spondHtml(C, e) {
+    if (!ATT || !ATT.tous) return '';
+    var np = Object.keys(ATT.pres).length, na = Object.keys(ATT.att).length, nt = tousOf(C).length, nab = Math.max(0, nt - np - na);
+    return '<div class="between cspond"><span class="small">' + icon('refresh', 14) + ' ' + (e.source === 'spond' ? 'Spond' : 'Présents') + ' : ' + np + ' présent' + (np > 1 ? 's' : '') +
+      (nab ? ' · <b style="color:var(--pink)">' + nab + ' absent' + (nab > 1 ? 's' : '') + '</b>' : '') + (na ? ' · <b style="color:var(--gold)">' + na + ' sans réponse</b>' : '') + ', marqués dans la compo' + '</span>' +
+      (e.source === 'spond' ? '<button type="button" class="btn2 sm" data-act="cSync">' + icon('refresh', 14) + ' Actualiser</button>' : '') + '</div>';
   }
   // le vote en cours : qui a voté quoi, la majorité à atteindre
   function voteState(C, c) {
@@ -1173,13 +1227,14 @@ window.MC = window.MC || {};
   }
   // (v50) le haut de la compo : les options choisies (modifiables, puis « Générer une nouvelle compo ») et les boutons (Publier,
   // Enregistrer, Envoyer, voter…) ; plus de barre d'actions collée en bas (demande de Nicolas, 05/11)
-  function regDe(r) { var o = K.optsDe(r); return { format: K.fmt(r), nb: JSON.parse(JSON.stringify(K.nbOf(r))), style: K.styleDe(o), opts: o, tailles: r.tailles ? JSON.parse(JSON.stringify(r.tailles)) : null }; }
+  function regDe(r) { var o = K.optsDe(r), x = { format: K.fmt(r), nb: JSON.parse(JSON.stringify(K.nbOf(r))), style: K.styleDe(o), opts: o, tailles: r.tailles ? JSON.parse(JSON.stringify(r.tailles)) : null }; if (r.base === 'tous') x.base = 'tous'; return x; }
   function cleReg(r) { return JSON.stringify({ f: K.fmt(r), nb: K.nbOf(r), o: K.optsDe(r), t: r.tailles || null }); }
   function topHtml(C, e, c) {
     var html = '', nv = B.vs.length, P = B.partie, c2 = c;
     if (!P && nv === 1 && (B.mode === 'draft' || B.mode === 'edit')) {
-      var ids = presentsOf(C, e), d0 = B.vs[0];
+      var d0 = B.vs[0];
       if (!B.reg) B.reg = regDe(d0.reglages);
+      var ids = idsBase(C, e, B.reg);
       var reg = B.reg, ok = !ecartTailles(ids, C.F, reg) && K.idsEquipes(reg).length, diff = cleReg(reg) !== cleReg(d0.reglages), gk = garderChange(d0.reglages, reg);
       // (v54, O1) une seule section, le même cadre pliée et dépliée ; l'en-tête ne bouge pas, « Modifier » devient « Replier »
       html += '<details class="cbopt"' + (B.optOuvert ? ' open' : '') + '><summary><span class="ott">Options</span><span class="oac"><span class="oac-p">Modifier</span><span class="oac-d">Replier</span>' + icon('down', 16) + '</span><span class="cbsum">' + esc(resumeOpts(reg, ids, C.F)) + '</span>' +
@@ -1211,7 +1266,7 @@ window.MC = window.MC || {};
   document.addEventListener('toggle', function (ev) { var t = ev.target; if (B && t && t.classList && t.classList.contains('cbopt')) B.optOuvert = t.open; }, true);
   MC.act.cRegen = function () {
     withC(function (C, e) {
-      if (!B || !B.reg || ecartTailles(presentsOf(C, e), C.F, B.reg)) return;
+      if (!B || !B.reg || ecartTailles(idsBase(C, e, B.reg), C.F, B.reg)) return;
       B.sel = null;
       change(function () { B.vs[0] = proposition(C, e, B.reg, K.optsDe(B.reg)); });
       ui.toast('Nouvelle compo générée : à vous d\'ajuster');
@@ -1245,7 +1300,7 @@ window.MC = window.MC || {};
           moves += '<div class="cmoves">' + K.POSTES10.map(function (p) {
             var r = ps.indexOf(p[0]);
             return '<button type="button" class="cmv po' + (cur === p[0] ? ' here' : '') + '" data-act="cPoste" data-p="' + p[0] + '">' + COURT[p[0]] + (r === 0 ? '<sup>★</sup>' : r > 0 ? '<sup>' + (r + 1) + '</sup>' : '') + '</button>';
-          }).join('') + '<button type="button" class="cmv po' + (!cur ? ' here' : '') + '" data-act="cPoste" data-p="">Remp.</button></div>';
+          }).join('') + '</div>';   // (v57) plus de « Remp. » sans poste : un remplaçant a son poste
         }
       }
       html += '<div class="cselp">' + info + moves + '<a class="lnk" href="#/educ/joueur/' + esc(sel.id) + '" style="align-self:flex-start;min-height:32px">Sa fiche</a></div>';
@@ -1301,7 +1356,7 @@ window.MC = window.MC || {};
     if (!t) return;
     if (d.reglages.format !== 10) return composer(v, tid, '*');
     var m = K.stats(t, K.fiches(app.S.cache.group), 10).manquants;
-    composer(v, tid, m.length ? m[0] : '');
+    parPoste(v, m.length ? m[0] : K.ORDRE[0]);   // (v57) poste par poste
   };
   // une place vide : avec un joueur choisi, il la prend ; sinon, on choisit qui la prend
   MC.act.cSlot = function (b) {
@@ -1312,7 +1367,7 @@ window.MC = window.MC || {};
       placer(v, id, tid, p);
       return;
     }
-    composer(v, tid, p);
+    if (B.vs[v] && B.vs[v].reglages.format === 10 && p !== '*') parPoste(v, p || K.ORDRE[0]); else composer(v, tid, p);   // (v57) jeu à 10 : poste par poste
   };
   // place un joueur dans une équipe (p : poste du plateau, '' remplaçant, '*' jeu à 5) ; renvoie l'équipe qu'il quitte
   function placer(v, id, tid, p) {
@@ -1355,14 +1410,14 @@ window.MC = window.MC || {};
       '<div class="rpost-c">' + (o.filtre || '') + (ids.length ? '<div class="pbars' + (o.simple ? ' serre' : '') + '">' + bars + '</div>' + (o.simple ? '' : '<p class="small" style="margin:0">Barre pleine = poste principal · pâle = peut aussi jouer. Touchez un poste pour voir les prénoms.</p>' + sans) : '<p class="small" style="margin:0">Personne.</p>') + '</div></details>';
   }
   // les présents d'un plateau ou d'un match, avec Tous / A / B / C
-  function graphePresents(C, ids, cle) {
+  function graphePresents(C, ids, cle, tous) {
     var nv = RP.niv[cle] || 'all', cnt = { A: 0, B: 0, C: 0 };
     ids.forEach(function (id) { var n = (C.F[id] || {}).niveau; if (cnt[n] !== undefined) cnt[n]++; });
     var l = nv === 'all' ? ids : ids.filter(function (id) { return (C.F[id] || {}).niveau === nv; });
     var filtre = '<div class="tfil rpf">' + [['all', 'Tous', ids.length]].concat(K.NIV.map(function (n) { return [n, n, cnt[n]]; })).map(function (x) {
       return '<button type="button" class="opt' + (x[0] === 'all' ? ' tf-w' : '') + (nv === x[0] ? ' on' : '') + '"' + (K.COUL_NIV[x[0]] ? ' style="--oc:' + K.COUL_NIV[x[0]] + '"' : '') + ' aria-pressed="' + (nv === x[0]) + '" data-act="rpNiv" data-k="' + cle + '" data-v="' + x[0] + '"><span>' + x[1] + '</span><small>' + x[2] + '</small></button>';
     }).join('') + '</div>';
-    return graphePostes(C.F, l, { cle: cle, resume: (nv === 'all' ? 'Les ' + ids.length + ' présents' : 'Niveau ' + nv + ' · ' + l.length), niv: nv === 'all', filtre: filtre });
+    return graphePostes(C.F, l, { cle: cle, resume: (nv === 'all' ? 'Les ' + ids.length + (tous ? ' enfants' : ' présents') : 'Niveau ' + nv + ' · ' + l.length), niv: nv === 'all', filtre: filtre });
   }
   MC.act.rpNiv = function (b) { RP.niv[b.getAttribute('data-k')] = b.getAttribute('data-v'); RP.ouvert[b.getAttribute('data-k')] = true; app.rerender(); };
   document.addEventListener('toggle', function (e) {
@@ -1475,6 +1530,132 @@ window.MC = window.MC || {};
       }
     });
   }
+  // ---------- (v57) Poste par poste (jeu à 10) — demande de Nicolas du 07/11/2026 ----------
+  // Une fenêtre, un poste à la fois, dans l'ordre (piliers, talonneur, 3es lignes, 9, 10, centre, ailiers). La liste des enfants :
+  // ceux qui l'ont en poste principal, puis ceux qui peuvent le jouer, puis les autres (repliés) ; dans chaque groupe, du niveau A
+  // au C puis du meilleur plaqueur au moins bon (les absents en bas). Sur chaque ligne, un bouton par équipe (1 et 2 aux matchs,
+  // A et B au plateau) : toucher met l'enfant dans l'équipe à ce poste, toucher encore l'enlève. On en prend autant qu'on veut
+  // (« pour les piliers, j'en prends 5 »), puis « OK » passe au poste suivant. Pas de titulaires : la liste du poste.
+  var NOMPL = { pilier: 'Piliers', talonneur: 'Talonneurs', 'troisieme-ligne': '3es lignes', 'demi-de-melee': 'Demis de mêlée', ouvreur: 'Ouvreurs', centre: 'Centres', ailier: 'Ailiers' };
+  // le nom court d'une équipe sur son bouton : « 1 », « 2 » aux matchs ; « A », « B » au plateau (« A1 », « A2 » s'il y en a deux)
+  function eqCourt(d, t) {
+    if (estMatch(t)) return String(K.nomEq(t)).replace(/^Équipe\s*/, '') || K.nomEq(t);
+    var memes = d.equipes.filter(function (x) { return x.niveau && x.niveau === t.niveau; }).length;
+    return memes === 1 && t.niveau ? t.niveau : K.nomEq(t);
+  }
+  function parPoste(v, p0) {
+    withC(function (C, e) {
+      var S = { p: K.ORDRE.indexOf(p0) >= 0 ? p0 : K.ORDRE[0], ouvert: {} };
+      function d() { return B && B.vs[v]; }
+      var pres = presentsOf(C, e), att = attenteOf(C, e), ABS = {}, ATTx = {};
+      att.forEach(function (id) { ATTx[id] = 1; });
+      // le vivier : les joueurs de la version, ses « Pas placés », les présents, ceux qui n'ont pas répondu ; tout le groupe s'il le faut
+      function vivierIds() {
+        var dd = d(), out = [], vu = {};
+        function add(id) { if (!vu[id] && C.F[id] && C.actifs[id]) { vu[id] = 1; out.push(id); } }
+        dd.equipes.forEach(function (t) { t.joueurs.forEach(function (j) { add(j.id); }); });
+        bancOf(dd, pres).forEach(add); att.forEach(add);
+        if (baseTous(dd.reglages)) tousOf(C).forEach(add);
+        out.forEach(function (id) { ABS[id] = pres.indexOf(id) < 0 && !ATTx[id]; });
+        return out;
+      }
+      function niveaux() { var n = []; d().equipes.forEach(function (t) { if (t.niveau && n.indexOf(t.niveau) < 0) n.push(t.niveau); }); return n; }
+      function nb(t, p) { return t.joueurs.filter(function (j) { return j.poste === p; }).length; }
+      function place(id) { var dd = d(), w = K.where(dd, id); return w && w.t >= 0 ? { t: dd.equipes[w.t], j: dd.equipes[w.t].joueurs[w.j] } : null; }
+      function titre() {
+        var i = K.ORDRE.indexOf(S.p);
+        return esc(NOMPL[S.p]) + (B.vs.length > 1 ? ' <small style="font-size:14px;color:var(--dim)">· ' + vName(v) + '</small>' : '') + '<small class="cpk-sub">Poste par poste · ' + (i + 1) + ' sur ' + K.ORDRE.length + '</small>';
+      }
+      function navHtml() {
+        var eqs = d().equipes;
+        return '<div class="ppnav" role="group" aria-label="Les postes">' + K.ORDRE.map(function (p) {
+          var court = eqs.some(function (t) { return nb(t, p) < K.BESOIN[p]; });
+          return '<button type="button" class="ppn' + (p === S.p ? ' on' : '') + (court ? ' court' : '') + '" data-pp="' + p + '" aria-pressed="' + (p === S.p) + '" aria-label="' + esc(NOMPL[p]) + '"><b>' + COURT[p] + '</b><small>' + eqs.map(function (t) { return nb(t, p); }).join('·') + '</small></button>';
+        }).join('') + '</div>';
+      }
+      function equipesHtml() {
+        var dd = d();
+        return '<div class="ppeqs">' + dd.equipes.map(function (t) {
+          var st = K.stats(t, C.F, 10), n = nb(t, S.p), bes = K.BESOIN[S.p];
+          return '<div class="ppeq" style="--lc:' + coulEq(t, dd) + '"><b>' + esc(labelEq(t)) + '</b><span class="ppc' + (n < bes ? ' bad' : '') + '">' + n + ' ' + esc((n > 1 ? NOMPL[S.p] : NOMP[S.p]).toLowerCase()) + '</span>' +
+            '<small>' + st.n + ' joueur' + (st.n > 1 ? 's' : '') + ' · ' + icon('shieldavg', 11) + ' ' + (st.plaq === null ? '—' : virg(st.plaq)) + '</small></div>';
+        }).join('') + '</div>';
+      }
+      function rowHtml(id) {
+        var f = C.F[id], dd = d(), pl = place(id), ps = K.postesDe(f), nivs = niveaux();
+        var ou = pl ? labelEq(pl.t) + ' · ' + (pl.j.poste ? COURT[pl.j.poste] : 'sans poste') : '';
+        var btns = dd.equipes.map(function (t) {
+          var on = !!pl && pl.t.id === t.id && pl.j.poste === S.p, el = K.eligible(f, t, nivs);
+          return '<button type="button" class="ppb' + (on ? ' on' : '') + (el ? '' : ' hors') + '" style="--lc:' + coulEq(t, dd) + '" data-ppid="' + esc(id) + '" data-ppt="' + esc(t.id) + '" aria-pressed="' + on + '" aria-label="' + esc(f.prenom) + ' : ' + esc(labelEq(t)) + (el ? '' : ', hors de son niveau') + '">' + esc(eqCourt(dd, t)) + '</button>';
+        }).join('');
+        return '<div class="pprow' + (ABS[id] ? ' abs' : '') + '"><span class="ppi"><span class="row" style="gap:8px;min-width:0">' + niveauTag(f.niveau, true) + '<b class="cprn">' + esc(f.prenom) + '</b>' + starsMini(f.plaquage) + '</span>' +
+          '<span class="cprm">' + (ABS[id] ? '<span class="pptag abs">absent</span> ' : ATTx[id] ? '<span class="pptag att">' + icon('clock', 11) + ' pas répondu</span> ' : '') +
+          (ps.length ? ps.map(function (x) { return (S.p === x ? '<b>' : '') + esc(K.nomPoste(x)) + (f.postesOk && f.postesOk.length && ps.length > 1 && K.lienPoste(f, x) === 'pref' ? '★' : '') + (S.p === x ? '</b>' : ''); }).join(', ') : 'pas encore de poste') +
+          (ou && !(pl.j.poste === S.p) ? ' · <span class="cpr-ou">' + esc(ou) + '</span>' : '') + '</span></span><span class="ppbs">' + btns + '</span></div>';
+      }
+      function groupe(k, lab, ids, ferme) {
+        if (!ids.length) return '';
+        var rows = '<div class="cprows">' + ids.map(rowHtml).join('') + '</div>';
+        return ferme ? '<details class="cpgrp" data-ppg="' + k + '"' + (S.ouvert[k] ? ' open' : '') + '><summary class="mlab">' + lab + ' (' + ids.length + ')</summary>' + rows + '</details>' : '<div class="cpgrp"><span class="mlab">' + lab + ' (' + ids.length + ')</span>' + rows + '</div>';
+      }
+      function corps() {
+        var ici = [], ailleurs = [];
+        vivierIds().forEach(function (id) { var pl = place(id); (pl && pl.j.poste && pl.j.poste !== S.p ? ailleurs : ici).push(id); });
+        var V = K.vivier(ici, C.F, S.p, ABS), A = K.vivier(ailleurs, C.F, S.p, ABS), nom = NOMP[S.p].toLowerCase();
+        var lettres = d().equipes.map(function (t) { return eqCourt(d(), t); });
+        return '<p class="small" style="margin:0">Touchez ' + lettres.map(function (x) { return '« ' + esc(x) + ' »'; }).join(' ou ') + ' pour le mettre dans l\'équipe à ce poste, encore pour l\'enlever. Prenez-en autant que vous voulez, puis OK.</p>' +
+          equipesHtml() +
+          groupe('princ', esc(NOMP[S.p]) + ' en poste principal', V.princ) + groupe('peut', 'Peuvent jouer ' + esc(nom), V.peut) +
+          (!V.princ.length && !V.peut.length ? '<p class="small" style="margin:0">Personne n\'a ce poste dans sa fiche : choisissez parmi les autres.</p>' : '') +
+          groupe('autres', 'Les autres', V.autres, V.princ.length + V.peut.length > 0) +
+          groupe('ailleurs', 'Déjà à un autre poste', A.princ.concat(A.peut, A.autres), true);
+      }
+      function suivant() { var i = K.ORDRE.indexOf(S.p); return i >= 0 && i < K.ORDRE.length - 1 ? K.ORDRE[i + 1] : ''; }
+      function paint(host, haut) {
+        host.querySelector('.cpk-title').innerHTML = titre();
+        host.querySelector('.ppnavw').innerHTML = navHtml();
+        host.querySelector('.cpick').innerHTML = corps();
+        var nx = suivant(), ok = host.querySelector('.mbtns button[data-i="0"]');
+        if (ok) ok.textContent = nx ? 'OK · ' + NOMPL[nx] + ' ›' : 'OK · Terminé';
+        var card = host.querySelector('.card'); if (card && haut) card.scrollTop = 0;
+      }
+      // toucher une équipe : l'enfant y va à ce poste ; déjà là à ce poste : il en sort (« Pas placés »)
+      function basculer(id, tid) {
+        var pl = place(id);
+        if (pl && pl.t.id === tid && pl.j.poste === S.p) { change(function () { B.vs[v] = K.moveTo(B.vs[v], id, 'banc', C.F); }); return; }
+        if (pl && pl.t.id === tid) { change(function () { B.vs[v] = K.setPoste(B.vs[v], id, S.p); }); return; }
+        placer(v, id, tid, S.p);
+      }
+      ui.modal({
+        title: '<span class="cpk-title"></span>', body: '<div class="ppnavw"></div><div class="cpick"></div>',
+        actions: [{ label: 'OK', cls: 'btn', onClick: function (host, close) {
+          var nx = suivant();
+          if (nx) { S.p = nx; paint(host, true); return; }
+          close(true);
+        } }],
+        onOpen: function (host, close) {
+          host.classList.add('cpk', 'ppk');
+          paint(host, true);
+          host.addEventListener('toggle', function (ev) { var g = ev.target; if (g && g.getAttribute && g.getAttribute('data-ppg')) S.ouvert[g.getAttribute('data-ppg')] = g.open; }, true);
+          host.addEventListener('click', function (ev) {
+            var n = ev.target.closest('[data-pp]');
+            if (n) { S.p = n.getAttribute('data-pp'); paint(host, true); return; }
+            var b = ev.target.closest('[data-ppid]');
+            if (!b || !B || !editable()) return;
+            basculer(b.getAttribute('data-ppid'), b.getAttribute('data-ppt'));
+            if (!d()) return close(null);
+            paint(host, false);
+          });
+        }
+      }).then(function (fini) {
+        // à la fin : dire combien d'enfants (venus ou pas encore répondu) ne sont dans aucune équipe
+        if (!fini || !B || !d()) return;
+        var reste = pres.concat(att).filter(function (id) { return C.actifs[id] && !place(id); });
+        if (reste.length) ui.toast(reste.length + ' enfant' + (reste.length > 1 ? 's' : '') + ' pas encore dans une équipe : en bas, « Pas placés ».');
+      });
+    });
+  }
+  MC.act.cParPoste = function (b) { if (!B || !editable()) return; var v = Number(b.getAttribute('data-v')) || 0; parPoste(v, K.ORDRE[0]); };
   MC.act.cPoste = function (b) { if (!B || !B.sel) return; var id = B.sel.id, v = B.sel.v, p = b.getAttribute('data-p'); change(function () { B.vs[v] = K.setPoste(B.vs[v], id, p); }); };
   MC.act.cUndo = function () {
     if (!B || !B.undo.length) return;
@@ -1500,7 +1681,7 @@ window.MC = window.MC || {};
       change(function () {
         B.vs.forEach(function (d) {
           d.equipes.forEach(function (t) {
-            var po = K.apparier(t.joueurs.map(function (j) { return j.id; }), C.F, d.reglages.partie === 'matchs').poste;
+            var po = K.postesEquipe(t.joueurs.map(function (j) { return j.id; }), C.F, d.reglages.partie === 'matchs');   // (v57) remplaçants compris
             t.joueurs.forEach(function (j) { j.poste = po[j.id] || ''; });
           });
         });
@@ -1527,9 +1708,10 @@ window.MC = window.MC || {};
       withC(function (C, e) {
         change(function () {
           var reg = { format: d0.reglages.format, nb: K.nbOf(d0.reglages), style: K.styleDe(o0), opts: o0 }, d;   // (v48) « Vide » en A forte : A1, B1…
+          if (baseTous(d0.reglages)) reg.base = 'tous';   // (v57) la 2e version part des mêmes enfants
           if (P) reg = JSON.parse(JSON.stringify(d0.reglages));
           if (k === 'copie') d = JSON.parse(JSON.stringify(d0));
-          else if (k === 'vide') { if (P) d = K.videEnt(presentsOf(C, e), C.F, reg, L.today()); else { d = K.vide(presentsOf(C, e), reg); d.reglages = { format: reg.format, nb: reg.nb, style: reg.style, opts: o0 }; } }
+          else if (k === 'vide') { if (P) d = K.videEnt(idsBase(C, e, reg), C.F, reg, L.today()); else { d = K.vide(idsBase(C, e, d0.reglages), reg); d.reglages = { format: reg.format, nb: reg.nb, style: reg.style, opts: o0 }; if (baseTous(d0.reglages)) d.reglages.base = 'tous'; } }
           else if (!P && k.indexOf('o:') === 0) { var o2 = JSON.parse(JSON.stringify(o0)); if (k === 'o:copains') o2.copains = autreCop(o0.copains); else o2.orga = o0.orga === 'aforte' ? 'niveau' : 'aforte'; d = proposition(C, e, reg, o2); }
           else d = proposition(C, e, reg, k);
           B.vs.push(d);
@@ -1572,8 +1754,8 @@ window.MC = window.MC || {};
     if (!B || !B.vs.length) return;
     var v = Number(b && b.getAttribute('data-v')) || 0, d = B.vs[v];
     if (B.partie) return reglEnt(v, d);
-    var o0 = K.optsDe(d.reglages), reg = { format: d.reglages.format, nb: JSON.parse(JSON.stringify(K.nbOf(d.reglages))), style: K.styleDe(o0), opts: o0, tailles: d.reglages.tailles ? JSON.parse(JSON.stringify(d.reglages.tailles)) : null };
-    var IDS = [], FF = {}; withC(function (C, e) { IDS = presentsOf(C, e); FF = C.F; });
+    var reg = regDe(d.reglages);
+    var IDS = [], FF = {}; withC(function (C, e) { IDS = idsBase(C, e, reg); FF = C.F; });
     function body() {
       return '<div class="grid2">' + K.FORMATS.map(function (f) { return '<button type="button" class="opt' + (reg.format === f ? ' on' : '') + '" data-rf="' + f + '">Jeu à ' + f + '</button>'; }).join('') + '</div>' +
         K.NIV.map(function (n) { return stepperHtml(n, reg, null, null, 'data-rn'); }).join('') +
@@ -1601,7 +1783,7 @@ window.MC = window.MC || {};
       withC(function (C, e) {
         change(function () {
           if (r === 'new') {
-            if (ecartTailles(presentsOf(C, e), C.F, reg)) { reg.tailles = null; ui.toast('Le total des joueurs par équipe ne fait pas le nombre de présents : équipes équilibrées.'); }
+            if (ecartTailles(idsBase(C, e, reg), C.F, reg)) { reg.tailles = null; ui.toast('Le total des joueurs par équipe ne fait pas le nombre de présents : équipes équilibrées.'); }
             B.vs[v] = proposition(C, e, reg, K.optsDe(reg)); return;
           }
           B.vs[v] = garder(d, reg);
@@ -1613,15 +1795,16 @@ window.MC = window.MC || {};
   // refaire une version d'un entraînement avec d'autres réglages
   function reglEnt(v, d) {
     withC(function (C, e) {
-      var ids = presentsOf(C, e), reg = K.regEnt(JSON.parse(JSON.stringify(d.reglages)), ids, C.F);
-      function body() { return regEntHtml(C, reg, ids, { mode: 'data-rm', sep: 'data-rsep', n: 'data-rk' }); }
+      var reg = K.regEnt(JSON.parse(JSON.stringify(d.reglages)), presentsOf(C, e), C.F);
+      function body() { return regEntHtml(C, reg, idsBase(C, e, reg), { mode: 'data-rm', sep: 'data-rsep', n: 'data-rk', base: 'data-rb' }, e); }
       ui.modal({
         title: B.vs.length > 1 ? 'Refaire · ' + vName(v) : 'Refaire', body: '<div class="creg">' + body() + '</div>',
         actions: [{ label: B.partie === 'ateliers' ? 'Refaire les groupes' : 'Refaire les matchs', value: true, cls: 'btn' }, { label: 'Annuler', value: null, cls: 'btn2 grey' }],
         onOpen: function (host) {
           host.addEventListener('click', function (ev) {
-            var m = ev.target.closest('[data-rm]'), sp = ev.target.closest('[data-rsep]'), k = ev.target.closest('[data-rk]');
-            if (m) reg.mode = m.getAttribute('data-rm');
+            var m = ev.target.closest('[data-rm]'), sp = ev.target.closest('[data-rsep]'), k = ev.target.closest('[data-rk]'), rb = ev.target.closest('[data-rb]');
+            if (rb) { if (rb.getAttribute('data-rb') === 'tous') reg.base = 'tous'; else delete reg.base; }
+            else if (m) reg.mode = m.getAttribute('data-rm');
             else if (sp) reg.separer = sp.getAttribute('data-rsep') === '1';
             else if (k) { var kk = k.getAttribute('data-rk'); reg[kk] = Math.max(1, Math.min(kk === 'n' ? 8 : 4, reg[kk] + Number(k.getAttribute('data-d')))); }
             else return;
@@ -1816,9 +1999,11 @@ window.MC = window.MC || {};
   MC.paintEnfants = function (g) { return paintTerrain(g); };
   // les pastilles des postes : les préférés ★ (pleins) puis les autres (contour)
   // (sans postes réglés : ses vœux, en contour, sans ★)
-  // (v46) toujours dans l'ordre des postes : pilier, talonneur, 3e ligne, 9, 10, centre, ailier (le préféré : la pastille pleine)
+  // (v46) dans l'ordre des postes : pilier, talonneur, 3e ligne, 9, 10, centre, ailier (le préféré : la pastille pleine) ;
+  // (v57, demande de Nicolas) le poste préféré ★ toujours le plus à gauche, puis les autres dans l'ordre des postes
   function pillsPostes(f) {
-    var ps = K.postesDe(f).slice().sort(function (a, b) { return K.ORDRE.indexOf(a) - K.ORDRE.indexOf(b); }), pf = f.postesOk.length ? K.prefDe(f) : [];
+    var pf = f.postesOk.length ? K.prefDe(f) : [];
+    var ps = K.postesDe(f).slice().sort(function (a, b) { return (pf.indexOf(a) >= 0 ? 0 : 1) - (pf.indexOf(b) >= 0 ? 0 : 1) || K.ORDRE.indexOf(a) - K.ORDRE.indexOf(b); });
     if (!ps.length) return '<span class="tpp none">pas de poste</span>';
     return ps.map(function (p) {
       var pr = pf.indexOf(p) >= 0;

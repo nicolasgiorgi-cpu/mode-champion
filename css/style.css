@@ -1172,6 +1172,33 @@ body:has(.cdock .cselp) .toast{top:calc(74px + var(--safe-t) + var(--vvt));botto
 .cprm{font:500 12px/1.3 var(--f-body);color:var(--soft)}
 .cprm b{color:var(--yellow)}
 .cpr-ou{color:var(--orange)}
+/* (v57) poste par poste (jeu à 10) : les 7 postes en haut, les équipes, un bouton par équipe sur chaque ligne */
+.ppnavw{flex:none}
+.ppnav{display:flex;flex-wrap:wrap;gap:4px}
+.ppn{flex:1 1 40px;min-width:40px;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:4px 2px;border:1px solid var(--line2);background:#0C1120;color:var(--soft)}
+.ppn b{font:700 12px/1 var(--f-hud);letter-spacing:.04em}
+.ppn small{font:600 10px/1 var(--f-hud);color:var(--dim)}
+.ppn.court small{color:var(--orange)}
+.ppn.on{border-color:var(--cyan);background:#0E1A2C;color:var(--cyan)}
+.ppn.on small{color:var(--ink)}
+.ppeqs{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:6px}
+.ppeq{display:flex;flex-direction:column;gap:3px;padding:7px 9px;border:1px solid var(--line2);border-left:3px solid var(--lc,var(--line3));background:#0A0F1F}
+.ppeq b{font:700 13px/1.1 var(--f-hud);color:var(--ink)}
+.ppeq .ppc{font:700 13px/1.1 var(--f-body);color:var(--green)}
+.ppeq .ppc.bad{color:var(--orange)}
+.ppeq small{display:flex;align-items:center;gap:4px;font:500 11px/1.2 var(--f-body);color:var(--dim)}
+.pprow{display:flex;align-items:center;gap:8px;min-height:56px;padding:7px 8px 7px 10px;background:#0C1120;border:1px solid var(--line2)}
+.pprow.abs{border-style:dashed}
+.pprow.abs .cprn{text-decoration:line-through;text-decoration-color:var(--pink)}
+.ppi{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.ppbs{flex:none;display:flex;gap:6px}
+.ppb{width:42px;height:42px;padding:0 2px;border:1.5px solid var(--lc,var(--line3));background:transparent;color:var(--lc,var(--soft));font:700 14px/1 var(--f-hud);letter-spacing:.02em;overflow:hidden;white-space:nowrap}
+.ppb.on{background:var(--lc,var(--line3));color:#070A12}
+.ppb.hors:not(.on){border-style:dashed;opacity:.5}
+.pptag{display:inline-flex;align-items:center;gap:3px;padding:1px 5px;font:700 10px/1.4 var(--f-hud);letter-spacing:.04em;vertical-align:1px}
+.pptag.abs{background:var(--pink);color:#070A12}
+.pptag.att{border:1px solid var(--gold);color:var(--gold)}
+.cfl.cabsf{padding:1px 4px;background:var(--pink);color:#070A12;letter-spacing:.04em}
 .cpj{width:100%;min-height:46px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:4px;padding:6px 8px;background:#0C1120;border:1px solid var(--line2);color:var(--ink);text-align:left;position:relative}
 .cpj .cpn{font:700 14px/1.1 var(--f-body);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:44px}
 .cpj .cpo{position:absolute;top:6px;right:6px;font:700 10px/1 var(--f-hud);letter-spacing:.04em;color:var(--soft)}

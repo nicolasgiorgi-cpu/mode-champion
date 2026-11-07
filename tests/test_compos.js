@@ -271,7 +271,7 @@ const lvE = (p) => p.equipes.map(t => t.joueurs.map(j => FE[j.id].niveau).join('
 const tous = (p) => { const s = []; p.equipes.forEach(t => t.joueurs.forEach(j => s.push(j.id))); return s.sort(); };
 // réglages conseillés : groupes de 8 environ, 2 matchs à partir de 20
 let RE = K.regEnt({ partie: 'ateliers' }, idsE, FE);
-assert.strictEqual(RE.n, 4); assert.strictEqual(RE.mode, 'niveau'); assert.strictEqual(RE.separer, false); assert.strictEqual(RE.nbMatchs, 2);
+assert.strictEqual(RE.n, 4); assert.strictEqual(RE.mode, 'niveau'); assert.strictEqual(RE.separer, false); assert.strictEqual(RE.nbMatchs, 1, '(v57) un seul match : deux équipes avec tout le monde');
 assert.strictEqual(K.regEnt({ partie: 'matchs', separer: true }, idsE, FE).separer, false);
 // ateliers par niveau : des groupes homogènes, coupés à la limite des niveaux ; tout le monde placé une fois
 let pe = K.proposerEnt(idsE, FE, {}, { partie: 'ateliers', mode: 'niveau', n: 4 }, '2026-10-21');
@@ -302,17 +302,17 @@ assert.ok(sansP.every(id => pe.raisons[id]), 'les sans-poste ont leur raison');
 pe = K.proposerEnt(idsE, FE, {}, { partie: 'ateliers', mode: 'niveau', separer: true, nAv: 2, nAr: 2 }, '2026-10-21');
 assert.deepStrictEqual(J(K.blocsDe(pe)), ['av', 'ar']);
 pe.equipes.forEach(t => { const c = lvE({ equipes: [t] })[0]; assert.ok(!(/A/.test(c) && /C/.test(c)), 'groupe de niveau sans A et C ensemble : ' + c); });
-// matchs par niveau : le match 1 réunit les plus avancés ; deux équipes équilibrées par match
-pe = K.proposerEnt(idsE, FE, {}, { partie: 'matchs', mode: 'niveau', nbMatchs: 2 }, '2026-10-21');
-assert.deepStrictEqual(J(pe.equipes.map(t => [t.id, t.nom, t.bloc, 'cote' in t])), [['E1', 'Équipe 1', 'm1', false], ['E2', 'Équipe 2', 'm1', false], ['E3', 'Équipe 3', 'm2', false], ['E4', 'Équipe 4', 'm2', false]]);
-const m1 = lvE({ equipes: pe.equipes.slice(0, 2) }).join(''), m2 = lvE({ equipes: pe.equipes.slice(2) }).join('');
-assert.ok(!/C/.test(m1) && !/A/.test(m2), 'match 1 : A + B ; match 2 : B + C (' + m1 + ' / ' + m2 + ')');
-ste = pe.equipes.map(t => K.stats(t, FE, 5));
-assert.ok(Math.abs(ste[0].plaq - ste[1].plaq) < 0.6 && Math.abs(ste[2].plaq - ste[3].plaq) < 0.6);
-assert.ok(Math.abs(ste[0].n - ste[1].n) <= 1 && Math.abs(ste[2].av - ste[3].av) <= 2);
-// matchs équilibrés : chaque match mélange tout le monde
-pe = K.proposerEnt(idsE, FE, {}, { partie: 'matchs', mode: 'equilibre', nbMatchs: 2 }, '2026-10-21');
-[pe.equipes.slice(0, 2), pe.equipes.slice(2)].forEach(m => { const c = lvE({ equipes: m }).join(''); assert.ok(/A/.test(c) && /C/.test(c), c); });
+// (v57, demande de Nicolas du 07/11) les matchs : toujours UN match, deux équipes équilibrées avec tout le monde,
+// même si on demande « par niveau » ou 2 matchs (anciens réglages)
+[{ mode: 'niveau', nbMatchs: 2 }, { mode: 'equilibre', nbMatchs: 2 }, {}].forEach(rq => {
+  pe = K.proposerEnt(idsE, FE, {}, Object.assign({ partie: 'matchs' }, rq), '2026-10-21');
+  assert.deepStrictEqual(J(pe.equipes.map(t => [t.id, t.nom, t.bloc, 'cote' in t])), [['E1', 'Équipe 1', 'm1', false], ['E2', 'Équipe 2', 'm1', false]], JSON.stringify(rq));
+  assert.strictEqual(pe.reglages.mode, 'equilibre'); assert.strictEqual(pe.reglages.nbMatchs, 1);
+  assert.deepStrictEqual(tous(pe), idsE.slice().sort(), 'tout le monde joue');
+  pe.equipes.forEach(t => { const c = lvE({ equipes: [t] })[0]; assert.ok(/A/.test(c) && /B/.test(c) && /C/.test(c), 'chaque équipe mélange les niveaux : ' + c); });
+  ste = pe.equipes.map(t => K.stats(t, FE, 10));
+  assert.ok(Math.abs(ste[0].plaq - ste[1].plaq) < 0.6 && Math.abs(ste[0].n - ste[1].n) <= 1 && Math.abs(ste[0].avTous - ste[1].avTous) <= 2, JSON.stringify(ste.map(x => [x.n, x.plaq, x.avTous])));
+});
 // (v35) rien à regarder, sauf les enfants sans aucun poste (matchs avec postes : il faut leur en donner un)
 assert.deepStrictEqual(J(K.alertesEnt(pe, FE, idsE).filter(a => a.k !== 'sansposte')), []);
 assert.deepStrictEqual(J(K.alertesEnt(pe, FE, idsE).find(a => a.k === 'sansposte').ids.sort()), idsE.filter(id => !K.postesDe(FE[id]).length).sort());
@@ -325,17 +325,21 @@ pe = K.proposerEnt(idsE, FE, {}, { partie: 'matchs', mode: 'equilibre', nbMatchs
 assert.strictEqual(pe.reglages.format, 10);
 pe.equipes.forEach(t => {
   const postes = t.joueurs.map(j => j.poste).filter(Boolean);
-  assert.strictEqual(postes.length, 10, 'équipe de 15 : les 10 places du match, les autres remplaçants (' + postes.length + ')');
-  K.POSTES10.forEach(([p, n]) => assert.strictEqual(postes.filter(x => x === p).length, n, 'une fois chaque place : ' + p));
-  // un joueur dont c'est le poste principal le garde, si sa place n'est pas déjà prise par un autre « principal »
-  t.joueurs.forEach(j => { if (j.poste && FE[j.id].postesOk.length && FE[j.id].postesOk.indexOf(j.poste) < 0) assert.ok(FE[j.id].postesOk.every(p => t.joueurs.some(x => x.poste === p && x.id !== j.id)), j.id + ' : ' + j.poste); });
+  // (v57) équipe de 15 : les 10 places du match tenues, et les autres ont aussi un poste (remplaçants à ce poste) ; sans poste : rien
+  assert.strictEqual(postes.length, t.joueurs.filter(j => K.postesDe(FE[j.id]).length).length, 'chacun son poste, remplaçants compris (' + postes.length + ')');
+  K.POSTES10.forEach(([p, n]) => assert.ok(postes.filter(x => x === p).length >= n, 'chaque place tenue : ' + p));
+  const st = K.stats(t, FE, 10);
+  assert.strictEqual(st.av + st.ar, 10, 'Av + Ar = les 10 places tenues'); assert.strictEqual(st.rempl, postes.length - 10, 'remplaçants = les joueurs en plus des places');
+  assert.strictEqual(st.avTous + st.arTous, postes.length);
+  // au-delà des places : un de ses postes de fiche
+  t.joueurs.forEach(j => { if (j.poste && FE[j.id].postesOk.length) assert.ok(FE[j.id].postesOk.indexOf(j.poste) >= 0 || st.parPoste[j.poste] <= K.BESOIN[j.poste], j.id + ' : ' + j.poste); });
 });
 // les deux équipes couvrent autant de postes (le poste compte dans l'équilibre)
 const manq = pe.equipes.map(t => K.apparier(t.joueurs.map(j => j.id), FE).manquants.length);
 assert.ok(Math.abs(manq[0] - manq[1]) <= 1, JSON.stringify(manq));
-// 2 matchs (équipes de 7 ou 8) : tout le monde joue, avec un poste (les places vides vont à ceux qui restent) ;
+// petites équipes (7 ou 8) : tout le monde joue, avec un poste (les places vides vont à ceux qui restent) ;
 // sauf un enfant sans AUCUN poste (ni fiche, ni vœux) : il reste « sans poste », pour qu'on lui en donne un (Nicolas, 31/10)
-pe = K.proposerEnt(idsE, FE, {}, { partie: 'matchs', mode: 'niveau', nbMatchs: 2 }, '2026-10-21');
+pe = K.proposerEnt(idsE.slice(0, 15), FE, {}, { partie: 'matchs' }, '2026-10-21');
 pe.equipes.forEach(t => assert.ok(t.joueurs.every(j => K.postesDe(FE[j.id]).length ? !!j.poste : j.poste === ''), 'moins de 10 joueurs : chacun a un poste, sauf les sans-poste (' + t.id + ')'));
 const nSansP = pe.equipes.map(t => t.joueurs.filter(j => !K.postesDe(FE[j.id]).length).length).reduce((a, b) => a + b, 0);
 assert.ok(nSansP > 0, 'il y a bien des enfants sans poste dans l\'essai');
@@ -350,11 +354,13 @@ assert.ok(['talonneur', 'troisieme-ligne'].indexOf(apv.x3) >= 0, '3e pilier : un
 assert.strictEqual(apv.x4, '', 'sans aucun poste : pas de place d\'office (on voit qu\'il faut lui en donner un)');
 // arriver dans une équipe au jeu à 10 : son poste de fiche s'il est libre ; match : sinon une place de son côté ; plateau : remplaçant
 const tq = { joueurs: [{ id: 'x1', poste: 'pilier' }, { id: 'x2', poste: 'pilier' }, { id: 'x3', poste: '' }] };
-assert.strictEqual(K.placeLibre(tq, 'x3', FV, false), '', 'plateau : piliers pris → remplaçant (comme avant)');
+assert.strictEqual(K.placeLibre(tq, 'x3', FV, false), 'pilier', '(v57) plateau : piliers pris → un pilier en plus (remplaçant pilier)');
 assert.ok(['talonneur', 'troisieme-ligne'].indexOf(K.placeLibre(tq, 'x3', FV, true)) >= 0, 'match : une place d\'avant libre');
 assert.strictEqual(K.placeLibre({ joueurs: [{ id: 'x1', poste: 'pilier' }] }, 'x2', FV, false), 'pilier', 'son poste de fiche, encore libre');
 assert.strictEqual(K.placeLibre({ joueurs: [] }, 'x4', FV, true), '', 'sans aucun poste : pas de place d\'office');
-assert.strictEqual(K.apparier(['x1', 'x2', 'x3'], FV).poste.x3, '', 'aux plateaux, sans « remplir » : rien ne change (remplaçant)');
+assert.strictEqual(K.apparier(['x1', 'x2', 'x3'], FV).poste.x3, '', 'aux plateaux, sans « remplir » : apparier ne donne que les 10 places');
+assert.strictEqual(K.postesEquipe(['x1', 'x2', 'x3', 'x4'], FV).x3, 'pilier', '(v57) le 3e pilier : pilier en plus');
+assert.strictEqual(K.postesEquipe(['x1', 'x2', 'x3', 'x4'], FV).x4, '', '(v57) sans aucun poste : toujours rien');
 // reprendre des matchs d'avant la v35 (sans postes) : ils passent avec postes
 const vieux = { reglages: { partie: 'matchs', mode: 'niveau', nbMatchs: 1, format: 5 }, equipes: [{ id: 'E1', nom: 'Équipe 1', bloc: 'm1', joueurs: ['A0', 'B1', 'C2'].map(id => ({ id, poste: '', n: '' })) }, { id: 'E2', nom: 'Équipe 2', bloc: 'm1', joueurs: ['A2', 'B3'].map(id => ({ id, poste: '', n: '' })) }], banc: [] };
 const rv = K.reprendre(vieux, ['A0', 'B1', 'C2', 'A2', 'B3'], FE);
@@ -398,7 +404,7 @@ assert.deepStrictEqual(J(rp.equipes.map(t => t.id)), J(prec.equipes.map(t => t.i
 const parNiv = K.proposerEnt(idsE, FE, {}, { partie: 'ateliers', mode: 'niveau', n: 3 }, '2026-10-14');   // A+B, B1, C1
 const mParNiv = K.proposerEnt(idsE, FE, {}, { partie: 'matchs', mode: 'niveau', nbMatchs: 2 }, '2026-10-14');
 assert.strictEqual(parNiv.equipes[0].niveau, 'A', 'le groupe « A+B » est un groupe de niveau A');
-assert.deepStrictEqual(J(mParNiv.equipes.map(t => t.niveau)), ['A', 'A', 'B', 'B']);
+assert.deepStrictEqual(J(mParNiv.equipes.map(t => t.niveau)), ['', ''], '(v57) les matchs sont équilibrés : pas de niveau');
 const evH2 = { x: { id: 'x', titre: 'Entraînement', debut: '2026-10-14T16:30' }, p: { id: 'p', titre: 'Plateau 2', debut: '2026-10-10T08:00' } };
 const cH2 = [
   { evenementId: 'x', statut: 'publiee', partie: 'matchs', equipes: mParNiv.equipes },
@@ -425,9 +431,9 @@ assert.strictEqual(hSeul.B3.sansCopainSerie, 1);
 // performance : 31 joueurs, ateliers équilibrés et matchs
 let t2 = Date.now();
 K.proposerEnt(idsE, FE, {}, { partie: 'ateliers', mode: 'equilibre', n: 6 }, '2026-10-21');
-// 1 ou 2 matchs seulement : au-delà, on reste à 2
-assert.strictEqual(K.proposerEnt(idsE, FE, {}, { partie: 'matchs', mode: 'equilibre', nbMatchs: 3 }, '2026-10-21').equipes.length, 4);
-assert.strictEqual(K.regEnt({ partie: 'matchs', nbMatchs: 4 }, idsE, FE).nbMatchs, 2);
+// (v57) un seul match : deux équipes, quoi qu'on demande
+assert.strictEqual(K.proposerEnt(idsE, FE, {}, { partie: 'matchs', mode: 'equilibre', nbMatchs: 3 }, '2026-10-21').equipes.length, 2);
+assert.strictEqual(K.regEnt({ partie: 'matchs', nbMatchs: 4 }, idsE, FE).nbMatchs, 1);
 assert.ok(Date.now() - t2 < 1500, 'entraînement en ' + (Date.now() - t2) + ' ms');
 
 // ----- performance : 44 joueurs, 4 équipes au jeu à 10 -----

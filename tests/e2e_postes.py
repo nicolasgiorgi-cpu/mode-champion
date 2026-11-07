@@ -79,21 +79,20 @@ with sync_playwright() as p:
     t = pg.inner_text('main')
     check('matchs : « jeu à 10 », chacun son poste du match', 'Jeu à 10' in t and 'poste du match' in t, t[:400])
     check('matchs : la répartition des présents', pg.query_selector('details[data-rp="matchs"]') is not None)
-    pg.click('[data-act="cEN"][data-k="nbMatchs"][data-d="-1"]') if ev(pg, "!document.querySelector('[data-act=cEN][data-k=nbMatchs][data-d=\"-1\"]').disabled") else None
-    pg.wait_for_timeout(200)
+    check('(v57) matchs : plus de choix « Combien ? » (un match, deux équipes)', pg.query_selector('[data-act="cEN"][data-k="nbMatchs"]') is None)
     pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(1500)
     d0 = ev(pg, "(() => { const k = Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0 && k.endsWith(':matchs')); return JSON.parse(localStorage.getItem(k)).vs[0]; })()")
     check('matchs proposés au jeu à 10', d0['reglages']['format'] == 10, d0['reglages'])
     pl = [[j['poste'] for j in t['joueurs']] for t in d0['equipes']]
     avec = ev(pg, "(() => { const F = MC.compos.fiches(MC.app.S.cache.group), k = Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0 && k.endsWith(':matchs')); return JSON.parse(localStorage.getItem(k)).vs[0].equipes.map(t => t.joueurs.filter(j => MC.compos.postesDe(F[j.id]).length).length); })()")
-    check('chaque équipe : ses places prises par ceux qui ont un poste (10 au plus)', all(len([x for x in l if x]) == min(10, n) for l, n in zip(pl, avec)), (pl, avec))
+    check('(v57) chaque équipe : tous ceux qui ont un poste en ont un pour le match (remplaçants compris)', len(pl) == 2 and all(len([x for x in l if x]) == n for l, n in zip(pl, avec)), (pl, avec))
     check('le tableau : « Av …/5 · Ar …/5 » et les postes sur les joueurs', '/5' in pg.inner_text('.cboard2') and len(pg.query_selector_all('.ccol .cpj .cpo')) >= 10)
     check('matchs : pas de défilement de côté', sans_debord(pg))
     # changer le poste d'un enfant, juste pour ce match (même un poste qui n'est pas sur sa fiche)
     j = ev(pg, """(() => { const F = MC.compos.fiches(MC.app.S.cache.group), k = Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0 && k.endsWith(':matchs')), d = JSON.parse(localStorage.getItem(k)).vs[0];
       for (const t of d.equipes) for (const x of t.joueurs) if (x.poste && MC.compos.postesDe(F[x.id]).indexOf('ailier') < 0 && x.poste !== 'ailier') return x.id; return null; })()""")
     pg.click('.ccol .cpj[data-id="%s"]' % j); pg.wait_for_timeout(400)
-    check('toucher un joueur : les 7 postes et « Remp. »', len(pg.query_selector_all('[data-act="cPoste"]')) == 8)
+    check('(v57) toucher un joueur : les 7 postes (plus de « Remp. » sans poste)', len(pg.query_selector_all('[data-act="cPoste"]')) == 7)
     pg.click('[data-act="cPoste"][data-p="ailier"]'); pg.wait_for_timeout(500)
     d1 = ev(pg, "(() => { const k = Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0 && k.endsWith(':matchs')); return JSON.parse(localStorage.getItem(k)).vs[0]; })()")
     pj = [x['poste'] for t in d1['equipes'] for x in t['joueurs'] if x['id'] == j]
@@ -103,8 +102,10 @@ with sync_playwright() as p:
     cm = ev(pg, "MC.app.S.cache.compos.compos.find(c => c.evenementId === 'sp-demo-e1' && c.partie === 'matchs')")
     check('matchs publiés avec leurs postes', cm is not None and cm['reglages']['format'] == 10 and [x['poste'] for t in cm['equipes'] for x in t['joueurs'] if x['id'] == j] == ['ailier'], cm and cm['reglages'])
     # ----- 6. (relecture) le plateau suivant garde le format des plateaux (pas celui des matchs d'entraînement) -----
+    pg.goto(BASE + '#/educ/compo/demo-r1'); pg.wait_for_timeout(1300)
+    check('plateau de novembre après des matchs au jeu à 10 : toujours « Jeu à 5 » (le dernier plateau)', ev(pg, "document.querySelector('[data-act=cFmt][data-v=\"5\"]').classList.contains('on')"))
     pg.goto(BASE + '#/educ/compo/sp-demo-p3'); pg.wait_for_timeout(1300)
-    check('plateau après des matchs au jeu à 10 : toujours « Jeu à 5 » (le dernier plateau)', ev(pg, "document.querySelector('[data-act=cFmt][data-v=\"5\"]').classList.contains('on')"))
+    check('(v57) plateau de décembre : « Jeu à 10 », même si le dernier plateau était à 5 ; une équipe A, une équipe B', ev(pg, "document.querySelector('[data-act=cFmt][data-v=\"10\"]').classList.contains('on')") and pg.inner_text('main').count('conseillé') == 0 and ev(pg, "MC.compos && [...document.querySelectorAll('.cstep .cnbv')].map(o => o.textContent).join(',')") == '1,1,0', ev(pg, "[...document.querySelectorAll('.cstep .cnbv')].map(o => o.textContent).join(',')"))
     # ----- 7. (relecture) matchs « partir de zéro » : « + Ajouter un joueur » le met à une place, pas remplaçant -----
     # un entraînement à venir, sans matchs encore : créé pour l'essai
     # 13 enfants qui ont un poste (fiche ou vœux) et un qui n'en a aucun
@@ -129,12 +130,14 @@ with sync_playwright() as p:
     check('… on lui donne un poste pour ce match d\'un toucher', [x['poste'] for t in dsp['equipes'] for x in t['joueurs'] if x['id'] == sp] == ['centre'])
     pg.click('[data-act="cDiscard"]'); pg.wait_for_timeout(300)
     if pg.query_selector('.modal'): pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(700)
-    pg.click('[data-act="cZero"]'); pg.wait_for_timeout(900)
+    pg.click('[data-act="cZero10"]'); pg.wait_for_timeout(900)   # (v57) « Poste par poste » : la fenêtre s'ouvre sur les piliers
+    check('(v57) « Poste par poste » : la fenêtre s\'ouvre sur les piliers', pg.query_selector('.modal.ppk') is not None and 'PILIERS' in pg.inner_text('.modal h2').upper())
+    pg.click('.modal [data-close]'); pg.wait_for_timeout(400)
     sl = ev(pg, "[...document.querySelectorAll('.ccol')[0].querySelectorAll('.cslot')].map(x => x.textContent).join('|')")
     check('équipe vide de match : « + Ajouter un joueur » (pas « + Remplaçant »)', '+ Ajouter un joueur' in sl and 'Remplaçant' not in sl, sl)
     pg.locator('.ccol >> nth=0 >> .cslot:has-text("Ajouter un joueur")').evaluate('e => e.click()'); pg.wait_for_timeout(500)
-    pg.click('.modal .cprow >> nth=0'); pg.wait_for_timeout(400)
-    if pg.query_selector('.modal button:has-text("Terminé")'): pg.click('.modal button:has-text("Terminé")'); pg.wait_for_timeout(500)
+    pg.click('.modal .pprow >> nth=0 >> [data-ppt="E1"]'); pg.wait_for_timeout(400)
+    pg.click('.modal [data-close]'); pg.wait_for_timeout(500)
     po = ev(pg, "[...document.querySelectorAll('.ccol')[0].querySelectorAll('.cpj .cpo')].map(x => x.textContent).join(',')")
     check('… le joueur ajouté a un poste du match', po != '' and 'Remp' not in po, po)
     # déplacer un enfant de « Pas placés » vers l'équipe : une place, pas remplaçant (tout le monde joue)

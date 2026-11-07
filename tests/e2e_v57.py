@@ -1,0 +1,148 @@
+# (v57) Jeu à 10 « poste par poste » (demande de Nicolas du 07/11/2026) : le poste préféré à gauche dans Enfants ; un plateau à 10
+# = une équipe A et une équipe B ; « Avec qui ? » (les présents ou tout le groupe, les absents et sans réponse marqués dans la compo,
+# « Actualiser » Spond) ; la fenêtre poste par poste (un bouton par équipe, autant d'enfants qu'on veut, OK = poste suivant ;
+# niveau A → C puis plaquage, les absents en bas) ; chacun a un poste, remplaçants compris ; les matchs = deux équipes équilibrées.
+# Site de démo (sh tests/mkdemo.sh), puis : python3 tests/e2e_v57.py 390 844 · 1180 820 · 820 1180
+import sys, json
+from playwright.sync_api import sync_playwright
+BASE = 'http://localhost:8899/index.html'
+W, H = (int(sys.argv[1]), int(sys.argv[2])) if len(sys.argv) > 2 else (390, 844)
+res = []; errs = []
+def check(n, c, i=''): res.append((n, c)); print(('OK  ' if c else 'BAD ') + n, '' if c else i)
+NIV = {'A': 0, 'B': 1, 'C': 2}
+with sync_playwright() as p:
+    b = p.chromium.launch(); ctx = b.new_context(viewport={'width': W, 'height': H}, is_mobile=W < 700, has_touch=True); pg = ctx.new_page()
+    pg.add_init_script('window.__MC_QUIET=1'); pg.on('pageerror', lambda e: errs.append(str(e)))
+    ev = pg.evaluate
+    noscroll = lambda: ev('document.scrollingElement.scrollWidth <= document.documentElement.clientWidth + 1')
+    pg.goto(BASE); ev('localStorage.clear()'); pg.reload(); pg.wait_for_timeout(600)
+    pg.goto(BASE + '#/adultes'); pg.wait_for_timeout(400)
+    pg.click('[data-act="adultWho"][data-w="e"]'); pg.wait_for_timeout(300)
+    pg.click('[data-act="adultPick"][data-nom="Coach Nico"]'); pg.wait_for_timeout(300)
+    for c in ev('MC.demo.CODES.educ'): pg.click('#adultzone [data-k="%s"]' % c); pg.wait_for_timeout(40)
+    pg.wait_for_timeout(1300)
+    if '#/educ/bienvenue' in pg.url:
+        for i in range(2): pg.click('[data-act="obNext"]'); pg.wait_for_timeout(300)
+        pg.click('[data-act="obPick"] >> nth=0'); pg.wait_for_timeout(200)
+        pg.click('[data-act="obEducDone"]'); pg.wait_for_timeout(1000)
+    def draft(evt, partie=''):
+        return ev("""([e, p]) => { const k = Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0 && k.indexOf(':' + e + (p ? ':' + p : '')) > 0 && (p || !/:(ateliers|matchs)$/.test(k)) && localStorage.getItem(k) !== 'null'); return k ? JSON.parse(localStorage.getItem(k)).vs[0] : null; }""", [evt, partie])
+
+    # ----- 1. Enfants : le poste préféré ★ toujours le plus à gauche, puis les autres dans l'ordre pilier → ailier -----
+    pg.goto(BASE + '#/educ/joueurs'); pg.wait_for_timeout(1200)
+    rows = ev("""(() => { const F = MC.compos.fiches(MC.app.S.cache.group), K = MC.compos, ORD = K.ORDRE;
+      return [...document.querySelectorAll('#tlist a.tfrow')].map(a => { const id = a.getAttribute('href').split('/').pop(), f = F[id];
+        const pills = [...a.querySelectorAll('.tps .tpp:not(.none):not(.voeu)')].map(x => ({ pref: x.classList.contains('pref'), txt: x.querySelector('[aria-hidden]') ? x.querySelector('[aria-hidden]').textContent : '' }));
+        return { id, pills, pref: f.postesOk.length ? K.prefDe(f) : [], n: K.postesDe(f).length }; }); })()""")
+    bons = True; ex = None
+    for r in rows:
+        pl = r['pills']
+        if not pl: continue
+        prefs = [x['pref'] for x in pl]
+        if prefs != sorted(prefs, reverse=True): bons = False; ex = r; break
+    check('Enfants : les pastilles pleines (préférés ★) d\'abord, à gauche', bons, ex)
+    cas = [r for r in rows if r['pills'] and r['pref'] and not r['pills'][0]['pref'] is False and r['pills'][0]['txt'] in ('Tal', '3eL', '9', '10', 'Ctr', 'Ail') and len(r['pills']) > 1 and not r['pills'][1]['pref']]
+    check('Enfants : un préféré qui n\'est pas le 1er dans l\'ordre des postes passe quand même à gauche (démo)', len(cas) > 0, [r['pills'] for r in rows][:6])
+    ordre = ev("""(() => { const R = { Pil: 0, Tal: 1, '3eL': 2, '9': 3, '10': 4, Ctr: 5, Ail: 6 };
+      return [...document.querySelectorAll('#tlist .tps')].every(t => { const p = [...t.querySelectorAll('.tpp:not(.none):not(.voeu)')], a = p.filter(x => x.classList.contains('pref')), o = p.filter(x => !x.classList.contains('pref'));
+        const r = l => l.map(x => R[x.querySelector('[aria-hidden]').textContent]); const s = l => JSON.stringify(l) === JSON.stringify(l.slice().sort((x, y) => x - y)); return s(r(a)) && s(r(o)); }); })()""")
+    check('Enfants : préférés entre eux, puis les autres, dans l\'ordre pilier → ailier', ordre)
+
+    # ----- 2. un plateau de décembre : jeu à 10, une équipe A et une équipe B ; « Avec qui ? » -----
+    ev("Object.keys(localStorage).filter(k => k.indexOf('mc-cdraft:') === 0).forEach(k => localStorage.removeItem(k))")
+    pg.goto(BASE + '#/educ/compo/sp-demo-p3'); pg.wait_for_timeout(1200)
+    check('plateau de décembre : jeu à 10, A 1 · B 1 · C 0', ev("document.querySelector('[data-act=cFmt][data-v=\"10\"]').classList.contains('on')") and ev("[...document.querySelectorAll('.cstep .cnbv')].map(o => o.textContent).join(',')") == '1,1,0')
+    check('« Avec qui ? » : les présents (par défaut) ou tout le groupe', len(pg.query_selector_all('[data-act="cBase"]')) == 2 and ev("document.querySelector('[data-act=cBase][data-v=presents]').classList.contains('on')"))
+    check('« Poste par poste, à la main » à la place de « Partir de zéro »', pg.query_selector('[data-act="cZero10"]') is not None and pg.query_selector('[data-act="cZero"]') is None)
+    npres = ev("MC.compos.presents(MC.app.S.cache.compos.evenements.find(e => e.id === 'sp-demo-p3')).filter(id => MC.compos.fiches(MC.app.S.cache.group)[id].actif).length")
+    ntous = ev("MC.app.S.cache.group.joueurs.filter(p => p.joueur.actif).length")
+    pg.click('[data-act="cBase"][data-v="tous"]'); pg.wait_for_timeout(400)
+    check('tout le groupe : les joueurs par équipe comptent tout le groupe', ('pour %d enfants' % ntous) in ev("document.querySelector('main').textContent"), ev("(document.querySelector('.ctailp') || {}).textContent"))
+    check('réglages : pas de défilement de côté', noscroll())
+    pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(1200)
+    d = draft('sp-demo-p3')
+    check('proposée avec tout le groupe : base « tous », équipes A1 et B1', d and d['reglages'].get('base') == 'tous' and [t['id'] for t in d['equipes']] == ['A1', 'B1'], d and d['reglages'])
+    placed = sum(len(t['joueurs']) for t in d['equipes']) + len(d['banc'])
+    check('tout le groupe est dans la compo (%d)' % ntous, placed == ntous, placed)
+    sansposte = ev("""(d) => { const F = MC.compos.fiches(MC.app.S.cache.group); return d.equipes.every(t => t.joueurs.every(j => !!j.poste === (MC.compos.postesDe(F[j.id]).length > 0))); }""", d)
+    check('chacun a un poste, remplaçants compris (sauf ceux qui n\'en ont aucun)', sansposte)
+    check('en haut : « N enfants · M présents »', ('%d ENFANTS · %d PRÉSENTS' % (ntous, npres)) in pg.inner_text('.head').upper(), pg.inner_text('.head'))
+    check('la ligne Spond : présents, absents, sans réponse, et « Actualiser »', pg.query_selector('.cspond [data-act="cSync"]') is not None and 'marqués dans la compo' in pg.inner_text('.cspond'))
+    nabs = ev("document.querySelectorAll('.ccol:not(.banc) .cpj.gone .cabsf').length")
+    check('les absents sont dans les équipes, marqués « absent », avec leur poste', nabs > 0 and ev("[...document.querySelectorAll('.ccol:not(.banc) .cpj.gone')].every(x => x.querySelector('.cpo') && x.querySelector('.cabsf'))"), nabs)
+    check('« À regarder » : les absents dans une équipe, à retirer d\'un geste', 'dans une équipe :' in pg.inner_text('main'))
+    hd = ev("[...document.querySelectorAll('.ccol .cavtq')].map(x => x.textContent)")
+    check('en-tête d\'équipe : places tenues /5 et remplaçants', all('/5' in x for x in hd) and any('Remp.' in x for x in hd), hd)
+    check('compo : pas de défilement de côté', noscroll())
+
+    # ----- 3. la fenêtre poste par poste (plateau : boutons A et B) -----
+    pg.click('[data-act="cParPoste"]'); pg.wait_for_timeout(700)
+    check('poste par poste : s\'ouvre sur les piliers, 7 postes en haut', pg.inner_text('.modal h2').split('\n')[0].upper().endswith('PILIERS') and len(pg.query_selector_all('.modal .ppn')) == 7)
+    lab = ev("[...document.querySelector('.modal .pprow').querySelectorAll('.ppb')].map(b => b.textContent)")
+    check('un bouton par équipe : A et B', lab == ['A', 'B'], lab)
+    check('les boutons font au moins 42 px', ev("[...document.querySelectorAll('.modal .ppb')].every(b => b.getBoundingClientRect().width >= 41 && b.getBoundingClientRect().height >= 41)"))
+    vv = ev("""(() => { const F = MC.compos.fiches(MC.app.S.cache.group); const g = document.querySelector('.modal .cpgrp');
+      return [...g.querySelectorAll('.pprow')].map(r => { const id = r.querySelector('.ppb').getAttribute('data-ppid'); return [F[id].niveau || 'Z', F[id].plaquage === null ? -1 : F[id].plaquage, r.classList.contains('abs')]; }); })()""")
+    def bien_trie(l):
+        for a, c in zip(l, l[1:]):
+            ka = (a[2], NIV.get(a[0], 9), -a[1] if a[1] >= 0 else 1); kc = (c[2], NIV.get(c[0], 9), -c[1] if c[1] >= 0 else 1)
+            if ka > kc: return False
+        return True
+    check('le 1er groupe : niveau A → C, puis le plaquage du plus fort au plus faible, les absents en bas', len(vv) >= 2 and bien_trie(vv), vv)
+    hors = ev("""(() => { const F = MC.compos.fiches(MC.app.S.cache.group); return [...document.querySelectorAll('.modal .ppb')].filter(b => b.getAttribute('data-ppt') === 'A1').every(b => { const f = F[b.getAttribute('data-ppid')]; const ok = !f.niveau || f.niveau === 'A' || MC.compos.pasDe(f).indexOf('A') >= 0; return ok === !b.classList.contains('hors'); }); })()""")
+    check('au plateau : le bouton A en pointillés pour qui n\'a ni le niveau A ni de passerelle vers A', hors)
+    att = ev("document.querySelectorAll('.modal .pptag.att, .modal .pptag.abs').length")
+    check('les lignes disent « absent » ou « pas répondu »', att > 0, att)
+    pg.click('.modal .ppn[data-pp="talonneur"]'); pg.wait_for_timeout(300)
+    pg.click('.modal details[data-ppg="autres"] > summary'); pg.wait_for_timeout(300)   # « Les autres » : on peut aussi y prendre
+    check('« Les autres » reste ouvert après un toucher', ev("document.querySelector('.modal details[data-ppg=autres]').open"))
+    ids = ev("[...document.querySelectorAll('.modal .pprow')].filter(r => !r.closest('details:not([open])') && r.querySelector('.ppb[data-ppt=B1]').getAttribute('aria-pressed') === 'false').map(r => r.querySelector('.ppb').getAttribute('data-ppid')).slice(0, 3)")
+    nt0 = len([j for t in draft('sp-demo-p3')['equipes'] if t['id'] == 'B1' for j in t['joueurs'] if j['poste'] == 'talonneur'])
+    for i in ids: pg.click('.modal .ppb[data-ppid="%s"][data-ppt="B1"]' % i); pg.wait_for_timeout(250)
+    check('« Les autres » toujours ouvert', ev("document.querySelector('.modal details[data-ppg=autres]').open"))
+    d = draft('sp-demo-p3')
+    nt = [j for t in d['equipes'] if t['id'] == 'B1' for j in t['joueurs'] if j['poste'] == 'talonneur']
+    check('autant qu\'on veut : 3 talonneurs de plus en B', len(ids) == 3 and len(nt) == nt0 + 3 and all(any(j['id'] == i for j in nt) for i in ids), (ids, nt0, nt))
+    check('le compteur du poste suit', ev("document.querySelector('.modal .ppn[data-pp=talonneur] small').textContent").split('·')[1] == str(len(nt)))
+    check('la fenêtre : pas de défilement de côté', ev("(() => { const c = document.querySelector('.modal .card'); return c.scrollWidth <= c.clientWidth + 1; })()") and noscroll())
+    pg.click('.modal .ppb[data-ppid="%s"][data-ppt="B1"]' % ids[0]); pg.wait_for_timeout(250)
+    d = draft('sp-demo-p3')
+    check('toucher encore : il sort (« Pas placés »)', ids[0] in d['banc'], d['banc'])
+    pg.click('.modal .mbtns button[data-i="0"]'); pg.wait_for_timeout(300)
+    check('OK : le poste suivant (3es lignes)', pg.inner_text('.modal h2').split('\n')[0].upper().endswith('3ES LIGNES'))
+    pg.click('.modal [data-close]'); pg.wait_for_timeout(400)
+    # un joueur touché : les 7 postes, plus de « Remp. »
+    pg.locator('.ccol >> nth=0 >> .cpj >> nth=0').evaluate('e => e.click()'); pg.wait_for_timeout(300)
+    check('joueur touché : les 7 postes, plus de « Remp. »', len(pg.query_selector_all('[data-act="cPoste"]')) == 7 and 'Remp.' not in pg.inner_text('.cdock'))
+    pg.locator('.ccol >> nth=0 >> .cpj >> nth=0').evaluate('e => e.click()'); pg.wait_for_timeout(300)
+    # publier puis relire : « tout le groupe » est gardé
+    pg.click('[data-act="cPublish"]'); pg.wait_for_timeout(400)
+    if pg.query_selector('.modal'): pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(1200)
+    cp = ev("MC.app.S.cache.compos.compos.find(c => c.evenementId === 'sp-demo-p3' && !c.partie)")
+    check('publiée : « tout le groupe » gardé, plusieurs talonneurs gardés', cp and cp['reglages'].get('base') == 'tous' and len([j for t in cp['equipes'] for j in t['joueurs'] if j['poste'] == 'talonneur']) >= 3, cp and cp['reglages'])
+    pg.goto(BASE + '#/educ/compo/sp-demo-p3'); pg.wait_for_timeout(1000)
+    check('rouverte : les absents toujours marqués', ev("document.querySelectorAll('.ccol .cpj.gone').length") > 0 and pg.query_selector('.cspond') is not None)
+
+    # ----- 4. les matchs d'un entraînement : deux équipes, boutons 1 et 2 -----
+    pg.goto(BASE + '#/educ/compo/sp-demo-e1?p=matchs'); pg.wait_for_timeout(1200)
+    if pg.query_selector('[data-act="cDiscard"]'):
+        pg.click('[data-act="cDiscard"]'); pg.wait_for_timeout(300); pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(700)
+    check('matchs : deux équipes équilibrées, « Avec qui ? », poste par poste', 'DEUX ÉQUIPES ÉQUILIBRÉES' in pg.inner_text('main').upper() and len(pg.query_selector_all('[data-act="cBase"]')) == 2 and pg.query_selector('[data-act="cZero10"]') is not None and pg.query_selector('[data-act="cEN"]') is None)
+    pg.click('[data-act="cZero10"]'); pg.wait_for_timeout(800)
+    lab = ev("[...document.querySelector('.modal .pprow').querySelectorAll('.ppb')].map(b => b.textContent)")
+    check('matchs : boutons « 1 » et « 2 »', lab == ['1', '2'], lab)
+    check('matchs : aucun bouton en pointillés (pas de niveau)', len(pg.query_selector_all('.modal .ppb.hors')) == 0)
+    r0 = ev("document.querySelector('.modal .pprow .ppb').getAttribute('data-ppid')")
+    pg.click('.modal .ppb[data-ppid="%s"][data-ppt="E1"]' % r0); pg.wait_for_timeout(250)
+    pg.click('.modal .ppb[data-ppid="%s"][data-ppt="E2"]' % r0); pg.wait_for_timeout(250)
+    d = draft('sp-demo-e1', 'matchs')
+    w = [(t['id'], j['poste']) for t in d['equipes'] for j in t['joueurs'] if j['id'] == r0]
+    check('passer de l\'équipe 1 à la 2 d\'un toucher', w == [('E2', 'pilier')], w)
+    for i in range(7): pg.click('.modal .mbtns button[data-i="0"]'); pg.wait_for_timeout(250)
+    check('OK jusqu\'au bout : la fenêtre se ferme', pg.query_selector('.modal') is None)
+    check('matchs : pas de défilement de côté', noscroll())
+    b.close()
+bad = [n for n, c in res if not c]
+print('ERREURS JS :', errs[:4] if errs else 'aucune')
+print('%d/%d %d %d' % (len(res) - len(bad), len(res), W, H))
+sys.exit(1 if bad or errs else 0)

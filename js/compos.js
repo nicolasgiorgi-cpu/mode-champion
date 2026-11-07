@@ -15,8 +15,8 @@ MC.compos = (function () {
   // Jeu à 10 (règlement FFR M12) : mêlée 3 + 2 (les avants), puis 5 arrières (dans l'appli, « arrières » = les lignes arrières : 9, 10, centres, ailiers).
   // Derrière la charnière (9 et 10) : 1 centre et 2 ailiers (décidé par Nicolas le 20/10 ; à ajuster ici si le club joue autrement).
   var POSTES10 = [['pilier', 2], ['talonneur', 1], ['troisieme-ligne', 2], ['demi-de-melee', 1], ['ouvreur', 1], ['centre', 1], ['ailier', 2]];
-  var SLOTS10 = [];
-  POSTES10.forEach(function (p) { for (var i = 0; i < p[1]; i++) SLOTS10.push(p[0]); });
+  var SLOTS10 = [], BESOIN = {};
+  POSTES10.forEach(function (p) { BESOIN[p[0]] = p[1]; for (var i = 0; i < p[1]; i++) SLOTS10.push(p[0]); });
   // Étoiles de plaquage attendues pour jouer dans un niveau (proposition, à valider par les éducs) :
   // l'appli prévient, elle n'interdit rien.
   // (v44) le plaquage est noté de 0 à 3 (avant : de 0 à 5, avec 4 pour A et 3 pour B)
@@ -252,6 +252,9 @@ MC.compos = (function () {
   function suggestNb(ids, F, format) {
     var T = TAILLE[format === 10 ? 10 : 5], c = { A: 0, B: 0, C: 0 }, nb = {};
     ids.forEach(function (id) { c[niveauDe(F[id]) || 'B']++; });
+    // (v57, demande de Nicolas du 07/11) au jeu à 10, un plateau = deux équipes : A et B (les Débutants jouent en B) ;
+    // les compteurs par niveau restent réglables
+    if (format === 10) return { A: c.A ? 1 : 0, B: ids.length ? 1 : 0, C: 0 };
     NIV.forEach(function (n) { nb[n] = c[n] < T.min ? 0 : Math.max(1, Math.round(c[n] / T.ideal)); });
     // un niveau trop petit pour une équipe rejoint son voisin
     if (!nb.A && !nb.B && !nb.C) nb.B = ids.length ? 1 : 0;
@@ -305,12 +308,55 @@ MC.compos = (function () {
   }
   // la place d'un joueur qui arrive dans une équipe au jeu à 10 : son poste de fiche s'il est libre ; dans un match
   // d'entraînement (remplir : tout le monde joue), sinon une place libre de son côté ; sinon '' (remplaçant)
+  // (v57) toutes les places prises : un de ses postes de fiche, en plus (remplaçant à ce poste) ; '' seulement sans aucun poste
   function placeLibre(t, id, F, remplir) {
-    var pris = {}, libres = [];
-    (t.joueurs || []).forEach(function (j) { if (j.id !== id && j.poste) pris[j.poste] = (pris[j.poste] || 0) + 1; });
+    var pris = {}, libres = [], cnt = {};
+    (t.joueurs || []).forEach(function (j) { if (j.id !== id && j.poste) { pris[j.poste] = (pris[j.poste] || 0) + 1; cnt[j.poste] = (cnt[j.poste] || 0) + 1; } });
     SLOTS10.forEach(function (p) { if (pris[p]) pris[p]--; else libres.push(p); });
     var p = postesDe(F[id]).filter(function (x) { return libres.indexOf(x) >= 0; })[0];
-    return p || (remplir ? choixLibre(libres, F[id]) : '');
+    return p || (remplir ? choixLibre(libres, F[id]) : '') || posteEnPlus(F[id], cnt);
+  }
+  // (v57) jeu à 10 : plus de remplaçants sans poste (demande de Nicolas du 07/11 : « par poste, je prends 5 piliers ») ;
+  // au-delà des 10 places, chacun va à un de ses postes de fiche : celui où il y a le moins de monde par rapport aux places,
+  // à égalité son préféré d'abord. cnt : combien en ont déjà chaque poste. Sans aucun poste : '' (« Sans poste », à régler).
+  function posteEnPlus(f, cnt) {
+    var best = '', bs = 1e9;
+    postesDe(f).forEach(function (p) { if (!BESOIN[p]) return; var sc = (cnt[p] || 0) / BESOIN[p] * 10 + rang(f, p); if (sc < bs) { bs = sc; best = p; } });
+    return best;
+  }
+  // le poste de chacun dans une équipe à 10 : les 10 places d'abord (apparier), puis tous les autres à un de leurs postes
+  function postesEquipe(ids, F, remplir) {
+    var po = apparier(ids, F, remplir).poste, cnt = {};
+    ids.forEach(function (id) { if (po[id]) cnt[po[id]] = (cnt[po[id]] || 0) + 1; });
+    ids.forEach(function (id) {
+      if (po[id]) return;
+      var p = posteEnPlus(F[id], cnt);
+      if (p) { po[id] = p; cnt[p] = (cnt[p] || 0) + 1; }
+    });
+    return po;
+  }
+  // (v57) peut-il jouer dans cette équipe d'un plateau ? son niveau, une de ses passerelles, ou bien son niveau n'a pas d'équipe
+  // dans la compo et c'est le niveau le plus proche (un Débutant en B quand il n'y a que A et B). niveaux : ceux qui ont une équipe.
+  // Sans niveau (le sien ou celui de l'équipe : matchs d'entraînement) : partout.
+  function eligible(f, t, niveaux) {
+    var n = niveauDe(f);
+    if (!t || NIV.indexOf(t.niveau) < 0 || !n) return true;
+    if (joueEn(f, t.niveau)) return true;
+    if ((niveaux || []).indexOf(n) >= 0) return false;
+    return (niveaux || []).slice().sort(function (a, b) { return dist(a, n) - dist(b, n) || (a === 'C' ? -1 : 1); })[0] === t.niveau;
+  }
+  // (v57) le vivier d'un poste, pour le choix « poste par poste » : ceux qui l'ont en poste principal, puis ceux qui peuvent
+  // le jouer, puis les autres ; dans chaque groupe, du niveau A au C (sans niveau en dernier), puis le plaquage du plus fort
+  // au plus faible (pas encore évalué en dernier) — demande de Nicolas du 07/11 ; ceux qui ne viennent pas (absents sur Spond),
+  // en bas de leur groupe. absents : { id: true }
+  function vivier(ids, F, poste, absents) {
+    absents = absents || {};
+    function cle(id) { var f = F[id] || {}, n = NIV.indexOf(niveauDe(f)); return [absents[id] ? 1 : 0, n < 0 ? 9 : n, f.plaquage === null || f.plaquage === undefined || f.plaquage === '' ? 1 : -Number(f.plaquage) || 0, f.plaquage === null || f.plaquage === undefined || f.plaquage === '' ? 1 : 0, cleNom(f.prenom || ''), id]; }
+    function tri(a, b) { var x = cle(a), y = cle(b); for (var i = 0; i < x.length; i++) if (x[i] !== y[i]) return x[i] < y[i] ? -1 : 1; return 0; }
+    var o = { princ: [], peut: [], autres: [] };
+    (ids || []).forEach(function (id) { var l = lienPoste(F[id] || {}, poste); o[l === 'pref' ? 'princ' : l === 'sec' ? 'peut' : 'autres'].push(id); });
+    o.princ.sort(tri); o.peut.sort(tri); o.autres.sort(tri);
+    return o;
   }
 
   // ---------- Score d'une répartition dans un niveau (plus petit = mieux) ----------
@@ -550,7 +596,7 @@ MC.compos = (function () {
       list.forEach(function (id, i) { var r = Math.floor(i / k), c = i % k; teams[r % 2 ? k - 1 - c : c].push(id); });
       ameliorer(teams, F, H, format, S.w);
       teams.forEach(function (t, i) {
-        var po = format === 10 ? apparier(t, F).poste : {};
+        var po = format === 10 ? postesEquipe(t, F) : {};   // (v57) chacun a un poste, remplaçants compris
         equipes.push({ id: n + (i + 1), niveau: n, joueurs: t.map(function (id) { return { id: id, poste: po[id] || '', n: princ[id] || '' }; }) });
       });
     });
@@ -650,7 +696,7 @@ MC.compos = (function () {
       teams.forEach(function (t, i) { t.cible = cible[n + (i + 1)]; });
       ameliorer(teams, F, H, format, w);
       teams.forEach(function (t, i) {
-        var po = format === 10 ? apparier(t, F).poste : {};
+        var po = format === 10 ? postesEquipe(t, F) : {};
         equipes.push({ id: n + (i + 1), niveau: n, joueurs: t.map(function (id) { return { id: id, poste: po[id] || '', n: niveauDe(F[id]) }; }) });
       });
     }
@@ -701,6 +747,13 @@ MC.compos = (function () {
       var cover = {};
       (t.joueurs || []).forEach(function (j) { if (j.poste) cover[j.poste] = (cover[j.poste] || 0) + 1; });
       POSTES10.forEach(function (p) { for (var i = (cover[p[0]] || 0); i < p[1]; i++) o.manquants.push(p[0]); });
+      // (v57) chacun a un poste, remplaçants compris : Av et Ar = les places tenues sur le terrain (5 et 5 au plus),
+      // avTous / arTous = tous ceux qui ont un poste d'avant / d'arrière, rempl = les joueurs en plus des places tenues
+      // (+ d'anciens remplaçants sans poste du match) ; parPoste = combien à chaque poste
+      o.parPoste = cover; o.avTous = o.av; o.arTous = o.ar;
+      o.av = 0; o.ar = 0;
+      POSTES10.forEach(function (p) { o[typePoste(p[0])] += Math.min(cover[p[0]] || 0, p[1]); });
+      o.rempl += o.avTous - o.av + o.arTous - o.ar;
     }
     return o;
   }
@@ -895,14 +948,17 @@ MC.compos = (function () {
     (ids || []).forEach(function (id) { var t = typePoste(posteDefaut(F && F[id])); if (t === 'av') nAv++; else if (t === 'ar') nAr++; });
     function borne(v, a, b, d) { v = Math.floor(Number(v)); return isNaN(v) ? d : v < a ? a : v > b ? b : v; }
     var parGroupe = 8;
-    return {
+    var o = {
       // (v35) les matchs se jouent avec des postes, comme les plateaux à 10 (les ateliers, non)
       partie: r.partie === 'matchs' ? 'matchs' : 'ateliers', format: r.partie === 'matchs' ? 10 : 5, nb: { A: 0, B: 0, C: 0 },
-      mode: r.mode === 'equilibre' ? 'equilibre' : r.mode === 'aforte' && r.partie !== 'matchs' ? 'aforte' : 'niveau', separer: r.partie !== 'matchs' && !!r.separer,   // (v48) « A forte » : ateliers seulement
+      // (v57, demande de Nicolas du 07/11) les matchs : toujours deux équipes équilibrées avec tout le monde (plus de choix par niveau, plus de 2e match)
+      mode: r.partie === 'matchs' || r.mode === 'equilibre' ? 'equilibre' : r.mode === 'aforte' ? 'aforte' : 'niveau', separer: r.partie !== 'matchs' && !!r.separer,   // (v48) « A forte » : ateliers seulement
       n: borne(r.n, 1, 8, Math.max(2, Math.min(6, Math.round(n / parGroupe) || 1))),
       nAv: borne(r.nAv, 1, 4, Math.max(1, Math.round(nAv / parGroupe))), nAr: borne(r.nAr, 1, 4, Math.max(1, Math.round(nAr / parGroupe))),
-      nbMatchs: borne(r.nbMatchs, 1, 2, n >= 20 ? 2 : 1)
+      nbMatchs: 1
     };
+    if (r.partie === 'matchs' && r.base === 'tous') o.base = 'tous';   // (v57) partir de tout le groupe (pas seulement des présents)
+    return o;
   }
   // du plus avancé au moins avancé : niveau (A, B, C ; sans niveau = B), passerelle, puis étoiles de plaquage
   function triForce(F) {
@@ -1008,7 +1064,7 @@ MC.compos = (function () {
       var niv = '';
       if (mode === 'niveau') NIV.slice().reverse().forEach(function (n) { if (pr[0].concat(pr[1]).some(function (id) { return (niveauDe(F[id]) || 'B') === n; })) niv = n; });
       [0, 1].forEach(function (s) {
-        var k = 2 * i + s + 1, po = apparier(pr[s], F, true).poste;   // (v35) chacun son poste du match : celui de sa fiche d'abord
+        var k = 2 * i + s + 1, po = postesEquipe(pr[s], F, true);   // (v35) chacun son poste du match : celui de sa fiche d'abord ; (v57) remplaçants compris
         equipes.push({ id: 'E' + k, nom: 'Équipe ' + k, niveau: niv, bloc: 'm' + (i + 1), joueurs: pr[s].map(function (id) { var x = entree(id, F); x.poste = po[id] || ''; return x; }) });
       });
     });
@@ -1055,7 +1111,7 @@ MC.compos = (function () {
     // (v35) des matchs d'avant la v35 (sans postes) : ils passent avec postes, ceux des fiches
     if (o.reglages && o.reglages.partie === 'matchs' && o.reglages.format !== 10) {
       o.reglages.format = 10;
-      o.equipes.forEach(function (t) { var po = apparier(t.joueurs.map(function (j) { return j.id; }), F, true).poste; t.joueurs.forEach(function (j) { j.poste = po[j.id] || ''; }); });
+      o.equipes.forEach(function (t) { var po = postesEquipe(t.joueurs.map(function (j) { return j.id; }), F, true); t.joueurs.forEach(function (j) { j.poste = po[j.id] || ''; }); });
     } else if (o.reglages && o.reglages.partie === 'matchs') {
       // déjà avec postes : chacun garde le sien, les places laissées par les absents vont aux remplaçants
       o.equipes.forEach(function (t) { t.joueurs.forEach(function (j) { if (!j.poste) j.poste = placeLibre(t, j.id, F, true); }); });
@@ -1086,7 +1142,8 @@ MC.compos = (function () {
       var hi = -1, lo = -1;
       st.forEach(function (s, i) { if (s.plaq === null) return; if (hi < 0 || s.plaq > st[hi].plaq) hi = i; if (lo < 0 || s.plaq < st[lo].plaq) lo = i; });
       if (equi && hi >= 0 && lo >= 0 && st[hi].n && st[lo].n && st[hi].plaq - st[lo].plaq >= ECART) out.push({ k: 'plaquage', niveau: 'warn', texte: ou + 'écart de plaquage moyen, ' + nomEq(ts[hi]) + ' ' + virg(st[hi].plaq) + ', ' + nomEq(ts[lo]) + ' ' + virg(st[lo].plaq) + '.', fix: bestSwap(c, F, {}, ts[hi].id, ts[lo].id) });
-      if (match && ts.length === 2 && Math.abs(st[0].av - st[1].av) >= 3) out.push({ k: 'avar', niveau: 'info', texte: ou + st[0].av + ' avants chez les ' + nomEq(ts[0]) + ', ' + st[1].av + ' chez les ' + nomEq(ts[1]) + '.' });
+      var avT = function (x) { return x.avTous !== undefined ? x.avTous : x.av; };   // (v57) tous les avants, remplaçants compris
+      if (match && ts.length === 2 && Math.abs(avT(st[0]) - avT(st[1])) >= 3) out.push({ k: 'avar', niveau: 'info', texte: ou + avT(st[0]) + ' avants chez les ' + nomEq(ts[0]) + ', ' + avT(st[1]) + ' chez les ' + nomEq(ts[1]) + '.' });
     });
     return out;
   }
@@ -1146,7 +1203,7 @@ MC.compos = (function () {
     proposer: proposer, vide: vide, stats: stats, alertes: alertes, apparier: apparier, scoreNiveau: scoreNiveau,
     moveTo: moveTo, swap: swap, setPoste: setPoste, where: where, diff: diff, presents: presents, attente: attente, retirer: retirer, sorteDuTitre: sorteDuTitre,
     nomPoste: nomPoste, frDate: frDate,
-    STYLES: STYLES, AVANTS: AVANTS, postesDe: postesDe, posteDefaut: posteDefaut, prefDe: prefDe, lienPoste: lienPoste, rang: rang, repartition: repartition, placeLibre: placeLibre, typePoste: typePoste, typeDe: typeDe, sections: sections, ORDRE: ORDRE,
+    STYLES: STYLES, AVANTS: AVANTS, BESOIN: BESOIN, postesEquipe: postesEquipe, posteEnPlus: posteEnPlus, eligible: eligible, vivier: vivier, postesDe: postesDe, posteDefaut: posteDefaut, prefDe: prefDe, lienPoste: lienPoste, rang: rang, repartition: repartition, placeLibre: placeLibre, typePoste: typePoste, typeDe: typeDe, sections: sections, ORDRE: ORDRE,
     PARTIES: PARTIES, regEnt: regEnt, proposerEnt: proposerEnt, videEnt: videEnt, reprendre: reprendre, alertesEnt: alertesEnt,
     blocDe: blocDe, blocsDe: blocsDe, nomBloc: nomBloc, nomEq: nomEq
   };

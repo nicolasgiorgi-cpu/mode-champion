@@ -72,8 +72,8 @@ with sync_playwright() as p:
     pg.click('[data-act="cOpt"][data-k="effectifs"][data-v="niveaux"]'); pg.wait_for_timeout(250)
     check('suivre les niveaux : la ligne Passerelles disparaît', pg.query_selector('[data-k="passerelles"]') is None and pg.query_selector('.ctaild') is None)
     pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(900)
-    tous = ev("""(() => { const k = Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0), d = JSON.parse(localStorage.getItem(k)).vs[0], F = MC.compos.fiches(MC.app.S.cache.group); return d.equipes.every(t => t.joueurs.every(j => !F[j.id].niveau || F[j.id].niveau === t.niveau)) })()""")
-    check('suivre les niveaux : chacun dans son niveau', tous)
+    tous = ev("""(() => { const k = Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0), d = JSON.parse(localStorage.getItem(k)).vs[0], F = MC.compos.fiches(MC.app.S.cache.group); return d.equipes.every(t => t.joueurs.every(j => !F[j.id].niveau || F[j.id].niveau === t.niveau || !d.equipes.some(x => x.niveau === F[j.id].niveau))) })()""")
+    check('suivre les niveaux : chacun dans son niveau (ou le niveau voisin s\'il n\'a pas d\'équipe : v57, au jeu à 10, A et B)', tous)
     pg.click('[data-act="cDiscard"]'); pg.wait_for_timeout(300); pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(700)
     pg.click('[data-act="cOpt"][data-k="effectifs"][data-v="equilibre"]'); pg.wait_for_timeout(250)
 
