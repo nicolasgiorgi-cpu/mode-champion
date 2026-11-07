@@ -37,7 +37,8 @@ with sync_playwright() as p:
     check('pas de bouton Enregistrer', not pg.query_selector('[data-act="tSave"], [data-act="tkSave"]'))
     # une ligne : pastilles (★ d'abord), bouclier
     t = pg.evaluate(LIGNE, 'Tom')
-    check('(v46) Tom : ses postes dans l\'ordre des postes (3e ligne, centre, ailier), les préférés en pastille pleine', t and t['pills'] == ['3eL', '*Ctr', '*Ail'], t)
+    # (v57, demande de Nicolas du 07/11) les préférés ★ (pastilles pleines) d'abord, à gauche, puis les autres, chacun dans l'ordre des postes
+    check('(v57) Tom : ses préférés d\'abord (centre, ailier), puis 3e ligne', t and t['pills'] == ['*Ctr', '*Ail', '3eL'], t)
     check('pastille préférée : « préféré » lu par le lecteur d\'écran', pg.locator('#tlist .tpp.pref .sr-only').count() >= 2)
     check('Tom : le bouclier de plaquage avec son niveau (2, sur 3)', t and t['plaq'] == '2', t)
     check('Tom : niveau B allumé', t and t['niv'] == 'B', t)
@@ -196,7 +197,7 @@ with sync_playwright() as p:
     pg.click('.ftabs a:text-is("Skills")'); pg.wait_for_timeout(900)
     # retour à la liste : les pastilles suivent
     pg.click('#nav a:has-text("Enfants")'); pg.wait_for_timeout(1200); nomodal(pg)
-    check('liste : Tom avec 3e L. en « peut aussi jouer »', pg.evaluate(LIGNE, 'Tom')['pills'] == ['3eL', '*Ctr', '*Ail'], pg.evaluate(LIGNE, 'Tom'))
+    check('liste : Tom avec 3e L. en « peut aussi jouer », après ses préférés', pg.evaluate(LIGNE, 'Tom')['pills'] == ['*Ctr', '*Ail', '3eL'], pg.evaluate(LIGNE, 'Tom'))
     pg.click('#tlist a.tfrow:has(.tnm:text-is("Arthur"))'); pg.wait_for_timeout(1200); nomodal(pg)
     check('(v44) un enfant touché dans la liste : sa fiche s\'ouvre sur Terrain (pas sur le dernier onglet vu)', pg.query_selector('.ftabs a.on') is not None and pg.inner_text('.ftabs a.on').strip().upper() == 'TERRAIN' and pg.query_selector('#sur-le-terrain') is not None, pg.evaluate('location.hash'))
     pg.click('#nav a:has-text("Enfants")'); pg.wait_for_timeout(1000)
