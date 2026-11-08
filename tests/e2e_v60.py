@@ -69,6 +69,11 @@ with sync_playwright() as p:
     ec = ev("""[...document.querySelectorAll('#tlist .tfrow')].filter(r => r.querySelectorAll('.tps .tpp').length === 3).map(r => { const ps = [...r.querySelectorAll('.tps .tpp')];
       return Math.round(r.querySelector('.tlv').getBoundingClientRect().left - ps[ps.length - 1].getBoundingClientRect().right); })""")
     check('liste : avec trois postes, un petit espace avant le niveau (entre 8 et 22 px)', len(ec) > 0 and all(8 <= x <= 22 for x in ec), ec)
+    if W >= 700:
+        # (v61) sur iPad, prénom, postes, niveau et bouclier se suivent ; la place en trop à droite, la ligne garde toute la largeur
+        ip = ev("""[...document.querySelectorAll('#tlist .tfrow')].map(r => { const rr = r.getBoundingClientRect(), l = document.getElementById('tlist').getBoundingClientRect();
+          return { postes: Math.round(r.querySelector('.tps').getBoundingClientRect().left - rr.left), libre: Math.round(rr.right - r.querySelector('.tctl').getBoundingClientRect().right), large: rr.width >= l.width - 2 }; })""")
+        check('liste (iPad) : les postes juste après le prénom, la place en trop à droite, la ligne sur toute la largeur', all(x['postes'] <= 270 and x['libre'] >= 100 and x['large'] for x in ip), ip[:3])
     # un enfant à 4 postes : une 2e ligne, dans la colonne des postes
     ev("""(() => { const F = MC.compos.fiches(MC.app.S.cache.group), id = Object.keys(F).find(id => F[id].postesOk.length === 1);
       return MC.app.adultCall('setTerrain', { lignes: [{ joueurId: id, postesOk: ['pilier', 'talonneur', 'troisieme-ligne', 'centre'], postesPref: ['pilier'] }] }).then(() => MC.loadGroup(true)).then(() => MC.app.rerender()); })()""")
@@ -142,6 +147,11 @@ with sync_playwright() as p:
       return { nom: b.querySelector('.cpn').textContent, cpo: b.querySelector(':scope > .cpo').textContent, ok: b.getBoundingClientRect().right - parseFloat(getComputedStyle(b).paddingRight) - parseFloat(getComputedStyle(b).borderRightWidth) - parseFloat(getComputedStyle(l).paddingRight) <= o.left + 1 }; })""")
     qq = qq + [x for x in pl if not x['ok']]
     check('côte à côte : le « ? » doré ne chevauche pas « Sans poste » ni le poste', len(qq) > 0 and all(x['ok'] for x in qq), [x for x in qq if not x['ok']][:3])
+    # (relecture v61) sans postes, les marques restent sur une ligne quand elles tiennent
+    m1 = ev("""[...document.querySelectorAll('.ccote .cpj')].filter(b => !b.querySelector('.cpps')).map(b => { const g = b.querySelector('.cflg'), k = [...g.children].filter(x => x.offsetParent);
+      const tient = k.reduce((a, x) => a + x.getBoundingClientRect().width, 0) + 6 * (k.length - 1) <= b.querySelector('.cfls').getBoundingClientRect().width;
+      return { nom: b.querySelector('.cpn').textContent, ok: !tient || new Set(k.map(x => Math.round(x.getBoundingClientRect().top + x.getBoundingClientRect().height / 2))).size <= 1 }; })""")
+    check('côte à côte : sans postes, les marques sur une seule ligne quand elles tiennent', len(m1) > 0 and all(x['ok'] for x in m1), [x for x in m1 if not x['ok']][:3])
     cl = ev("""[...document.querySelectorAll('.ccote .cpj')].filter(b => !memeLigne(b)).map(b => b.querySelector('.cpn').textContent)""")
     check('côte à côte : les postes sur la ligne du plaquage, même avec beaucoup de postes', not cl, cl)
     # un enfant avec les 7 postes, dans l'encadré le plus étroit : ses postes passent à la ligne à droite, pas sous le bouclier

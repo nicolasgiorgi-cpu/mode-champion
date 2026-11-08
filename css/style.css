@@ -1229,6 +1229,7 @@ body:has(.cdock .cselp) .toast{top:calc(74px + var(--safe-t) + var(--vvt));botto
 .cpj .cfls{gap:6px;flex-wrap:nowrap;align-items:flex-start}
 /* (v60) les marques (absent, bouclier, passerelle, copain, niveau à renseigner) à gauche, centrées sur la hauteur du bouclier */
 .cpj .cflg{display:flex;align-items:center;flex-wrap:wrap;gap:6px;min-height:20px;min-width:0;flex:none;max-width:calc(100% - 36px)}   /* (v61) les postes rétrécissent d'abord */
+.cpj .cflg:last-child{max-width:none}   /* sans postes, les marques ont toute la ligne */
 .cfl{display:inline-flex;align-items:center;font:700 10px/1 var(--f-hud)}
 .cfl.cop-ok{color:var(--pink)}
 .cfl.cop-ok svg{fill:var(--pink)}
@@ -1313,6 +1314,7 @@ a.tfrow:active{background:var(--line)}
 span.tlv,span.tpas{display:inline-flex;align-items:center;justify-content:center}
 .tlv.none{border:1.5px dashed var(--orange);color:var(--orange);background:none}
 .tpasw{display:flex;justify-content:flex-end;gap:3px;min-width:30px}
+@supports not (grid-template-columns:subgrid){.tfrow .tpasw{min-width:63px}}   /* (v61) sans subgrid : place pour deux passerelles sur chaque ligne */
 .tpas{min-height:30px;padding:0 6px;border:1px dashed var(--line3);background:none;color:var(--dim);font:700 11px/1 var(--f-hud)}
 .tpas.on{border:1.5px solid var(--lc,var(--violet));color:var(--lc,var(--violet));background:color-mix(in srgb,var(--lc,var(--violet)) 14%,transparent)}
 /* avec un filtre de poste : ceux qui l'ont en préféré, puis ce séparateur, puis ceux qui peuvent aussi le jouer */
@@ -1386,8 +1388,10 @@ span.tlv,span.tpas{display:inline-flex;align-items:center;justify-content:center
   .cvcols.nv1 .cvcol>.ccol:only-of-type{grid-column:span 2}
   .cvcols.nv2 .cvcol>.ccol:only-of-type{grid-column:1/-1}
   .cstyles{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
-  .tfrow{--tpw:118px;gap:10px;padding:5px 8px 5px 12px}
-  @supports (grid-template-columns:subgrid){.tlist{--tpw:118px;column-gap:10px}}
+  /* (v61) sur iPad, prénom, postes, niveau et bouclier se suivent (le prénom jusqu'à 240 px) ; la place en trop va à droite,
+     pour ne pas traverser tout l'écran à chaque ligne */
+  .tfrow{--tpw:118px;gap:10px;padding:5px 8px 5px 12px;grid-template-columns:200px var(--tpw) auto minmax(0,1fr)}
+  @supports (grid-template-columns:subgrid){.tlist{--tpw:118px;column-gap:10px;grid-template-columns:fit-content(240px) fit-content(var(--tpw)) auto minmax(0,1fr)}}
   .tnm-l{position:static;width:auto;height:auto;overflow:visible;clip:auto}.tnm-c{display:none}
   .tctl{gap:8px}
   .rel-l{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
