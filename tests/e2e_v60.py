@@ -52,24 +52,26 @@ with sync_playwright() as p:
       const id = (e.presents || []).find(id => F[id] && F[id].postesOk.length >= 2 && document.querySelector('.ccol:not(.banc) .cpj[data-id="' + id + '"]'));
       e.presents = e.presents.filter(x => x !== id); e.sansReponse = (e.sansReponse || []).concat([id]); MC.app.rerender(); return id; })()""")
     pg.wait_for_timeout(700)
+    # les postes jamais sur une ligne à eux : la 1re rangée de pastilles à hauteur de la dernière marque (bouclier, passerelle, cœur), à sa droite
+    ev("""(() => { window.memeLigne = b => { const pp = b.querySelector('.cpps'); if (!pp) return true; const r = pp.getBoundingClientRect(), p0 = pp.querySelector('.tpp').getBoundingClientRect();
+      const fl = [...b.querySelectorAll('.cflg > *')].filter(x => x.offsetParent); if (!fl.length) return true;
+      const l = fl[fl.length - 1].getBoundingClientRect(); return p0.top < l.bottom - 2 && p0.bottom > l.top + 2 && r.left >= l.right - 1 && Math.abs(r.top - p0.top) < 3; }; return 1; })()""")
     C = ev("""(() => { const K = MC.compos, F = K.fiches(MC.app.S.cache.group), COURT = { pilier: 'Pil', talonneur: 'Tal', 'troisieme-ligne': '3eL', 'demi-de-melee': '9', ouvreur: '10', centre: 'Ctr', ailier: 'Ail' };
       return [...document.querySelectorAll('.cpj')].map(b => { const id = b.getAttribute('data-id'), f = F[id], br = b.getBoundingClientRect(), pp = b.querySelector('.cpps'), ch = b.querySelector('.catt');
         const pf = f.postesOk.length ? K.prefDe(f) : [], attendu = K.postesDe(f).slice().sort((a, c) => (pf.indexOf(a) >= 0 ? 0 : 1) - (pf.indexOf(c) >= 0 ? 0 : 1) || K.ORDRE.indexOf(a) - K.ORDRE.indexOf(c));
         const pills = pp ? [...pp.querySelectorAll('.tpp')] : [], r = pp && pp.getBoundingClientRect();
-        const autres = [...b.querySelectorAll('.cpn, .cpo, .catt, .cfls > *:not(.cpps)')].filter(x => x.offsetParent).map(x => x.getBoundingClientRect());
+        const autres = [...b.querySelectorAll('.cpn, .cpo, .catt, .cflg > *')].filter(x => x.offsetParent).map(x => x.getBoundingClientRect());
         return { id, att: !!ch, n: attendu.length, vus: pills.map(x => (x.classList.contains('pref') ? '*' : '') + x.querySelector('[aria-hidden]').textContent),
           bons: pills.length === attendu.length && pills.every((x, i) => x.querySelector('[aria-hidden]').textContent === COURT[attendu[i]] && x.classList.contains('pref') === (pf.indexOf(attendu[i]) >= 0)),
           droite: !r || br.right - r.right <= 9,
-          memeLigne: (() => { if (!r) return true; const fl = [...b.querySelectorAll('.cfls > *:not(.cpps)')].filter(x => x.offsetParent), row = b.querySelector('.cfls').getBoundingClientRect();
-            const need = fl.reduce((a, x) => a + x.getBoundingClientRect().width + 6, 0) + r.width; if (!fl.length || need > row.width) return true;
-            const f0 = fl[0].getBoundingClientRect(); return Math.abs((r.top + r.bottom) / 2 - (f0.top + f0.bottom) / 2) < 6; })(),
+          memeLigne: memeLigne(b),
           libre: !r || autres.every(o => o.bottom <= r.top + 1 || o.right <= r.left || o.left >= r.right), dedans: !r || (r.bottom <= br.bottom + 1 && r.left >= br.left),
           larg: pills.map(x => Math.round(x.getBoundingClientRect().width)) }; }); })()""")
     avec = [x for x in C if x['n']]
     check('compo : chaque enfant qui a des postes les montre sur sa pastille, dans l\'ordre de la liste Enfants, pleins = préférés', len(avec) > 5 and all(x['bons'] for x in avec), [x for x in avec if not x['bons']][:3])
     check('compo : sans poste sur sa fiche, pas de pastilles', all(not x['vus'] for x in C if not x['n']))
     check('compo : les postes alignés à droite de l\'encadré', all(x['droite'] for x in avec), [x for x in avec if not x['droite']][:3])
-    check('compo : sur la même ligne que le plaquage et les passerelles (quand elle tient)', all(x['memeLigne'] for x in avec), [x for x in avec if not x['memeLigne']][:3])
+    check('compo : sur la même ligne que le plaquage et les passerelles, jamais sur une ligne à eux', all(x['memeLigne'] for x in avec), [x for x in avec if not x['memeLigne']][:3])
     t1 = [x for x in C if x['id'] == tid]
     check('compo : un enfant sans réponse a ses postes et son « ? »', t1 and t1[0]['att'] and t1[0]['vus'] and t1[0]['memeLigne'], t1)
     check('compo : rien ne chevauche (prénom, poste, marques), tout reste dans l\'encadré', all(x['libre'] and x['dedans'] for x in avec), [x for x in avec if not (x['libre'] and x['dedans'])][:3])
@@ -77,8 +79,16 @@ with sync_playwright() as p:
     check('compo : toutes les pastilles de la même largeur', len(lg) == 1, lg)
     check('compo : pas de défilement de côté', noscroll())
     pg.click('[data-act="cCote"][data-v="1"]'); pg.wait_for_timeout(500)
-    cc = ev("""[...document.querySelectorAll('.ccote .cpj')].every(b => { const pp = b.querySelector('.cpps'); if (!pp) return true; const r = pp.getBoundingClientRect(), br = b.getBoundingClientRect(); return r.left >= br.left && r.right <= br.right + 1 && br.right - r.right <= 9; })""")
+    cc = ev("""[...document.querySelectorAll('.ccote .cpj')].every(b => { const pp = b.querySelector('.cpps'); if (!pp) return true; const r = pp.getBoundingClientRect(), br = b.getBoundingClientRect(); return r.left >= br.left && r.right <= br.right + 1 && br.right - r.right <= 9 && r.bottom <= br.bottom + 1; })""")
     check('côte à côte : les postes tiennent dans l\'encadré, à droite', cc and noscroll())
+    cl = ev("""[...document.querySelectorAll('.ccote .cpj')].filter(b => !memeLigne(b)).map(b => b.querySelector('.cpn').textContent)""")
+    check('côte à côte : les postes sur la ligne du plaquage, même avec beaucoup de postes', not cl, cl)
+    # un enfant avec les 7 postes, dans l'encadré le plus étroit : ses postes passent à la ligne à droite, pas sous le bouclier
+    n7id = ev("""(() => { const b = [...document.querySelectorAll('.ccote .ccol:not(.banc) .cpj')].find(b => b.querySelector('.cpps')); if (!b) return null; const id = b.getAttribute('data-id');
+      return MC.app.adultCall('setTerrain', { lignes: [{ joueurId: id, postesOk: MC.compos.ORDRE.slice(), postesPref: ['centre'] }] }).then(() => MC.loadGroup(true)).then(() => { MC.app.rerender(); return id; }); })()""")
+    pg.wait_for_timeout(600)
+    n7 = ev("""(id => { const c = document.querySelector('.ccote .cpj[data-id="' + id + '"]'); return c ? { n: c.querySelectorAll('.cpps .tpp').length, ok: memeLigne(c), w: Math.round(c.getBoundingClientRect().width) } : null; })""", n7id)
+    check('côte à côte : 7 postes restent sur la ligne du plaquage (à droite, sur 2 rangées si besoin)', n7 and n7['n'] == 7 and n7['ok'], n7)
     pg.click('[data-act="cCote"][data-v="0"]'); pg.wait_for_timeout(300)
     # les ateliers : pas de postes sur les pastilles
     pg.goto(BASE + '#/educ/compo/sp-demo-e1?p=ateliers'); pg.wait_for_timeout(1200)

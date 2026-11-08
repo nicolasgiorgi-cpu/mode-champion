@@ -1226,7 +1226,9 @@ body:has(.cdock .cselp) .toast{top:calc(74px + var(--safe-t) + var(--vvt));botto
 .cpj .cpn{font:700 14px/1.1 var(--f-body);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cpj .cpo{position:absolute;top:6px;right:6px;font:700 10px/1 var(--f-hud);letter-spacing:.04em;color:var(--soft)}
 .cpj .cpo.none{color:var(--dim)}
-.cpj .cfls{gap:6px;flex-wrap:wrap}
+.cpj .cfls{gap:6px;flex-wrap:nowrap;align-items:flex-start}
+/* (v60) les marques (absent, bouclier, passerelle, copain, niveau à renseigner) à gauche, centrées sur la hauteur du bouclier */
+.cpj .cflg{display:flex;align-items:center;flex-wrap:wrap;gap:6px;min-height:20px;min-width:0}
 .cfl{display:inline-flex;align-items:center;font:700 10px/1 var(--f-hud)}
 .cfl.cop-ok{color:var(--pink)}
 .cfl.cop-ok svg{fill:var(--pink)}
@@ -1286,9 +1288,9 @@ body:has(.cdock .cselp) .toast{top:calc(74px + var(--safe-t) + var(--vvt));botto
 .tpp.pref{background:var(--c);color:#070A12}
 .tpp svg{flex:none}
 .tpp.none,.tpp.voeu{width:auto;padding:1px 6px 0;border-style:dashed;border-color:var(--line3);color:var(--dim)}
-/* (v60) sur une pastille de la compo : les postes de sa fiche, à droite, sous le chrono */
-/* (v60) les postes de sa fiche sur la ligne du plaquage et des passerelles, poussés à droite */
-.cpj .cpps{margin-left:auto;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:3px;max-width:100%}
+/* (v60, demande de Nicolas) les postes de sa fiche sur la ligne du plaquage et des passerelles, poussés à droite ; jamais sur une
+   ligne à eux : la boîte prend la place qui reste (une pastille au moins) ; trop de postes : une 2e rangée, à droite, sous la 1re */
+.cpj .cpps{flex:1 1 30px;min-width:30px;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:3px;max-width:100%;padding-top:1.5px}
 .cpps .tpp{width:30px;height:17px;font-size:9.5px}
 .tctl{display:flex;align-items:center;justify-content:flex-end;gap:6px}
 .tseg{display:flex;gap:3px}
