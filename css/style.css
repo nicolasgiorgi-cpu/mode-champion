@@ -1279,6 +1279,7 @@ body:has(.cdock .cselp) .toast{top:calc(74px + var(--safe-t) + var(--vvt));botto
   .tlist{display:grid;grid-template-columns:fit-content(7.2em) minmax(0,1fr) auto;column-gap:7px}
   .tlist>li{grid-column:1/-1;display:grid;grid-template-columns:subgrid;min-width:0}
   .tlist>li>.tfrow{grid-column:1/-1;grid-template-columns:subgrid}
+  .tlist>li.tsep{display:flex}.tlist>li.empty{display:block}   /* les séparateurs et « Personne. » restent sur toute la largeur */
 }
 /* (v48) une ligne par enfant sur téléphone : le prénom (coupé s'il est trop long), ses postes abrégés, puis niveau, passerelle, bouclier */
 .tnm{min-width:0;color:var(--ink);text-decoration:none;font:700 15px/1.2 var(--f-body);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -1292,7 +1293,13 @@ body:has(.cdock .cselp) .toast{top:calc(74px + var(--safe-t) + var(--vvt));botto
    ligne à eux : la boîte prend la place qui reste (une pastille au moins) ; trop de postes : une 2e rangée, à droite, sous la 1re */
 .cpj .cpps{flex:1 1 30px;min-width:30px;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:3px;max-width:100%;padding-top:1.5px}
 .cpps .tpp{width:30px;height:17px;font-size:9.5px}
-.tctl{display:flex;align-items:center;justify-content:flex-end;gap:6px}
+.cpps .tpp.voeu{width:auto;padding:1px 4px 0}
+/* « absent » ou « Sans poste » en haut à droite : le prénom et son « ? » s'arrêtent avant */
+.cpj.cpo-l .cpl1{padding-right:70px}
+/* (relecture v60) niveau à gauche et bouclier à droite de leur colonne, les passerelles collées au bouclier : un enfant à deux
+   passerelles ne décale plus son niveau */
+.tctl{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:6px}
+@media (max-width:699px){.tps{gap:3px}.tps .tpp:not(.none):not(.voeu){width:30px}}
 .tseg{display:flex;gap:3px}
 .tlv{width:30px;height:30px;padding:0;border:1.5px solid color-mix(in srgb,var(--lc) 55%,transparent);background:#0C1120;color:var(--lc);font:700 13px/1 var(--f-hud)}
 .tlv.on{background:var(--lc);color:#070A12;border-color:var(--lc)}
@@ -1570,7 +1577,6 @@ textarea.txt{min-height:84px;padding:10px 12px;resize:vertical;font:500 16px/1.4
 @media (prefers-reduced-motion:reduce){ .sk-card{transition:none} }
 /* Compos : réponse Spond en attente (horloge dorée) ou plus là (barré, « absent ») ; heure dans le carré de date */
 .cfl.catt{color:var(--gold)}
-/* (v59, demande de Nicolas) le chrono « pas encore répondu » collé à droite de l'encadré, sous le poste */
 /* (v60, demande de Nicolas) « ? » doré (pas encore répondu) collé à droite du prénom, au lieu du chrono */
 .cpj .cfl.catt,.cqatt{flex:none;display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border:1.5px solid var(--gold);border-radius:50%;color:var(--gold);font:700 10.5px/1 var(--f-hud)}
 .cpj .cfls{align-self:stretch}

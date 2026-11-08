@@ -42,6 +42,30 @@ with sync_playwright() as p:
     t = ev("""(() => { const r = [...document.querySelectorAll('#tlist .tfrow')].find(r => r.querySelector('.tnm').textContent.trim() === 'Tom');
       return r ? [...r.querySelectorAll('.tps .tpp')].map(p => (p.classList.contains('pref') ? '*' : '') + p.querySelector('[aria-hidden]').textContent) : null; })()""")
     check('liste : Tom, ses préférés pleins d\'abord (Ctr, Ail), puis 3eL', t == ['*Ctr', '*Ail', '3eL'], t)
+    # (relecture) les séparateurs restent sur toute la largeur, sur une ligne, centrés (pas dans la colonne des postes)
+    pg.click('[data-act="tPoste"][data-v="troisieme-ligne"]'); pg.wait_for_timeout(400)
+    sp = ev("""[...document.querySelectorAll('#tlist .tsep')].map(x => { const r = x.getBoundingClientRect(), t = x.querySelector('span').getBoundingClientRect(), l = document.getElementById('tlist').getBoundingClientRect();
+      return { h: Math.round(r.height), centre: Math.abs((t.left + t.right) / 2 - (l.left + l.right) / 2) <= 3, large: r.width >= l.width - 6 }; })""")
+    check('liste : les séparateurs sur une ligne, centrés, sur toute la largeur', len(sp) > 0 and all(x['h'] < 16 and x['centre'] and x['large'] for x in sp), sp)
+    pg.click('[data-act="tPoste"][data-v="troisieme-ligne"]'); pg.wait_for_timeout(300)
+    pg.fill('#tq', 'zzz'); pg.wait_for_timeout(500)
+    em = ev("""(() => { const e = document.querySelector('#tlist .empty'); if (!e) return null; const r = e.getBoundingClientRect(), l = document.getElementById('tlist').getBoundingClientRect();
+      const g = document.createRange(); g.selectNodeContents(e); const t = g.getBoundingClientRect();
+      return { large: r.width >= l.width - 2, centre: Math.abs((t.left + t.right) / 2 - (l.left + l.right) / 2) <= 3 }; })()""")
+    check('liste : « Personne. » sur toute la largeur, centré', em and em['large'] and em['centre'], em)
+    pg.fill('#tq', ''); pg.wait_for_timeout(400)
+    # (relecture) un enfant à deux passerelles : le niveau des autres ne bouge pas, et le sien non plus
+    ev("""(() => { const F = MC.compos.fiches(MC.app.S.cache.group), id = Object.keys(F).find(id => F[id].niveau === 'B');
+      return MC.app.adultCall('setTerrain', { lignes: [{ joueurId: id, passerelles: 'AC' }] }).then(() => MC.loadGroup(true)).then(() => { MC.app.rerender(); return id; }); })()""")
+    pg.wait_for_timeout(700)
+    L2 = ev("""[...document.querySelectorAll('#tlist .tfrow')].map(r => ({ lv: Math.round(r.querySelector('.tlv').getBoundingClientRect().left), np: r.querySelectorAll('.tpas').length,
+      sh: Math.round(r.querySelector('.tctl').lastElementChild.getBoundingClientRect().right), droite: r.getBoundingClientRect().right - Math.max(...[...r.querySelectorAll('*')].map(x => x.getBoundingClientRect().right)) }))""")
+    check('liste : avec un enfant à deux passerelles, le niveau au même endroit sur chaque ligne', any(x['np'] == 2 for x in L2) and len(set(x['lv'] for x in L2)) == 1, sorted(set(x['lv'] for x in L2)))
+    check('liste : et le bouclier aussi, rien ne déborde', len(set(x['sh'] for x in L2)) == 1 and all(x['droite'] >= -1 for x in L2) and noscroll(), sorted(set(x['sh'] for x in L2)))
+    if W < 700:
+        # au téléphone, trois postes tiennent sur la ligne du prénom
+        t3 = ev("""[...document.querySelectorAll('#tlist .tfrow')].filter(r => r.querySelectorAll('.tps .tpp').length === 3).map(r => { const ps = [...r.querySelectorAll('.tps .tpp')].map(p => Math.round(p.getBoundingClientRect().top)); return new Set(ps).size; })""")
+        check('liste (téléphone) : trois postes sur une seule ligne', len(t3) > 0 and all(n == 1 for n in t3), t3)
 
     # ----- 2. la compo : les postes de la fiche, à droite, sur la ligne du plaquage -----
     pg.goto(BASE + '#/educ/compo/sp-demo-p3'); pg.wait_for_timeout(1200)
@@ -59,9 +83,10 @@ with sync_playwright() as p:
     C = ev("""(() => { const K = MC.compos, F = K.fiches(MC.app.S.cache.group), COURT = { pilier: 'Pil', talonneur: 'Tal', 'troisieme-ligne': '3eL', 'demi-de-melee': '9', ouvreur: '10', centre: 'Ctr', ailier: 'Ail' };
       return [...document.querySelectorAll('.cpj')].map(b => { const id = b.getAttribute('data-id'), f = F[id], br = b.getBoundingClientRect(), pp = b.querySelector('.cpps'), ch = b.querySelector('.catt');
         const pf = f.postesOk.length ? K.prefDe(f) : [], attendu = K.postesDe(f).slice().sort((a, c) => (pf.indexOf(a) >= 0 ? 0 : 1) - (pf.indexOf(c) >= 0 ? 0 : 1) || K.ORDRE.indexOf(a) - K.ORDRE.indexOf(c));
-        const pills = pp ? [...pp.querySelectorAll('.tpp')] : [], r = pp && pp.getBoundingClientRect();
+        const pills = pp ? [...pp.querySelectorAll('.tpp:not(.voeu)')] : [], r = pp && pp.getBoundingClientRect();
         const autres = [...b.querySelectorAll('.cpn, .cpo, .catt, .cflg > *')].filter(x => x.offsetParent).map(x => x.getBoundingClientRect());
-        return { id, att: !!ch, n: attendu.length, vus: pills.map(x => (x.classList.contains('pref') ? '*' : '') + x.querySelector('[aria-hidden]').textContent),
+        const q = ch && ch.getBoundingClientRect(), po = b.querySelector(':scope > .cpo'), por = po && po.getBoundingClientRect();
+        return { id, att: !!ch, n: attendu.length, voeu: !!(pp && pp.querySelector('.tpp.voeu')), voeux: !f.postesOk.length, qLibre: !q || !por || q.right <= por.left + 1 || q.top >= por.bottom, vus: pills.map(x => (x.classList.contains('pref') ? '*' : '') + x.querySelector('[aria-hidden]').textContent),
           bons: pills.length === attendu.length && pills.every((x, i) => x.querySelector('[aria-hidden]').textContent === COURT[attendu[i]] && x.classList.contains('pref') === (pf.indexOf(attendu[i]) >= 0)),
           droite: !r || br.right - r.right <= 9,
           memeLigne: memeLigne(b),
@@ -70,6 +95,10 @@ with sync_playwright() as p:
     avec = [x for x in C if x['n']]
     check('compo : chaque enfant qui a des postes les montre sur sa pastille, dans l\'ordre de la liste Enfants, pleins = préférés', len(avec) > 5 and all(x['bons'] for x in avec), [x for x in avec if not x['bons']][:3])
     check('compo : sans poste sur sa fiche, pas de pastilles', all(not x['vus'] for x in C if not x['n']))
+    check('compo : des vœux pas encore réglés gardent la marque « vœux », comme dans la liste', all(x['voeu'] == x['voeux'] for x in avec), [x for x in avec if x['voeu'] != x['voeux']][:3])
+    lgd = ev("""(() => { const g = document.querySelector('.clegend'); return g ? g.textContent : ''; })()""")
+    sn = ev("""[...document.querySelectorAll('.cpj')].some(b => b.querySelector('.cfl.cq'))""")
+    check('compo : le « ? » orange expliqué dans la légende quand un enfant n\'a pas de niveau', ('niveau à renseigner' in lgd) == bool(sn) and 'pas encore répondu' in lgd, (sn, lgd[-120:]))
     check('compo : les postes alignés à droite de l\'encadré', all(x['droite'] for x in avec), [x for x in avec if not x['droite']][:3])
     check('compo : sur la même ligne que le plaquage et les passerelles, jamais sur une ligne à eux', all(x['memeLigne'] for x in avec), [x for x in avec if not x['memeLigne']][:3])
     t1 = [x for x in C if x['id'] == tid]
@@ -81,6 +110,18 @@ with sync_playwright() as p:
     pg.click('[data-act="cCote"][data-v="1"]'); pg.wait_for_timeout(500)
     cc = ev("""[...document.querySelectorAll('.ccote .cpj')].every(b => { const pp = b.querySelector('.cpps'); if (!pp) return true; const r = pp.getBoundingClientRect(), br = b.getBoundingClientRect(); return r.left >= br.left && r.right <= br.right + 1 && br.right - r.right <= 9 && r.bottom <= br.bottom + 1; })""")
     check('côte à côte : les postes tiennent dans l\'encadré, à droite', cc and noscroll())
+    # (relecture) le « ? » doré ne passe pas sous « Sans poste » ou « absent » (en haut à droite)
+    pg.evaluate("""(() => { const e = MC.app.S.cache.compos.evenements.find(e => e.id === 'sp-demo-p3'), F = MC.compos.fiches(MC.app.S.cache.group);
+      const ids = [...document.querySelectorAll('.ccote .cpj')].map(b => b.getAttribute('data-id')).filter(id => F[id] && !MC.compos.postesDe(F[id]).length);
+      ids.forEach(id => { e.presents = (e.presents || []).filter(x => x !== id); e.sansReponse = (e.sansReponse || []).filter(x => x !== id).concat([id]); }); MC.app.rerender(); })()""")
+    pg.wait_for_timeout(500)
+    qq = ev("""[...document.querySelectorAll('.ccote .cpj')].filter(b => b.querySelector('.catt') && b.querySelector(':scope > .cpo')).map(b => { const q = b.querySelector('.catt').getBoundingClientRect(), o = b.querySelector(':scope > .cpo').getBoundingClientRect();
+      return { nom: b.querySelector('.cpn').textContent, ok: q.right <= o.left + 1 || q.top >= o.bottom || q.bottom <= o.top }; })""")
+    # et la place gardée pour le prénom s'arrête avant l'étiquette en haut à droite, quel que soit le prénom
+    pl = ev("""[...document.querySelectorAll('.cpj')].filter(b => b.querySelector(':scope > .cpo')).map(b => { const l = b.querySelector('.cpl1'), o = b.querySelector(':scope > .cpo').getBoundingClientRect();
+      return { nom: b.querySelector('.cpn').textContent, cpo: b.querySelector(':scope > .cpo').textContent, ok: b.getBoundingClientRect().right - parseFloat(getComputedStyle(b).paddingRight) - parseFloat(getComputedStyle(b).borderRightWidth) - parseFloat(getComputedStyle(l).paddingRight) <= o.left + 1 }; })""")
+    qq = qq + [x for x in pl if not x['ok']]
+    check('côte à côte : le « ? » doré ne chevauche pas « Sans poste » ni le poste', len(qq) > 0 and all(x['ok'] for x in qq), [x for x in qq if not x['ok']][:3])
     cl = ev("""[...document.querySelectorAll('.ccote .cpj')].filter(b => !memeLigne(b)).map(b => b.querySelector('.cpn').textContent)""")
     check('côte à côte : les postes sur la ligne du plaquage, même avec beaucoup de postes', not cl, cl)
     # un enfant avec les 7 postes, dans l'encadré le plus étroit : ses postes passent à la ligne à droite, pas sous le bouclier

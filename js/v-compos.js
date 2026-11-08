@@ -1097,18 +1097,20 @@ window.MC = window.MC || {};
     else tag = ty ? '<span class="cpo ty">' + (ty === 'av' ? 'Av' : ty === 'ar' ? 'Ar' : 'Av·Ar') + '</span>' : '';
     var on = B && B.sel && B.sel.v === v && B.sel.id === j.id;
     // (v60, demande de Nicolas) les postes de sa fiche, comme dans la liste Enfants (pleine = préféré), à droite de la ligne des marques
-    var pf = (f.postesOk || []).length ? K.prefDe(f) : [], pills = f.postesOk ? postesRanges(f).map(function (p) { return pillPoste(p, pf.indexOf(p) >= 0); }).join('') : '';
+    // (relecture) la même fonction : ses vœux, tant que rien n'est réglé, gardent la marque « vœux » ; aucun poste : rien (« Sans poste » en haut)
+    var pills = f.postesOk && K.postesDe(f).length ? pillsPostes(f) : '';
     // réponse Spond : en attente (horloge) ou plus là (barré, « absent »)
     // (v57) au jeu à 10, l'absent garde son poste (la pastille « absent » passe avec les autres marques) ; en partant de tout le
     // groupe, les absents encore « Pas placés » sont marqués aussi
     // (v57) tout le groupe : « absent » seulement pour un vrai absent ; pas dans l'événement : une marque neutre (« hors Spond »)
     var att = ATT && ATT.att[j.id], nonP = ATT && (t || (baseTous(d.reglages) && d.equipes)) && !ATT.pres[j.id] && !att;
     var gone = nonP && horsJeu(j.id, d), hors = nonP && !gone, avecPoste = gone && t && d.reglages.format === 10;
-    return '<li><button type="button" class="cpj' + (on ? ' sel' : '') + (moved ? ' moved' : '') + (gone ? ' gone' : '') + (att ? ' att' : '') + '" data-act="cPick" data-v="' + v + '" data-id="' + esc(j.id) + '" aria-pressed="' + !!on + '">' +
+    var large = (gone && !avecPoste) || / csp"/.test(tag || '');   // « absent » ou « Sans poste » en haut à droite : le prénom laisse plus de place
+    return '<li><button type="button" class="cpj' + (on ? ' sel' : '') + (moved ? ' moved' : '') + (gone ? ' gone' : '') + (att ? ' att' : '') + (large ? ' cpo-l' : '') + '" data-act="cPick" data-v="' + v + '" data-id="' + esc(j.id) + '" aria-pressed="' + !!on + '">' +
       // (v60, demande de Nicolas) « ? » doré (pas encore répondu sur Spond) collé à droite du prénom, au lieu du chrono
       '<span class="cpl1"><span class="cpn">' + esc(f.prenom) + '</span>' + (att ? '<span class="cfl catt" title="Pas encore répondu sur Spond"><span aria-hidden="true">?</span><span class="sr-only">pas encore répondu sur Spond</span></span>' : '') + '</span>' + (gone && !avecPoste ? '<span class="cpo cabs">absent</span>' : tag) + '<span class="row cfls"><span class="cflg">' + (avecPoste ? '<span class="cfl cabsf" title="Absent sur Spond (ou retiré des présents)">absent</span>' : '') + (hors ? '<span class="cfl chors" title="' + esc(ATT.horsT) + '">' + esc(ATT.horsLab) + '</span>' : '') + starsMini(f.plaquage, sousRep) + lv + heart + (f.niveau ? '' : '<span class="cfl cq" title="Niveau à renseigner">?</span>') + '</span>' +
       // (v60, demande de Nicolas) les postes de sa fiche sur la même ligne que le plaquage et les passerelles, à droite
-      (d.reglages.partie !== 'ateliers' && pills ? '<span class="cpps">' + pills + '</span>' : '') + '</span></button></li>';
+      (d.reglages.partie !== 'ateliers' && pills ? '<span class="cpps"><span class="sr-only">postes : </span>' + pills + '</span>' : '') + '</span></button></li>';
   }
   // le banc d'une version : « Pas placés » + les présents arrivés après la compo (venus sans répondre…)
   function bancOf(d, presents) {
@@ -1222,6 +1224,9 @@ window.MC = window.MC || {};
   }
   function paintBoard(C, e) {
     var vs = B.vs, nv = vs.length, c = compoOf(C.cd, e.id, B.partie), presents = presentsOf(C, e), att = attenteOf(C, e);
+    // (relecture v60) deux « ? » : doré cerclé = pas encore répondu ; orange = niveau à renseigner (dans la légende quand il y en a un)
+    var vus = presents.concat(att); vs.forEach(function (d) { (d.equipes || []).forEach(function (t) { t.joueurs.forEach(function (j) { vus.push(j.id); }); }); });
+    var sansNiv = vus.some(function (id) { return C.F[id] && !C.F[id].niveau; });
     ATT = { pres: {}, att: {}, abs: {}, tous: baseTous(vs[0].reglages), horsLab: e.source === 'spond' ? 'hors Spond' : 'pas coché',
       horsT: e.source === 'spond' ? 'Pas dans l\'événement Spond (pas relié, autre catégorie…)' : 'Pas coché dans les présents' };
     presents.forEach(function (id) { ATT.pres[id] = 1; }); att.forEach(function (id) { ATT.att[id] = 1; }); absentsOf(C, e).forEach(function (id) { ATT.abs[id] = 1; });
@@ -1271,7 +1276,7 @@ window.MC = window.MC || {};
       (P ? stepsHtml(C, e, P) : '') + state + topHtml(C, e, c) + avBlock + cmp + spondHtml(C, e) +
       '<p class="small" style="margin:0">' + (ed ? 'Touchez un joueur, puis son ' + (P === 'ateliers' ? 'groupe' : 'équipe') + ' d\'arrivée (ou un joueur d\'' + (P === 'ateliers' ? 'un autre groupe' : 'une autre équipe') + ' : ils s\'échangent). Pour ' + (P === 'ateliers' ? 'remplir un groupe' : 'composer une équipe') + ', touchez son nom' + (fmt === 10 ? ', une place vide (+) ou « Poste par poste »' : ' ou « + Ajouter des joueurs »') + '.' + (nv > 1 ? ' Chaque version se modifie à part.' : '') : 'Touchez un joueur pour voir sa fiche.') + (communes ? ' <b style="color:var(--yellow)">Entourés</b> : placés autrement d\'une version à l\'autre.' : '') + '</p>' +
       (ed && fmt === 10 && nv === 1 ? '<button type="button" class="btn2" data-act="cParPoste" data-v="0">' + icon('board', 16) + ' Poste par poste</button>' : '') +   // (v57)
-      '<p class="small clegend"><span>' + icon('shieldavg', 12) + ' plaquage moyen</span>' + '<span>' + icon('shieldok', 12) + ' bons plaqueurs</span>' + (vs.every(sansCop) ? '' : '<span>' + icon('heart', 11) + ' avec un copain</span>') + '<span>⇅ hors niveau</span>' + (P ? '' : '<span>' + bouclier(2, 'mini', true) + ' sous le repère de l\'équipe</span>') + (fmt === 10 ? '<span>Postes : barre pleine = principal, pâle = peut jouer</span>' : '<span>Av avants · Ar arrières</span>') + (att.length ? '<span class="clg-att"><span class="cqatt" aria-hidden="true">?</span> pas encore répondu sur Spond</span>' : '') + '</p>' +
+      '<p class="small clegend"><span>' + icon('shieldavg', 12) + ' plaquage moyen</span>' + '<span>' + icon('shieldok', 12) + ' bons plaqueurs</span>' + (vs.every(sansCop) ? '' : '<span>' + icon('heart', 11) + ' avec un copain</span>') + '<span>⇅ hors niveau</span>' + (P ? '' : '<span>' + bouclier(2, 'mini', true) + ' sous le repère de l\'équipe</span>') + (fmt === 10 ? '<span>Postes : barre pleine = principal, pâle = peut jouer</span>' : '<span>Av avants · Ar arrières</span>') + (att.length ? '<span class="clg-att"><span class="cqatt" aria-hidden="true">?</span> pas encore répondu sur Spond</span>' : '') + (sansNiv ? '<span><b class="cfl cq" aria-hidden="true">?</b> niveau à renseigner</span>' : '') + '</p>' +
       vueHtml(vs) + boardHtml(C, { vs: vs, presents: presents, attente: att, moved: moved, ed: ed }) +
       '<section class="sec">' + vs.map(function (d, v) { return alertesHtml(C, d, v, presents, nv, att); }).join('') + '</section>' +
       rsAll + hist + avHist + suite +
