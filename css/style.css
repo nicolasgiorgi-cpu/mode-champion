@@ -1556,6 +1556,10 @@ textarea.txt{min-height:84px;padding:10px 12px;resize:vertical;font:500 16px/1.4
 @media (prefers-reduced-motion:reduce){ .sk-card{transition:none} }
 /* Compos : réponse Spond en attente (horloge dorée) ou plus là (barré, « absent ») ; heure dans le carré de date */
 .cfl.catt{color:var(--gold)}
+/* (v59, demande de Nicolas) le chrono « pas encore répondu » collé à droite de l'encadré, sous le poste */
+.cpj .cfl.catt{position:absolute;top:21px;right:6px}
+.cpj.att .cfls{padding-right:16px}
+.clegend .clg-att svg{color:var(--gold)}
 .cpj.gone{opacity:.75;border-color:var(--pink)}
 .cpj.gone .cpn{text-decoration:line-through;text-decoration-color:var(--pink)}
 .cpo.cabs{background:var(--pink);color:#070A12}
