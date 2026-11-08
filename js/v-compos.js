@@ -1096,6 +1096,8 @@ window.MC = window.MC || {};
     else if (t) { var pp = K.posteDefaut(f); tag = pp ? '<span class="cpo ty" title="Poste principal (fiche)' + (ty === 'les2' ? ', joue aussi ' + (K.typePoste(pp) === 'av' ? 'arrière' : 'avant') : '') + '">' + (ty === 'les2' ? '⇄ ' : '') + COURT[pp] + '</span>' : ''; }
     else tag = ty ? '<span class="cpo ty">' + (ty === 'av' ? 'Av' : ty === 'ar' ? 'Ar' : 'Av·Ar') + '</span>' : '';
     var on = B && B.sel && B.sel.v === v && B.sel.id === j.id;
+    // (v60, demande de Nicolas) les postes de sa fiche, comme dans la liste Enfants (pleine = préféré), alignés à droite sous le chrono
+    var pf = (f.postesOk || []).length ? K.prefDe(f) : [], pills = f.postesOk ? postesRanges(f).map(function (p) { return pillPoste(p, pf.indexOf(p) >= 0); }).join('') : '';
     // réponse Spond : en attente (horloge) ou plus là (barré, « absent »)
     // (v57) au jeu à 10, l'absent garde son poste (la pastille « absent » passe avec les autres marques) ; en partant de tout le
     // groupe, les absents encore « Pas placés » sont marqués aussi
@@ -1104,7 +1106,8 @@ window.MC = window.MC || {};
     var gone = nonP && horsJeu(j.id, d), hors = nonP && !gone, avecPoste = gone && t && d.reglages.format === 10;
     return '<li><button type="button" class="cpj' + (on ? ' sel' : '') + (moved ? ' moved' : '') + (gone ? ' gone' : '') + (att ? ' att' : '') + '" data-act="cPick" data-v="' + v + '" data-id="' + esc(j.id) + '" aria-pressed="' + !!on + '">' +
       '<span class="cpn">' + esc(f.prenom) + '</span>' + (gone && !avecPoste ? '<span class="cpo cabs">absent</span>' : tag) + '<span class="row cfls">' + (avecPoste ? '<span class="cfl cabsf" title="Absent sur Spond (ou retiré des présents)">absent</span>' : '') + (hors ? '<span class="cfl chors" title="' + esc(ATT.horsT) + '">' + esc(ATT.horsLab) + '</span>' : '') + starsMini(f.plaquage, sousRep) + lv + heart + (f.niveau ? '' : '<span class="cfl cq" title="Niveau à renseigner">?</span>') +
-      (att ? '<span class="cfl catt" title="Pas encore répondu sur Spond">' + icon('clock', 12) + '<span class="sr-only">pas encore répondu sur Spond</span></span>' : '') + '</span></button></li>';   // (v59, demande de Nicolas) le chrono collé à droite de l'encadré, sous le poste
+      (att ? '<span class="cfl catt" title="Pas encore répondu sur Spond">' + icon('clock', 12) + '<span class="sr-only">pas encore répondu sur Spond</span></span>' : '') + '</span>' +
+      (d.reglages.partie !== 'ateliers' && pills ? '<span class="cpps">' + pills + '</span>' : '') + '</button></li>';   // (v59, demande de Nicolas) le chrono collé à droite de l'encadré, sous le poste
   }
   // le banc d'une version : « Pas placés » + les présents arrivés après la compo (venus sans répondre…)
   function bancOf(d, presents) {
@@ -2073,13 +2076,16 @@ window.MC = window.MC || {};
     var pf = (f.postesOk || []).length ? K.prefDe(f) : [];
     return K.postesDe(f).slice().sort(function (a, b) { return (pf.indexOf(a) >= 0 ? 0 : 1) - (pf.indexOf(b) >= 0 ? 0 : 1) || K.ORDRE.indexOf(a) - K.ORDRE.indexOf(b); });
   }
+  // (v60) une pastille de poste (pleine = préféré, sinon le contour) : même largeur partout, liste Enfants et compo
+  function pillPoste(p, pr) {
+    return '<span class="tpp' + (pr ? ' pref' : '') + '" style="--c:' + coulPoste(p) + '" title="' + esc(NOMP[p]) + (pr ? ', poste préféré' : '') + '">' + (pr ? '<span class="sr-only">préféré </span>' : '') + '<span aria-hidden="true">' + esc(COURT[p]) + '</span><span class="sr-only">' + esc(NOMP[p]) + '</span></span>';
+  }
   function pillsPostes(f) {
     var pf = f.postesOk.length ? K.prefDe(f) : [];
     var ps = postesRanges(f);
     if (!ps.length) return '<span class="tpp none">pas de poste</span>';
     return ps.map(function (p) {
-      var pr = pf.indexOf(p) >= 0;
-      return '<span class="tpp' + (pr ? ' pref' : '') + '" style="--c:' + coulPoste(p) + '" title="' + esc(NOMP[p]) + (pr ? ', poste préféré' : '') + '">' + (pr ? '<span class="sr-only">préféré </span>' : '') + '<span aria-hidden="true">' + esc(COURT[p]) + '</span><span class="sr-only">' + esc(NOMP[p]) + '</span></span>';
+      return pillPoste(p, pf.indexOf(p) >= 0);
     }).join('') + (f.postesOk.length ? '' : '<span class="tpp voeu" title="Ses vœux (Choisis ton poste) : postes pas encore réglés">vœux</span>');
   }
   // dans la liste : préféré ★ réglé, ou « peut aussi jouer » (ses vœux tant que rien n'est réglé)
