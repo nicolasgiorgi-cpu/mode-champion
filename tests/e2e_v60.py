@@ -1,4 +1,4 @@
-# (v60) Demande de Nicolas du 08/11/2026 : les postes des enfants sur la compo comme dans la liste Enfants (pastilles pleines =
+# (v60, v61) Demandes de Nicolas du 08/11/2026 : les postes des enfants sur la compo comme dans la liste Enfants (pastilles pleines =
 # préféré, sinon le contour), à droite sur la ligne du plaquage et des passerelles (« ? » doré à côté du prénom au lieu du chrono) ; dans la liste Enfants, les pastilles dans une colonne à elles entre le
 # prénom et le niveau, alignées à gauche (plus d'effet de vague) ; toutes les pastilles de la même largeur.
 # Site de démo (sh tests/mkdemo.sh), puis : python3 tests/e2e_v60.py 390 844 · 1180 820 · 820 1180
@@ -62,10 +62,20 @@ with sync_playwright() as p:
       sh: Math.round(r.querySelector('.tctl').lastElementChild.getBoundingClientRect().right), droite: r.getBoundingClientRect().right - Math.max(...[...r.querySelectorAll('*')].map(x => x.getBoundingClientRect().right)) }))""")
     check('liste : avec un enfant à deux passerelles, le niveau au même endroit sur chaque ligne', any(x['np'] == 2 for x in L2) and len(set(x['lv'] for x in L2)) == 1, sorted(set(x['lv'] for x in L2)))
     check('liste : et le bouclier aussi, rien ne déborde', len(set(x['sh'] for x in L2)) == 1 and all(x['droite'] >= -1 for x in L2) and noscroll(), sorted(set(x['sh'] for x in L2)))
-    if W < 700:
-        # au téléphone, trois postes tiennent sur la ligne du prénom
-        t3 = ev("""[...document.querySelectorAll('#tlist .tfrow')].filter(r => r.querySelectorAll('.tps .tpp').length === 3).map(r => { const ps = [...r.querySelectorAll('.tps .tpp')].map(p => Math.round(p.getBoundingClientRect().top)); return new Set(ps).size; })""")
-        check('liste (téléphone) : trois postes sur une seule ligne', len(t3) > 0 and all(n == 1 for n in t3), t3)
+    # trois postes tiennent sur la ligne du prénom
+    t3 = ev("""[...document.querySelectorAll('#tlist .tfrow')].filter(r => r.querySelectorAll('.tps .tpp').length === 3).map(r => { const ps = [...r.querySelectorAll('.tps .tpp')].map(p => Math.round(p.getBoundingClientRect().top)); return new Set(ps).size; })""")
+    check('liste : trois postes sur une seule ligne', len(t3) > 0 and all(n == 1 for n in t3), t3)
+    # (v61, demande de Nicolas) avec trois postes, le dernier finit près du niveau : un petit espace, pas collé
+    ec = ev("""[...document.querySelectorAll('#tlist .tfrow')].filter(r => r.querySelectorAll('.tps .tpp').length === 3).map(r => { const ps = [...r.querySelectorAll('.tps .tpp')];
+      return Math.round(r.querySelector('.tlv').getBoundingClientRect().left - ps[ps.length - 1].getBoundingClientRect().right); })""")
+    check('liste : avec trois postes, un petit espace avant le niveau (entre 8 et 22 px)', len(ec) > 0 and all(8 <= x <= 22 for x in ec), ec)
+    # un enfant à 4 postes : une 2e ligne, dans la colonne des postes
+    ev("""(() => { const F = MC.compos.fiches(MC.app.S.cache.group), id = Object.keys(F).find(id => F[id].postesOk.length === 1);
+      return MC.app.adultCall('setTerrain', { lignes: [{ joueurId: id, postesOk: ['pilier', 'talonneur', 'troisieme-ligne', 'centre'], postesPref: ['pilier'] }] }).then(() => MC.loadGroup(true)).then(() => MC.app.rerender()); })()""")
+    pg.wait_for_timeout(700)
+    q4 = ev("""[...document.querySelectorAll('#tlist .tfrow')].filter(r => r.querySelectorAll('.tps .tpp').length === 4).map(r => { const t = r.querySelector('.tps').getBoundingClientRect(), lv = r.querySelector('.tlv').getBoundingClientRect();
+      return { lignes: new Set([...r.querySelectorAll('.tps .tpp')].map(p => Math.round(p.getBoundingClientRect().top))).size, dedans: Math.max(...[...r.querySelectorAll('.tps .tpp')].map(p => p.getBoundingClientRect().right)) <= lv.left - 6 }; })""")
+    check('liste : quatre postes passent sur une 2e ligne, sans toucher le niveau', len(q4) > 0 and all(x['lignes'] == 2 and x['dedans'] for x in q4) and noscroll(), q4)
 
     # ----- 2. la compo : les postes de la fiche, à droite, sur la ligne du plaquage -----
     pg.goto(BASE + '#/educ/compo/sp-demo-p3'); pg.wait_for_timeout(1200)
@@ -89,6 +99,10 @@ with sync_playwright() as p:
         return { id, att: !!ch, n: attendu.length, voeu: !!(pp && pp.querySelector('.tpp.voeu')), voeux: !f.postesOk.length, qLibre: !q || !por || q.right <= por.left + 1 || q.top >= por.bottom, vus: pills.map(x => (x.classList.contains('pref') ? '*' : '') + x.querySelector('[aria-hidden]').textContent),
           bons: pills.length === attendu.length && pills.every((x, i) => x.querySelector('[aria-hidden]').textContent === COURT[attendu[i]] && x.classList.contains('pref') === (pf.indexOf(attendu[i]) >= 0)),
           droite: !r || br.right - r.right <= 9,
+          // (v61) les postes alignés à gauche dans leur boîte ; la boîte a la place de trois postes, sinon elle part juste après les marques
+          gauche: !r || Math.abs(pills[0].getBoundingClientRect().left - r.left) <= 1, debut: r ? Math.round(pills.length ? pills[0].getBoundingClientRect().left : r.left) : null, plein: !!r && r.width >= 95,
+          colle: !r || (() => { const fl = [...b.querySelectorAll('.cflg > *')].filter(x => x.offsetParent); return !fl.length || r.left - fl[fl.length - 1].getBoundingClientRect().right <= 8; })(),
+          col: (() => { const c = b.closest('.ccol'); return (c ? [...document.querySelectorAll('.ccol')].indexOf(c) : -1) + ':' + Math.round(br.left) + ':' + Math.round(br.width); })(),
           memeLigne: memeLigne(b),
           libre: !r || autres.every(o => o.bottom <= r.top + 1 || o.right <= r.left || o.left >= r.right), dedans: !r || (r.bottom <= br.bottom + 1 && r.left >= br.left),
           larg: pills.map(x => Math.round(x.getBoundingClientRect().width)) }; }); })()""")
@@ -99,7 +113,13 @@ with sync_playwright() as p:
     lgd = ev("""(() => { const g = document.querySelector('.clegend'); return g ? g.textContent : ''; })()""")
     sn = ev("""[...document.querySelectorAll('.cpj')].some(b => b.querySelector('.cfl.cq'))""")
     check('compo : le « ? » orange expliqué dans la légende quand un enfant n\'a pas de niveau', ('niveau à renseigner' in lgd) == bool(sn) and 'pas encore répondu' in lgd, (sn, lgd[-120:]))
-    check('compo : les postes alignés à droite de l\'encadré', all(x['droite'] for x in avec), [x for x in avec if not x['droite']][:3])
+    check('compo : la boîte des postes à droite de l\'encadré', all(x['droite'] for x in avec), [x for x in avec if not x['droite']][:3])
+    check('compo : les postes alignés à gauche dans leur boîte', all(x['gauche'] for x in avec), [x for x in avec if not x['gauche']][:3])
+    debuts = {}
+    for x in avec:
+        if x['plein']: debuts.setdefault(x['col'], set()).add(x['debut'])
+    check('compo : dans une équipe, les postes partent du même endroit (place de trois postes)', len(debuts) > 0 and all(len(v) == 1 for v in debuts.values()), debuts)
+    check('compo : quand les marques prennent plus de place, les postes partent juste après elles', all(x['plein'] or x['colle'] for x in avec), [x for x in avec if not (x['plein'] or x['colle'])][:3])
     check('compo : sur la même ligne que le plaquage et les passerelles, jamais sur une ligne à eux', all(x['memeLigne'] for x in avec), [x for x in avec if not x['memeLigne']][:3])
     t1 = [x for x in C if x['id'] == tid]
     check('compo : un enfant sans réponse a ses postes et son « ? »', t1 and t1[0]['att'] and t1[0]['vus'] and t1[0]['memeLigne'], t1)

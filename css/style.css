@@ -1228,7 +1228,7 @@ body:has(.cdock .cselp) .toast{top:calc(74px + var(--safe-t) + var(--vvt));botto
 .cpj .cpo.none{color:var(--dim)}
 .cpj .cfls{gap:6px;flex-wrap:nowrap;align-items:flex-start}
 /* (v60) les marques (absent, bouclier, passerelle, copain, niveau à renseigner) à gauche, centrées sur la hauteur du bouclier */
-.cpj .cflg{display:flex;align-items:center;flex-wrap:wrap;gap:6px;min-height:20px;min-width:0}
+.cpj .cflg{display:flex;align-items:center;flex-wrap:wrap;gap:6px;min-height:20px;min-width:0;flex:none;max-width:calc(100% - 36px)}   /* (v61) les postes rétrécissent d'abord */
 .cfl{display:inline-flex;align-items:center;font:700 10px/1 var(--f-hud)}
 .cfl.cop-ok{color:var(--pink)}
 .cfl.cop-ok svg{fill:var(--pink)}
@@ -1273,10 +1273,11 @@ body:has(.cdock .cselp) .toast{top:calc(74px + var(--safe-t) + var(--vvt));botto
 .tfp .opt.tf-w{flex-grow:1.25}
 .tlist{gap:4px}
 /* (v60, demande de Nicolas) trois colonnes alignées d'une ligne à l'autre : le prénom, les postes (à gauche, plus d'effet de vague),
-   niveau-passerelle-bouclier ; sans subgrid (vieux Safari), une largeur fixe pour le prénom */
-.tfrow{display:grid;grid-template-columns:7.2em minmax(0,1fr) auto;align-items:center;gap:7px;min-height:44px;padding:6px 8px 6px 10px;background:var(--panel2);border:1px solid var(--line)}
+   niveau-passerelle-bouclier. (v61, demande de Nicolas) la colonne des postes a la place de trois postes (au-delà, une 2e ligne),
+   collée au niveau à un petit espace près ; le prénom prend le reste. --tpw : trois pastilles et leurs espaces, plus ce petit espace. */
+.tfrow{--tpw:104px;display:grid;grid-template-columns:minmax(0,1fr) var(--tpw) auto;align-items:center;gap:7px;min-height:44px;padding:6px 8px 6px 10px;background:var(--panel2);border:1px solid var(--line)}
 @supports (grid-template-columns:subgrid){
-  .tlist{display:grid;grid-template-columns:fit-content(7.2em) minmax(0,1fr) auto;column-gap:7px}
+  .tlist{--tpw:104px;display:grid;grid-template-columns:minmax(0,1fr) fit-content(var(--tpw)) auto;column-gap:7px}
   .tlist>li{grid-column:1/-1;display:grid;grid-template-columns:subgrid;min-width:0}
   .tlist>li>.tfrow{grid-column:1/-1;grid-template-columns:subgrid}
   .tlist>li.tsep{display:flex}.tlist>li.empty{display:block}   /* les séparateurs et « Personne. » restent sur toute la largeur */
@@ -1284,14 +1285,16 @@ body:has(.cdock .cselp) .toast{top:calc(74px + var(--safe-t) + var(--vvt));botto
 /* (v48) une ligne par enfant sur téléphone : le prénom (coupé s'il est trop long), ses postes abrégés, puis niveau, passerelle, bouclier */
 .tnm{min-width:0;color:var(--ink);text-decoration:none;font:700 15px/1.2 var(--f-body);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tnm-l{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-.tps{display:flex;align-items:center;justify-content:flex-start;gap:4px;flex-wrap:wrap;min-width:0}
+.tps{display:flex;align-items:center;justify-content:flex-start;gap:4px;flex-wrap:wrap;min-width:0;padding-right:8px}
 .tpp{flex:none;display:inline-flex;align-items:center;justify-content:center;gap:3px;width:34px;height:20px;padding:1px 0 0;border:1px solid var(--c,#8A93AD);color:var(--c,#8A93AD);font:700 10.5px/1 var(--f-hud);letter-spacing:.04em;white-space:nowrap}
 .tpp.pref{background:var(--c);color:#070A12}
 .tpp svg{flex:none}
 .tpp.none,.tpp.voeu{width:auto;padding:1px 6px 0;border-style:dashed;border-color:var(--line3);color:var(--dim)}
-/* (v60, demande de Nicolas) les postes de sa fiche sur la ligne du plaquage et des passerelles, poussés à droite ; jamais sur une
-   ligne à eux : la boîte prend la place qui reste (une pastille au moins) ; trop de postes : une 2e rangée, à droite, sous la 1re */
-.cpj .cpps{flex:1 1 30px;min-width:30px;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:3px;max-width:100%;padding-top:1.5px}
+/* (v60, demande de Nicolas) les postes de sa fiche sur la ligne du plaquage et des passerelles, jamais sur une ligne à eux.
+   (v61, demande de Nicolas) alignés à gauche, au même endroit d'une pastille à l'autre : une boîte de la largeur de trois postes,
+   poussée à droite ; si les marques prennent plus de place, elle rétrécit (une pastille au moins) et part juste après elles ;
+   trop de postes : une 2e rangée, alignée à gauche aussi */
+.cpj .cpps{flex:0 1 96px;min-width:30px;margin-left:auto;display:flex;flex-wrap:wrap;justify-content:flex-start;align-content:flex-start;gap:3px;max-width:100%;padding-top:1.5px}
 .cpps .tpp{width:30px;height:17px;font-size:9.5px}
 .cpps .tpp.voeu{width:auto;padding:1px 4px 0}
 /* « absent » ou « Sans poste » en haut à droite : le prénom et son « ? » s'arrêtent avant */
@@ -1383,8 +1386,8 @@ span.tlv,span.tpas{display:inline-flex;align-items:center;justify-content:center
   .cvcols.nv1 .cvcol>.ccol:only-of-type{grid-column:span 2}
   .cvcols.nv2 .cvcol>.ccol:only-of-type{grid-column:1/-1}
   .cstyles{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
-  .tfrow{gap:10px;padding:5px 8px 5px 12px;grid-template-columns:200px minmax(0,1fr) auto}
-  @supports (grid-template-columns:subgrid){.tlist{grid-template-columns:fit-content(240px) minmax(0,1fr) auto;column-gap:10px}}
+  .tfrow{--tpw:118px;gap:10px;padding:5px 8px 5px 12px}
+  @supports (grid-template-columns:subgrid){.tlist{--tpw:118px;column-gap:10px}}
   .tnm-l{position:static;width:auto;height:auto;overflow:visible;clip:auto}.tnm-c{display:none}
   .tctl{gap:8px}
   .rel-l{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
