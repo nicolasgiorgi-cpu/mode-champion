@@ -1557,13 +1557,15 @@ textarea.txt{min-height:84px;padding:10px 12px;resize:vertical;font:500 16px/1.4
 /* Compos : réponse Spond en attente (horloge dorée) ou plus là (barré, « absent ») ; heure dans le carré de date */
 .cfl.catt{color:var(--gold)}
 /* (v59, demande de Nicolas) le chrono « pas encore répondu » collé à droite de l'encadré, sous le poste */
-.cpj .cfl.catt{position:absolute;top:21px;right:6px}
+.cpj .cfl.catt{position:absolute;top:6px;right:6px}
+.cpj .cpo + .cfls .cfl.catt{top:21px}   /* sous le poste ; sans poste en haut à droite (jeu à 5, ateliers), dans le coin */
 .cpj.att .cfls{padding-right:16px}
 .clegend .clg-att svg{color:var(--gold)}
 .cpj.gone{opacity:.75;border-color:var(--pink)}
 .cpj.gone .cpn{text-decoration:line-through;text-decoration-color:var(--pink)}
 .cpo.cabs{background:var(--pink);color:#070A12}
-.catt-sec .clvh{color:var(--gold)}
+.clevel.catt-sec .clvh{color:var(--gold)}
+.clvh svg{flex:none}
 .cdate.h{height:60px}
 .cdate small.ch{color:var(--cyan);letter-spacing:.02em}
 .cattcol{display:flex;flex-direction:column;gap:6px;min-width:0;border:1px dashed color-mix(in srgb,var(--gold) 55%,transparent);border-top:3px solid var(--gold);padding:8px;background:rgba(10,15,31,.4)}
