@@ -505,8 +505,9 @@ html.net-busy::before{content:'';position:fixed;top:0;left:0;right:0;height:3px;
 .newbadge>div{background:#0A0F1F;clip-path:polygon(0 0,calc(100% - 17px) 0,100% 17px,100% 100%,17px 100%,0 calc(100% - 17px));padding:14px;display:flex;align-items:center;gap:14px}
 
 /* ---------- fenêtres ---------- */
-.modal{position:fixed;inset:0;z-index:50;background:rgba(3,5,10,.78);display:flex;align-items:flex-end;justify-content:center;padding:16px;padding-bottom:calc(16px + var(--safe-b))}
-.modal .card{width:100%;max-width:460px;max-height:88vh;overflow:auto;padding:18px 16px;background:#0E1428;border:1px solid var(--line2);display:flex;flex-direction:column;gap:14px;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.modal{position:fixed;inset:0;z-index:50;background:rgba(3,5,10,.78);display:flex;align-items:flex-end;justify-content:center;padding:16px;padding-top:calc(16px + var(--safe-t));padding-bottom:calc(16px + var(--safe-b))}
+/* (v58) jamais sous l'encoche ni la barre d'état de l'iPhone : la carte tient entre les zones sûres (sinon la croix et le titre étaient cachés) */
+.modal .card{width:100%;max-width:460px;max-height:min(88vh,calc(100dvh - 32px - var(--safe-t) - var(--safe-b)));overflow:auto;padding:18px 16px;background:#0E1428;border:1px solid var(--line2);display:flex;flex-direction:column;gap:14px;box-shadow:0 20px 60px rgba(0,0,0,.6)}
 .modal h2{margin:0;font:italic 900 28px/.95 var(--f-title);text-transform:uppercase;min-width:0}
 .modal .mhead{position:sticky;top:-18px;z-index:2;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin:-18px -16px 0;padding:16px 12px 10px 16px;background:#0E1428;border-bottom:1px solid var(--line)}
 .modal .mhead .mclose{flex:none;margin-top:-4px}
@@ -1080,6 +1081,11 @@ body:has(.cdock .cselp) .toast{top:calc(74px + var(--safe-t) + var(--vvt));botto
    avec une seule version, les équipes du niveau côte à côte (2 par ligne au téléphone) */
 .cboard2{display:flex;flex-direction:column;gap:18px}
 .clevel{display:flex;flex-direction:column;gap:8px;min-width:0}
+/* (v58) affichage des équipes : l'une sous l'autre ou côte à côte */
+.cvue{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.cvue .small{margin-right:2px}
+.cvue .opt{min-height:44px;padding:6px 12px;font-size:12px}
+.ccote .cvcols.nv1 .cvcol{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
 .clvh{margin:0;display:flex;align-items:center;gap:8px;font:italic 900 20px/1 var(--f-title);text-transform:uppercase;color:var(--lc,var(--soft))}
 .clvh .small{font:500 12px/1 var(--f-body);text-transform:none;color:var(--dim)}
 .clevel.banc .clvh{color:var(--soft)}
@@ -1094,6 +1100,18 @@ body:has(.cdock .cselp) .toast{top:calc(74px + var(--safe-t) + var(--vvt));botto
 .ccmp .cvsum span{display:inline-flex;align-items:center;gap:4px}
 .cavtq{font:600 11px/1.25 var(--f-hud);letter-spacing:.02em;color:var(--soft)}
 .cavtq.bad{color:var(--orange)}
+/* (v58) couverture des postes d'une équipe, en compact : 7 cases, un trait par place à tenir */
+.ccov{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px;width:100%}
+.ccv{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0;padding:3px 1px 4px;border:1px solid color-mix(in srgb,var(--pc) 35%,transparent);background:color-mix(in srgb,var(--pc) 8%,transparent)}
+.ccv b{display:flex;align-items:baseline;gap:1px;font:700 10px/1 var(--f-hud);letter-spacing:.02em;color:var(--pc);white-space:nowrap}
+.ccv b small{font-size:8.5px;color:var(--ink)}
+.ccs{display:flex;gap:2px;width:100%;padding:0 3px}
+.ccs i{flex:1;height:4px;border:1px solid var(--pc);opacity:.85}
+.ccs i.on{background:var(--pc);opacity:1}
+.ccv.court{border-color:var(--orange)}
+.ccv.court .ccs i:not(.on){border-color:var(--orange);border-style:dashed}
+.ccs i.plus{flex:.6;opacity:.55}
+@container (max-width:260px){.ccov{gap:2px}.ccv{padding:3px 0 4px}.ccv b{font-size:8.5px;letter-spacing:0}.ccv b small{display:none}.ccs{padding:0 2px;gap:1px}}
 .cpj .cpo.ty{color:var(--dim)}
 .lnk.sm{min-height:32px;font-size:11px;padding:0}
 .cstyles{display:grid;gap:8px}
@@ -1148,6 +1166,7 @@ body:has(.cdock .cselp) .toast{top:calc(74px + var(--safe-t) + var(--vvt));botto
 .cstp.ok b{border-color:var(--green);background:var(--green);color:#06140E}
 .cpart .cpnum{flex:none;width:28px;height:28px;display:grid;place-items:center;border:1.5px solid var(--line3);border-radius:50%;font:700 14px/1 var(--f-hud);color:var(--soft)}
 .cpart.ok .cpnum{border-color:var(--green);background:var(--green);color:#06140E}
+.cpart-mod{align-self:flex-start;min-height:44px}
 .csec+.csec{margin-top:4px}
 .csech{display:flex;align-items:center;gap:6px;margin:0;font:700 10px/1 var(--f-hud);letter-spacing:.14em;text-transform:uppercase;color:var(--soft)}
 .csech::after{content:"";flex:1;height:1px;background:color-mix(in srgb,var(--lc) 35%,transparent);order:1}
@@ -1157,7 +1176,7 @@ body:has(.cdock .cselp) .toast{top:calc(74px + var(--safe-t) + var(--vvt));botto
 .cslot:hover,.cslot:focus-visible{border-color:var(--lc);color:var(--ink);background:color-mix(in srgb,var(--lc) 10%,transparent)}
 .ccol>.cslot,.csec>.cslot{margin-top:2px}
 .chd:not(.dest):not([tabindex="-1"]){cursor:pointer}
-.modal.cpk .card{max-height:calc(100dvh - 32px);gap:12px}
+.modal.cpk .card{max-height:calc(100dvh - 32px - var(--safe-t) - var(--safe-b));gap:12px}
 .modal.cpk h2{font-size:24px}
 .modal.cpk .mbtns{flex-direction:row;gap:8px}
 .modal.cpk .mbtns button{flex:1}
@@ -1189,6 +1208,8 @@ body:has(.cdock .cselp) .toast{top:calc(74px + var(--safe-t) + var(--vvt));botto
 .ppeq small{display:flex;align-items:center;gap:4px;font:500 11px/1.2 var(--f-body);color:var(--dim)}
 .pprow{display:flex;align-items:center;gap:8px;min-height:56px;padding:7px 8px 7px 10px;background:#0C1120;border:1px solid var(--line2)}
 .pprow.abs{border-style:dashed}
+.pprow .tpas{min-height:20px;padding:0 4px;font-size:10.5px;flex:none}
+.pprow .cprn{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pprow.abs .cprn{text-decoration:line-through;text-decoration-color:var(--pink)}
 .ppi{flex:1;min-width:0;overflow:hidden;display:flex;flex-direction:column;gap:4px}
 .pprow.many{flex-wrap:wrap}

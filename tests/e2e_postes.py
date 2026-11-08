@@ -86,7 +86,7 @@ with sync_playwright() as p:
     pl = [[j['poste'] for j in t['joueurs']] for t in d0['equipes']]
     avec = ev(pg, "(() => { const F = MC.compos.fiches(MC.app.S.cache.group), k = Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0 && k.endsWith(':matchs')); return JSON.parse(localStorage.getItem(k)).vs[0].equipes.map(t => t.joueurs.filter(j => MC.compos.postesDe(F[j.id]).length).length); })()")
     check('(v57) chaque équipe : tous ceux qui ont un poste en ont un pour le match (remplaçants compris)', len(pl) == 2 and all(len([x for x in l if x]) == n for l, n in zip(pl, avec)), (pl, avec))
-    check('le tableau : « Av …/5 · Ar …/5 » et les postes sur les joueurs', '/5' in pg.inner_text('.cboard2') and len(pg.query_selector_all('.ccol .cpj .cpo')) >= 10)
+    check('(v58) le tableau : la couverture des postes en haut de chaque équipe (plus de « Av …/5 »), les postes sur les joueurs', ev(pg, "[...document.querySelectorAll('.ccol .chd')].every(h => h.querySelectorAll('.ccov .ccv').length === 7) && document.querySelectorAll('.ccol .chd').length === 2") and '/5' not in pg.inner_text('.cboard2') and len(pg.query_selector_all('.ccol .cpj .cpo')) >= 10)
     check('matchs : pas de défilement de côté', sans_debord(pg))
     # changer le poste d'un enfant, juste pour ce match (même un poste qui n'est pas sur sa fiche)
     j = ev(pg, """(() => { const F = MC.compos.fiches(MC.app.S.cache.group), k = Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0 && k.endsWith(':matchs')), d = JSON.parse(localStorage.getItem(k)).vs[0];
@@ -103,6 +103,9 @@ with sync_playwright() as p:
     check('matchs publiés avec leurs postes', cm is not None and cm['reglages']['format'] == 10 and [x['poste'] for t in cm['equipes'] for x in t['joueurs'] if x['id'] == j] == ['ailier'], cm and cm['reglages'])
     # ----- 6. (relecture) le plateau suivant garde le format des plateaux (pas celui des matchs d'entraînement) -----
     pg.goto(BASE + '#/educ/compo/demo-r1'); pg.wait_for_timeout(1300)
+    # (v58) une compo publiée s'affiche en lecture : « Modifier la compo » montre ses options
+    check('(v58) compo publiée : en lecture, avec « Modifier la compo »', pg.query_selector('[data-act="cEditer"]') is not None and pg.query_selector('.cbopt') is None)
+    pg.click('[data-act="cEditer"]'); pg.wait_for_timeout(600)
     check('plateau de novembre après des matchs au jeu à 10 : toujours « Jeu à 5 » (le dernier plateau)', ev(pg, "document.querySelector('[data-act=cFmt][data-v=\"5\"]').classList.contains('on')"))
     pg.goto(BASE + '#/educ/compo/sp-demo-p3'); pg.wait_for_timeout(1300)
     check('(v57) plateau de décembre : « Jeu à 10 », même si le dernier plateau était à 5 ; une équipe A, une équipe B', ev(pg, "document.querySelector('[data-act=cFmt][data-v=\"10\"]').classList.contains('on')") and pg.inner_text('main').count('conseillé') == 0 and ev(pg, "MC.compos && [...document.querySelectorAll('.cstep .cnbv')].map(o => o.textContent).join(',')") == '1,1,0', ev(pg, "[...document.querySelectorAll('.cstep .cnbv')].map(o => o.textContent).join(',')"))

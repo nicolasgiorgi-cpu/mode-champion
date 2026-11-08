@@ -32,6 +32,19 @@ assert.deepStrictEqual(J(v.princ), ['a1', 'b3', 'bn', 'c2', 'xx', 'a3'], 'absent
 // avec plusieurs préférés ★
 F.d2 = fiche('d2', 'B', 2, ['centre', 'ailier'], ['centre', 'ailier']);
 assert.ok(K.vivier(['d2'], F, 'ailier').princ.indexOf('d2') === 0, 'deux préférés : principal pour les deux');
+// (v58, demande de Nicolas) le niveau, puis le niveau + passerelle, puis le plaquage :
+// A, B avec passerelle vers A, B, C avec passerelle vers le haut (B ou A), C, sans niveau
+{
+  const G = {
+    a1: fiche('a1', 'A', 1, ['pilier']), a0p: fiche('a0p', 'A', 0, ['pilier'], null, 'B'),
+    b3: fiche('b3', 'B', 3, ['pilier']), b1p: fiche('b1p', 'B', 1, ['pilier'], null, 'A'), b2p: fiche('b2p', 'B', 2, ['pilier'], null, 'A'), bdn: fiche('bdn', 'B', 3, ['pilier'], null, 'C'),
+    c3: fiche('c3', 'C', 3, ['pilier']), c1p: fiche('c1p', 'C', 1, ['pilier'], null, 'B'), c0a: fiche('c0a', 'C', 0, ['pilier'], null, 'A'), x: fiche('x', '', 3, ['pilier'])
+  };
+  assert.deepStrictEqual(J(K.vivier(Object.keys(G), G, 'pilier').princ), ['a1', 'a0p', 'b2p', 'b1p', 'b3', 'bdn', 'c1p', 'c0a', 'c3', 'x'],
+    'A (une passerelle vers le bas ne change rien), B avec ⇅A, B, C avec passerelle vers le haut, C, sans niveau ; chaque fois le plaquage');
+  assert.strictEqual(K.rangVivier(G.b2p), 1); assert.strictEqual(K.rangVivier(G.bdn), 2); assert.strictEqual(K.rangVivier(G.x), 9);
+  assert.deepStrictEqual(J(K.vivier(['b3', 'b2p', 'a1'], G, 'pilier', { b2p: true }).princ), ['a1', 'b3', 'b2p'], 'absent : toujours en bas');
+}
 
 // ----- qui peut jouer dans quelle équipe (plateau A et B) -----
 const tA = { id: 'A1', niveau: 'A' }, tB = { id: 'B1', niveau: 'B' }, tC = { id: 'C1', niveau: 'C' }, tM = { id: 'E1', niveau: '' };

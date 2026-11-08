@@ -365,9 +365,17 @@ MC.compos = (function () {
   // le jouer, puis les autres ; dans chaque groupe, du niveau A au C (sans niveau en dernier), puis le plaquage du plus fort
   // au plus faible (pas encore évalué en dernier) — demande de Nicolas du 07/11 ; ceux qui ne viennent pas (absents sur Spond),
   // en bas de leur groupe. absents : { id: true }
+  // (v58, demande de Nicolas) l'ordre : le niveau, puis le niveau du dessous qui a une passerelle vers lui, puis le plaquage :
+  // A, B avec passerelle vers A, B, C avec passerelle vers le haut, C, sans niveau ; les absents en bas de leur groupe
+  function rangVivier(f) {
+    var n = NIV.indexOf(niveauDe(f));
+    if (n < 0) return 9;
+    var monte = pasDe(f).some(function (x) { return NIV.indexOf(x) >= 0 && NIV.indexOf(x) < n; });
+    return n * 2 - (monte ? 1 : 0);
+  }
   function vivier(ids, F, poste, absents) {
     absents = absents || {};
-    function cle(id) { var f = F[id] || {}, n = NIV.indexOf(niveauDe(f)); return [absents[id] ? 1 : 0, n < 0 ? 9 : n, f.plaquage === null || f.plaquage === undefined || f.plaquage === '' ? 1 : -Number(f.plaquage) || 0, f.plaquage === null || f.plaquage === undefined || f.plaquage === '' ? 1 : 0, cleNom(f.prenom || ''), id]; }
+    function cle(id) { var f = F[id] || {}; return [absents[id] ? 1 : 0, rangVivier(f), f.plaquage === null || f.plaquage === undefined || f.plaquage === '' ? 1 : -Number(f.plaquage) || 0, f.plaquage === null || f.plaquage === undefined || f.plaquage === '' ? 1 : 0, cleNom(f.prenom || ''), id]; }
     function tri(a, b) { var x = cle(a), y = cle(b); for (var i = 0; i < x.length; i++) if (x[i] !== y[i]) return x[i] < y[i] ? -1 : 1; return 0; }
     var o = { princ: [], peut: [], autres: [] };
     (ids || []).forEach(function (id) { var l = lienPoste(F[id] || {}, poste); o[l === 'pref' ? 'princ' : l === 'sec' ? 'peut' : 'autres'].push(id); });
@@ -1231,7 +1239,7 @@ MC.compos = (function () {
     proposer: proposer, vide: vide, stats: stats, alertes: alertes, apparier: apparier, scoreNiveau: scoreNiveau,
     moveTo: moveTo, swap: swap, setPoste: setPoste, where: where, diff: diff, presents: presents, attente: attente, retirer: retirer, sorteDuTitre: sorteDuTitre,
     nomPoste: nomPoste, frDate: frDate,
-    STYLES: STYLES, AVANTS: AVANTS, BESOIN: BESOIN, postesEquipe: postesEquipe, posteEnPlus: posteEnPlus, eligible: eligible, vivier: vivier, postesDe: postesDe, posteDefaut: posteDefaut, prefDe: prefDe, lienPoste: lienPoste, rang: rang, repartition: repartition, placeLibre: placeLibre, typePoste: typePoste, typeDe: typeDe, sections: sections, ORDRE: ORDRE,
+    STYLES: STYLES, AVANTS: AVANTS, BESOIN: BESOIN, postesEquipe: postesEquipe, posteEnPlus: posteEnPlus, eligible: eligible, vivier: vivier, rangVivier: rangVivier, postesDe: postesDe, posteDefaut: posteDefaut, prefDe: prefDe, lienPoste: lienPoste, rang: rang, repartition: repartition, placeLibre: placeLibre, typePoste: typePoste, typeDe: typeDe, sections: sections, ORDRE: ORDRE,
     PARTIES: PARTIES, regEnt: regEnt, proposerEnt: proposerEnt, videEnt: videEnt, reprendre: reprendre, alertesEnt: alertesEnt,
     blocDe: blocDe, blocsDe: blocsDe, nomBloc: nomBloc, nomEq: nomEq
   };

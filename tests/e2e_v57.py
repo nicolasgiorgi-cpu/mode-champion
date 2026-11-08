@@ -71,8 +71,13 @@ with sync_playwright() as p:
     nabs = ev("document.querySelectorAll('.ccol:not(.banc) .cpj.gone .cabsf').length")
     check('les absents sont dans les équipes, marqués « absent », avec leur poste', nabs > 0 and ev("[...document.querySelectorAll('.ccol:not(.banc) .cpj.gone')].every(x => x.querySelector('.cpo') && x.querySelector('.cabsf'))"), nabs)
     check('« À regarder » : les absents dans une équipe, à retirer d\'un geste', 'dans une équipe :' in pg.inner_text('main'))
-    hd = ev("[...document.querySelectorAll('.ccol .cavtq')].map(x => x.textContent)")
-    check('en-tête d\'équipe : places tenues /5 et remplaçants', all('/5' in x for x in hd) and any('Remp.' in x for x in hd), hd)
+    # (v58) en haut de l'équipe : la couverture des postes en compact (un trait par place, sans les absents ; un trait de plus par joueur en plus)
+    cv = ev("""(() => { const d = JSON.parse(localStorage.getItem(Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0 && k.indexOf('sp-demo-p3') > 0))).vs[0], gone = new Set([...document.querySelectorAll('.cpj.gone')].map(b => b.getAttribute('data-id')));
+      const ORDRE = MC.compos.ORDRE, BES = MC.compos.BESOIN;
+      return d.equipes.map(t => { const col = document.querySelector('.ccol[aria-label="Équipe ' + t.id + '"]'), cases = [...col.querySelectorAll('.chd .ccv')];
+        return ORDRE.every((p, i) => { const n = t.joueurs.filter(j => j.poste === p && !gone.has(j.id)).length, c = cases[i];
+          return c.querySelectorAll('.ccs i.on').length === n && c.querySelectorAll('.ccs i').length === Math.max(n, BES[p]) && c.classList.contains('court') === (n < BES[p]); }) && !/\\/5/.test(col.querySelector('.chd').textContent); }); })()""")
+    check('(v58) en-tête d\'équipe : les 7 postes en compact (plus de « Av x/5 »), sans les absents', cv == [True, True], cv)
     check('compo : pas de défilement de côté', noscroll())
     # (relecture v57, I5) un enfant qui n'est pas dans l'événement Spond n'est pas « absent » : une marque neutre, comptée à part
     hs = ev("""(() => { const K = MC.compos, e = MC.app.S.cache.compos.evenements.find(e => e.id === 'sp-demo-p3'), P = K.presents(e), A = (e.absents || []).concat(e.retraits || []), S = e.sansReponse || [];

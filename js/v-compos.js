@@ -450,6 +450,7 @@ window.MC = window.MC || {};
       var av = avisOf(C.cd, c.id).filter(function (a) { return a.statut === 'attente'; });
       compoBlock = '<a class="li ccompo" href="#/educ/compo/' + esc(e.id) + '">' + icon('swap', 24, 'style="color:var(--green);flex:none"') + '<span class="grow"><span class="t1">Compo de ' + esc(c.auteurNom) + ' · version ' + c.version + '</span><span class="t2">' +
         c.equipes.map(function (t) { return t.id + ' (' + t.joueurs.length + ')'; }).join(' · ') + (c.reglages.format === 10 ? ' · jeu à 10' : ' · jeu à 5') + '</span></span>' + icon('right', 16) + '</a>' +
+        (canEdit(C, c) ? '<button type="button" class="btn2" data-act="eEditer" data-id="' + esc(e.id) + '">' + icon('edit', 16) + ' Modifier la compo</button>' : '') +   // (v58)
         (av.length ? '<a class="li calert-top" href="#/educ/avis/' + esc(av[0].id) + '">' + icon('swap', 18, 'style="color:var(--pink);flex:none"') + '<span class="grow"><span class="t1">Contre-proposition de ' + esc(av[0].auteurNom) + '</span><span class="t2">' + av[0].changements.length + ' changement' + (av[0].changements.length > 1 ? 's' : '') + ' · à voir</span></span>' + icon('right', 16) + '</a>' : '');
     } else if (past) compoBlock = '<div class="empty">Pas de compo enregistrée pour ce plateau.</div>';
     else {
@@ -552,7 +553,8 @@ window.MC = window.MC || {};
       pill = '<span class="pill" style="--pc:var(--green)">Publiés</span>';
     } else if (dr) { t2 = 'Brouillon en cours'; pill = '<span class="pill" style="--pc:var(--gold)">Brouillon</span>'; }
     else t2 = past ? 'Pas faits' : P === 'ateliers' ? 'Groupes par niveau, équilibrés ou avec un groupe A fort, avants et arrières ensemble ou à part' : 'Deux équipes équilibrées, jeu à 10 avec postes';   // (v57)
-    return '<a class="li cpart' + (c ? ' ok ccompo' + (c.statut === 'vote' ? ' vote' : '') : '') + '" href="' + lienCompo(esc(e.id), P) + '"><span class="cpnum">' + (c ? icon('check', 14) : n) + '</span><span class="grow"><span class="t1">' + NOM_PARTIE[P] + '</span><span class="t2">' + t2 + '</span></span>' + pill + icon('right', 16) + '</a>';
+    return '<a class="li cpart' + (c ? ' ok ccompo' + (c.statut === 'vote' ? ' vote' : '') : '') + '" href="' + lienCompo(esc(e.id), P) + '"><span class="cpnum">' + (c ? icon('check', 14) : n) + '</span><span class="grow"><span class="t1">' + NOM_PARTIE[P] + '</span><span class="t2">' + t2 + '</span></span>' + pill + icon('right', 16) + '</a>' +
+      (c && c.statut === 'publiee' && canEdit(C, c) ? '<button type="button" class="btn2 sm cpart-mod" data-act="eEditer" data-id="' + esc(e.id) + '" data-p="' + P + '">' + icon('edit', 14) + ' Modifier ' + (P === 'matchs' ? 'les matchs' : 'les ateliers') + '</button>' : '');   // (v58)
   }
   MC.act.prToggle = function (b) {
     var id = b.getAttribute('data-id'), e = (app.S.cache.compos.evenements || []).filter(function (x) { return x.id === PR.evtId; })[0];
@@ -591,7 +593,8 @@ window.MC = window.MC || {};
   // ======================================================================
   // B : la compo affichée.
   //   vs   : les versions (1 ou 2), chacune { reglages, equipes, banc, raisons }
-  //   mode : 'reglages' (pas encore de compo) | 'draft' (brouillon, pas publié) | 'edit' (je suis l'auteur, ou c'est le jour J)
+  //   mode : 'reglages' (pas encore de compo) | 'draft' (brouillon, pas publié) | 'pub' (compo publiée que je peux modifier : je suis
+  //          l'auteur, ou c'est le jour J ; en lecture jusqu'à « Modifier la compo », v58) | 'edit' (en modification)
   //          | 'view' (compo d'un autre éduc) | 'counter' (ma contre-proposition) | 'vote' (2 versions soumises au vote des éducs)
   //   sel  : { v: n° de version, id: joueur choisi }
   // Téléphone d'abord : les niveaux l'un sous l'autre ; dans chaque niveau, la version 1 à gauche et la version 2 à droite.
@@ -613,7 +616,7 @@ window.MC = window.MC || {};
     }
     if (s) { dropDraft(e.id, partie); if (B && B.evtId === e.id && (B.partie || '') === partie && B.dirty) ui.toast('La compo a changé entre-temps : vos changements non envoyés sont effacés.', true); }
     if (c && c.statut === 'vote') B = { evtId: e.id, partie: partie, moi: C.moi.id, base: base, compoId: c.id, mode: 'vote', vs: JSON.parse(JSON.stringify(c.versions)), undo: [], sel: null, dirty: false };
-    else if (c) B = { evtId: e.id, partie: partie, moi: C.moi.id, base: base, compoId: c.id, mode: canEdit(C, c) ? 'edit' : 'view', vs: [copyCompo(c)], undo: [], sel: null, dirty: false };
+    else if (c) B = { evtId: e.id, partie: partie, moi: C.moi.id, base: base, compoId: c.id, mode: canEdit(C, c) ? 'pub' : 'view', vs: [copyCompo(c)], undo: [], sel: null, dirty: false };
     else B = { evtId: e.id, partie: partie, moi: C.moi.id, base: 0, compoId: null, mode: 'reglages', vs: [], undo: [], sel: null, dirty: false, reg: null };
     return B;
   }
@@ -633,6 +636,7 @@ window.MC = window.MC || {};
       // un entraînement : d'abord les ateliers, ensuite les matchs
       var partie = e.sorte === 'entrainement' ? (q && q.p === 'matchs' ? 'matchs' : 'ateliers') : '';
       initBoard(C, e, partie);
+      if (EDITER === e.id + ':' + partie) { EDITER = null; if (B.mode === 'pub') { B.mode = 'edit'; B.sel = null; } }   // (v58) « Modifier la compo » depuis la page de l'événement
       afterPaint(cur);
       return B.mode === 'reglages' ? (partie ? paintReglagesEnt(C, e) : paintReglages(C, e)) : paintBoard(C, e);
     });
@@ -1029,9 +1033,8 @@ window.MC = window.MC || {};
     var sansP = fmt10 && st.inconnus ? ' · <b class="csp">Sans poste ' + st.inconnus + '</b>' : '';   // (v35) à régler
     var sel = B && B.sel && B.sel.v === v ? B.sel.id : null, w = sel ? K.where(d, sel) : null;
     var dest = !!sel && ed && (!w || w.t < 0 || d.equipes[w.t].id !== t.id);
-    // (v57) au jeu à 10, chacun a un poste, remplaçants compris : Av et Ar = les places tenues sur le terrain, Remp. = les joueurs en plus
-    var avtq = petit ? '<span class="cavtq" title="Avants et arrières (postes du match)">Av ' + st.avTous + ' · Ar ' + st.arTous + (st.rempl > st.avTous - st.av + st.arTous - st.ar ? ' · Remp. ' + (st.rempl - (st.avTous - st.av + st.arTous - st.ar)) : '') + sansP + absTxt + '</span>'
-      : fmt10 ? '<span class="cavtq' + (st.av < 5 || st.ar < 5 ? ' bad' : '') + '" title="Places tenues sur le terrain : avants et arrières' + (st.rempl ? ' · remplaçants : les joueurs en plus, à leur poste' : '') + '">Av ' + st.av + '/5 · Ar ' + st.ar + '/5' + (st.rempl ? ' · Remp. ' + st.rempl : '') + sansP + absTxt + '</span>'
+    // (v58, demande de Nicolas) au jeu à 10 : plus de ligne « Av x/5 · Ar x/5 », le graphique compact de couverture des postes
+    var avtq = fmt10 ? couvHtml(st, petit) + (sansP || absTxt ? '<span class="cavtq">' + (sansP + absTxt).replace(/^ · /, '') + '</span>' : '')
       : '<span class="cavtq" title="D\'après le poste principal de la fiche ; ⇄ = peuvent jouer avant et arrière ; ? = pas encore de poste">Av ' + st.av + ' · Ar ' + st.ar + (st.les2 ? ' · ⇄' + st.les2 : '') + (st.inconnus ? ' · ?' + st.inconnus : '') + absTxt + '</span>';
     var sc = K.sections(t, C.F, d.reglages.format), miss = ed && fmt10 && places ? st.manquants : [];
     var corps = fmt10
@@ -1051,10 +1054,35 @@ window.MC = window.MC || {};
       '<span class="row" style="justify-content:space-between;width:100%"><b class="ctid' + (nomT.length > 4 ? ' long' : '') + '">' + esc(nomT) + '</b><span class="cn">' + st.n + '</span></span>' +
       '<span class="cind"><span title="Plaquage moyen">' + icon('shieldavg', 13) + ' ' + (st.plaq === null ? '—' : virg(st.plaq)) + '</span><span title="Bons plaqueurs (2 et plus, sur 3)">' + icon('shieldok', 13) + ' ' + st.bons + '</span>' +
       (st.ontCopains && !sansCop(d) ? '<span title="Avec au moins un copain">' + icon('heart', 12) + ' ' + st.avecCopain + '/' + st.ontCopains + '</span>' : '') + (st.passerelles ? '<span title="Hors de leur niveau (passerelles)">⇅ ' + st.passerelles + '</span>' : '') + '</span>' +
-      avtq + (fmt10 && !petit && !ed && st.manquants.length ? '<span class="cmiss">Manque : ' + st.manquants.map(function (p) { return COURT[p]; }).join(', ') + '</span>' : '') +
+      avtq +
       (dest ? '<span class="cdest">' + icon('down', 12) + ' Ici</span>' : '') + '</button>' +
       corps + '</section>';
   }
+  // (v58) la couverture des postes d'une équipe, en compact : une case par poste (couleur du poste), un trait par place à tenir
+  // (plein = tenue, vide = à prendre), « +1 » pour un joueur en plus à ce poste ; les absents ne comptent pas (stats sans eux)
+  // petit : un match d'entraînement à moins de 10, sans rouge pour les places vides
+  function couvHtml(st, petit) {
+    var pp = st.parPoste || {}, manque = 0, lab = [];
+    var cases = K.ORDRE.map(function (p) {
+      var n = pp[p] || 0, bes = K.BESOIN[p], plus = Math.max(0, n - bes), segs = '';
+      manque += Math.max(0, bes - n);
+      for (var i = 0; i < Math.max(bes, n); i++) segs += '<i class="' + (i < n ? 'on' : '') + (i >= bes ? ' plus' : '') + '"></i>';   // un trait de plus par joueur en plus
+      lab.push(NOMP[p] + ' ' + Math.min(n, bes) + ' sur ' + bes + (plus ? ' et ' + plus + ' en plus' : ''));
+      return '<span class="ccv' + (n < bes && !petit ? ' court' : '') + '" style="--pc:' + coulPoste(p) + '"><b>' + COURT[p] + (plus ? '<small>+' + plus + '</small>' : '') + '</b><span class="ccs">' + segs + '</span></span>';
+    }).join('');
+    return '<span class="ccov' + (manque && !petit ? ' bad' : '') + '" role="img" aria-label="Postes : ' + esc(lab.join(', ')) + '" title="Places tenues à chaque poste (trait plein) ; +1 = un joueur en plus">' + cases + '</span>';
+  }
+  // (v58) l'affichage des équipes : l'une sous l'autre (par niveau) ou côte à côte ; gardé sur l'appareil
+  function coteOn() { return app.lsGet('mc-ccote') === 1; }
+  function vueHtml(vs) {
+    var tous = { equipes: [] }; vs.forEach(function (d) { tous.equipes = tous.equipes.concat(d.equipes); });
+    if (vs.length !== 1 || K.blocsDe(tous).length < 2) return '';
+    var on = coteOn();
+    return '<div class="cvue" role="group" aria-label="Affichage des équipes"><span class="small">Affichage</span>' +
+      '<button type="button" class="opt' + (on ? '' : ' on') + '" aria-pressed="' + !on + '" data-act="cCote" data-v="0">L\'une sous l\'autre</button>' +
+      '<button type="button" class="opt' + (on ? ' on' : '') + '" aria-pressed="' + on + '" data-act="cCote" data-v="1">Côte à côte</button></div>';
+  }
+  MC.act.cCote = function (b) { app.lsSet('mc-ccote', b.getAttribute('data-v') === '1' ? 1 : null); rerenderKeep(); };
   function chip(C, t, j, v, d, moved) {
     var f = C.F[j.id] || { prenom: '?', copains: [] }, ids = t ? sansHorsJeu(t, d).joueurs.map(function (x) { return x.id; }) : [];   // (v57) un copain absent ne compte pas
     var cps = (f.copains || []).filter(function (x) { return ids.indexOf(x) >= 0; });
@@ -1099,7 +1127,14 @@ window.MC = window.MC || {};
     }
     function njOf(l, d) { var n = 0; l.forEach(function (t) { n += sansHorsJeu(t, d).joueurs.length; }); return n; }   // (v57) sans les absents
     var aligne = nv === 1 || blocs.every(function (k) { return vs.every(function (d) { return d.equipes.some(function (t) { return K.blocDe(t) === k; }); }); });
-    if (aligne) {
+    if (nv === 1 && blocs.length > 1 && coteOn()) {
+      // (v58, demande de Nicolas) au choix : toutes les équipes côte à côte (A1 à côté de B1…), sans les titres de niveau
+      var nt = 0; vs[0].equipes.forEach(function (t) { nt += sansHorsJeu(t, vs[0]).joueurs.length; });
+      html += '<section class="clevel ccote" style="--lc:var(--gold)"><h3 class="clvh">Les équipes<span class="small"> · ' + nt + ' joueurs</span></h3>' +
+        '<div class="cvcols nv1"><div class="cvcol">' + blocs.map(function (k) {
+          return vs[0].equipes.filter(function (t) { return K.blocDe(t) === k; }).map(function (t) { return team(C, t, 0, vs[0], o.moved[0] || {}, o.ed); }).join('');
+        }).join('') + '</div></div></section>';
+    } else if (aligne) {
       blocs.forEach(function (k) {
         var cols = vs.map(function (d) { return d.equipes.filter(function (t) { return K.blocDe(t) === k; }); });
         html += '<section class="clevel" style="--lc:' + coulBloc(k) + '">' + enTete(k, nv === 1 ? njOf(cols[0], vs[0]) : null, false, cols[0]) +
@@ -1198,7 +1233,8 @@ window.MC = window.MC || {};
     else if (B.mode === 'counter') state = '<div class="cstate counter">' + icon('swap', 18) + '<span><b>Votre contre-proposition</b> sur la compo de ' + esc(c.auteurNom) + ' : déplacez, puis envoyez-la avec un mot d\'explication.</span></div>';
     else if (B.mode === 'vote') state = voteState(C, c);
     else state = '<div class="cstate pub">' + icon('check', 18) + '<span><b>Compo de ' + esc(c.auteurNom) + '</b> · version ' + c.version + (c.justification ? '<br><span class="small" style="color:var(--soft)">« ' + esc(c.justification) + ' »</span>' : '') +
-      (B.mode === 'edit' && c.auteur !== C.moi.id ? '<br><span class="small" style="color:var(--gold)">C\'est le jour J : vous pouvez corriger directement (dernière minute).</span>' : '') + '</span></div>';
+      (B.mode === 'pub' ? '<br><span class="small" style="color:var(--soft)">' + (c.auteur !== C.moi.id ? 'C\'est le jour J : vous pouvez la modifier (dernière minute). ' : '') + 'Pour ajuster les équipes et les postes : « Modifier la compo ».</span>' : '') +
+      (B.mode === 'edit' ? '<br><span class="small" style="color:var(--gold)">En modification' + (c.auteur !== C.moi.id ? ' (jour J)' : '') + ' : déplacez les joueurs, changez leurs postes, puis « Enregistrer ».</span>' : '') + '</span></div>';
     var avBlock = avAtt.map(function (a) {
       return '<a class="li calert-top" href="#/educ/avis/' + esc(a.id) + '">' + icon('swap', 18, 'style="color:var(--pink);flex:none"') + '<span class="grow"><span class="t1">Contre-proposition de ' + esc(a.auteurNom) + '</span><span class="t2">' + a.changements.length + ' changement' + (a.changements.length > 1 ? 's' : '') + ' · « ' + esc(a.justification.slice(0, 80)) + (a.justification.length > 80 ? '…' : '') + ' »</span></span>' + icon('right', 16) + '</a>';
     }).join('');
@@ -1230,8 +1266,8 @@ window.MC = window.MC || {};
       (P ? stepsHtml(C, e, P) : '') + state + topHtml(C, e, c) + avBlock + cmp + spondHtml(C, e) +
       '<p class="small" style="margin:0">' + (ed ? 'Touchez un joueur, puis son ' + (P === 'ateliers' ? 'groupe' : 'équipe') + ' d\'arrivée (ou un joueur d\'' + (P === 'ateliers' ? 'un autre groupe' : 'une autre équipe') + ' : ils s\'échangent). Pour ' + (P === 'ateliers' ? 'remplir un groupe' : 'composer une équipe') + ', touchez son nom' + (fmt === 10 ? ', une place vide (+) ou « Poste par poste »' : ' ou « + Ajouter des joueurs »') + '.' + (nv > 1 ? ' Chaque version se modifie à part.' : '') : 'Touchez un joueur pour voir sa fiche.') + (communes ? ' <b style="color:var(--yellow)">Entourés</b> : placés autrement d\'une version à l\'autre.' : '') + '</p>' +
       (ed && fmt === 10 && nv === 1 ? '<button type="button" class="btn2" data-act="cParPoste" data-v="0">' + icon('board', 16) + ' Poste par poste</button>' : '') +   // (v57)
-      '<p class="small clegend"><span>' + icon('shieldavg', 12) + ' plaquage moyen</span><span>' + icon('shieldok', 12) + ' bons plaqueurs</span>' + (vs.every(sansCop) ? '' : '<span>' + icon('heart', 11) + ' avec un copain</span>') + '<span>⇅ hors niveau</span>' + (P ? '' : '<span>' + bouclier(2, 'mini', true) + ' sous le repère de l\'équipe</span>') + '<span>Av avants · Ar arrières</span></p>' +
-      boardHtml(C, { vs: vs, presents: presents, attente: att, moved: moved, ed: ed }) +
+      '<p class="small clegend"><span>' + icon('shieldavg', 12) + ' plaquage moyen</span><span>' + icon('shieldok', 12) + ' bons plaqueurs</span>' + (vs.every(sansCop) ? '' : '<span>' + icon('heart', 11) + ' avec un copain</span>') + '<span>⇅ hors niveau</span>' + (P ? '' : '<span>' + bouclier(2, 'mini', true) + ' sous le repère de l\'équipe</span>') + (fmt === 10 && !P || P === 'matchs' ? '<span>' + icon('board', 11) + ' postes : un trait par place</span>' : '<span>Av avants · Ar arrières</span>') + '</p>' +
+      vueHtml(vs) + boardHtml(C, { vs: vs, presents: presents, attente: att, moved: moved, ed: ed }) +
       '<section class="sec">' + vs.map(function (d, v) { return alertesHtml(C, d, v, presents, nv, att); }).join('') + '</section>' +
       rsAll + hist + avHist + suite +
       (B.mode === 'draft' && nv === 1 ? '<button type="button" class="btn2" data-act="cAddV">' + icon('plus', 16) + ' Ajouter une 2e version à côté</button>' : '') +
@@ -1286,6 +1322,8 @@ window.MC = window.MC || {};
     if (B.mode === 'draft' && nv === 1) act = '<button type="button" class="btn sm" data-act="cPublish" data-v="0">' + icon('send', 16) + ' Publier</button>';
     else if (B.mode === 'draft') act = '<button type="button" class="btn2 sm" data-act="cPublishWhich">Publier…</button><button type="button" class="btn sm" data-act="cVote">' + icon('podium', 16) + ' Au vote</button>';
     else if (B.mode === 'edit' && B.dirty) act = '<button type="button" class="btn sm" data-act="cSave">' + icon('check', 16) + ' Enregistrer (v' + (c2.version + 1) + ')</button>';
+    else if (B.mode === 'edit') act = '<button type="button" class="btn2 sm" data-act="cFinEdit">' + icon('check', 16) + ' Terminer</button>';
+    else if (B.mode === 'pub') act = '<button type="button" class="btn sm" data-act="cEditer">' + icon('edit', 16) + ' Modifier la compo</button>';
     else if (B.mode === 'view') act = '<button type="button" class="btn sm" data-act="cCounter">' + icon('swap', 16) + ' Proposer des changements</button>';
     else if (B.mode === 'counter') act = '<button type="button" class="btn sm pink" data-act="cSendCounter"' + (c2 && K.diff(c2, B.vs[0]).length ? '' : ' disabled') + '>' + icon('send', 16) + ' Envoyer à ' + esc(c2 ? c2.auteurNom : '') + '</button>';
     else if (B.mode === 'vote') {
@@ -1602,8 +1640,10 @@ window.MC = window.MC || {};
           var on = !!pl && pl.t.id === t.id && pl.j.poste === S.p, el = K.eligible(f, t, nivs);
           return '<button type="button" class="ppb' + (on ? ' on' : '') + (el ? '' : ' hors') + '" style="--lc:' + coulEq(t, dd) + '" data-ppid="' + esc(id) + '" data-ppt="' + esc(t.id) + '" aria-pressed="' + on + '" aria-label="' + esc(f.prenom) + ' : ' + esc(labelEq(t)) + (el ? '' : ', hors de son niveau') + '">' + esc(eqCourt(dd, t)) + '</button>';
         }).join('');
-        return '<div class="pprow' + (ABS[id] ? ' abs' : '') + (dd.equipes.length > 3 ? ' many' : '') + '"><span class="ppi"><span class="row" style="gap:8px;min-width:0">' + niveauTag(f.niveau, true) + '<b class="cprn">' + esc(f.prenom) + '</b>' + starsMini(f.plaquage) + '</span>' +
-          '<span class="cprm">' + (ABS[id] ? '<span class="pptag abs">absent</span> ' : ATTx[id] ? '<span class="pptag att">' + icon('clock', 11) + ' pas répondu</span> ' : HORS[id] ? '<span class="pptag hors">' + (e.source === 'spond' ? 'hors Spond' : 'pas coché') + '</span> ' : '') +
+        // (v58, demande de Nicolas) les passerelles à côté du niveau, comme dans la liste Enfants ; plus de « pas répondu » sur la ligne
+        var pasB = K.pasDe(f).map(function (n) { return '<span class="tpas on" style="--lc:' + K.COUL_NIV[n] + '" title="Passerelle vers ' + K.NOM_NIV[n] + '"><span class="sr-only">passerelle vers </span><span aria-hidden="true">⇅</span>' + n + '</span>'; }).join('');
+        return '<div class="pprow' + (ABS[id] ? ' abs' : '') + (dd.equipes.length > 3 ? ' many' : '') + '"><span class="ppi"><span class="row" style="gap:6px;min-width:0">' + niveauTag(f.niveau, true) + pasB + '<b class="cprn">' + esc(f.prenom) + '</b>' + starsMini(f.plaquage) + '</span>' +
+          '<span class="cprm">' + (ABS[id] ? '<span class="pptag abs">absent</span> ' : HORS[id] ? '<span class="pptag hors">' + (e.source === 'spond' ? 'hors Spond' : 'pas coché') + '</span> ' : '') +
           (ps.length ? ps.map(function (x) { return (S.p === x ? '<b>' : '') + esc(K.nomPoste(x)) + (f.postesOk && f.postesOk.length && ps.length > 1 && K.lienPoste(f, x) === 'pref' ? '★' : '') + (S.p === x ? '</b>' : ''); }).join(', ') : 'pas encore de poste') +
           (ou && !(pl.j.poste === S.p) ? ' · <span class="cpr-ou">' + esc(ou) + '</span>' : '') + '</span></span><span class="ppbs">' + btns + '</span></div>';
       }
@@ -1923,6 +1963,14 @@ window.MC = window.MC || {};
       app.rerender();
       if (keepReg) setTimeout(function () { if (B) { B.reg = keepReg.partie ? JSON.parse(JSON.stringify(keepReg)) : regDe(keepReg); } app.rerender(); }, 0);   // (v50) avec les options
     });
+  };
+  // (v58, demande de Nicolas) une compo publiée se rouvre en un geste pour ajuster équipes et postes ; « Terminer » sans changement la referme
+  var EDITER = null;
+  MC.act.cEditer = function () { if (!B || B.mode !== 'pub') return; B.mode = 'edit'; B.sel = null; app.rerender(); };
+  MC.act.cFinEdit = function () { if (!B || B.mode !== 'edit' || B.dirty) return; B.mode = 'pub'; B.sel = null; app.rerender(); };
+  MC.act.eEditer = function (b) {
+    var id = b.getAttribute('data-id'), P = b.getAttribute('data-p') || '';
+    EDITER = id + ':' + P; location.hash = lienCompo(id, P);
   };
   MC.act.cCounter = function () { if (!B) return; B.mode = 'counter'; B.sel = null; app.rerender(); ui.toast('Déplacez les joueurs, puis envoyez votre proposition'); };
   MC.act.cSendCounter = function () {
