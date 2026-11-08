@@ -1101,19 +1101,15 @@ body:has(.cdock .cselp) .toast{top:calc(74px + var(--safe-t) + var(--vvt));botto
 .ccmp .cvsum span{display:inline-flex;align-items:center;gap:4px}
 .cavtq{font:600 11px/1.25 var(--f-hud);letter-spacing:.02em;color:var(--soft)}
 .cavtq.bad{color:var(--orange)}
-/* (v58) couverture des postes d'une équipe, en compact : 7 cases, un trait par place à tenir */
-.ccov{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px;width:100%}
-.ccv{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0;padding:3px 1px 4px;border:1px solid color-mix(in srgb,var(--pc) 35%,transparent);background:color-mix(in srgb,var(--pc) 8%,transparent)}
-.ccv b{display:flex;align-items:baseline;gap:1px;font:700 10px/1 var(--f-hud);letter-spacing:.02em;color:var(--pc);white-space:nowrap}
-.ccv b small{font-size:8.5px;color:var(--ink)}
-.ccs{display:flex;gap:2px;width:100%;padding:0 3px}
-.ccs i{flex:1;height:4px;border:1px solid var(--pc);opacity:.85}
-.ccs i.on{background:var(--pc);opacity:1}
-.ccv.court{border-color:var(--pink);border-style:dashed}
-.ccv.court .ccs i:not(.on){border-color:var(--pink);border-style:dashed}
-.ccs i.plus{flex:.6;opacity:.55}
-@container (max-width:260px){.ccov{gap:2px}.ccv{padding:3px 0 4px}.ccv b{font-size:9.5px;letter-spacing:0}.ccs{padding:0 2px;gap:1px}}
-@container (max-width:200px){.ccv b{font-size:9px}.ccv b small{display:none}}
+/* (v58) les postes d'une équipe, comme « Répartition des postes » (barres), en serré : une ligne par poste */
+.cpg{display:flex;flex-direction:column;gap:2px;width:100%}
+.cpgl{display:grid;grid-template-columns:92px minmax(0,1fr) 34px;align-items:center;gap:6px;min-height:15px}
+.cpgn{font:600 11.5px/1.15 var(--f-body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cpgn .ct{display:none}
+.cpgl .tr{height:7px;background:#1E2740;display:flex}
+.cpgl .tr i{display:block;height:100%}
+.cpgl .n{font:700 11px/1 var(--f-hud);text-align:right;white-space:nowrap}
+@container (max-width:240px){.cpgl{grid-template-columns:24px minmax(0,1fr) 28px;gap:4px}.cpgn{font:700 10px/1.15 var(--f-hud)}.cpgn .lg{display:none}.cpgn .ct{display:inline}.cpgl .n{font-size:10px}}
 .cpj .cpo.ty{color:var(--dim)}
 .lnk.sm{min-height:32px;font-size:11px;padding:0}
 .cstyles{display:grid;gap:8px}

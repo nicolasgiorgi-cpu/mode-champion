@@ -1034,7 +1034,7 @@ window.MC = window.MC || {};
     var sel = B && B.sel && B.sel.v === v ? B.sel.id : null, w = sel ? K.where(d, sel) : null;
     var dest = !!sel && ed && (!w || w.t < 0 || d.equipes[w.t].id !== t.id);
     // (v58, demande de Nicolas) au jeu à 10 : plus de ligne « Av x/5 · Ar x/5 », le graphique compact de couverture des postes
-    var avtq = fmt10 ? couvHtml(st, petit) + (sansP || absTxt ? '<span class="cavtq">' + (sansP + absTxt).replace(/^ · /, '') + '</span>' : '')
+    var avtq = fmt10 ? couvHtml(C, tc.joueurs.map(function (j) { return j.id; })) + (sansP || absTxt ? '<span class="cavtq">' + (sansP + absTxt).replace(/^ · /, '') + '</span>' : '')
       : '<span class="cavtq" title="D\'après le poste principal de la fiche ; ⇄ = peuvent jouer avant et arrière ; ? = pas encore de poste">Av ' + st.av + ' · Ar ' + st.ar + (st.les2 ? ' · ⇄' + st.les2 : '') + (st.inconnus ? ' · ?' + st.inconnus : '') + absTxt + '</span>';
     var sc = K.sections(t, C.F, d.reglages.format), miss = ed && fmt10 && places ? st.manquants : [];
     var corps = fmt10
@@ -1058,19 +1058,19 @@ window.MC = window.MC || {};
       (dest ? '<span class="cdest">' + icon('down', 12) + ' Ici</span>' : '') + '</button>' +
       corps + '</section>';
   }
-  // (v58) la couverture des postes d'une équipe, en compact : une case par poste (couleur du poste), un trait par place à tenir
-  // (plein = tenue, vide = à prendre), « +1 » pour un joueur en plus à ce poste ; les absents ne comptent pas (stats sans eux)
-  // petit : un match d'entraînement à moins de 10, sans rouge pour les places vides
-  function couvHtml(st, petit) {
-    var pp = st.parPoste || {}, manque = 0, lab = [];
-    var cases = K.ORDRE.map(function (p) {
-      var n = pp[p] || 0, bes = K.BESOIN[p], plus = Math.max(0, n - bes), segs = '';
-      manque += Math.max(0, bes - n);
-      for (var i = 0; i < Math.max(bes, n); i++) segs += '<i class="' + (i < n ? 'on' : '') + (i >= bes ? ' plus' : '') + '"></i>';   // un trait de plus par joueur en plus
-      lab.push(NOMP[p] + ' ' + Math.min(n, bes) + ' sur ' + bes + (plus ? ' et ' + plus + ' en plus' : ''));
-      return '<span class="ccv' + (n < bes && !petit ? ' court' : '') + '" style="--pc:' + coulPoste(p) + '"><b>' + COURT[p] + (plus ? '<small>+' + plus + '</small>' : '') + '</b><span class="ccs">' + segs + '</span></span>';
-    }).join('');
-    return '<span class="ccov" role="img" aria-label="Postes : ' + esc(lab.join(', ')) + '" title="Places tenues à chaque poste (trait plein) ; +1 = un joueur en plus">' + cases + '</span>';
+  // (v58, précisé par Nicolas le 08/11 à 12 h 48) les postes de l'équipe, comme « Répartition des postes » ailleurs : une ligne par
+  // poste, sa barre (pleine = poste principal, pâle = peut aussi jouer), à droite le nombre (principal + peut jouer) ; lignes serrées.
+  // D'après les fiches des joueurs de l'équipe (sans les absents) ; nom court du poste en colonne étroite (requête de conteneur).
+  function couvHtml(C, ids) {
+    var R = K.repartition(ids, C.F), max = 1;
+    R.postes.forEach(function (p) { max = Math.max(max, p.princ.length + p.autres.length); });
+    return '<span class="cpg" role="img" aria-label="Postes de l\'équipe : ' + esc(R.postes.map(function (p) { return NOMP[p.id] + ' ' + p.princ.length + ' en poste principal' + (p.autres.length ? ', ' + p.autres.length + ' peuvent jouer' : ''); }).join(' ; ')) + '">' +
+      R.postes.map(function (p) {
+        var a = p.princ.length, b = p.autres.length, col = coulPoste(p.id);
+        return '<span class="cpgl" data-p="' + p.id + '"><span class="cpgn" style="color:' + col + '"><span class="lg">' + NOMP[p.id] + '</span><span class="ct">' + COURT[p.id] + '</span></span>' +
+          '<span class="tr"><i style="width:' + (a / max * 100) + '%;background:' + col + '"></i><i style="width:' + (b / max * 100) + '%;background:' + pale(col) + '"></i></span>' +
+          '<span class="n" style="color:' + col + '">' + a + (b ? '+' + b : '') + '</span></span>';
+      }).join('') + '</span>';
   }
   // (v58) l'affichage des équipes : l'une sous l'autre (par niveau) ou côte à côte ; gardé sur l'appareil
   function coteOn() { return app.lsGet('mc-ccote') === 1; }
@@ -1266,7 +1266,7 @@ window.MC = window.MC || {};
       (P ? stepsHtml(C, e, P) : '') + state + topHtml(C, e, c) + avBlock + cmp + spondHtml(C, e) +
       '<p class="small" style="margin:0">' + (ed ? 'Touchez un joueur, puis son ' + (P === 'ateliers' ? 'groupe' : 'équipe') + ' d\'arrivée (ou un joueur d\'' + (P === 'ateliers' ? 'un autre groupe' : 'une autre équipe') + ' : ils s\'échangent). Pour ' + (P === 'ateliers' ? 'remplir un groupe' : 'composer une équipe') + ', touchez son nom' + (fmt === 10 ? ', une place vide (+) ou « Poste par poste »' : ' ou « + Ajouter des joueurs »') + '.' + (nv > 1 ? ' Chaque version se modifie à part.' : '') : 'Touchez un joueur pour voir sa fiche.') + (communes ? ' <b style="color:var(--yellow)">Entourés</b> : placés autrement d\'une version à l\'autre.' : '') + '</p>' +
       (ed && fmt === 10 && nv === 1 ? '<button type="button" class="btn2" data-act="cParPoste" data-v="0">' + icon('board', 16) + ' Poste par poste</button>' : '') +   // (v57)
-      '<p class="small clegend"><span>' + icon('shieldavg', 12) + ' plaquage moyen</span><span>' + icon('shieldok', 12) + ' bons plaqueurs</span>' + (vs.every(sansCop) ? '' : '<span>' + icon('heart', 11) + ' avec un copain</span>') + '<span>⇅ hors niveau</span>' + (P ? '' : '<span>' + bouclier(2, 'mini', true) + ' sous le repère de l\'équipe</span>') + (fmt === 10 ? '<span>' + icon('board', 11) + ' postes : un trait par place</span>' : '<span>Av avants · Ar arrières</span>') + '</p>' +
+      '<p class="small clegend"><span>' + icon('shieldavg', 12) + ' plaquage moyen</span><span>' + icon('shieldok', 12) + ' bons plaqueurs</span>' + (vs.every(sansCop) ? '' : '<span>' + icon('heart', 11) + ' avec un copain</span>') + '<span>⇅ hors niveau</span>' + (P ? '' : '<span>' + bouclier(2, 'mini', true) + ' sous le repère de l\'équipe</span>') + (fmt === 10 ? '<span>Postes : barre pleine = principal, pâle = peut jouer</span>' : '<span>Av avants · Ar arrières</span>') + '</p>' +
       vueHtml(vs) + boardHtml(C, { vs: vs, presents: presents, attente: att, moved: moved, ed: ed }) +
       '<section class="sec">' + vs.map(function (d, v) { return alertesHtml(C, d, v, presents, nv, att); }).join('') + '</section>' +
       rsAll + hist + avHist + suite +

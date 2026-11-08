@@ -33,16 +33,16 @@ with sync_playwright() as p:
     pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(1300)
 
     # ----- 2. en haut de chaque équipe : la couverture des postes en compact -----
-    cov = ev("""(() => { const K = MC.compos, d = JSON.parse(localStorage.getItem(Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0 && k.endsWith(':sp-demo-p3')))).vs[0];
+    cov = ev("""(() => { const K = MC.compos, F = K.fiches(MC.app.S.cache.group), d = JSON.parse(localStorage.getItem(Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0 && k.endsWith(':sp-demo-p3')))).vs[0];
       const gone = new Set([...document.querySelectorAll('.cpj.gone')].map(x => x.getAttribute('data-id')));
-      return d.equipes.map(t => { const col = document.querySelector('.ccol[aria-label="Équipe ' + t.id + '"]'), cases = [...col.querySelectorAll('.chd .ccov .ccv')];
-        return { n: cases.length, txt: col.querySelector('.chd').textContent, ok: K.ORDRE.every((p, i) => { const n = t.joueurs.filter(j => j.poste === p && !gone.has(j.id)).length, c = cases[i];
-          return c.querySelector('b').textContent.indexOf({ pilier: 'Pil', talonneur: 'Tal', 'troisieme-ligne': '3eL', 'demi-de-melee': '9', ouvreur: '10', centre: 'Ctr', ailier: 'Ail' }[p]) === 0
-            && c.querySelectorAll('.ccs i.on').length === n && c.querySelectorAll('.ccs i').length === Math.max(n, K.BESOIN[p]) && c.querySelectorAll('.ccs i.plus').length === Math.max(0, n - K.BESOIN[p])
-            && c.classList.contains('court') === (n < K.BESOIN[p]); }) }; }); })()""")
-    check('en-tête : 7 cases de postes par équipe, un trait par place (plein = tenue, sans les absents), un trait de plus par joueur en plus', len(cov) == 2 and all(x['n'] == 7 and x['ok'] for x in cov), cov)
+      return d.equipes.map(t => { const col = document.querySelector('.ccol[aria-label="Équipe ' + t.id + '"]'), lignes = [...col.querySelectorAll('.chd .cpg .cpgl')];
+        const R = K.repartition(t.joueurs.map(j => j.id).filter(id => !gone.has(id)), F);
+        return { n: lignes.length, txt: col.querySelector('.chd').textContent, ok: R.postes.every((p, i) => { const l = lignes[i], a = p.princ.length, b = p.autres.length;
+          return l.getAttribute('data-p') === p.id && l.querySelector('.n').textContent === a + (b ? '+' + b : '') && l.querySelectorAll('.tr i').length === 2; }) }; }); })()""")
+    check('en-tête : les postes comme « Répartition des postes » (une ligne par poste, sa barre, principal + peut jouer à droite), sans les absents', len(cov) == 2 and all(x['n'] == 7 and x['ok'] for x in cov), cov)
     check('en-tête : plus de « Av x/5 · Ar x/5 · Remp. »', all('/5' not in x['txt'] and 'Remp.' not in x['txt'] for x in cov), [x['txt'] for x in cov])
-    check('en-tête : les cases tiennent dans l\'équipe', ev("[...document.querySelectorAll('.ccov')].every(c => c.scrollWidth <= c.clientWidth + 1 && [...c.children].every(x => x.scrollWidth <= x.clientWidth + 1))"))
+    check('en-tête : lignes serrées (moins de 20 px par poste)', ev("[...document.querySelectorAll('.chd .cpgl')].every(l => l.getBoundingClientRect().height < 20)"))
+    check('en-tête : les lignes tiennent dans l\'équipe', ev("[...document.querySelectorAll('.cpgl')].every(c => c.scrollWidth <= c.clientWidth + 1)"))
     check('pas de défilement de côté', noscroll())
 
     # ----- 3. affichage côte à côte (au choix, gardé sur l'appareil) -----
@@ -51,7 +51,7 @@ with sync_playwright() as p:
     pos = ev("""[...document.querySelectorAll('.ccote .ccol')].map(c => { const r = c.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top), Math.round(r.width)]; })""")
     check('côte à côte : A1 et B1 sur la même ligne, l\'une à côté de l\'autre', len(pos) == 2 and pos[0][1] == pos[1][1] and pos[0][0] < pos[1][0], pos)
     check('côte à côte : plus de titres de niveau, « Les équipes »', pg.query_selector('.ccote .clvh') is not None and 'Les équipes' in ev("document.querySelector('.ccote .clvh').textContent") and pg.query_selector('.clevel:not(.ccote):not(.banc) .clvh') is None)
-    check('côte à côte : les cases des postes tiennent, rien ne déborde', noscroll() and ev("[...document.querySelectorAll('.ccov')].every(c => c.scrollWidth <= c.clientWidth + 1 && [...c.children].every(x => x.scrollWidth <= x.clientWidth + 1))"))
+    check('côte à côte : les lignes des postes tiennent (noms courts en colonne étroite), rien ne déborde', noscroll() and ev("[...document.querySelectorAll('.cpgl')].every(c => c.scrollWidth <= c.clientWidth + 1 && [...c.children].every(x => x.scrollWidth <= x.clientWidth + 1))"))
     pg.reload(); pg.wait_for_timeout(1500)
     check('côte à côte : gardé après rechargement', pg.query_selector('.ccote') is not None and pg.query_selector('[data-act="cCote"][data-v="1"].on') is not None)
     pg.click('[data-act="cCote"][data-v="0"]'); pg.wait_for_timeout(500)
@@ -148,7 +148,7 @@ with sync_playwright() as p:
         pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(1300)
     pg.click('[data-act="cPublish"]'); pg.wait_for_timeout(500)
     if pg.query_selector('.modal'): pg.click('.modal .mbtns button[data-i="0"]'); pg.wait_for_timeout(1800)
-    check('matchs publiés : en lecture, « Modifier la compo », la couverture des postes', pg.query_selector('[data-act="cEditer"]') is not None and len(pg.query_selector_all('.ccol .chd .ccov')) == 2)
+    check('matchs publiés : en lecture, « Modifier la compo », la couverture des postes', pg.query_selector('[data-act="cEditer"]') is not None and len(pg.query_selector_all('.ccol .chd .cpg')) == 2)
     pg.goto(BASE + '#/educ/evt/sp-demo-e1'); pg.wait_for_timeout(1200)
     check('page de l\'entraînement : « Modifier les matchs »', pg.query_selector('[data-act="eEditer"][data-p="matchs"]') is not None and 'Modifier les matchs' in ev("document.querySelector('main').textContent"))
     pg.click('[data-act="eEditer"][data-p="matchs"]'); pg.wait_for_timeout(1300)
