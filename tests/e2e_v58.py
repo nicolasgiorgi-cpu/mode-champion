@@ -44,14 +44,13 @@ with sync_playwright() as p:
     check('en-tête : lignes serrées (moins de 20 px par poste)', ev("[...document.querySelectorAll('.chd .cpgl')].every(l => l.getBoundingClientRect().height < 20)"))
     check('en-tête : les lignes tiennent dans l\'équipe', ev("[...document.querySelectorAll('.cpgl')].every(c => c.scrollWidth <= c.clientWidth + 1)"))
     check('pas de défilement de côté', noscroll())
-    # (v59, demande de Nicolas) le chrono jaune (pas encore répondu sur Spond) : dans la légende, et collé à droite de l'encadré, sous le poste
+    # (v60, demande de Nicolas) « pas encore répondu sur Spond » : un « ? » doré dans la légende et collé à droite du prénom (plus de chrono)
     ch = ev("""(() => { const l = document.querySelector('.clegend'), c = [...document.querySelectorAll('.cpj .catt')];
-      return { leg: !!l && /pas encore répondu sur Spond/.test(l.textContent) && !!l.querySelector('.clg-att svg'), n: c.length,
-        place: c.map(x => { const r = x.getBoundingClientRect(), pj = x.closest('.cpj'), b = pj.getBoundingClientRect(), po = pj.querySelector('.cpo'), p = po && po.getBoundingClientRect();
-          const autres = [...pj.querySelectorAll('.cfls > *:not(.catt)')].filter(y => y.offsetParent).map(y => y.getBoundingClientRect());
-          return { droite: b.right - r.right <= 9, sous: !p || r.top >= p.bottom - 1, aligne: !p || Math.abs(p.right - r.right) < 3, libre: autres.every(o => o.right <= r.left + 1 || o.bottom <= r.top || o.top >= r.bottom) }; }) }; })()""")
-    check('(v59) le chrono jaune expliqué dans la légende', ch['leg'], ch)
-    check('(v59) le chrono collé à droite de l\'encadré, sous le poste, sans chevaucher les autres marques', ch['n'] > 0 and all(x['droite'] and x['sous'] and x['aligne'] and x['libre'] for x in ch['place']), ch)
+      return { leg: !!l && /pas encore répondu sur Spond/.test(l.textContent) && !!l.querySelector('.clg-att .cqatt') && l.querySelector('.clg-att .cqatt').textContent === '?', n: c.length,
+        place: c.map(x => { const r = x.getBoundingClientRect(), n = x.closest('.cpj').querySelector('.cpn').getBoundingClientRect();
+          return { texte: x.querySelector('[aria-hidden]').textContent, collé: r.left - n.right >= 0 && r.left - n.right <= 8, ligne: Math.abs((r.top + r.bottom) / 2 - (n.top + n.bottom) / 2) < 6, chrono: !!x.querySelector('svg') }; }) }; })()""")
+    check('(v60) « ? » doré expliqué dans la légende', ch['leg'], ch)
+    check('(v60) « ? » collé à droite du prénom, sur sa ligne (plus de chrono)', ch['n'] > 0 and all(x['texte'] == '?' and x['collé'] and x['ligne'] and not x['chrono'] for x in ch['place']), ch)
 
     # ----- 3. affichage côte à côte (au choix, gardé sur l'appareil) -----
     check('« Affichage » : l\'une sous l\'autre par défaut', pg.query_selector('[data-act="cCote"][data-v="0"].on') is not None and pg.query_selector('.ccote') is None)

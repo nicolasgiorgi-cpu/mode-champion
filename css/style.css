@@ -1222,7 +1222,8 @@ body:has(.cdock .cselp) .toast{top:calc(74px + var(--safe-t) + var(--vvt));botto
 .cfl.chors{padding:0 4px;border:1px solid var(--line3);color:var(--soft);letter-spacing:.02em;white-space:nowrap}
 .cabsn{color:var(--pink)}
 .cpj{width:100%;min-height:46px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:4px;padding:6px 8px;background:#0C1120;border:1px solid var(--line2);color:var(--ink);text-align:left;position:relative}
-.cpj .cpn{font:700 14px/1.1 var(--f-body);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:44px}
+.cpj .cpl1{display:flex;align-items:center;gap:5px;max-width:100%;min-width:0;padding-right:44px}
+.cpj .cpn{font:700 14px/1.1 var(--f-body);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cpj .cpo{position:absolute;top:6px;right:6px;font:700 10px/1 var(--f-hud);letter-spacing:.04em;color:var(--soft)}
 .cpj .cpo.none{color:var(--dim)}
 .cpj .cfls{gap:6px;flex-wrap:wrap}
@@ -1286,7 +1287,8 @@ body:has(.cdock .cselp) .toast{top:calc(74px + var(--safe-t) + var(--vvt));botto
 .tpp svg{flex:none}
 .tpp.none,.tpp.voeu{width:auto;padding:1px 6px 0;border-style:dashed;border-color:var(--line3);color:var(--dim)}
 /* (v60) sur une pastille de la compo : les postes de sa fiche, à droite, sous le chrono */
-.cpj .cpps{align-self:flex-end;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:3px;max-width:100%}
+/* (v60) les postes de sa fiche sur la ligne du plaquage et des passerelles, poussés à droite */
+.cpj .cpps{margin-left:auto;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:3px;max-width:100%}
 .cpps .tpp{width:30px;height:17px;font-size:9.5px}
 .tctl{display:flex;align-items:center;justify-content:flex-end;gap:6px}
 .tseg{display:flex;gap:3px}
@@ -1567,10 +1569,10 @@ textarea.txt{min-height:84px;padding:10px 12px;resize:vertical;font:500 16px/1.4
 /* Compos : réponse Spond en attente (horloge dorée) ou plus là (barré, « absent ») ; heure dans le carré de date */
 .cfl.catt{color:var(--gold)}
 /* (v59, demande de Nicolas) le chrono « pas encore répondu » collé à droite de l'encadré, sous le poste */
-.cpj .cfl.catt{position:absolute;top:6px;right:6px}
-.cpj .cpo + .cfls .cfl.catt{top:21px}   /* sous le poste ; sans poste en haut à droite (jeu à 5, ateliers), dans le coin */
-.cpj.att .cfls{padding-right:16px}
-.clegend .clg-att svg{color:var(--gold)}
+/* (v60, demande de Nicolas) « ? » doré (pas encore répondu) collé à droite du prénom, au lieu du chrono */
+.cpj .cfl.catt,.cqatt{flex:none;display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border:1.5px solid var(--gold);border-radius:50%;color:var(--gold);font:700 10.5px/1 var(--f-hud)}
+.cpj .cfls{align-self:stretch}
+.clegend .clg-att{display:inline-flex;align-items:center;gap:4px}
 .cpj.gone{opacity:.75;border-color:var(--pink)}
 .cpj.gone .cpn{text-decoration:line-through;text-decoration-color:var(--pink)}
 .cpo.cabs{background:var(--pink);color:#070A12}

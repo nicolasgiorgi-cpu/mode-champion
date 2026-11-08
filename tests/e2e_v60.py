@@ -1,5 +1,5 @@
 # (v60) Demande de Nicolas du 08/11/2026 : les postes des enfants sur la compo comme dans la liste Enfants (pastilles pleines =
-# préféré, sinon le contour), alignés à droite sous le chrono ; dans la liste Enfants, les pastilles dans une colonne à elles entre le
+# préféré, sinon le contour), à droite sur la ligne du plaquage et des passerelles (« ? » doré à côté du prénom au lieu du chrono) ; dans la liste Enfants, les pastilles dans une colonne à elles entre le
 # prénom et le niveau, alignées à gauche (plus d'effet de vague) ; toutes les pastilles de la même largeur.
 # Site de démo (sh tests/mkdemo.sh), puis : python3 tests/e2e_v60.py 390 844 · 1180 820 · 820 1180
 import sys
@@ -43,11 +43,11 @@ with sync_playwright() as p:
       return r ? [...r.querySelectorAll('.tps .tpp')].map(p => (p.classList.contains('pref') ? '*' : '') + p.querySelector('[aria-hidden]').textContent) : null; })()""")
     check('liste : Tom, ses préférés pleins d\'abord (Ctr, Ail), puis 3eL', t == ['*Ctr', '*Ail', '3eL'], t)
 
-    # ----- 2. la compo : les postes de la fiche, à droite, sous le chrono -----
+    # ----- 2. la compo : les postes de la fiche, à droite, sur la ligne du plaquage -----
     pg.goto(BASE + '#/educ/compo/sp-demo-p3'); pg.wait_for_timeout(1200)
     pg.click('[data-act="cBase"][data-v="tous"]'); pg.wait_for_timeout(300)
     pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(1300)
-    # un enfant qui a des postes passe « sans réponse » sur Spond : son chrono, puis ses postes dessous
+    # un enfant qui a des postes passe « sans réponse » sur Spond : son « ? » et ses postes
     tid = ev("""(() => { const K = MC.compos, F = K.fiches(MC.app.S.cache.group), e = MC.app.S.cache.compos.evenements.find(e => e.id === 'sp-demo-p3');
       const id = (e.presents || []).find(id => F[id] && F[id].postesOk.length >= 2 && document.querySelector('.ccol:not(.banc) .cpj[data-id="' + id + '"]'));
       e.presents = e.presents.filter(x => x !== id); e.sansReponse = (e.sansReponse || []).concat([id]); MC.app.rerender(); return id; })()""")
@@ -56,18 +56,22 @@ with sync_playwright() as p:
       return [...document.querySelectorAll('.cpj')].map(b => { const id = b.getAttribute('data-id'), f = F[id], br = b.getBoundingClientRect(), pp = b.querySelector('.cpps'), ch = b.querySelector('.catt');
         const pf = f.postesOk.length ? K.prefDe(f) : [], attendu = K.postesDe(f).slice().sort((a, c) => (pf.indexOf(a) >= 0 ? 0 : 1) - (pf.indexOf(c) >= 0 ? 0 : 1) || K.ORDRE.indexOf(a) - K.ORDRE.indexOf(c));
         const pills = pp ? [...pp.querySelectorAll('.tpp')] : [], r = pp && pp.getBoundingClientRect();
-        const autres = [...b.querySelectorAll('.cpn, .cpo, .cfls > *')].filter(x => x.offsetParent).map(x => x.getBoundingClientRect());
+        const autres = [...b.querySelectorAll('.cpn, .cpo, .catt, .cfls > *:not(.cpps)')].filter(x => x.offsetParent).map(x => x.getBoundingClientRect());
         return { id, att: !!ch, n: attendu.length, vus: pills.map(x => (x.classList.contains('pref') ? '*' : '') + x.querySelector('[aria-hidden]').textContent),
           bons: pills.length === attendu.length && pills.every((x, i) => x.querySelector('[aria-hidden]').textContent === COURT[attendu[i]] && x.classList.contains('pref') === (pf.indexOf(attendu[i]) >= 0)),
-          droite: !r || br.right - r.right <= 9, sousChrono: !r || !ch || r.top >= ch.getBoundingClientRect().bottom - 1,
+          droite: !r || br.right - r.right <= 9,
+          memeLigne: (() => { if (!r) return true; const fl = [...b.querySelectorAll('.cfls > *:not(.cpps)')].filter(x => x.offsetParent), row = b.querySelector('.cfls').getBoundingClientRect();
+            const need = fl.reduce((a, x) => a + x.getBoundingClientRect().width + 6, 0) + r.width; if (!fl.length || need > row.width) return true;
+            const f0 = fl[0].getBoundingClientRect(); return Math.abs((r.top + r.bottom) / 2 - (f0.top + f0.bottom) / 2) < 6; })(),
           libre: !r || autres.every(o => o.bottom <= r.top + 1 || o.right <= r.left || o.left >= r.right), dedans: !r || (r.bottom <= br.bottom + 1 && r.left >= br.left),
           larg: pills.map(x => Math.round(x.getBoundingClientRect().width)) }; }); })()""")
     avec = [x for x in C if x['n']]
     check('compo : chaque enfant qui a des postes les montre sur sa pastille, dans l\'ordre de la liste Enfants, pleins = préférés', len(avec) > 5 and all(x['bons'] for x in avec), [x for x in avec if not x['bons']][:3])
     check('compo : sans poste sur sa fiche, pas de pastilles', all(not x['vus'] for x in C if not x['n']))
     check('compo : les postes alignés à droite de l\'encadré', all(x['droite'] for x in avec), [x for x in avec if not x['droite']][:3])
+    check('compo : sur la même ligne que le plaquage et les passerelles (quand elle tient)', all(x['memeLigne'] for x in avec), [x for x in avec if not x['memeLigne']][:3])
     t1 = [x for x in C if x['id'] == tid]
-    check('compo : sous le chrono (enfant sans réponse)', t1 and t1[0]['att'] and t1[0]['vus'] and t1[0]['sousChrono'], t1)
+    check('compo : un enfant sans réponse a ses postes et son « ? »', t1 and t1[0]['att'] and t1[0]['vus'] and t1[0]['memeLigne'], t1)
     check('compo : rien ne chevauche (prénom, poste, marques), tout reste dans l\'encadré', all(x['libre'] and x['dedans'] for x in avec), [x for x in avec if not (x['libre'] and x['dedans'])][:3])
     lg = set(w for x in avec for w in x['larg'])
     check('compo : toutes les pastilles de la même largeur', len(lg) == 1, lg)
