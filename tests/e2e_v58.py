@@ -86,6 +86,7 @@ with sync_playwright() as p:
     ev("document.documentElement.style.setProperty('--safe-t', '59px')")
     pg.click('[data-act="cPublish"]'); pg.wait_for_timeout(600)
     check('toute fenêtre : sous l\'encoche', ev("document.querySelector('.modal .card').getBoundingClientRect().top >= 59"))
+    check('toute fenêtre : une hauteur maximale (aussi sans dvh), les boutons collés au bas de la carte', ev("getComputedStyle(document.querySelector('.modal .card')).maxHeight !== 'none' && Math.abs(document.querySelector('.modal .mbtns').getBoundingClientRect().bottom - document.querySelector('.modal .card').getBoundingClientRect().bottom) < 2"))
     ev("document.documentElement.style.removeProperty('--safe-t')")
 
     # ----- 5. une compo publiée : en lecture, « Modifier la compo » d'un geste -----
@@ -114,6 +115,20 @@ with sync_playwright() as p:
     pj = [x['poste'] for t in c['equipes'] for x in t['joueurs'] if x['id'] == pid[0] and t['id'] == pid[1]]
     check('enregistrée : version 2, le joueur à l\'aile dans son équipe', c['version'] == 2 and pj == ['ailier'], (c['version'], pj))
     check('enregistrée : de nouveau en lecture', pg.query_selector('[data-act="cEditer"]') is not None)
+    # (relecture) rouverte puis quittée sans changement : de nouveau en lecture au retour
+    pg.click('[data-act="cEditer"]'); pg.wait_for_timeout(500)
+    pg.goto(BASE + '#/educ/evt/sp-demo-p3'); pg.wait_for_timeout(900)
+    pg.goto(BASE + '#/educ/compo/sp-demo-p3'); pg.wait_for_timeout(1100)
+    check('quittée sans changement : de nouveau en lecture au retour', pg.query_selector('[data-act="cEditer"]') is not None and pg.query_selector('[data-act="cFinEdit"]') is None)
+    # (relecture) « Retirer » de « À regarder » reste là en lecture, et rouvre la compo
+    fi = ev("""(() => { const b = [...document.querySelectorAll('[data-act="cFix"]')].find(x => /Absent/.test(x.closest('li').textContent)); return b ? [b.getAttribute('data-v'), b.getAttribute('data-i')] : null; })()""")
+    check('en lecture : « Retirer » les absents d\'un geste, toujours là', fi is not None)
+    if fi:
+        nabs = ev("document.querySelectorAll('.ccol:not(.banc) .cpj.gone').length")
+        pg.click('[data-act="cFix"][data-v="%s"][data-i="%s"]' % (fi[0], fi[1])); pg.wait_for_timeout(600)
+        check('… « Retirer » : les absents sortent, la compo passe en modification (Enregistrer v3)', nabs > 0 and ev("document.querySelectorAll('.ccol:not(.banc) .cpj.gone').length") == 0 and pg.query_selector('[data-act="cSave"]') is not None and '(v3)' in ev("document.querySelector('[data-act=cSave]').textContent"))
+        pg.click('[data-act="cDiscard"]'); pg.wait_for_timeout(400); pg.click('.modal .mbtns button[data-i="0"]'); pg.wait_for_timeout(900)
+        check('« Annuler mes changements » : de nouveau la version 2, en lecture', pg.query_selector('[data-act="cEditer"]') is not None and ev("document.querySelectorAll('.ccol:not(.banc) .cpj.gone').length") == nabs)
 
     # ----- 6. depuis la page du plateau : « Modifier la compo » ouvre la compo en modification -----
     pg.goto(BASE + '#/educ/evt/sp-demo-p3'); pg.wait_for_timeout(1200)

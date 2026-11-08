@@ -506,12 +506,13 @@ html.net-busy::before{content:'';position:fixed;top:0;left:0;right:0;height:3px;
 
 /* ---------- fenêtres ---------- */
 .modal{position:fixed;inset:0;z-index:50;background:rgba(3,5,10,.78);display:flex;align-items:flex-end;justify-content:center;padding:16px;padding-top:calc(16px + var(--safe-t));padding-bottom:calc(16px + var(--safe-b))}
-/* (v58) jamais sous l'encoche ni la barre d'état de l'iPhone : la carte tient entre les zones sûres (sinon la croix et le titre étaient cachés) */
-.modal .card{width:100%;max-width:460px;max-height:min(88vh,calc(100dvh - 32px - var(--safe-t) - var(--safe-b)));overflow:auto;padding:18px 16px;background:#0E1428;border:1px solid var(--line2);display:flex;flex-direction:column;gap:14px;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+/* (v58) jamais sous l'encoche ni la barre d'état de l'iPhone : la carte tient dans la fenêtre, entre les zones sûres (padding de .modal ;
+   sinon la croix et le titre étaient cachés). 100 % de la fenêtre : pas besoin de dvh (vieux Safari, barre de Safari 26) */
+.modal .card{width:100%;max-width:460px;max-height:88vh;max-height:min(88vh,100%);overflow:auto;padding:18px 16px;background:#0E1428;border:1px solid var(--line2);display:flex;flex-direction:column;gap:14px;box-shadow:0 20px 60px rgba(0,0,0,.6)}
 .modal h2{margin:0;font:italic 900 28px/.95 var(--f-title);text-transform:uppercase;min-width:0}
 .modal .mhead{position:sticky;top:-18px;z-index:2;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin:-18px -16px 0;padding:16px 12px 10px 16px;background:#0E1428;border-bottom:1px solid var(--line)}
 .modal .mhead .mclose{flex:none;margin-top:-4px}
-.modal .mbtns{position:sticky;bottom:-18px;z-index:2;margin:0 -16px -18px;padding:10px 16px calc(14px + var(--safe-b));background:#0E1428;border-top:1px solid var(--line)}
+.modal .mbtns{position:sticky;bottom:-18px;z-index:2;margin:0 -16px -18px;padding:10px 16px 14px;background:#0E1428;border-top:1px solid var(--line)}
 .codebig{display:flex;gap:8px;justify-content:center}
 .codebig span{width:52px;height:66px;display:flex;align-items:center;justify-content:center;font:700 38px/1 var(--f-hud);color:var(--cyan);border:1.5px solid var(--line2);background:#0A0F1F}
 .toast{position:fixed;left:50%;bottom:calc(24px + var(--safe-b));transform:translateX(-50%) translateY(20px);z-index:60;max-width:calc(100% - 32px);padding:12px 16px;background:#0E1428;border:1px solid var(--cyan);color:var(--ink);font:600 14px/1.3 var(--f-body);opacity:0;pointer-events:none;transition:.25s}
@@ -1108,10 +1109,11 @@ body:has(.cdock .cselp) .toast{top:calc(74px + var(--safe-t) + var(--vvt));botto
 .ccs{display:flex;gap:2px;width:100%;padding:0 3px}
 .ccs i{flex:1;height:4px;border:1px solid var(--pc);opacity:.85}
 .ccs i.on{background:var(--pc);opacity:1}
-.ccv.court{border-color:var(--orange)}
-.ccv.court .ccs i:not(.on){border-color:var(--orange);border-style:dashed}
+.ccv.court{border-color:var(--pink);border-style:dashed}
+.ccv.court .ccs i:not(.on){border-color:var(--pink);border-style:dashed}
 .ccs i.plus{flex:.6;opacity:.55}
-@container (max-width:260px){.ccov{gap:2px}.ccv{padding:3px 0 4px}.ccv b{font-size:8.5px;letter-spacing:0}.ccv b small{display:none}.ccs{padding:0 2px;gap:1px}}
+@container (max-width:260px){.ccov{gap:2px}.ccv{padding:3px 0 4px}.ccv b{font-size:9.5px;letter-spacing:0}.ccs{padding:0 2px;gap:1px}}
+@container (max-width:200px){.ccv b{font-size:9px}.ccv b small{display:none}}
 .cpj .cpo.ty{color:var(--dim)}
 .lnk.sm{min-height:32px;font-size:11px;padding:0}
 .cstyles{display:grid;gap:8px}
@@ -1147,7 +1149,6 @@ body:has(.cdock .cselp) .toast{top:calc(74px + var(--safe-t) + var(--vvt));botto
 .cind{display:flex;flex-wrap:wrap;gap:4px 10px;font:600 12px/1.2 var(--f-hud);color:var(--soft)}
 .cind span{display:inline-flex;align-items:center;gap:3px}
 .cind svg{color:var(--lc)}
-.cmiss{font:600 11px/1.3 var(--f-hud);color:var(--orange)}
 .cdest{font:700 11px/1 var(--f-hud);letter-spacing:.08em;text-transform:uppercase;color:var(--lc)}
 .cpl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
 .csec{display:flex;flex-direction:column;gap:5px}
@@ -1176,7 +1177,7 @@ body:has(.cdock .cselp) .toast{top:calc(74px + var(--safe-t) + var(--vvt));botto
 .cslot:hover,.cslot:focus-visible{border-color:var(--lc);color:var(--ink);background:color-mix(in srgb,var(--lc) 10%,transparent)}
 .ccol>.cslot,.csec>.cslot{margin-top:2px}
 .chd:not(.dest):not([tabindex="-1"]){cursor:pointer}
-.modal.cpk .card{max-height:calc(100dvh - 32px - var(--safe-t) - var(--safe-b));gap:12px}
+.modal.cpk .card{max-height:100%;gap:12px}
 .modal.cpk h2{font-size:24px}
 .modal.cpk .mbtns{flex-direction:row;gap:8px}
 .modal.cpk .mbtns button{flex:1}
@@ -1220,7 +1221,6 @@ body:has(.cdock .cselp) .toast{top:calc(74px + var(--safe-t) + var(--vvt));botto
 .ppb.hors:not(.on){border-style:dashed;opacity:.5}
 .pptag{display:inline-flex;align-items:center;gap:3px;padding:1px 5px;font:700 10px/1.4 var(--f-hud);letter-spacing:.04em;vertical-align:1px}
 .pptag.abs{background:var(--pink);color:#070A12}
-.pptag.att{border:1px solid var(--gold);color:var(--gold)}
 .pptag.hors{border:1px solid var(--line3);color:var(--soft)}
 .cfl.cabsf{padding:1px 4px;background:var(--pink);color:#070A12;letter-spacing:.04em}
 .cfl.chors{padding:0 4px;border:1px solid var(--line3);color:var(--soft);letter-spacing:.02em;white-space:nowrap}
