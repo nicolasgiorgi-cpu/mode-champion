@@ -223,6 +223,19 @@
     goNextStep();
   };
   MC.act.runNextStep = function () { R.t = null; goNextStep(); };
+  // (v62) « Terminer la séance » avant la fin du retour au calme : on demande d'abord (le bouton a été touché sans le vouloir)
+  MC.act.runEndAsk = function () {
+    var rtWas = R.rt && R.rt.t && !R.rt.t.paused;
+    if (rtWas) MC.routine.pause(R.rt, true);
+    ui.modal({
+      title: 'Tu termines la séance ?', body: '<p class="lead">Le retour au calme n\'est pas fini. Tu veux vraiment t\'arrêter là ?</p>',
+      actions: [{ label: 'Je continue', value: 'continue', cls: 'btn green' }, { label: 'Oui, je termine la séance', value: 'end', cls: 'btn2 grey' }], cancelValue: 'continue'
+    }).then(function (v) {
+      if (!R) return;
+      if (v === 'end') { R.t = null; goNextStep(); }
+      else if (R.rt && rtWas) MC.routine.pause(R.rt, false);
+    });
+  };
 
   MC.act.runMute = function () { ui.setMuted(!ui.isMuted()); if (!ui.isMuted()) { ui.unlockAudio(); ui.beep(880, 0.08); } repaint(); };
   MC.act.runQuit = function () {
@@ -379,7 +392,7 @@
     var last = s.kind === 'calme', nx = R.steps[R.i + 1];
     return MC.routine.html(R.rt, {
       kicker: last ? C.CALME.nom : C.REVEIL.nom, color: color(),
-      doneAct: 'runNextStep', doneLabel: last ? 'Terminer la séance' : 'Échauffement fait',
+      doneAct: 'runNextStep', doneLabel: last ? 'Terminer la séance' : 'Échauffement fait', doneAsk: last ? 'runEndAsk' : '',
       after: last ? '' : 'Ensuite : ' + (nx && nx.it ? nx.it.nom.toLowerCase() : 'les exercices')
     });
   }

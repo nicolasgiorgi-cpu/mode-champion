@@ -19,7 +19,7 @@ Site statique (HTML/CSS/JS, rien à installer) + une Google Sheet qui sert de ba
 | `js/logic.js` | Les règles du jeu (étoiles, série, XP, badges, niveaux, ligues) |
 | `js/anims.js` | Les animations des exercices |
 | `js/fiches.js` | Les fiches **Détails et sécurité** (comment faire, erreurs, sécurité) de chaque exo, test et étape |
-| `js/routine.js` | L'échauffement et le retour au calme guidés (GO, chrono par étape) |
+| `js/routine.js` | L'échauffement et le retour au calme guidés (GO, chrono par étape ; au retour au calme, 10 s pour se mettre en position avant chaque étape, 5 s pour changer de côté — v62) |
 | `js/suivi.js` | Le suivi : progression d'un bilan à l'autre, détail des séances, progrès du groupe |
 | `js/v-*.js` | Les écrans |
 | `js/v-bilan.js` | Le bilan guidé (test par test) |

@@ -58,9 +58,10 @@ with sync_playwright() as p:
         if '#/bravo' in pg.url: break
         acts=pg.eval_on_selector_all('[data-act]','els=>els.filter(e=>e.offsetParent).map(e=>e.getAttribute("data-act"))')
         done=False
-        for a in ['runSetDone','runFeel','runSkipRest','runTour','runNextStep','rtNext','runGo']:
+        for a in ['runSetDone','runFeel','runSkipRest','runTour','runNextStep','runEndAsk','rtNext','runGo']:
             if a in acts:
                 if a=='runFeel': pg.click('[data-act="runFeel"][data-v="facile"]')
+                elif a=='runEndAsk': pg.click('[data-act="runEndAsk"]'); pg.wait_for_timeout(300); pg.click('.modal button:has-text("Oui, je termine")')   # (v62) confirmation
                 elif a=='runGo':
                     pg.click('[data-act="runGo"]'); pg.wait_for_timeout(3500)
                     if pg.query_selector('[data-act="runLetGo"]'): pg.click('[data-act="runLetGo"]')

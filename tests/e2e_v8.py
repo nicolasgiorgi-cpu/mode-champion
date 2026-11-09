@@ -54,7 +54,7 @@ with sync_playwright() as p:
     pg.click('[data-act="rtGo"]'); pg.wait_for_timeout(3500); shot(pg,'06-calme-run')
     # envoi qui échoue
     pg.evaluate("()=>{ window.__save = MC.saveSessions; MC.saveSessions = function(){ return Promise.reject({}); }; }")
-    pg.click('[data-act="runNextStep"]'); pg.wait_for_timeout(800); shot(pg,'07-send-error'); print('erreur', pg.inner_text('.run h1'), '|', pg.inner_text('.run .lead')[:90])
+    pg.click('[data-act="runEndAsk"]'); pg.wait_for_timeout(300); pg.click('.modal button:has-text("Oui, je termine")'); pg.wait_for_timeout(800); shot(pg,'07-send-error'); print('erreur', pg.inner_text('.run h1'), '|', pg.inner_text('.run .lead')[:90])
     pg.evaluate("()=>{ MC.saveSessions = window.__save; }")
     pg.click('[data-act="runResend"]'); pg.wait_for_timeout(1500); print('après renvoi', pg.url)
     # --- bilan guidé

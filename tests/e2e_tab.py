@@ -36,7 +36,7 @@ with sync_playwright() as p:
             pg.click('[data-act="runTour"]'); pg.wait_for_timeout(300)
             if pg.query_selector('[data-act="runSkipRest"]'): pg.click('[data-act="runSkipRest"]'); pg.wait_for_timeout(200)
         pg.click('[data-act="runFeel"][data-v="facile"]'); pg.wait_for_timeout(400); shot(pg,tag+'-10-run-calme')
-        pg.click('[data-act="runNextStep"]'); pg.wait_for_timeout(1800); shot(pg,tag+'-11-bravo', True)
+        pg.click('[data-act="runEndAsk"]'); pg.wait_for_timeout(300); pg.click('.modal button:has-text("Oui, je termine")'); pg.wait_for_timeout(1800); shot(pg,tag+'-11-bravo', True)   # (v62) avant la fin du retour au calme : avec la confirmation
         pg.goto(BASE+'#/profil'); pg.wait_for_timeout(900); shot(pg,tag+'-12-profil', True)
         pg.goto(BASE+'#/classement'); pg.wait_for_timeout(900); shot(pg,tag+'-13-classement')
         pg.goto(BASE+'#/trophees'); pg.wait_for_timeout(900); shot(pg,tag+'-14-trophees')

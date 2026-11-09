@@ -2,6 +2,8 @@
    Mode champion · M12 — ÉCHAUFFEMENT ET RETOUR AU CALME GUIDÉS
    Utilisé par la séance guidée (v-seance.js) et le bilan guidé (v-bilan.js).
    GO → 3, 2, 1 → chaque étape s'affiche en grand avec son chrono, puis la suivante.
+   Retour au calme (v62) : avant chaque étape, un temps pour lire la consigne et se mettre en position
+   (10 s, 5 s pour changer de côté), puis le chrono part. « GO ! » le raccourcit.
    Les bips : 10 s avant la fin, puis 5, 4, 3, 2, 1 et le son de fin.
    ========================================================= */
 window.MC = window.MC || {};
@@ -34,7 +36,15 @@ MC.routine = (function () {
   function create(kind, me, mini, onChange) {
     return { id: ++seq, kind: kind, steps: build(kind, me, mini), i: 0, phase: 'ready', t: null, onChange: onChange || function () { } };
   }
-  function total(rn) { return rn.steps.reduce(function (a, s) { return a + (s.dur || 0); }, 0); }
+  // (v62) le temps pour lire la consigne et se mettre en position avant l'étape i (0 = le chrono part tout de suite) :
+  // seulement au retour au calme (on change de position à chaque étape) ; l'échauffement s'enchaîne, la 1re étape a déjà le « 3, 2, 1 »
+  var PREP = { calme: { etape: 10, cote: 5 } };
+  function prepDur(rn, i) {
+    var P = PREP[rn.kind], a = rn.steps[i - 1], b = rn.steps[i];
+    if (!P || !a || !b) return 0;
+    return a.id === b.id ? P.cote : P.etape;
+  }
+  function total(rn) { return rn.steps.reduce(function (a, s, i) { return a + (s.dur || 0) + prepDur(rn, i); }, 0); }
 
   // ---------- chrono ----------
   function T(dur) { return { dur: dur, start: Date.now(), acc: 0, paused: false, last: null }; }
@@ -55,16 +65,17 @@ MC.routine = (function () {
     if (t.last !== sec) {
       if (!t.paused && t.last !== null) {
         if (rn.phase === 'count3') { if (sec >= 1 && sec <= 2) ui.beep(660, 0.1); }
+        else if (rn.phase === 'prep') { if (sec >= 1 && sec <= 3) ui.beep(660, 0.1); }
         else ui.countBeep(sec, t.dur);
       }
       t.last = sec;
     }
     var tl = document.querySelector('[data-rtl="' + rn.id + '"]'), ring = document.querySelector('[data-rring="' + rn.id + '"]');
-    if (tl) tl.textContent = rn.phase === 'count3' ? String(Math.max(1, sec)) : clock(rem);
+    if (tl) tl.textContent = rn.phase === 'count3' || rn.phase === 'prep' ? String(Math.max(1, sec)) : clock(rem);
     if (ring) ring.setAttribute('stroke-dashoffset', String(RING * (1 - rem / t.dur)));
     if (rem <= 0 && !t.ended) {
       t.ended = true;
-      if (rn.phase === 'count3') { ui.beep(1040, 0.18, 0.22); startStep(rn, rn.i); }
+      if (rn.phase === 'count3' || rn.phase === 'prep') { ui.beep(1040, 0.18, 0.22); startStep(rn, rn.i); }
       else { ui.endBeep(); next(rn, true); }
     }
   }
@@ -76,17 +87,30 @@ MC.routine = (function () {
     cur = rn; ensureTick();
     rn.onChange();
   }
+  // aller à l'étape i : d'abord son temps de mise en place s'il y en a un (v62), sinon le chrono part
+  function enter(rn, i) {
+    i = Math.max(0, Math.min(i, rn.steps.length - 1));
+    var d = prepDur(rn, i);
+    if (!d) return startStep(rn, i);
+    rn.i = i;
+    rn.phase = 'prep';
+    rn.t = T(d);
+    cur = rn; ensureTick();
+    rn.onChange();
+  }
   function next(rn, auto) {
     if (rn.phase === 'ready') { if (rn.i < rn.steps.length - 1) { rn.i++; rn.onChange(); } return; }
-    if (rn.i + 1 >= rn.steps.length) { rn.phase = 'done'; rn.t = null; rn.onChange(); return; }
     var paused = !auto && rn.t && rn.t.paused;
-    startStep(rn, rn.i + 1);
+    // pendant la mise en place, « GO ! » lance le chrono de l'étape sans attendre
+    if (rn.phase === 'prep') startStep(rn, rn.i);
+    else if (rn.i + 1 >= rn.steps.length) { rn.phase = 'done'; rn.t = null; rn.onChange(); return; }
+    else enter(rn, rn.i + 1);
     if (paused) { rn.t.paused = true; rn.t.acc = 0; rn.onChange(); }
   }
   function prev(rn) {
     if (rn.phase === 'ready') { if (rn.i > 0) { rn.i--; rn.onChange(); } return; }
-    if (rn.phase === 'done') { startStep(rn, rn.steps.length - 1); return; }
-    startStep(rn, rn.i - 1);
+    if (rn.phase === 'done') { enter(rn, rn.steps.length - 1); return; }
+    enter(rn, rn.i - 1);
   }
   function go(rn) {
     ui.unlockAudio();
@@ -116,7 +140,8 @@ MC.routine = (function () {
   MC.act.rtPrev = function () { if (cur) prev(cur); };
 
   // ---------- affichage ----------
-  // o : { kicker, doneAct, doneLabel, after (texte « Ensuite » après la dernière étape) }
+  // o : { kicker, doneAct, doneLabel, after (texte « Ensuite » après la dernière étape),
+  //       doneAsk (v62 : l'action du bouton tant que tout n'est pas fini ; il est alors petit, et c'est à elle de demander confirmation) }
   function html(rn, o) {
     cur = rn;
     if (rn.t) ensureTick();
@@ -130,25 +155,30 @@ MC.routine = (function () {
         '<p class="small" style="margin:0">' + esc(s.detail || '') + '</p>' + ui.infoBtn(s.fiche, s.nom)) + '</div>';
     var left = done ? '' : ui.demoHtml({ anim: s.anim, video: s.video, color: o.color || '#3DFFB0', label: s.nom });
     var rem = remaining(rn), frac = rn.t ? rem / rn.t.dur : 1;
-    var ring = done ? '' : '<div class="ring work' + (ph !== 'count3' && rem >= 59.5 ? ' clock' : '') + '"><svg viewBox="0 0 500 500" aria-hidden="true"><circle cx="250" cy="250" r="210" fill="none" stroke="#1E2740" stroke-width="26"/>' +
-      '<circle data-rring="' + rn.id + '" cx="250" cy="250" r="210" fill="none" stroke-width="26" stroke-dasharray="' + RING + '" stroke-dashoffset="' + (RING * (1 - frac)) + '" style="stroke:var(--rc);filter:drop-shadow(0 0 10px var(--rc))"/></svg>' +
-      '<div class="in" role="timer"><span class="sec" data-rtl="' + rn.id + '">' + (ph === 'count3' ? Math.max(1, Math.ceil(rem - 0.001)) : clock(rem)) + '</span><span class="lab">' + (ph === 'count3' ? 'Prêt ?' : ph === 'ready' ? (s.dur >= 60 ? 'minute' : 'secondes') : (rn.t && rn.t.paused ? 'en pause' : 'il reste')) + '</span></div></div>';
+    var prep = ph === 'prep';
+    var ring = done ? '' : '<div class="ring ' + (prep ? 'rest prep' : 'work') + (ph !== 'count3' && rem >= 59.5 ? ' clock' : '') + '"><svg viewBox="0 0 500 500" aria-hidden="true"><circle cx="250" cy="250" r="210" fill="none" stroke="#1E2740" stroke-width="26"/>' +
+      '<circle data-rring="' + rn.id + '" cx="250" cy="250" r="210" fill="none" stroke-width="26" stroke-dasharray="' + RING + '" stroke-dashoffset="' + (RING * (1 - frac)) + '" style="stroke:' + (prep ? 'var(--cyan)' : 'var(--rc)') + ';filter:drop-shadow(0 0 10px ' + (prep ? 'var(--cyan)' : 'var(--rc)') + ')"/></svg>' +
+      '<div class="in" role="timer"><span class="sec" data-rtl="' + rn.id + '">' + (ph === 'count3' || prep ? Math.max(1, Math.ceil(rem - 0.001)) : clock(rem)) + '</span><span class="lab">' + (prep ? (rn.t && rn.t.paused ? 'en pause' : 'En position') : ph === 'count3' ? 'Prêt ?' : ph === 'ready' ? (s.dur >= 60 ? 'minute' : 'secondes') : (rn.t && rn.t.paused ? 'en pause' : 'il reste')) + '</span></div></div>';
     var ctrl = '';
     if (ph === 'ready') {
       ctrl = '<button type="button" class="btn xl green glow" data-act="rtGo">' + icon('play', 22) + ' GO !</button>' +
         '<p class="next" style="margin:0">' + Math.round(total(rn) / 60) + ' min · le site enchaîne les ' + n + ' étapes avec le chrono et des bips</p>';
-    } else if (ph === 'count3' || ph === 'run') {
+    } else if (ph === 'count3' || ph === 'run' || prep) {
       var p = rn.t && rn.t.paused;
       ctrl = '<div class="grid3 rtctl"><button type="button" class="btn2 grey" data-act="rtPrev"' + (rn.i === 0 ? ' disabled' : '') + '>' + icon('skipb', 16) + ' Précédent</button>' +
         '<button type="button" class="btn2 grey" data-act="rtPause">' + icon(p ? 'play' : 'pause', 16) + (p ? ' Reprendre' : ' Pause') + '</button>' +
-        '<button type="button" class="btn2" data-act="rtNext">Suivant ' + icon('skipf', 16) + '</button></div>';
+        '<button type="button" class="btn2" data-act="rtNext">' + (prep ? icon('play', 16) + ' GO !' : 'Suivant ' + icon('skipf', 16)) + '</button></div>';
     } else {
       ctrl = '<button type="button" class="btn2 grey" data-act="rtPrev">' + icon('skipb', 16) + ' Revenir à la dernière étape</button>';
     }
-    var doneBtn = '<button type="button" class="btn xl' + (done ? ' green glow' : ' ghostxl') + '" data-act="' + o.doneAct + '">' + icon('check', 22) + ' ' + esc(o.doneLabel) + '</button>';
+    // (v62) tant que tout n'est pas fini, un bouton qui arrête tout (« Terminer la séance ») est petit, à l'écart, et passe par une confirmation
+    var ask = !done && o.doneAsk;
+    var doneBtn = ask ? '<button type="button" class="btn2 grey rtfin" data-act="' + o.doneAsk + '">' + esc(o.doneLabel) + '</button>' :
+      '<button type="button" class="btn xl' + (done ? ' green glow' : ' ghostxl') + '" data-act="' + o.doneAct + '">' + icon('check', 22) + ' ' + esc(o.doneLabel) + '</button>';
     var nx = rn.steps[rn.i + 1];
     var nextTxt = done ? (o.after || '') : (nx ? 'Ensuite : ' + nx.nom.toLowerCase() + (nx.side ? ' (' + nx.side + ')' : '') : (o.after || ''));
-    var right = ring + ctrl + doneBtn + (nextTxt ? '<p class="next">' + esc(nextTxt) + '</p>' : '');
+    var nextP = nextTxt ? '<p class="next">' + esc(nextTxt) + '</p>' : '';
+    var right = ring + ctrl + (ask ? nextP + doneBtn : doneBtn + nextP);
     return '<div class="main rt' + (done ? ' single' : '') + '">' + hd + (left ? '<div class="left">' + left + '</div>' : '') + '<div class="right">' + right + '</div></div>';
   }
 

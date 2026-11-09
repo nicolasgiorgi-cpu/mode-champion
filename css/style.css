@@ -615,6 +615,9 @@ html.net-busy::before{content:'';position:fixed;top:0;left:0;right:0;height:3px;
 .sidetag{padding:6px 9px;border:1.5px solid var(--rc,var(--green));color:var(--ink);font:700 12px/1 var(--f-hud);letter-spacing:.1em;text-transform:uppercase}
 .btn.xl.ghostxl{background:transparent;color:var(--ink);border:1.5px solid var(--line2);box-shadow:none}
 .rtctl{gap:8px}
+/* (v62) « Terminer la séance » avant la fin du retour au calme : petit, à l'écart des commandes, et il demande confirmation */
+.btn2.rtfin{width:auto;align-self:center;min-height:44px;margin:10px auto 0;padding:0 16px;font-size:12px;color:var(--muted)}
+.ring.prep .lab{color:var(--cyan)}
 .rtctl .btn2{min-height:52px;padding:0 6px;font-size:12px}
 .rtctl .btn2[disabled]{opacity:.35}
 .backbtn{width:auto;padding:0 10px;gap:6px;display:inline-flex;align-items:center;font:700 11px/1 var(--f-hud);letter-spacing:.1em;text-transform:uppercase;color:var(--ink)}
