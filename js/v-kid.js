@@ -232,7 +232,7 @@
     }
     var parcours = stepLi('0', C.REVEIL.nom, 'Échauffement obligatoire', '4 min', '#/echauffement?jour=' + type, true) +
       items.map(function (it, i) { return stepLi(i + 1, it.nom, ui.doseInfo(it.dose) || ('Repos ' + (it.ex.repos || j.repos) + ' s entre les séries'), ui.doseLabel(it.dose), '#/exo/' + it.id + '?jour=' + type, false); }).join('') +
-      stepLi('★', C.CALME.nom, 'Étirements et flamant rose', '3 min', '#/calme?jour=' + type, true);
+      stepLi('★', C.CALME.nom, 'Étirements et flamant rose', '4 min', '#/calme?jour=' + type, true);
     function sw(key, on, t1, t2, act) {
       return '<button type="button" class="switch" role="switch" aria-checked="' + on + '" data-act="' + act + '" data-k="' + key + '"><span><span class="t1" style="display:block">' + t1 + '</span>' + (t2 ? '<span class="t2" style="display:block">' + t2 + '</span>' : '') + '</span><span class="k"></span></button>';
     }

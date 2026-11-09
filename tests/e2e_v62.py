@@ -98,8 +98,12 @@ with sync_playwright() as p:
     ff(pg, 20500)
     n3 = h1(pg)
     check('étape suivante : de nouveau la mise en place', prep(pg) and n3 != n2, n3)
+    # (relecture v62) « GO ! » touché pendant une pause de la mise en place : le chrono part quand même
+    pg.click('[data-act="rtPause"]'); pg.wait_for_timeout(200)
     pg.click('[data-act="rtNext"]'); pg.wait_for_timeout(250)
     check('« GO ! » : le chrono part sans attendre, sur la même étape', not prep(pg) and lab(pg) == 'il reste' and h1(pg) == n3, lab(pg) + ' | ' + h1(pg))
+    s0 = sec(pg); ff(pg, 3000)
+    check('« GO ! » touché en pause : le chrono tourne vraiment', sec(pg) != s0 and lab(pg) == 'il reste', s0 + ' → ' + sec(pg))
     cote1 = pg.inner_text('.run .sidetag').lower() if pg.query_selector('.run .sidetag') else ''
     ff(pg, 15500)
     cote2 = pg.inner_text('.run .sidetag').lower() if pg.query_selector('.run .sidetag') else ''

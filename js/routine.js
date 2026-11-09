@@ -100,8 +100,8 @@ MC.routine = (function () {
   }
   function next(rn, auto) {
     if (rn.phase === 'ready') { if (rn.i < rn.steps.length - 1) { rn.i++; rn.onChange(); } return; }
-    var paused = !auto && rn.t && rn.t.paused;
-    // pendant la mise en place, « GO ! » lance le chrono de l'étape sans attendre
+    // pendant la mise en place, « GO ! » lance le chrono de l'étape sans attendre, même en pause (le bouton dit « GO ! »)
+    var paused = !auto && rn.phase !== 'prep' && rn.t && rn.t.paused;
     if (rn.phase === 'prep') startStep(rn, rn.i);
     else if (rn.i + 1 >= rn.steps.length) { rn.phase = 'done'; rn.t = null; rn.onChange(); return; }
     else enter(rn, rn.i + 1);

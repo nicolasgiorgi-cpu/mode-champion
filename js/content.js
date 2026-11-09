@@ -227,7 +227,7 @@ window.MC = window.MC || {};
     ]
   };
   var CALME = {
-    nom: 'Le Retour au calme', duree: 180,
+    nom: 'Le Retour au calme', duree: 240,   // (v62) 3 min d'étapes + le temps de se mettre en position avant chacune
     intro: 'Sans forcer : on étire un peu, on respire, on tient son équilibre.',
     items: [
       { id: 'c_respi', nom: 'Respiration du ballon', dose: '5 respirations', dur: 50, detail: 'Assis, inspire par le nez 4 s (le ventre gonfle comme un ballon), souffle par la bouche 6 s.', anim: 'respiration', video: '2PcCmxEW5WA' },
