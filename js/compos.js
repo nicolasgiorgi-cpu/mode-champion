@@ -967,8 +967,14 @@ MC.compos = (function () {
     var L = [];
     if (o.titre) L.push('*' + o.titre + '*' + (o.quand ? ' · ' + o.quand : ''));
     L.push(P === 'ateliers' ? 'Groupes des ateliers' : (P === 'matchs' ? 'Matchs' : 'Compo') + ' · jeu à ' + fmt(r));
-    ((c && c.equipes) || []).forEach(function (t) {
-      var js = t.joueurs.filter(ici), nomT = nomEq(t);
+    // (relecture v63) avants / arrières à part, ou plusieurs matchs : un intertitre quand on change de bloc, sinon deux groupes
+    // d'ateliers « A+B+C » ne se distinguent pas dans le texte
+    var eqs = (c && c.equipes) || [], last = null;
+    var nbM = eqs.map(blocDe).filter(function (b, i, a) { return /^m\d$/.test(b) && a.indexOf(b) === i; }).length;
+    eqs.forEach(function (t) {
+      var js = t.joueurs.filter(ici), nomT = nomEq(t), bk = blocDe(t);
+      if ((bk === 'av' || bk === 'ar' || (nbM > 1 && /^m\d$/.test(bk))) && bk !== last) { L.push(''); L.push('— ' + nomBloc(bk) + ' —'); }
+      last = bk;
       L.push('');
       L.push('*' + (/^(Groupe|Équipe)/.test(nomT) ? '' : P === 'ateliers' ? 'Groupe ' : 'Équipe ') + nomT + '* (' + js.length + ')');
       if (!js.length) { L.push('—'); return; }

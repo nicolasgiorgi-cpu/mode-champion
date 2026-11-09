@@ -30,6 +30,18 @@ assert.strictEqual(t, ['*Entraînement*', 'Groupes des ateliers', '', '*Groupe A
 t = K.texteCompo({ reglages: { partie: 'matchs', format: 10 }, equipes: [{ id: 'E1', nom: 'Équipe 1', joueurs: [j('Léo', 'pilier')] }] }, F, {});
 assert.strictEqual(t, ['Matchs · jeu à 10', '', '*Équipe 1* (1)', 'Pilier : Léo'].join('\n'));
 
+// ----- (relecture v63) ateliers par niveau, avants et arrières séparés : deux « A+B » qu'on distingue par un intertitre -----
+t = K.texteCompo({ reglages: { partie: 'ateliers', format: 10, separer: true }, equipes: [
+  { id: 'AV1', nom: 'A+B', bloc: 'av', joueurs: [j('Léo', 'pilier')] }, { id: 'AR1', nom: 'A+B', bloc: 'ar', joueurs: [j('Nina', 'demi-de-melee')] }] }, F, {});
+assert.strictEqual(t, ['Groupes des ateliers', '', '— Avants —', '', '*Groupe A+B* (1)', 'Léo', '', '— Arrières —', '', '*Groupe A+B* (1)', 'Nina'].join('\n'));
+// ----- deux matchs (anciennes compos à 4 équipes) : qui joue contre qui ; un seul match : pas d'intertitre -----
+t = K.texteCompo({ reglages: { partie: 'matchs', format: 5 }, equipes: [
+  { id: 'E1', nom: 'Équipe 1', bloc: 'm1', joueurs: [j('Léo')] }, { id: 'E2', nom: 'Équipe 2', bloc: 'm1', joueurs: [j('Tom')] },
+  { id: 'E3', nom: 'Équipe 3', bloc: 'm2', joueurs: [j('Lou')] }, { id: 'E4', nom: 'Équipe 4', bloc: 'm2', joueurs: [j('Zoé')] }] }, F, {});
+assert.ok(t.indexOf('— Match 1 —') > 0 && t.indexOf('— Match 2 —') > t.indexOf('*Équipe 2*'), t);
+t = K.texteCompo({ reglages: { partie: 'matchs', format: 10 }, equipes: [{ id: 'E1', nom: 'Équipe 1', bloc: 'm1', joueurs: [] }, { id: 'E2', nom: 'Équipe 2', bloc: 'm1', joueurs: [] }] }, F, {});
+assert.ok(t.indexOf('Match 1') < 0, t);
+
 // ----- un joueur inconnu, une compo vide : pas d'erreur -----
 assert.strictEqual(K.texteCompo({ reglages: {}, equipes: [{ id: 'A1', joueurs: [j('zz')] }] }, F), ['Compo · jeu à 5', '', '*Équipe A1* (1)', '?'].join('\n'));
 assert.strictEqual(K.texteCompo(null, F), 'Compo · jeu à 5');
