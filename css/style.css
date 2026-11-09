@@ -1080,6 +1080,16 @@ body:has(.cdock .cselp) .toast{top:calc(74px + var(--safe-t) + var(--vvt));botto
 .clegend{margin:-12px 0 0;display:flex;flex-wrap:wrap;align-items:center;gap:4px;color:var(--dim)}
 .clegend{gap:4px 12px}
 .clegend span{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+/* (v63) « Légende et gestes » : repliés sous une ligne (ouverts la toute première fois) ; le brouillon sur une ligne */
+.caide{min-width:0;margin:-8px 0}
+.caide>summary{list-style:none;display:inline-flex;align-items:center;gap:6px;min-height:44px;cursor:pointer;font-size:13px;color:var(--soft)}
+.caide>summary::-webkit-details-marker{display:none}
+.caide>summary svg{flex:none}
+.caide[open] .caide-i{transform:rotate(180deg)}
+.caide>p{margin:0 0 8px}
+.caide>.clegend{margin:0 0 4px}
+.cstate.draft{padding:8px 12px;font-size:13px;align-items:center}
+.ctxt{width:100%;min-height:260px;font:13px/1.45 var(--f-mono,monospace);white-space:pre-wrap;resize:vertical}
 .ctl{gap:6px;margin-right:auto}
 /* le tableau, téléphone d'abord : les niveaux l'un sous l'autre ; dans un niveau, une colonne par version (V1 | V2) ;
    avec une seule version, les équipes du niveau côte à côte (2 par ligne au téléphone) */

@@ -99,7 +99,8 @@ with sync_playwright() as p:
     # ----- 5. une compo publiée : en lecture, « Modifier la compo » d'un geste -----
     pg.click('.modal .mbtns button[data-i="0"]'); pg.wait_for_timeout(1800)
     check('publiée : en lecture (pas de « Poste par poste », pas d\'options), « Modifier la compo »', pg.query_selector('[data-act="cEditer"]') is not None and pg.query_selector('[data-act="cParPoste"]') is None and pg.query_selector('.cbopt') is None and pg.query_selector('[data-act="cUndo"]') is None)
-    check('publiée : le texte le dit', 'Modifier la compo' in ev("document.querySelector('.cstate').textContent"))
+    # (v63, textes épurés) le bandeau ne répète plus « Pour ajuster… : Modifier la compo » : le bouton est juste dessous
+    check('publiée : le bandeau nomme l\'auteur, le bouton « Modifier la compo » juste dessous', 'Compo de ' in ev("document.querySelector('.cstate').textContent") and ev("(() => { const s = document.querySelector('.cstate').getBoundingClientRect(), b = document.querySelector('[data-act=cEditer]').getBoundingClientRect(); return b.top >= s.bottom && b.top - s.bottom < 60; })()"))
     j = ev("document.querySelector('.ccol:not(.banc) .cpj:not(.gone)').getAttribute('data-id')")
     pg.click('.ccol .cpj[data-id="%s"]' % j); pg.wait_for_timeout(400)
     check('publiée : toucher un joueur montre sa fiche, sans le déplacer', pg.query_selector('.cdock') is not None and pg.query_selector('[data-act="cMove"]') is None)

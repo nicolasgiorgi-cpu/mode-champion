@@ -437,11 +437,11 @@ window.MC = window.MC || {};
     var pres = presentsOf(C, e), sr = (e.sansReponse || []).filter(function (id) { return C.actifs[id] && pres.indexOf(id) < 0; }).length;
     var ab = (e.absents || []).filter(function (id) { return C.actifs[id]; }).length;
     var presCard = '<a class="li cpres-card" href="#/educ/evt/' + esc(e.id) + '/presents"><span class="cbig">' + pres.length + '</span><span class="grow"><span class="t1">Les présents</span><span class="t2">' +
-      (e.source === 'spond' ? 'D\'après Spond' + (ab ? ' · ' + ab + ' absent' + (ab > 1 ? 's' : '') : '') + (sr ? ' · ' + sr + ' sans réponse' : '') + ' · toucher pour corriger' : 'Cochés à la main · toucher pour corriger') + '</span></span>' + icon('right', 16) + '</a>';
+      (e.source === 'spond' ? ([ab ? ab + ' absent' + (ab > 1 ? 's' : '') : '', sr ? sr + ' sans réponse' : ''].filter(Boolean).join(' · ') || 'D\'après Spond') : 'Cochés à la main') + '</span></span>' + icon('right', 16) + '</a>';
     // (v56, demande de Nicolas) une compo faite passe en premier, plus grande et en surbrillance
     var aCompo = train ? K.PARTIES.some(function (x) { return compoOf(C.cd, e.id, x) || (!past && app.lsGet(draftKey(e.id, x))); }) : e.sorte === 'plateau' && (!!c || (!past && !!app.lsGet(draftKey(e.id))));
     var compoBlock;
-    if (train) compoBlock = partCard(C, e, 'ateliers', 1, past) + partCard(C, e, 'matchs', 2, past) + '<p class="small" style="margin:0">D\'abord les groupes d\'ateliers, ensuite les matchs. Un éduc publie ; le jour de l\'entraînement, tous les éducs peuvent corriger.</p>';
+    if (train) compoBlock = partCard(C, e, 'ateliers', 1, past) + partCard(C, e, 'matchs', 2, past);
     else if (e.sorte !== 'plateau') compoBlock = '<p class="small" style="margin:0">C\'est un plateau ou un entraînement ?</p><div class="grid2"><button type="button" class="btn2 grey" data-act="eSorte" data-v="plateau">C\'est un plateau</button><button type="button" class="btn2 grey" data-act="eSorte" data-v="entrainement">Un entraînement</button></div>';
     else if (c && c.statut === 'vote') {
       var mv = c.votes && c.votes[C.moi.id];
@@ -462,16 +462,15 @@ window.MC = window.MC || {};
         if (lastP && lastP.reglages && lastP.reglages.format && !(fmt === 10 && (!leP || jour(leP) < '2026-12-01'))) fmt = lastP.reglages.format;
         var sug = K.suggestNb(pres, C.F, fmt);
         var parts = ['A', 'B', 'C'].filter(function (n) { return sug[n]; }).map(function (n, i) { return sug[n] + (i ? ' ' : (sug[n] > 1 ? ' équipes ' : ' équipe ')) + n; });
-        if (parts.length) conseil = '<p class="small" style="margin:0">' + nb + ' présents, jeu à ' + fmt + '. Conseillé : ' + parts.join(', ') + '. Une proposition en un geste, ou 2 versions côte à côte à soumettre au vote des éducs.</p>';
+        if (parts.length) conseil = '<p class="small" style="margin:0">Jeu à ' + fmt + '. Conseillé : ' + parts.join(', ') + '.</p>';
       }
-      compoBlock = conseil + '<a class="btn" href="#/educ/compo/' + esc(e.id) + '">' + icon('swap', 18) + (dr ? ' Reprendre ma compo en cours' : ' Préparer la compo') + '</a>' +
-        '<p class="small" style="margin:0">Un éduc publie ; les autres font une contre-proposition s\'ils ne sont pas d\'accord.</p>';
+      compoBlock = conseil + '<a class="btn" href="#/educ/compo/' + esc(e.id) + '">' + icon('swap', 18) + (dr ? ' Reprendre ma compo en cours' : ' Préparer la compo') + '</a>';
     }
     var pendant = MC.pendantSeance ? MC.pendantSeance(C.g, e, pres, train) : '';
     var secCompo = '<section class="sec"><h2 class="h2">' + (train ? 'Les groupes' : 'La compo') + '</h2>' + compoBlock + '</section>';
     return '<main class="screen">' + MC.educBar(C.g, e.titre, listeDe(e), listeNom(e)) +
       '<div class="head"><span class="kicker" style="color:' + (train ? 'var(--cyan)' : 'var(--gold)') + '">' + esc(quand(e)) + (e.lieu ? ' · ' + esc(e.lieu) : '') + '</span><h1 class="big sm">' + esc(e.titre) + '</h1>' +
-      '<p class="small" style="margin:0">' + (e.source === 'spond' ? 'Depuis Spond' + (e.annule ? ' · <b style="color:var(--red)">annulé dans Spond</b>' : '') : 'Ajouté à la main par ' + esc(e.parQui || 'un éduc')) + '</p></div>' +
+      (e.source === 'spond' ? (e.annule ? '<p class="small" style="margin:0"><b style="color:var(--red)">Annulé dans Spond</b></p>' : '') : '<p class="small" style="margin:0">Ajouté à la main par ' + esc(e.parQui || 'un éduc') + '</p>') + '</div>' +
       (aCompo ? secCompo + presCard : presCard + secCompo) +
       pendant +
       (train ? '<button type="button" class="lnk" data-act="eSorte" data-v="plateau" style="align-self:flex-start">C\'est en fait un plateau</button>' : '') +
@@ -530,13 +529,13 @@ window.MC = window.MC || {};
     var inc = (e.inconnus || []);
     return '<main class="screen">' + MC.educBar(C.g, 'Les présents', '#/educ/evt/' + e.id, e.titre) +
       '<div class="head"><span class="kicker" style="color:var(--gold)">' + esc(quand(e)) + (e.lieu ? ' · ' + esc(e.lieu) : '') + '</span><h1 class="big sm">' + esc(e.titre) + '</h1>' +
-      '<p class="small" style="margin:0">' + (e.source === 'spond' ? 'Depuis Spond' + (e.annule ? ' · <b style="color:var(--red)">annulé dans Spond</b>' : '') : 'Ajouté à la main par ' + esc(e.parQui || 'un éduc')) + '</p></div>' +
+      (e.source === 'spond' ? (e.annule ? '<p class="small" style="margin:0"><b style="color:var(--red)">Annulé dans Spond</b></p>' : '') : '<p class="small" style="margin:0">Ajouté à la main par ' + esc(e.parQui || 'un éduc') + '</p>') + '</div>' +
       '<section class="sec"><div class="between"><h2 class="h2">Présents</h2><span class="hud" style="color:var(--green)">' + groups.oui.length + '</span></div>' +
-      '<p class="small" style="margin:0">' + (e.source === 'spond' ? 'D\'après les réponses Spond. Touchez un prénom pour corriger (venu sans répondre, forfait de dernière minute) : la correction reste après chaque synchro.' : 'Touchez les prénoms des enfants présents.') + '</p>' +
+      '<p class="small" style="margin:0">' + (e.source === 'spond' ? 'D\'après Spond. Touchez un prénom pour corriger.' : 'Touchez les présents.') + '</p>' +
       '<div class="cop-list">' + groups.oui.map(chip).join('') + '</div>' +
       (groups.nsp.length ? '<h3 class="mlab" style="margin-top:6px">Pas de réponse (' + groups.nsp.length + ')</h3><div class="cop-list">' + groups.nsp.map(chip).join('') + '</div>' : '') +
       '<details' + (e.source !== 'spond' ? ' open' : '') + '><summary class="mlab" style="cursor:pointer;margin-top:6px">' + (e.source === 'spond' ? 'Absents ou pas inscrits' : 'Les autres') + ' (' + groups.non.length + ')</summary><div class="cop-list" style="margin-top:8px">' + groups.non.map(chip).join('') + '</div></details>' +
-      (inc.length ? '<p class="small" style="margin:0">Aussi inscrits sur Spond, sans joueur dans l\'appli : ' + inc.map(esc).join(', ') + ' (adultes, ou enfants à relier dans leur fiche terrain).</p>' : '') +
+      (inc.length ? '<p class="small" style="margin:0">Sur Spond, pas dans l\'appli : ' + inc.map(esc).join(', ') + '.</p>' : '') +
       '</section>' +
       '<a class="btn2" href="#/educ/evt/' + esc(e.id) + '">' + icon('left', 16) + ' ' + (e.sorte === 'entrainement' ? 'Les groupes et la séance' : 'La compo') + '</a>' +
       (nchg ? '<div class="cp-bar cdock"><span class="grow small" style="color:var(--soft)">' + nchg + ' changement' + (nchg > 1 ? 's' : '') + '</span><button type="button" class="btn2 sm grey" data-act="prCancel">Annuler</button><button type="button" class="btn sm" data-act="prSave">' + icon('check', 16) + ' Enregistrer</button></div>' : '') +
@@ -552,7 +551,7 @@ window.MC = window.MC || {};
         nn + ' groupe' + (nn > 1 ? 's ' : ' ') + m + (r.separer ? ', avants / arrières à part' : '') + ' (' + c.equipes.map(function (t) { return t.joueurs.length; }).join(', ') + ')');
       pill = '<span class="pill" style="--pc:var(--green)">Publiés</span>';
     } else if (dr) { t2 = 'Brouillon en cours'; pill = '<span class="pill" style="--pc:var(--gold)">Brouillon</span>'; }
-    else t2 = past ? 'Pas faits' : P === 'ateliers' ? 'Groupes par niveau, équilibrés ou avec un groupe A fort, avants et arrières ensemble ou à part' : 'Deux équipes équilibrées, jeu à 10 avec postes';   // (v57)
+    else t2 = past ? 'Pas faits' : 'À préparer';   // (v57)
     return '<a class="li cpart' + (c ? ' ok ccompo' + (c.statut === 'vote' ? ' vote' : '') : '') + '" href="' + lienCompo(esc(e.id), P) + '"><span class="cpnum">' + (c ? icon('check', 14) : n) + '</span><span class="grow"><span class="t1">' + NOM_PARTIE[P] + '</span><span class="t2">' + t2 + '</span></span>' + pill + icon('right', 16) + '</a>' +
       (c && c.statut === 'publiee' && canEdit(C, c) ? '<button type="button" class="btn2 sm cpart-mod" data-act="eEditer" data-id="' + esc(e.id) + '" data-p="' + P + '">' + icon('edit', 14) + ' Modifier ' + (P === 'matchs' ? 'les matchs' : 'les ateliers') + '</button>' : '');   // (v58)
   }
@@ -762,8 +761,8 @@ window.MC = window.MC || {};
   function baseHtml(C, e, reg, attr) {
     var np = presentsOf(C, e).length, nt = tousOf(C).length, tous = baseTous(reg);
     return '<section class="sec"><h2 class="h2">Avec qui ?</h2><div class="cstyles c2">' + [
-      ['presents', 'Les présents', np + ' présent' + (np > 1 ? 's' : '') + (e.source === 'spond' ? ' d\'après Spond' : '') + '.'],
-      ['tous', 'Tout le groupe', nt + ' enfants. Les absents et ceux qui n\'ont pas répondu sont marqués dans la compo.']
+      ['presents', 'Les présents', np + ' présent' + (np > 1 ? 's' : '')],
+      ['tous', 'Tout le groupe', nt + ' enfants, absents marqués']
     ].map(function (o) {
       var on = (o[0] === 'tous') === tous;
       return '<button type="button" class="opt cstyle' + (on ? ' on' : '') + '" aria-pressed="' + on + '" ' + attr + '="' + o[0] + '"><b>' + o[1] + '</b><small>' + o[2] + '</small></button>';
@@ -782,7 +781,6 @@ window.MC = window.MC || {};
     var reg = regOf(C, e), ids = idsBase(C, e, reg), cnt = { A: 0, B: 0, C: 0, '': 0 };
     ids.forEach(function (id) { cnt[(C.F[id] || {}).niveau || '']++; });
     var af = K.optsDe(reg).orga === 'aforte' ? K.nbAForte(reg.nb) : null, tot = af ? af.A + af.B : reg.nb.A + reg.nb.B + reg.nb.C, sug = K.suggestNb(ids, C.F, reg.format);
-    var per = tot ? Math.round(ids.length / tot * 10) / 10 : 0;
     var noLv = ids.filter(function (id) { return !(C.F[id] || {}).niveau; });
     var ok = tot && !ecartTailles(ids, C.F, reg);   // (v49) le total des joueurs par équipe = les présents
     return '<main class="screen">' + MC.educBar(C.g, 'Compo · ' + e.titre, '#/educ/evt/' + e.id, e.titre) +
@@ -790,10 +788,10 @@ window.MC = window.MC || {};
       (ids.length < 2 && !(reg.format === 10 && tousOf(C).length >= 2) ? '<div class="empty">Cochez d\'abord les présents sur la page de l\'événement.</div><a class="btn2" href="#/educ/evt/' + esc(e.id) + '">Les présents</a></main>' :
       '<section class="sec"><h2 class="h2">Le format</h2><div class="grid2">' + K.FORMATS.map(function (f) {
         return '<button type="button" class="opt' + (reg.format === f ? ' on' : '') + '" aria-pressed="' + (reg.format === f) + '" data-act="cFmt" data-v="' + f + '">Jeu à ' + f + '</button>';
-      }).join('') + '</div><p class="small" style="margin:0">' + (reg.format === 10 ? 'Jeu à 10 : chaque joueur a son poste du plateau, remplaçants compris, par défaut celui de sa fiche (mêlée 3 + 2, demi de mêlée, ouvreur, 1 centre, 2 ailiers).' : 'Jeu à 5 : pas de postes dans la compo ; l\'appli range quand même chaque équipe en avants et arrières, d\'après le poste principal de leur fiche.') + '</p></section>' +
+      }).join('') + '</div></section>' +
       (reg.format === 10 ? baseHtml(C, e, reg, 'data-act="cBase" data-v') : '') +
       '<section class="sec"><h2 class="h2">Équipes par niveau</h2>' + stepperHtml('A', reg, cnt, sug, 'data-act="cNb" data-n') + stepperHtml('B', reg, cnt, sug, 'data-act="cNb" data-n') + stepperHtml('C', reg, cnt, sug, 'data-act="cNb" data-n') +
-      '<p class="small" style="margin:0">' + tot + ' équipe' + (tot > 1 ? 's' : '') + (tot ? ', environ ' + virg(per) + ' joueurs par équipe' : '') + '. Un niveau sans équipe joue dans le niveau voisin.</p>' +
+      (!af && ['A', 'B', 'C'].some(function (n) { return cnt[n] && !reg.nb[n]; }) ? '<p class="small" style="margin:0">Un niveau sans équipe joue dans le niveau voisin.</p>' : '') +
       (noLv.length ? '<p class="small" style="margin:0;color:var(--orange)">Sans niveau (placés en B en attendant) : ' + noLv.map(function (id) { return esc(nom(C, id)); }).join(', ') + '. <a href="#/educ/joueurs">Fiche terrain</a></p>' : '') + '</section>' +
       taillesHtml(ids, C.F, reg, 'data-act="cTail" data-t', 'data-act="cTailEq"') +   // (v56) juste sous le nombre d'équipes
       graphePresents(C, ids, 'plateau', baseTous(reg)) +
@@ -803,7 +801,7 @@ window.MC = window.MC || {};
       '<button type="button" class="btn2" data-act="cPropose2"' + (ok ? '' : ' disabled') + '>' + icon('swap', 16) + ' Proposer 2 versions côte à côte</button>' +
       (reg.format === 10 ? '<button type="button" class="btn2" data-act="cZero10"' + (tot ? '' : ' disabled') + '>' + icon('board', 16) + ' Poste par poste, à la main</button>' :
         '<button type="button" class="btn2 grey" data-act="cZero"' + (tot ? '' : ' disabled') + '>Partir de zéro</button>') +
-      '<p class="small" style="margin:0">' + (reg.format === 10 ? '« Poste par poste » : les piliers, puis le talonneur, les 3es lignes… ; pour chaque poste, vous prenez autant d\'enfants que vous voulez dans chaque équipe. ' : '') + 'Avec 2 versions, vous les construisez côte à côte, puis vous en publiez une ou vous les soumettez au vote des éducs. Tout se déplace ensuite d\'un geste.</p></div></main>');
+      '</div></main>');
   }
   // ---------- réglages d'un entraînement : par niveau ou équilibrés ; ateliers : avants et arrières ensemble ou séparés ----------
   function stepsHtml(C, e, P) {
@@ -814,8 +812,8 @@ window.MC = window.MC || {};
     }).join('') + '</nav>';
   }
   var MODES = {
-    ateliers: { niveau: ['Par niveau', 'Chacun avec son niveau : A, B, C. Un groupe peut réunir deux niveaux voisins quand les effectifs le demandent.'], equilibre: ['Équilibrés', 'Chaque groupe mélange les niveaux : plaquage et avants / arrières équilibrés.'],
-      aforte: ['A forte', 'Un groupe A avec les Confirmés (complété par les meilleurs B), les autres mélangent B et C, équilibrés.'] },   // (v48)
+    ateliers: { niveau: ['Par niveau', 'Chacun avec son niveau : A, B, C.'], equilibre: ['Équilibrés', 'Niveaux mélangés, plaquage et postes équilibrés.'],
+      aforte: ['A forte', 'Un groupe A fort, les autres mélangent B et C.'] },   // (v48)
     matchs: { niveau: ['Par niveau', 'Le match 1 réunit les plus avancés, le dernier les Débutants.'], equilibre: ['Équilibrés', 'Chaque match mélange tous les niveaux.'] }
   };
   function stepGen(k, label, sub, val, min, max, attr) {
@@ -834,17 +832,16 @@ window.MC = window.MC || {};
   function regEntHtml(C, reg, ids, A, e) {
     var at = reg.partie === 'ateliers', M = MODES[reg.partie], co = cotes(C, ids);
     // (v57, demande de Nicolas du 07/11) les matchs : deux équipes équilibrées avec tout le monde, et « Avec qui ? »
-    if (!at) return '<section class="sec"><h2 class="h2">Les équipes</h2><p class="small" style="margin:0">Deux équipes équilibrées (niveaux, plaquage, postes) : Équipe 1 contre Équipe 2, environ ' + par(ids.length, 2) + ' par équipe. ' +
-      'Jeu à 10 : chacun a son poste du match, remplaçants compris, par défaut celui de sa fiche ; touchez un joueur pour lui en donner un autre, juste pour ce match.</p></section>' +
+    if (!at) return '<section class="sec"><h2 class="h2">Les équipes</h2><p class="small" style="margin:0">Deux équipes équilibrées : Équipe 1 contre Équipe 2, environ ' + par(ids.length, 2) + ' par équipe. Jeu à 10 : chacun a son poste du match.</p></section>' +
       baseHtml(C, e, reg, A.base);
     var html = '<section class="sec"><h2 class="h2">' + (at ? 'Les groupes' : 'Les matchs') + '</h2><div class="cstyles' + (at ? '' : ' c2') + '">' + Object.keys(M).map(function (m) {
       return '<button type="button" class="opt cstyle' + (reg.mode === m ? ' on' : '') + '" aria-pressed="' + (reg.mode === m) + '" ' + A.mode + '="' + m + '"><b>' + M[m][0] + '</b><small>' + M[m][1] + '</small></button>';
     }).join('') + '</div></section>';
-    if (at) html += '<section class="sec"><h2 class="h2">Avants et arrières</h2><div class="cstyles c2">' + [['0', 'Ensemble', 'Tout le monde dans les mêmes groupes.'], ['1', 'Séparés', 'Des groupes d\'avants et des groupes d\'arrières, pour des ateliers à part.']].map(function (o) {
+    if (at) html += '<section class="sec"><h2 class="h2">Avants et arrières</h2><div class="cstyles c2">' + [['0', 'Ensemble', 'Les mêmes groupes pour tous.'], ['1', 'Séparés', 'Des groupes d\'avants, des groupes d\'arrières.']].map(function (o) {
       var on = (reg.separer ? '1' : '0') === o[0];
       return '<button type="button" class="opt cstyle' + (on ? ' on' : '') + '" aria-pressed="' + on + '" ' + A.sep + '="' + o[0] + '"><b>' + o[1] + '</b><small>' + o[2] + '</small></button>';
     }).join('') + '</div><p class="small" style="margin:0">' + co.av + ' avant' + (co.av > 1 ? 's' : '') + ' · ' + co.ar + ' arrière' + (co.ar > 1 ? 's' : '') + (co.les2 ? ' · dont ' + co.les2 + ' qui jouent les deux' : '') +
-      (co.sans ? ' · <span style="color:var(--orange)">' + co.sans + ' sans poste</span> (placés là où il manque du monde)' : '') + ', d\'après le poste principal de leur fiche.</p></section>';
+      (co.sans ? ' · <span style="color:var(--orange)">' + co.sans + ' sans poste</span>' : '') + '</p></section>';
     html += '<section class="sec"><h2 class="h2">Combien ?</h2>';
     if (!reg.separer) html += stepGen('n', 'Groupes', 'environ ' + par(ids.length, reg.n) + ' par groupe', reg.n, 1, 8, A.n);
     else {
@@ -870,7 +867,7 @@ window.MC = window.MC || {};
         '<button type="button" class="btn2" data-act="cZero10"' + (ids.length < 2 ? ' disabled' : '') + '>' + icon('board', 16) + ' Poste par poste, à la main</button>') +   // (v57) les matchs : plus de 2 versions « par niveau / équilibrés »
       (last ? '<button type="button" class="btn2" data-act="cReprise">' + icon('refresh', 16) + ' Reprendre ' + (at ? 'les groupes' : 'les équipes') + ' du ' + esc(ui.fmtDate(jour(le))) + '</button>' : '') +
       (at ? '<button type="button" class="btn2 grey" data-act="cZero">Partir de zéro</button>' : '') +
-      '<p class="small" style="margin:0">' + (at ? '' : '« Poste par poste » : les piliers, puis le talonneur, les 3es lignes… ; pour chaque poste, vous prenez autant d\'enfants que vous voulez dans chaque équipe. ') + 'Tout se déplace ensuite d\'un geste : touchez un joueur, puis son ' + (at ? 'groupe' : 'équipe') + '. Un éduc publie ; le jour même, tous les éducs peuvent corriger.</p></div></main>');
+      '</div></main>');
   }
   // (v48) la 2e version à côté : par niveau ↔ équilibrés ; A forte ↔ équilibrés
   function autreMode(m) { return m === 'equilibre' ? 'niveau' : 'equilibre'; }
@@ -1172,7 +1169,7 @@ window.MC = window.MC || {};
     // « En attente de réponse » : pas encore répondu sur Spond, à placer si on veut, en attendant
     var atts = vs.map(function (d) { return (o.attente || []).filter(function (id) { return !K.where(d, id) && (d.banc || []).indexOf(id) < 0; }); });
     if (atts.some(function (a) { return a.length; })) {
-      html += '<section class="clevel banc catt-sec"><h3 class="clvh"><span class="cqatt" aria-hidden="true">?</span> En attente de réponse <span class="small">· pas encore répondu sur Spond : vous pouvez les placer en attendant</span></h3><div class="cvcols nv' + nv + '">' + atts.map(function (a, v) {
+      html += '<section class="clevel banc catt-sec"><h3 class="clvh"><span class="cqatt" aria-hidden="true">?</span> En attente de réponse <span class="small">· sur Spond</span></h3><div class="cvcols nv' + nv + '">' + atts.map(function (a, v) {
         return '<div class="cvcol"><section class="cattcol"><ul class="cpl">' + a.map(function (id) { return chip(C, null, { id: id }, v, vs[v], false); }).join('') + '</ul></section></div>';
       }).join('') + '</div></section>';
     }
@@ -1239,12 +1236,12 @@ window.MC = window.MC || {};
     if (communes) K.diff(vs[0], vs[1]).forEach(function (m) { moved[0][m.id] = true; moved[1][m.id] = true; });
     var av = c ? avisOf(C.cd, c.id) : [], avAtt = av.filter(function (a) { return a.statut === 'attente'; });
     var state;
-    if (B.mode === 'draft') state = '<div class="cstate draft">' + icon('edit', 18) + '<span><b>Brouillon</b> : vous seul le voyez. ' + (nv > 1 ? 'Construisez les 2 versions, puis publiez-en une ou soumettez-les au vote des éducs.' : 'Publiez-le quand il vous va.') + '</span></div>';
-    else if (B.mode === 'counter') state = '<div class="cstate counter">' + icon('swap', 18) + '<span><b>Votre contre-proposition</b> sur la compo de ' + esc(c.auteurNom) + ' : déplacez, puis envoyez-la avec un mot d\'explication.</span></div>';
+    if (B.mode === 'draft') state = '<div class="cstate draft">' + icon('edit', 18) + '<span><b>Brouillon</b> · vous seul le voyez' + (nv > 1 ? ' · publiez une version, ou passez au vote' : '') + '</span></div>';
+    else if (B.mode === 'counter') state = '<div class="cstate counter">' + icon('swap', 18) + '<span><b>Votre contre-proposition</b> sur la compo de ' + esc(c.auteurNom) + '</span></div>';
     else if (B.mode === 'vote') state = voteState(C, c);
     else state = '<div class="cstate pub">' + icon('check', 18) + '<span><b>Compo de ' + esc(c.auteurNom) + '</b> · version ' + c.version + (c.justification ? '<br><span class="small" style="color:var(--soft)">« ' + esc(c.justification) + ' »</span>' : '') +
-      (B.mode === 'pub' ? '<br><span class="small" style="color:var(--soft)">' + (c.auteur !== C.moi.id ? 'C\'est le jour J : vous pouvez la modifier (dernière minute). ' : '') + 'Pour ajuster les équipes et les postes : « Modifier la compo ».</span>' : '') +
-      (B.mode === 'edit' ? '<br><span class="small" style="color:var(--gold)">En modification' + (c.auteur !== C.moi.id ? ' (jour J)' : '') + ' : déplacez les joueurs, changez leurs postes, puis « Enregistrer ».</span>' : '') + '</span></div>';
+      (B.mode === 'pub' && c.auteur !== C.moi.id ? '<br><span class="small" style="color:var(--soft)">Jour J : vous pouvez la modifier.</span>' : '') +
+      (B.mode === 'edit' ? '<br><span class="small" style="color:var(--gold)">En modification' + (c.auteur !== C.moi.id ? ' (jour J)' : '') + '</span>' : '') + '</span></div>';
     var avBlock = avAtt.map(function (a) {
       return '<a class="li calert-top" href="#/educ/avis/' + esc(a.id) + '">' + icon('swap', 18, 'style="color:var(--pink);flex:none"') + '<span class="grow"><span class="t1">Contre-proposition de ' + esc(a.auteurNom) + '</span><span class="t2">' + a.changements.length + ' changement' + (a.changements.length > 1 ? 's' : '') + ' · « ' + esc(a.justification.slice(0, 80)) + (a.justification.length > 80 ? '…' : '') + ' »</span></span>' + icon('right', 16) + '</a>';
     }).join('');
@@ -1274,9 +1271,11 @@ window.MC = window.MC || {};
     return '<main class="screen cscreen">' + MC.educBar(C.g, (P ? (P === 'ateliers' ? 'Ateliers' : 'Matchs') : 'Compo') + ' · ' + e.titre, '#/educ/evt/' + e.id, e.titre) +
       '<div class="head"><span class="kicker" style="color:var(--gold)">' + esc(quand(e)) + ' · ' + (ATT.tous ? tousOf(C).length + ' enfants · ' : '') + presents.length + ' présents' + (P ? '' : ' · jeu à ' + fmt) + '</span><h1 class="big sm">' + (P ? NOM_PARTIE[P] : 'La compo') + '</h1></div>' +
       (P ? stepsHtml(C, e, P) : '') + state + topHtml(C, e, c) + avBlock + cmp + spondHtml(C, e) +
-      '<p class="small" style="margin:0">' + (ed ? 'Touchez un joueur, puis son ' + (P === 'ateliers' ? 'groupe' : 'équipe') + ' d\'arrivée (ou un joueur d\'' + (P === 'ateliers' ? 'un autre groupe' : 'une autre équipe') + ' : ils s\'échangent). Pour ' + (P === 'ateliers' ? 'remplir un groupe' : 'composer une équipe') + ', touchez son nom' + (fmt === 10 ? ', une place vide (+) ou « Poste par poste »' : ' ou « + Ajouter des joueurs »') + '.' + (nv > 1 ? ' Chaque version se modifie à part.' : '') : 'Touchez un joueur pour voir sa fiche.') + (communes ? ' <b style="color:var(--yellow)">Entourés</b> : placés autrement d\'une version à l\'autre.' : '') + '</p>' +
       (ed && fmt === 10 && nv === 1 ? '<button type="button" class="btn2" data-act="cParPoste" data-v="0">' + icon('board', 16) + ' Poste par poste</button>' : '') +   // (v57)
-      '<p class="small clegend"><span>' + icon('shieldavg', 12) + ' plaquage moyen</span>' + '<span>' + icon('shieldok', 12) + ' bons plaqueurs</span>' + (vs.every(sansCop) ? '' : '<span>' + icon('heart', 11) + ' avec un copain</span>') + '<span>⇅ hors niveau</span>' + (P ? '' : '<span>' + bouclier(2, 'mini', true) + ' sous le repère de l\'équipe</span>') + (fmt === 10 ? '<span>Postes : barre pleine = principal, pâle = peut jouer</span>' : '<span>Av avants · Ar arrières</span>') + (att.length ? '<span class="clg-att"><span class="cqatt" aria-hidden="true">?</span> pas encore répondu sur Spond</span>' : '') + (sansNiv ? '<span><b class="cfl cq" aria-hidden="true">?</b> niveau à renseigner</span>' : '') + '</p>' +
+      (communes ? '<p class="small" style="margin:0"><b style="color:var(--yellow)">Entourés</b> : placés autrement d\'une version à l\'autre.</p>' : '') +
+      '<details class="caide"' + (aideOuverte() ? ' open' : '') + '><summary>' + icon('info', 16) + '<span>Légende et gestes</span>' + icon('down', 14, 'class="caide-i"') + '</summary>' +
+      '<p class="small" style="margin:0">' + (ed ? 'Touchez un joueur, puis son ' + (P === 'ateliers' ? 'groupe' : 'équipe') + ' d\'arrivée (ou un joueur d\'' + (P === 'ateliers' ? 'un autre groupe' : 'une autre équipe') + ' : ils s\'échangent). Pour ' + (P === 'ateliers' ? 'remplir un groupe' : 'composer une équipe') + ', touchez son nom' + (fmt === 10 ? ', une place vide (+) ou « Poste par poste »' : ' ou « + Ajouter des joueurs »') + '.' + (nv > 1 ? ' Chaque version se modifie à part.' : '') : 'Touchez un joueur pour voir sa fiche.') + '</p>' +
+      '<p class="small clegend"><span>' + icon('shieldavg', 12) + ' plaquage moyen</span>' + '<span>' + icon('shieldok', 12) + ' bons plaqueurs</span>' + (vs.every(sansCop) ? '' : '<span>' + icon('heart', 11) + ' avec un copain</span>') + '<span>⇅ hors niveau</span>' + (P ? '' : '<span>' + bouclier(2, 'mini', true) + ' sous le repère de l\'équipe</span>') + (fmt === 10 ? '<span>Postes : barre pleine = principal, pâle = peut jouer</span>' : '<span>Av avants · Ar arrières</span>') + (att.length ? '<span class="clg-att"><span class="cqatt" aria-hidden="true">?</span> pas encore répondu sur Spond</span>' : '') + (sansNiv ? '<span><b class="cfl cq" aria-hidden="true">?</b> niveau à renseigner</span>' : '') + '</p></details>' +
       vueHtml(vs) + boardHtml(C, { vs: vs, presents: presents, attente: att, moved: moved, ed: ed }) +
       '<section class="sec">' + vs.map(function (d, v) { return alertesHtml(C, d, v, presents, nv, att); }).join('') + '</section>' +
       rsAll + hist + avHist + suite +
@@ -1328,13 +1327,14 @@ window.MC = window.MC || {};
         '<div class="ofoot"><button type="button" class="btn" data-act="cRegen"' + (ok ? '' : ' disabled') + '>' + icon('refresh', 18) + ' Générer une nouvelle compo</button>' +
         '<span class="ogarde">' + aideHtml('o-garder', 'La règle : générer ou garder mes placements') + '<button type="button" class="lnk" data-act="cKeep"' + (gk ? '' : ' disabled') + '>Garder mes placements</button></span></div></details>';
     }
-    var act = '';
+    // (v63) partager la compo publiée en texte (WhatsApp), pour les éducs qui n'ouvrent pas l'appli
+    var act = '', partager = '<button type="button" class="btn2 sm" data-act="cPartager">' + icon('send', 16) + ' Partager</button>';
     if (B.mode === 'draft' && nv === 1) act = '<button type="button" class="btn sm" data-act="cPublish" data-v="0">' + icon('send', 16) + ' Publier</button>';
     else if (B.mode === 'draft') act = '<button type="button" class="btn2 sm" data-act="cPublishWhich">Publier…</button><button type="button" class="btn sm" data-act="cVote">' + icon('podium', 16) + ' Au vote</button>';
     else if (B.mode === 'edit' && B.dirty) act = '<button type="button" class="btn sm" data-act="cSave">' + icon('check', 16) + ' Enregistrer (v' + (c2.version + 1) + ')</button>';
     else if (B.mode === 'edit') act = '<button type="button" class="btn2 sm" data-act="cFinEdit">' + icon('check', 16) + ' Terminer</button>';
-    else if (B.mode === 'pub') act = '<button type="button" class="btn sm" data-act="cEditer">' + icon('edit', 16) + ' Modifier la compo</button>';
-    else if (B.mode === 'view') act = '<button type="button" class="btn sm" data-act="cCounter">' + icon('swap', 16) + ' Proposer des changements</button>';
+    else if (B.mode === 'pub') act = partager + '<button type="button" class="btn sm" data-act="cEditer">' + icon('edit', 16) + ' Modifier' + (P ? '' : ' la compo') + '</button>';
+    else if (B.mode === 'view') act = partager + '<button type="button" class="btn sm" data-act="cCounter">' + icon('swap', 16) + ' Proposer des changements</button>';
     else if (B.mode === 'counter') act = '<button type="button" class="btn sm pink" data-act="cSendCounter"' + (c2 && K.diff(c2, B.vs[0]).length ? '' : ' disabled') + '>' + icon('send', 16) + ' Envoyer à ' + esc(c2 ? c2.auteurNom : '') + '</button>';
     else if (B.mode === 'vote') {
       var mien = (c2.votes || {})[C.moi.id], e2 = C.evts[c2.evenementId];
@@ -1349,7 +1349,10 @@ window.MC = window.MC || {};
     return html;
   }
   // garder le panneau des options ouvert d'un affichage à l'autre
-  document.addEventListener('toggle', function (ev) { var t = ev.target; if (B && t && t.classList && t.classList.contains('cbopt')) B.optOuvert = t.open; }, true);
+  document.addEventListener('toggle', function (ev) { var t = ev.target; if (B && t && t.classList && t.classList.contains('cbopt')) B.optOuvert = t.open; if (t && t.classList && t.classList.contains('caide')) aideO = t.open; }, true);
+  // (v63) « Légende et gestes » : repliés, sauf la toute première fois sur l'appareil (et tant qu'on ne les referme pas)
+  var aideO = null;
+  function aideOuverte() { if (aideO === null) { aideO = !app.lsGet('mc-caide'); if (aideO) app.lsSet('mc-caide', 1); } return aideO; }
   MC.act.cRegen = function () {
     withC(function (C, e) {
       if (!B || !B.reg || ecartTailles(idsBase(C, e, B.reg), C.F, B.reg)) return;
@@ -1559,7 +1562,7 @@ window.MC = window.MC || {};
         }
         var libres = pool.filter(function (id) { return !placeAilleurs(id); }), ailleurs = pool.filter(placeAilleurs);
         var html = groupe('Pas placés', libres) + (!libres.length ? '<p class="small" style="margin:0">Tous les présents sont placés.</p>' : '') + groupe('Dans une autre équipe', ailleurs, true);
-        return '<p class="small" style="margin:0">' + 'Touchez les joueurs à ajouter : la liste reste ouverte.' + ' ' + (t.bloc === 'av' ? 'Les avants' : t.bloc === 'ar' ? 'Les arrières' : t.niveau ? 'Ceux de son niveau' : 'Ceux qui ne sont pas encore placés') + ' d\'abord.</p>' + html;
+        return '<p class="small" style="margin:0">' + 'Touchez les joueurs à ajouter.' + ' ' + (t.bloc === 'av' ? 'Les avants' : t.bloc === 'ar' ? 'Les arrières' : t.niveau ? 'Ceux de son niveau' : 'Ceux qui ne sont pas encore placés') + ' d\'abord.</p>' + html;
       }
       ui.modal({
         title: '<span class="cpk-title"></span>', body: '<div class="cpick"></div>',
@@ -1667,7 +1670,7 @@ window.MC = window.MC || {};
         vivierIds().forEach(function (id) { var pl = place(id); (pl && pl.j.poste && pl.j.poste !== S.p ? ailleurs : ici).push(id); });
         var V = K.vivier(ici, C.F, S.p, ABS), A = K.vivier(ailleurs, C.F, S.p, ABS), nom = NOMP[S.p].toLowerCase();
         var lettres = d().equipes.map(function (t) { return eqCourt(d(), t); });
-        return '<p class="small" style="margin:0">Touchez ' + lettres.map(function (x) { return '« ' + esc(x) + ' »'; }).join(' ou ') + ' pour le mettre dans l\'équipe à ce poste, encore pour l\'enlever. Prenez-en autant que vous voulez, puis OK.</p>' +
+        return '<p class="small" style="margin:0">Touchez ' + lettres.map(function (x) { return '« ' + esc(x) + ' »'; }).join(' ou ') + ' pour le mettre à ce poste, encore pour l\'enlever.</p>' +
           equipesHtml() +
           groupe('princ', esc(NOMP[S.p]) + ' en poste principal', V.princ) + groupe('peut', 'Peuvent jouer ' + esc(nom), V.peut) +
           (!V.princ.length && !V.peut.length ? '<p class="small" style="margin:0">Personne n\'a ce poste dans sa fiche : choisissez parmi les autres.</p>' : '') +
@@ -1922,6 +1925,19 @@ window.MC = window.MC || {};
       app.adultCall('saveCompo', { evenementId: B.evtId, partie: B.partie || '', version: 0, reglages: d.reglages, equipes: d.equipes, banc: d.banc, raisons: d.raisons, justification: r.text }).then(function () { return afterSave(B && B.partie === 'ateliers' ? 'Groupes publiés : place aux matchs ensuite' : 'Compo publiée'); }).catch(onErr);
     });
   };
+  // (v63) la compo publiée en texte : le partage du téléphone (WhatsApp…), sinon copiée
+  MC.act.cPartager = function () {
+    if (!B) return;
+    withC(function (C, e) {
+      var c = compoOf(C.cd, e.id, B.partie); if (!c || c.statut !== 'publiee') return;
+      var text = K.texteCompo(c, C.F, { titre: e.titre, quand: quand(e), absent: function (id) { return horsJeu(id, c); } });
+      function copie() {
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function () { ui.toast('Compo copiée : collez-la dans WhatsApp'); }, montre); else montre();
+      }
+      function montre() { ui.modal({ title: 'La compo en texte', body: '<textarea class="txt ctxt" readonly rows="14" aria-label="La compo en texte">' + esc(text) + '</textarea>', actions: [{ label: 'Fermer', value: null, cls: 'btn2 grey' }] }); }
+      if (navigator.share) navigator.share({ text: text }).catch(function (x) { if (!x || x.name !== 'AbortError') copie(); }); else copie();
+    });
+  };
   MC.act.cPublishWhich = function () {
     if (!B || B.vs.length !== 2) return;
     ui.modal({ title: 'Publier quelle version ?', body: '<p class="lead">Elle devient la compo du plateau ; l\'autre est effacée. Pour laisser choisir les éducs : « Au vote ».</p>',
@@ -2141,7 +2157,7 @@ window.MC = window.MC || {};
     var gNom = T.filtre === 'all' ? 'Tous' : T.filtre === 'none' ? 'Sans niveau' : 'Niveau ' + T.filtre;
     return '<main class="screen">' + MC.educBar(g, 'Enfants · ' + ids.length) +
       '<div class="head"><h1 class="big sm">Fiche terrain</h1>' +
-      '<p class="small tleg"><span><b>A</b> Confirmés · <b>B</b> Débrouillés · <b>C</b> Débutants</span><span><b>⇅</b> Passerelle : peut aussi jouer dans un autre niveau (une ou deux)</span><span>' + bouclier(3) + ' Plaquage (de 0 à 3)</span></p></div>' +
+      '<p class="small tleg"><span><b>A</b> Confirmés · <b>B</b> Débrouillés · <b>C</b> Débutants</span><span><b>⇅</b> Passerelle vers un autre niveau</span><span>' + bouclier(3) + ' Plaquage (de 0 à 3)</span></p></div>' +
       graphePostes(F, parNiv, { cle: 'terrain', resume: gNom + ' · ' + parNiv.length + ' enfant' + (parNiv.length > 1 ? 's' : ''), niv: T.filtre === 'all', simple: true }) +
       '<label class="sr-only" for="tq">Chercher un joueur</label><input id="tq" class="search" type="search" placeholder="Chercher un prénom…" value="' + esc(T.q) + '">' +
       '<div class="tfils"><div class="tfil" role="group" aria-label="Filtrer par niveau">' + fb('all', 'Tous', cnt.all, '', 'tf-w') + (cnt[''] || T.filtre === 'none' ? fb('none', 'Sans niveau', cnt[''], 'var(--orange)', 'tf-w') : '') + fb('A', 'A', cnt.A, K.COUL_NIV.A) + fb('B', 'B', cnt.B, K.COUL_NIV.B) + fb('C', 'C', cnt.C, K.COUL_NIV.C) + '</div>' +

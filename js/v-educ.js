@@ -179,10 +179,10 @@ window.MC = window.MC || {};
     }).join('');
     var nq = queue(evs(), e.id).length, plat = estPlateau(e);
     return '<section class="sec"><h2 class="h2">' + (plat ? 'Après le plateau' : train ? 'Après la séance' : 'Après l\'événement') + '</h2>' +
-      '<a class="li" href="#/educ/skills/evaluer?evt=' + esc(e.id) + '">' + icon(plat ? 'spark' : 'star', 20, 'style="color:var(--gold);flex:none"') + '<span class="grow"><span class="t1">' + (plat ? 'Faire briller des étoiles' : 'Évaluer des Skills') + '</span><span class="t2">' + (nq ? '<b style="color:var(--pink)">' + nq + ' pas encore envoyée' + (nq > 1 ? 's' : '') + '</b> · ' : '') + 'Avec les ' + pres.length + ' présents' + (plat ? ' · elles brillent' : ' · une étoile ou un atelier') + '</span></span>' + icon('right', 16) + '</a>' +
-      '<div class="between" style="margin-top:6px"><span class="mlab" style="margin:0">Missions des présents</span><span class="small">un toucher = +1</span></div>' +
+      '<a class="li" href="#/educ/skills/evaluer?evt=' + esc(e.id) + '">' + icon(plat ? 'spark' : 'star', 20, 'style="color:var(--gold);flex:none"') + '<span class="grow"><span class="t1">' + (plat ? 'Faire briller des étoiles' : 'Évaluer des Skills') + '</span><span class="t2">' + (nq ? '<b style="color:var(--pink)">' + nq + ' pas encore envoyée' + (nq > 1 ? 's' : '') + '</b> · ' : '') + 'Avec les ' + pres.length + ' présents</span></span>' + icon('right', 16) + '</a>' +
+      '<div class="between" style="margin-top:6px"><span class="mlab" style="margin:0">Missions des présents</span></div>' +
       (list ? '<ul class="list">' + list + '</ul>' : '<p class="small" style="margin:0">Aucun présent n\'a de mission principale en cours. Donnez-en une depuis Progrès › Missions ou la fiche d\'un enfant.</p>') +
-      '<button type="button" class="li" data-act="encAutre" data-ev="' + esc(e.id) + '">' + icon('heart', 20, 'style="color:var(--green);flex:none"') + '<span class="grow"><span class="t1">Encourager un autre enfant</span><span class="t2">Un +1 avec un mot, sur sa mission ou autre chose</span></span>' + icon('right', 16) + '</button></section>';
+      '<button type="button" class="li" data-act="encAutre" data-ev="' + esc(e.id) + '">' + icon('heart', 20, 'style="color:var(--green);flex:none"') + '<span class="grow"><span class="t1">Encourager un autre enfant</span></span>' + icon('right', 16) + '</button></section>';
   };
   MC.act.encAutre = function (b) {
     var gr = G(), evId = b.getAttribute('data-ev'), e = evtById(evId), ids = e ? presentsDe(e, gr) : actifs(gr).map(function (p) { return p.joueur.id; });
@@ -412,7 +412,7 @@ window.MC = window.MC || {};
     return '<main class="screen">' + MC.educBar(gr, 'Évaluer', '#/educ/skills', 'Skills') + head + choix +
       (grpHtml ? '<section class="sec"><h2 class="mlab" style="margin:0">Le groupe qui arrive</h2>' + grpHtml + '</section>' : '') +
       '<section class="sec">' + corps + '</section>' + demHtml +
-      '<p class="small" style="margin:0">Les enfants découvrent leurs étoiles après l\'entraînement, quand vous envoyez. Le +1 dit « tu es sur la bonne voie » ; seule une étoile envoyée la donne.</p>' +
+      '<p class="small" style="margin:0">Les enfants voient leurs étoiles quand vous envoyez.</p>' +
       dock + '</main>';
   }
   function dockTxt(n) { return '<b id="ev_n">' + n + '</b> ' + (n > 1 ? 'étoiles prêtes, gardées' : 'étoile prête, gardée') + ' sur le téléphone'; }

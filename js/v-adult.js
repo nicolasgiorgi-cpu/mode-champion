@@ -464,7 +464,7 @@
     if (!mine.length) return '<h2 class="h2">Résultats à confirmer</h2><div class="note">' + icon('info', 20, 'style="color:var(--cyan);flex:none"') + '<span class="small">Ce sont les familles qui confirment les résultats de leur enfant (bilans et défis). Votre enfant est dans le groupe ? Reliez-le à votre profil : vous confirmerez les siens ici.</span></div>' +
       '<button type="button" class="btn2 grey" data-act="myKids">' + icon('user', 16) + ' Choisir mon enfant</button>';
     return '<div class="between"><h2 class="h2">À confirmer · ' + esc(noms) + '</h2><span class="hud" style="color:var(--pink)">' + pending.length + '</span></div>' +
-      (pending.length ? '<p class="small" style="margin:0">Les résultats de ' + esc(noms) + ' : Confirmer ou Refuser (vous pouvez changer d\'avis), puis <b>Enregistrer</b> juste en dessous. Ceux des autres enfants, c\'est leur famille qui les confirme.</p><ul class="list">' + pend + '</ul>' +
+      (pending.length ? '<p class="small" style="margin:0">Confirmer ou Refuser, puis <b>Enregistrer</b>.</p><ul class="list">' + pend + '</ul>' +
         (pending.length > 1 ? '<button type="button" class="btn2 pink" data-act="decAll" data-ids="' + esc(pending.map(function (x) { return x.r.id; }).join(',')) + '">' + icon('check', 16) + ' Tout confirmer (' + pending.length + ')</button>' : '') + decBar() : '<div class="empty">Rien à confirmer pour ' + esc(noms) + '.</div>');
   }
   function paintVestiaire(g) {
@@ -512,7 +512,7 @@
     if (!G.late.length) return '';
     var l = G.late.slice().sort(function (a, b) { return (a._last || '') < (b._last || '') ? -1 : (a._last || '') > (b._last || '') ? 1 : a.joueur.prenom.localeCompare(b.joueur.prenom, 'fr'); });
     return '<details class="rpost relancer" id="relancer"' + (relOuvert ? ' open' : '') + '><summary class="rpost-s">' + icon('clock', 18, 'style="color:var(--orange);flex:none"') +
-      '<span class="grow"><b>À relancer · ' + G.late.length + '</b><small>Rien noté depuis 7 jours, ou jamais connecté : un petit mot à l\'entraînement suffit souvent</small></span>' + icon('down', 16, 'class="rpost-i"') + '</summary>' +
+      '<span class="grow"><b>À relancer · ' + G.late.length + '</b><small>Rien noté depuis 7 jours, ou jamais connecté</small></span>' + icon('down', 16, 'class="rpost-i"') + '</summary>' +
       '<ul class="rel-l">' + l.map(function (p) {
         var t = p._last ? L.daysBetween(p._last, G.today) + ' j sans séance' : (p.joueur.aUnCode ? 'aucune séance' : 'jamais connecté');
         return '<li><a href="#/educ/joueur/' + esc(p.joueur.id) + '?t=prepa"><span class="grow">' + esc(p.joueur.prenom) + '</span><small>' + esc(t) + '</small>' + icon('right', 14) + '</a></li>';

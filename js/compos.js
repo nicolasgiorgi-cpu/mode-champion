@@ -956,6 +956,35 @@ MC.compos = (function () {
   // 'g' (groupes mélangés), 'av' / 'ar' (avants et arrières à part), 'm1', 'm2' (match 1 : Équipe 1 contre Équipe 2 ; match 2 : Équipe 3 contre Équipe 4).
   function blocDe(t) { return (t && (t.bloc || t.niveau)) || ''; }
   function nomEq(t) { return (t && (t.nom || t.id)) || ''; }
+  // (v63) la compo en texte, pour la partager entre éducs (WhatsApp : *gras*). Les prénoms seulement : ni plaquage, ni copains,
+  // ni passerelles. o : { titre, quand, absent(id) → vrai s'il ne vient pas (il sort de son équipe, cité à la fin) }
+  var POSTES_TXT = { pilier: ['Pilier', 'Piliers'], talonneur: ['Talonneur', 'Talonneurs'], 'troisieme-ligne': ['3e ligne', '3es lignes'], 'demi-de-melee': ['9', '9'], ouvreur: ['10', '10'], centre: ['Centre', 'Centres'], ailier: ['Ailier', 'Ailiers'] };
+  function texteCompo(c, F, o) {
+    o = o || {};
+    var r = (c && c.reglages) || {}, P = r.partie || '', f10 = fmt(r) === 10 && P !== 'ateliers', abs = [];
+    function ici(j) { if (o.absent && o.absent(j.id)) { abs.push(j.id); return false; } return true; }
+    function pr(j) { return (F[j.id] || {}).prenom || '?'; }
+    var L = [];
+    if (o.titre) L.push('*' + o.titre + '*' + (o.quand ? ' · ' + o.quand : ''));
+    L.push(P === 'ateliers' ? 'Groupes des ateliers' : (P === 'matchs' ? 'Matchs' : 'Compo') + ' · jeu à ' + fmt(r));
+    ((c && c.equipes) || []).forEach(function (t) {
+      var js = t.joueurs.filter(ici), nomT = nomEq(t);
+      L.push('');
+      L.push('*' + (/^(Groupe|Équipe)/.test(nomT) ? '' : P === 'ateliers' ? 'Groupe ' : 'Équipe ') + nomT + '* (' + js.length + ')');
+      if (!js.length) { L.push('—'); return; }
+      if (!f10) { L.push(js.map(pr).join(', ')); return; }
+      ORDRE.forEach(function (p) {
+        var l = js.filter(function (j) { return j.poste === p; });
+        if (l.length) L.push(POSTES_TXT[p][l.length > 1 ? 1 : 0] + ' : ' + l.map(pr).join(', '));
+      });
+      var sans = js.filter(function (j) { return ORDRE.indexOf(j.poste) < 0; });
+      if (sans.length) L.push('Sans poste : ' + sans.map(pr).join(', '));
+    });
+    var banc = ((c && c.banc) || []).map(function (id) { return { id: id }; }).filter(ici);
+    if (banc.length) { L.push(''); L.push('Pas placés : ' + banc.map(pr).join(', ')); }
+    if (abs.length) { L.push(''); L.push('Absents : ' + abs.map(function (id) { return pr({ id: id }); }).join(', ')); }
+    return L.join('\n');
+  }
   var BLOCS = ['A', 'B', 'C', 'g', 'av', 'ar', 'm1', 'm2', 'm3', 'm4', 'm5', 'm6'];
   function blocsDe(d) {
     var seen = {};
@@ -1241,6 +1270,6 @@ MC.compos = (function () {
     nomPoste: nomPoste, frDate: frDate,
     STYLES: STYLES, AVANTS: AVANTS, BESOIN: BESOIN, postesEquipe: postesEquipe, posteEnPlus: posteEnPlus, eligible: eligible, vivier: vivier, rangVivier: rangVivier, postesDe: postesDe, posteDefaut: posteDefaut, prefDe: prefDe, lienPoste: lienPoste, rang: rang, repartition: repartition, placeLibre: placeLibre, typePoste: typePoste, typeDe: typeDe, sections: sections, ORDRE: ORDRE,
     PARTIES: PARTIES, regEnt: regEnt, proposerEnt: proposerEnt, videEnt: videEnt, reprendre: reprendre, alertesEnt: alertesEnt,
-    blocDe: blocDe, blocsDe: blocsDe, nomBloc: nomBloc, nomEq: nomEq
+    blocDe: blocDe, blocsDe: blocsDe, nomBloc: nomBloc, nomEq: nomEq, texteCompo: texteCompo
   };
 })();
