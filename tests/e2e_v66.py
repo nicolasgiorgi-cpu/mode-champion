@@ -33,6 +33,11 @@ with sync_playwright() as p:
         check('%s : le titre « %s » n\'est pas coupé' % (url, r['titre']), not r['coupe'], r)
         check('%s : « Passer le téléphone » garde le prénom pour le lecteur d\'écran' % url, r['pass'] is None or 'Passer le téléphone' in r['pass'], r)
 
+    # (relecture) les sous-pages de Réglages (Retour vers les réglages) gardent leur titre en taille normale
+    pg.goto(BASE + '#/educ/familles'); pg.wait_for_timeout(900)
+    fs = ev("(() => { const t = document.querySelector('.topbar .tb-title'); return t ? getComputedStyle(t).fontSize : null; })()")
+    check('Réglages › une sous-page : le titre en taille normale (14 px)', fs == '14px', fs)
+
     # ----- 2. la compo : « N à regarder » en haut, qui descend à la liste -----
     pg.goto(BASE + '#/educ/compo/sp-demo-p3'); pg.wait_for_timeout(1200)
     if pg.query_selector('[data-act="cAuto"][aria-expanded="false"]'): pg.click('[data-act="cAuto"]'); pg.wait_for_timeout(500)
@@ -63,6 +68,20 @@ with sync_playwright() as p:
     pg.click('.cselp [data-act="cAbsent"][data-v="1"]'); pg.wait_for_timeout(1200)
     r = ev("(id => { const e = MC.app.S.cache.compos.evenements.find(x => x.id === 'sp-demo-p3'); const c = document.querySelector('.ccol .cpj[data-id=\"' + id + '\"]'); return { present: MC.compos.presents(e).indexOf(id) >= 0, barre: !!(c && c.classList.contains('gone')) }; })('%s')" % j)
     check('« Présent » : de nouveau présent, plus barré', r['present'] and not r['barre'], r)
+    # (relecture) un enfant qui n'a pas répondu sur Spond : pas de « Absent » (le serveur ne retire que des présents), « Présent » oui
+    if pg.query_selector('.cselp [aria-label="Fermer"]'): pg.click('.cselp [aria-label="Fermer"]'); pg.wait_for_timeout(300)   # sinon toucher un autre enfant les échange
+    pg.goto(BASE + '#/educ/compo/sp-demo-p3'); pg.wait_for_timeout(1200)
+    if pg.query_selector('.catt-sec .cpj[data-id]'):
+        a = ev("document.querySelector('.catt-sec .cpj[data-id]').getAttribute('data-id')")
+        pg.click('.catt-sec .cpj[data-id="%s"]' % a); pg.wait_for_timeout(500)
+        check('panneau, sans réponse Spond : pas de « Absent », un « Présent »', pg.query_selector('.cselp [data-act="cAbsent"][data-v="0"]') is None and pg.query_selector('.cselp [data-act="cAbsent"][data-v="1"]') is not None)
+        lab = ev("document.querySelector('.cselp [data-act=cAbsent]').getAttribute('aria-label')")
+        check('panneau : le bouton dit au lecteur d\'écran qui il marque', lab and lab.startswith('Marquer ') and lab.endswith(' présent'), lab)
+        pg.click('.cselp [data-act="cAbsent"][data-v="1"]'); pg.wait_for_timeout(1200)
+        r = ev("(id => { const e = MC.app.S.cache.compos.evenements.find(x => x.id === 'sp-demo-p3'); return MC.compos.presents(e).indexOf(id) >= 0; })('%s')" % a)
+        check('panneau, sans réponse Spond : « Présent » le met dans les présents', r, r)
+    else:
+        check('compo : la section « En attente de réponse » (enfants sans réponse Spond) est là', False)
     check('compo : pas de défilement de côté', noscroll())
 
     # ----- 4. côte à côte par défaut à partir de 900 px ; le choix fait sur l'appareil reste -----

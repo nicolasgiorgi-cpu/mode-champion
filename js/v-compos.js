@@ -1311,7 +1311,7 @@ window.MC = window.MC || {};
       '<p class="small" style="margin:0">' + (ed ? 'Touchez un joueur, puis son ' + (P === 'ateliers' ? 'groupe' : 'équipe') + ' d\'arrivée (ou un joueur d\'' + (P === 'ateliers' ? 'un autre groupe' : 'une autre équipe') + ' : ils s\'échangent). Pour ' + (P === 'ateliers' ? 'remplir un groupe' : 'composer une équipe') + ', touchez son nom' + (fmt === 10 ? ', une place vide (+) ou « Poste par poste »' : ' ou « + Ajouter des joueurs »') + '.' + (nv > 1 ? ' Chaque version se modifie à part.' : '') : 'Touchez un joueur pour voir sa fiche.') + '</p>' +
       '<p class="small clegend"><span>' + icon('shieldavg', 12) + ' plaquage moyen</span>' + '<span>' + icon('shieldok', 12) + ' bons plaqueurs</span>' + (vs.every(sansCop) ? '' : '<span>' + icon('heart', 11) + ' avec un copain</span>') + '<span>⇅ hors niveau</span>' + (P ? '' : '<span>' + bouclier(2, 'mini', true) + ' sous le repère de l\'équipe</span>') + (fmt === 10 ? '<span>Postes : barre pleine = principal, pâle = peut jouer</span>' : '<span>Av avants · Ar arrières</span>') + (att.length ? '<span class="clg-att"><span class="cqatt" aria-hidden="true">?</span> pas encore répondu sur Spond</span>' : '') + (sansNiv ? '<span><b class="cfl cq" aria-hidden="true">?</b> niveau à renseigner</span>' : '') + '</p></details>' +
       vueHtml(vs) + boardHtml(C, { vs: vs, presents: presents, attente: att, moved: moved, ed: ed }) +
-      '<section class="sec" id="calertes">' + vs.map(function (d, v) { return alertesHtml(C, d, v, presents, nv, att); }).join('') + '</section>' +
+      '<section class="sec" id="calertes" tabindex="-1">' + vs.map(function (d, v) { return alertesHtml(C, d, v, presents, nv, att); }).join('') + '</section>' +
       rsAll + hist + avHist + suite +
       (B.mode === 'draft' && nv === 1 ? '<button type="button" class="btn2" data-act="cAddV">' + icon('plus', 16) + ' Ajouter une 2e version à côté</button>' : '') +
       (B.mode === 'draft' ? '<button type="button" class="lnk" data-act="cDiscard" style="align-self:flex-start">Effacer le brouillon</button>' :
@@ -1380,8 +1380,7 @@ window.MC = window.MC || {};
       (nv === 1 && P ? '<button type="button" class="ibtn" data-act="cRegl" data-v="0" aria-label="Réglages : format et groupes" title="Réglages">' + icon('settings', 18) + '</button>' : '') +
       (B.vs[0].reglages.format === 10 ? '<button type="button" class="ibtn" data-act="cPostes" aria-label="Postes d\'après les fiches" title="Postes d\'après les fiches">' + icon('spark', 18) + '</button>' : '') : '';
     // (v66, accord de Nicolas du 10/11) « N à regarder » en haut, qui descend à la liste (elle est tout en bas)
-    var pr0 = presentsOf(C, e), at0 = attenteOf(C, e), nAl = 0;
-    B.vs.forEach(function (d) { nAl += alertesFull(C, d, pr0, at0).length; });
+    var nAl = nv === 1 ? alertesFull(C, B.vs[0], presentsOf(C, e), attenteOf(C, e)).length : 0;
     var areg = nAl ? '<button type="button" class="cnreg" data-act="cVoirAlertes" aria-label="' + nAl + ' à regarder" title="' + nAl + ' à regarder">' + icon('warn', 14) + '<b>' + nAl + '</b><span class="cnreg-t">à regarder</span>' + icon('down', 14) + '</button>' : '';
     if (act || tl || areg) html += '<div class="row cacts ctop">' + (tl || areg ? '<span class="row ctl">' + tl + areg + '</span>' : '') + '<span class="row cact">' + act + '</span></div>';
     return html;
@@ -1391,6 +1390,7 @@ window.MC = window.MC || {};
     s.querySelectorAll('details.calertw').forEach(function (d) { d.open = true; });
     var calme = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
     s.scrollIntoView({ block: 'start', behavior: calme ? 'auto' : 'smooth' });
+    try { s.focus({ preventScroll: true }); } catch (er) { /* rien */ }
   };
   // garder le panneau des options ouvert d'un affichage à l'autre
   document.addEventListener('toggle', function (ev) { var t = ev.target; if (B && t && t.classList && t.classList.contains('cbopt')) B.optOuvert = t.open; if (t && t.classList && t.classList.contains('caide')) aideO = t.open; }, true);
@@ -1439,9 +1439,11 @@ window.MC = window.MC || {};
       // (v66, accord de Nicolas du 10/11) l'absent de dernière minute, sans quitter la compo : la présence de l'événement (comme « Les présents »)
       var evt = C.evts[B.evtId], pres = '';
       if (evt && jour(evt) >= L.today() && B.mode !== 'vote') {
-        var estP = K.presents(evt).indexOf(sel.id) >= 0, enAtt = attenteOf(C, evt).indexOf(sel.id) >= 0;
-        pres = '<span class="row cpres-b">' + (estP || enAtt ? '<button type="button" class="btn2 sm grey" data-act="cAbsent" data-id="' + esc(sel.id) + '" data-v="0">' + icon('x', 14) + ' Absent</button>' : '') +
-          (estP ? '' : '<button type="button" class="btn2 sm grey" data-act="cAbsent" data-id="' + esc(sel.id) + '" data-v="1">' + icon('check', 14) + ' Présent</button>') + '</span>';
+        // (relecture v66) « Absent » seulement pour un présent : le serveur ne retire que des présents (pas un « sans réponse » Spond) ;
+        // « Présent » pour remettre un enfant, sauf s'il serait le seul coché d'un événement fait à la main (tous les autres deviendraient absents)
+        var estP = K.presents(evt).indexOf(sel.id) >= 0, nPres = K.presents(evt).length, nomS = esc(sel.prenom);
+        pres = '<span class="row cpres-b">' + (estP ? '<button type="button" class="btn2 sm grey" data-act="cAbsent" data-id="' + esc(sel.id) + '" data-v="0" aria-label="Marquer ' + nomS + ' absent">' + icon('x', 14) + ' Absent</button>' :
+          evt.source === 'spond' || nPres ? '<button type="button" class="btn2 sm grey" data-act="cAbsent" data-id="' + esc(sel.id) + '" data-v="1" aria-label="Marquer ' + nomS + ' présent">' + icon('check', 14) + ' Présent</button>' : '') + '</span>';
       }
       html += '<div class="cselp">' + info + moves + '<div class="row cselp-f"><a class="lnk" href="#/educ/joueur/' + esc(sel.id) + '" style="min-height:32px">Sa fiche</a>' + pres + '</div></div>';
     }
@@ -1490,17 +1492,19 @@ window.MC = window.MC || {};
   // (v66) marquer absent (ou présent) depuis la compo : enregistré dans les présents de l'événement (action serveur « setEvenement »)
   MC.act.cAbsent = function (b) {
     if (!B) return;
-    var id = b.getAttribute('data-id'), vient = b.getAttribute('data-v') === '1', m = {}, nomJ = (C0() || {})[id];
+    var id = b.getAttribute('data-id'), vient = b.getAttribute('data-v') === '1', m = {}, nomJ = nameOf(id);
     m[id] = vient; b.disabled = true;
     app.adultCall('setEvenement', { id: B.evtId, marques: m }).then(function (r) {
       var l = app.S.cache.compos.evenements;
       for (var i = 0; i < l.length; i++) if (l[i].id === r.evenement.id) l[i] = r.evenement;
       app.lsSet('mc-compos', { tok: app.S.adult.token, data: app.S.cache.compos });
-      ui.toast((nomJ || 'Enregistré') + (vient ? ' : présent' : ' : absent, il ne compte plus dans l\'équipe'));
+      // ce qui compte vraiment pour la compo : « Les présents » → il sort ; « Tout le groupe » → seulement s'il est maintenant absent
+      var hors = false;
+      if (!vient) withC(function (C, e) { var d = B.vs[0]; hors = baseTous(d && d.reglages) ? absentsOf(C, e).indexOf(id) >= 0 : attenteOf(C, e).indexOf(id) < 0; });
       rerenderKeep();
+      ui.toast(nomJ + (vient ? ' : présent' : hors ? ' : absent, il ne compte plus dans l\'équipe' : ' : retiré des présents'));
     }).catch(function (er) { b.disabled = false; ui.toast(er.message, true); });
   };
-  function C0() { var g = app.S.cache.group, cd = app.S.cache.compos; if (!g || !cd) return null; var C = ctxOf(g, cd), o = {}; for (var k in C.F) o[k] = C.F[k].prenom; return o; }
   MC.act.cTeam = function (b) {
     if (!B || !editable()) return;
     var v = Number(b.getAttribute('data-v')) || 0, tid = b.getAttribute('data-t');

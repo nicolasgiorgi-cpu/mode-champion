@@ -22,7 +22,7 @@ def ouvrirAuto(pg):
 with sync_playwright() as p:
     b = p.chromium.launch(); ctx = b.new_context(viewport={'width': W, 'height': H}, is_mobile=W < 700, has_touch=True); pg = ctx.new_page()
     pg.on('pageerror', lambda e: errs.append(str(e)))
-    pg.goto(BASE); pg.evaluate('localStorage.clear()'); pg.reload(); pg.wait_for_timeout(600)
+    pg.goto(BASE); pg.evaluate('localStorage.clear()'); pg.evaluate("localStorage.setItem('mc-ccote', '0')"); pg.reload(); pg.wait_for_timeout(600)   # (v66) côte à côte par défaut dès 900 px : ce parcours vérifie l'affichage « l'une sous l'autre »
     pg.goto(BASE + '#/adultes'); pg.wait_for_timeout(400)
     pg.click('[data-act="adultWho"][data-w="e"]'); pg.wait_for_timeout(300)
     pg.click('[data-act="adultPick"][data-nom="Coach Nico"]'); pg.wait_for_timeout(300)

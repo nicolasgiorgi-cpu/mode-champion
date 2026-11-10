@@ -420,7 +420,7 @@
   function dropGroup() { app.S.cache.group = null; app.lsSet('mc-group', null); }
   function educBar(g, title, back, backLabel) {
     if (back) return ui.topbar({ back: back, backLabel: backLabel, title: title, help: ui.helpLink('educ') });
-    var right = passBtn(mesEnfants(g).map(function (p) { return p.joueur; })) + '<a class="cbtn grey" href="#/educ/reglages" aria-label="Réglages et gestion">' + icon('settings', 20) + '</a>';
+    var right = passBtn(mesEnfants(g).map(function (p) { return p.joueur; })) + '<a class="cbtn grey tb-gear" href="#/educ/reglages" aria-label="Réglages et gestion">' + icon('settings', 20) + '</a>';
     return ui.topbar({ title: title, right: right, help: ui.helpLink('educ') });   // (v66) sans « Éduc · nom · admin », qui coupait le titre
   }
   MC.educBar = educBar;
