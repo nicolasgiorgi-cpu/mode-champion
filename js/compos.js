@@ -964,6 +964,9 @@ MC.compos = (function () {
     var r = (c && c.reglages) || {}, P = r.partie || '', f10 = fmt(r) === 10 && P !== 'ateliers', abs = [];
     function ici(j) { if (o.absent && o.absent(j.id)) { abs.push(j.id); return false; } return true; }
     function pr(j) { return (F[j.id] || {}).prenom || '?'; }
+    // (v63, accord de Nicolas du 10/11) o.marque(id) → vrai si sa présence n'est pas confirmée (pas de réponse Spond, hors Spond) : « (?) »
+    var nMq = 0;
+    function prm(j) { if (o.marque && o.marque(j.id)) { nMq++; return pr(j) + ' (?)'; } return pr(j); }
     var L = [];
     if (o.titre) L.push('*' + o.titre + '*' + (o.quand ? ' · ' + o.quand : ''));
     L.push(P === 'ateliers' ? 'Groupes des ateliers' : (P === 'matchs' ? 'Matchs' : 'Compo') + ' · jeu à ' + fmt(r));
@@ -978,17 +981,18 @@ MC.compos = (function () {
       L.push('');
       L.push('*' + (/^(Groupe|Équipe)/.test(nomT) ? '' : P === 'ateliers' ? 'Groupe ' : 'Équipe ') + nomT + '* (' + js.length + ')');
       if (!js.length) { L.push('—'); return; }
-      if (!f10) { L.push(js.map(pr).join(', ')); return; }
+      if (!f10) { L.push(js.map(prm).join(', ')); return; }
       ORDRE.forEach(function (p) {
         var l = js.filter(function (j) { return j.poste === p; });
-        if (l.length) L.push(POSTES_TXT[p][l.length > 1 ? 1 : 0] + ' : ' + l.map(pr).join(', '));
+        if (l.length) L.push(POSTES_TXT[p][l.length > 1 ? 1 : 0] + ' : ' + l.map(prm).join(', '));
       });
       var sans = js.filter(function (j) { return ORDRE.indexOf(j.poste) < 0; });
-      if (sans.length) L.push('Sans poste : ' + sans.map(pr).join(', '));
+      if (sans.length) L.push('Sans poste : ' + sans.map(prm).join(', '));
     });
     var banc = ((c && c.banc) || []).map(function (id) { return { id: id }; }).filter(ici);
-    if (banc.length) { L.push(''); L.push('Pas placés : ' + banc.map(pr).join(', ')); }
+    if (banc.length) { L.push(''); L.push('Pas placés : ' + banc.map(prm).join(', ')); }
     if (abs.length) { L.push(''); L.push('Absents : ' + abs.map(function (id) { return pr({ id: id }); }).join(', ')); }
+    if (nMq) { L.push(''); L.push('(?) : présence pas encore confirmée'); }
     return L.join('\n');
   }
   var BLOCS = ['A', 'B', 'C', 'g', 'av', 'ar', 'm1', 'm2', 'm3', 'm4', 'm5', 'm6'];

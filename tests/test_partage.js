@@ -42,6 +42,12 @@ assert.ok(t.indexOf('— Match 1 —') > 0 && t.indexOf('— Match 2 —') > t.i
 t = K.texteCompo({ reglages: { partie: 'matchs', format: 10 }, equipes: [{ id: 'E1', nom: 'Équipe 1', bloc: 'm1', joueurs: [] }, { id: 'E2', nom: 'Équipe 2', bloc: 'm1', joueurs: [] }] }, F, {});
 assert.ok(t.indexOf('Match 1') < 0, t);
 
+// ----- (v63, 10/11) présence pas confirmée (pas de réponse Spond, hors Spond) : « (?) » après le prénom, et une ligne qui l'explique -----
+t = K.texteCompo({ reglages: { format: 5 }, banc: ['Zoé'], equipes: [{ id: 'A1', joueurs: [j('Léo'), j('Tom')] }] }, F, { marque: (id) => id !== 'Léo', absent: (id) => id === 'Hugo' });
+assert.strictEqual(t, ['Compo · jeu à 5', '', '*Équipe A1* (2)', 'Léo, Tom (?)', '', 'Pas placés : Zoé (?)', '', '(?) : présence pas encore confirmée'].join('\n'));
+t = K.texteCompo({ reglages: { format: 5 }, equipes: [{ id: 'A1', joueurs: [j('Léo')] }] }, F, { marque: () => false });
+assert.ok(t.indexOf('(?)') < 0, 'pas de marque, pas de ligne d\'explication');
+
 // ----- un joueur inconnu, une compo vide : pas d'erreur -----
 assert.strictEqual(K.texteCompo({ reglages: {}, equipes: [{ id: 'A1', joueurs: [j('zz')] }] }, F), ['Compo · jeu à 5', '', '*Équipe A1* (1)', '?'].join('\n'));
 assert.strictEqual(K.texteCompo(null, F), 'Compo · jeu à 5');

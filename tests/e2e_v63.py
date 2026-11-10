@@ -45,6 +45,13 @@ with sync_playwright() as p:
     t = txt()
     check('préparer : plus de paragraphe sous le format ni sous les boutons', 'chaque joueur a son poste du plateau' not in t and 'Tout se déplace ensuite' not in t and '« Poste par poste » :' not in t)
     check('préparer : les trois boutons sont là', all(pg.query_selector('[data-act="%s"]' % a) is not None for a in ('cPropose', 'cPropose2', 'cZero10')))
+    # (10/11) « Suivre les niveaux » : la taille moyenne des équipes reste dite, en une ligne
+    pg.click('[data-act="cOpt"][data-k="effectifs"][data-v="niveaux"]'); pg.wait_for_timeout(400)
+    check('préparer, « Suivre les niveaux » : « environ N joueurs par équipe » en une ligne', pg.query_selector('.ctailn') is not None and 'environ' in pg.inner_text('.ctailn') and 'joueurs par équipe' in pg.inner_text('.ctailn'), txt()[:600])
+    pg.click('[data-act="cOpt"][data-k="effectifs"][data-v="equilibre"]'); pg.wait_for_timeout(400)
+    check('… plus de cette ligne avec les effectifs équilibrés (le réglage par équipe est là)', pg.query_selector('.ctailn') is None and pg.query_selector('.ctaild') is not None)
+    # (10/11) « Tout le groupe » : ceux qui n'ont pas répondu sur Spond seront marqués « (?) » dans le texte partagé
+    pg.click('[data-act="cBase"][data-v="tous"]'); pg.wait_for_timeout(500)
 
     # ----- 3. la compo : « Légende et gestes » ouverts la toute première fois, repliés ensuite -----
     pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(1500)
@@ -80,6 +87,8 @@ with sync_playwright() as p:
     check('le texte : le titre du plateau, le jeu à 10, chaque équipe', cp.startswith('*Plateau 3 - Muret*') and 'Compo · jeu à 10' in cp and all('*Équipe %s*' % n in cp for n in attendu['n']), cp[:300])
     check('le texte : tous les enfants placés, par poste', all(x in cp for x in attendu['prenoms']) and 'Piliers : ' in cp and '\n9 : ' in cp and '\n10 : ' in cp, cp)
     check('le texte : ni plaquage, ni copains, ni passerelles', not any(x in cp for x in ('plaquage', 'copain', '⇅', 'passerelle')))
+    natt = ev("[...new Set([...document.querySelectorAll('.ccol .cpj.att, .ccol .cpj:has(.chors)')].map(x => x.getAttribute('data-id')))].length")
+    check('tout le groupe : « (?) » dans le texte pour chaque enfant sans réponse placé (%d), et la ligne qui l\'explique' % natt, natt >= 1 and cp.count(' (?)') == natt and '(?) : présence pas encore confirmée' in cp, cp)
     check('un message dit que c\'est copié', 'copiée' in (ev("(document.querySelector('.toast') || {}).innerText") or ''))
     check('pas de défilement de côté (compo publiée)', noscroll())
 
@@ -92,6 +101,7 @@ with sync_playwright() as p:
     ev('window.__copie = null'); pg.click('[data-act="cPartager"]'); pg.wait_for_timeout(600)
     cp = ev('window.__copie') or ''
     check('ateliers : le texte des groupes, sans postes', 'Groupes des ateliers' in cp and '*Groupe ' in cp and 'Piliers' not in cp, cp[:300])
+
     b.close()
 bad = [n for n, c in res if not c]
 print('\n%d/%d' % (len(res) - len(bad), len(res)), '· erreurs JS :', errs)

@@ -723,7 +723,7 @@ window.MC = window.MC || {};
   // le résumé des options, en une ligne
   function resumeOpts(reg, ids, F) {
     var o = K.optsDe(reg), tids = K.idsEquipes(reg), bits = ['Jeu à ' + K.fmt(reg), tids.join(' ') || 'aucune équipe', OPT_TXT.orga[1][o.orga][0]];
-    if (o.effectifs === 'niveaux') bits.push('effectifs des niveaux');
+    if (o.effectifs === 'niveaux') bits.push('effectifs des niveaux' + (ids && tids.length ? ', environ ' + par(ids.length, tids.length) + ' par équipe' : ''));   // (v63)
     else if (ids) { var t = taillesReg(ids, F, reg); bits.push(tids.map(function (id) { return t[id]; }).join(' · ') + ' joueurs'); }
     if (o.effectifs !== 'niveaux') bits.push(o.passerelles === 'niveau' ? 'passerelles : plaquage d\'abord' : 'passerelles roulantes');
     bits.push(o.copains === 'dabord' ? 'copains d\'abord' : o.copains === 'sans' ? 'sans les copains' : 'un copain chacun');
@@ -742,7 +742,10 @@ window.MC = window.MC || {};
     return ids.length - s;
   }
   function taillesHtml(ids, F, reg, attr, attrEq, ligne) {
-    if (K.optsDe(reg).effectifs === 'niveaux') return '';   // (v50) « Suivre les niveaux » : dit dans les options
+    if (K.optsDe(reg).effectifs === 'niveaux') {   // (v50) « Suivre les niveaux » : pas de réglage par équipe ; (v63) la taille moyenne en une ligne
+      var nt = K.idsEquipes(reg).length;
+      return ligne || !nt ? '' : '<section class="sec"><p class="small ctailn" style="margin:0">Effectifs des niveaux : environ ' + par(ids.length, nt) + ' joueurs par équipe.</p></section>';
+    }
     var tids = K.idsEquipes(reg), t = taillesReg(ids, F, reg), s = 0, def = K.taillesDefaut(ids, F, reg), modif = false;
     tids.forEach(function (id) { s += t[id]; if (t[id] !== def[id]) modif = true; });
     if (!tids.length) return '';
@@ -1930,7 +1933,8 @@ window.MC = window.MC || {};
     if (!B) return;
     withC(function (C, e) {
       var c = compoOf(C.cd, e.id, B.partie); if (!c || c.statut !== 'publiee') return;
-      var text = K.texteCompo(c, C.F, { titre: e.titre, quand: quand(e), absent: function (id) { return horsJeu(id, c); } });
+      // (v63) pas encore répondu sur Spond, ou hors Spond (« Tout le groupe ») : marqués « (?) », comme le « ? » de l'écran
+      var text = K.texteCompo(c, C.F, { titre: e.titre, quand: quand(e), absent: function (id) { return horsJeu(id, c); }, marque: function (id) { return !!ATT && !ATT.pres[id] && !horsJeu(id, c); } });
       function copie() {
         if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function () { ui.toast('Compo copiée : collez-la dans WhatsApp'); }, montre); else montre();
       }
