@@ -15,10 +15,6 @@
       '<div class="gb">' + corps + '</div></details>';
   }
   function ul(items) { return '<ul>' + items.map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ul>'; }
-  function prochainBilan() {
-    var nb = L.nextBilan();
-    return nb ? esc(nb.nom) + ', ' + esc(ui.fmtDate(nb.date)) + ' (' + esc(nb.quand) + ')' : 'à la fin de la saison';
-  }
 
   // ---------- petits visuels ----------
   var COURT = { cros: 'Cros', capuozzo: 'Capuozzo', dupont: 'Dupont ou club', meafou: 'Meafou', repos: 'Repos', club: 'Club', recup: 'Récup' };
@@ -105,9 +101,9 @@
           'Un exercice <b>facile</b> ? À la fin de la séance, touche <b>Passer au niveau d\'après</b>. <b>Dur</b> ? <b>Reviens au niveau d\'avant</b>. Tu peux aussi le faire dans Prépa › Bilans › Mes niveaux (boutons + et −). Monte seulement si ta technique est parfaite.',
           '<b>N4 = niveau champion</b> : il s\'ouvre quand le N3 est « facile » 2 séances de suite, jamais directement par le bilan.'
         ])) +
-      card('bilan', 'sheet', '#38E8FF', 'Le bilan', 'Les 12 tests, toutes les 8 semaines',
+      card('bilan', 'sheet', '#38E8FF', 'Le bilan', 'Les 12 tests, quand tu veux',
         ul([
-          '12 tests, toujours dans le même ordre, avec un adulte qui regarde et compte. Prochain : <b>' + prochainBilan() + '</b>.',
+          '12 tests, toujours dans le même ordre, avec un adulte qui regarde et compte. <b>Tu le lances quand tu veux</b> : pas de date imposée.',
           '<b>Pas d\'adulte dispo ?</b> Tu peux t\'entraîner sans bilan : tes exercices sont au niveau 1, et le bilan les réglera ensuite.',
           'Prépa › Bilans › <b>Saisir mon bilan</b> › <b>Lancer le bilan guidé</b> : échauffement, puis chaque test avec la démo, le chrono et le compteur, 2 min de repos entre deux tests. Tu peux aussi tout noter dans le formulaire.',
           'Le bilan <b>règle tes niveaux</b> tout seul et donne tes <b>records</b>.',
@@ -117,7 +113,7 @@
         xpTable() + '<p style="margin:4px 0 0">Avec tes XP, tu montes de grade. <b>Ton grade ne redescend jamais.</b></p>' + grades()) +
       card('cycle', 'calendar', '#FF8A3D', 'La jauge du cycle', '56 étoiles en 8 semaines, comme le tableau du mur',
         ul([
-          'Un <b>cycle</b> = les 8 semaines entre deux bilans. 7 étoiles par semaine × 8 = <b>56 étoiles</b>.',
+          'Un <b>cycle</b> = 8 semaines d\'entraînement. 7 étoiles par semaine × 8 = <b>56 étoiles</b>.',
           'Paliers de la jauge : <b>14</b> Espoir · <b>28</b> Titulaire · <b>42</b> Capitaine · <b>56</b> Légende (et le badge Légende !).',
           'La jauge repart de zéro à chaque nouveau cycle. Tes XP et ton grade, eux, restent.'
         ])) +
@@ -209,9 +205,9 @@
           'Refusé par erreur ? Ouvrez « résultats refusés » et touchez <b>Rétablir</b>, puis Enregistrer mes choix.',
           'Seuls les résultats confirmés comptent pour le classement, les badges et les records.'
         ])) +
-      card('p-bilan', 'sheet', '#4D9BFF', 'Le bilan', 'Les 12 tests, toutes les 8 semaines environ',
+      card('p-bilan', 'sheet', '#4D9BFF', 'Le bilan', 'Les 12 tests, quand vous voulez',
         ul([
-          'Prochain : <b>' + prochainBilan() + '</b>.',
+          'Pas de date imposée : <b>votre enfant le lance quand il veut</b>, quand un adulte est disponible.',
           'Votre enfant le lance depuis Prépa › Bilans (bilan guidé, test par test). Il faut <b>un adulte à côté</b> pour regarder, compter et chronométrer.',
           'Ses niveaux se règlent tout seuls à partir des résultats.'
         ])) +

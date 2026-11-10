@@ -92,7 +92,7 @@
     return app.loadMe().then(function (me) { return paintBilans(me, app.S.stats); });
   }, { kid: true, nav: 'prepa', live: true });
   function paintBilans(me, st) {
-    var k = me.joueur, niv = k.niveaux || {}, bl = L.currentBilan(), nb = L.nextBilan();
+    var k = me.joueur, niv = k.niveaux || {}, bl = L.currentBilan();
     var recs = (me.records || []).filter(function (r) { return r.statut !== 'refuse'; });
     var rows = C.TESTS.map(function (t) {
       var sm = t.sm && k.materiel === 'mini', key = t.id + (sm ? ':sm' : '');
@@ -111,14 +111,13 @@
       return '<li class="li"><span class="grow"><span class="t1">' + esc(sm ? t.sm.nom : t.court) + '</span><span class="t2">' + (gain ? '<b style="color:var(--green)">' + esc(gain) + '</b>' : b ? 'ton record' : att ? 'pas encore de record confirmé' : 'pas encore de résultat') + '</span>' + attTxt + '</span>' +
         (lv ? ui.lvl(lv) : '') + '<span style="font:700 17px/1 var(--f-hud);min-width:64px;text-align:right;color:' + (b ? 'var(--gold)' : 'var(--dim)') + '">' + (b ? ui.valHtml(b.valeur, t.unite, t.decimales) : '—') + '</span></li>';
     }).join('');
-    var dans = nb ? L.daysBetween(L.today(), nb.date) : null;
     return '<main class="screen">' + MC.kidBar(me, st) + MC.prepaTabs('bilans') +
       ui.seg([['records', 'Mes records', '#/bilans'], ['niveaux', 'Mes niveaux', '#/niveaux']], 'records') +
       '<p class="small" style="margin:0">Tes meilleurs résultats aux bilans et aux défis, et ce que tu as gagné depuis ton premier.</p>' +
       '<ol class="list">' + rows + '</ol>' +
       bilanBtn(me, bl) +
       '<a class="btn2" href="#/progression">' + icon('up', 16) + ' Ma progression d\'un bilan à l\'autre</a>' +
-      (nb ? '<div class="note gold">' + icon('trophy', 20) + '<span><b>Prochain bilan : ' + (dans > 13 ? 'dans ' + Math.round(dans / 7) + ' semaines' : dans > 0 ? 'dans ' + dans + ' jour' + (dans > 1 ? 's' : '') : 'maintenant') + '.</b> Tu le passes avec un adulte. Il confirme tes résultats, puis ils arrivent ici.</span></div>' : '') +
+      '<div class="note gold">' + icon('trophy', 20) + '<span><b>Ton bilan, quand tu veux.</b> Tu le passes avec un adulte. Il confirme tes résultats, puis ils arrivent ici.</span></div>' +   // (v64) plus de date
       '</main>';
   }
 
@@ -482,7 +481,6 @@
       }).join('') + '</section>';
     }).join('');
     var pct = Math.round(done / C.TESTS.length * 100);
-    var nb = L.nextBilan();
     return '<main class="screen">' + MC.kidSubBar('#/bilans', 'Bilans', 'Mon bilan') +
       '<div class="head"><span class="kicker">' + esc(B.nom) + ' · ' + esc(B.quand) + '</span><h1 class="big md">Mon bilan<br>de champion</h1></div>' +
       bilanExplain(me) +
@@ -492,14 +490,14 @@
       '<h2 class="h2" style="margin-bottom:-8px">' + (MC.bilanGuide && MC.bilanGuide.started() ? 'Mes résultats' : 'Ou note tes résultats ici') + '</h2>' +
       '<div class="cols2"><div class="sec" style="gap:18px">' + groups.split('</section>').slice(0, 2).join('</section>') + '</section></div><div class="sec" style="gap:18px">' + groups.split('</section>').slice(2, 4).join('</section>') + '</section>' +
       '<button type="button" class="btn xl" id="bil_send" data-act="sendBilan"' + (done ? '' : ' disabled') + '>' + icon('send', 20) + ' Envoyer mon bilan</button>' +
-      '<p class="small" style="text-align:center;margin:0">Tu peux revenir le compléter plus tard.' + (nb && nb.n !== B.n ? ' Prochain : ' + esc(nb.nom.toLowerCase()) + ', ' + esc(nb.quand) + '.' : '') + '</p></div></div></main>';
+      '<p class="small" style="text-align:center;margin:0">Tu peux revenir le compléter plus tard.</p></div></div></main>';
   }
   // le principe du bilan, expliqué simplement (et on peut s'entraîner sans)
   function bilanExplain(me) {
     var first = !(me.records || []).some(function (r) { return /^\d+$/.test(String(r.bilan)); });
     return '<section class="bilexp"><div class="hud" style="color:var(--cyan)">Le bilan, c\'est quoi ?</div>' +
       '<ol class="steps">' +
-      '<li><span class="num" style="--sc:var(--cyan)">1</span><span class="tx"><b>12 petits tests</b> (sauts, gainage, navette…) pour voir où tu en es. Toutes les 8 semaines environ.</span></li>' +
+      '<li><span class="num" style="--sc:var(--cyan)">1</span><span class="tx"><b>12 petits tests</b> (sauts, gainage, navette…) pour voir où tu en es. Quand tu veux, avec un adulte.</span></li>' +
       '<li><span class="num" style="--sc:var(--cyan)">2</span><span class="tx"><b>Avec un adulte</b> à côté qui regarde, compte et chronomètre. Environ 45 min, 2 min de repos entre deux tests.</span></li>' +
       '<li><span class="num" style="--sc:var(--cyan)">3</span><span class="tx">Il <b>règle tes niveaux</b> exercice par exercice, et tes résultats deviennent tes <b>records</b>.</span></li>' +
       '<li><span class="num" style="--sc:var(--cyan)">4</span><span class="tx">Un parent ou ton éduc les <b>confirme</b> : ils entrent alors dans l\'arène (le classement).</span></li></ol>' +

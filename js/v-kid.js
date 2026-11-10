@@ -177,8 +177,8 @@
     var pend = (me.records || []).filter(function (r) { return r.statut === 'attente'; }).length;
     var pendNote = pend ? '<div class="note">' + icon('clock', 20) + '<span>' + pend + ' record' + (pend > 1 ? 's' : '') + ' en attente : un parent ou ton éduc doit confirmer.</span></div>' : '';
 
-    var nb = L.nextBilan(), dans = nb ? L.daysBetween(t, nb.date) : null;
-    var prochainBilan = nb ? '<a class="li" href="#/bilans">' + icon('trophy', 20, 'style="color:var(--gold);flex:none"') + '<span class="grow"><span class="t1">Prochain bilan : ' + (dans > 13 ? 'dans ' + Math.round(dans / 7) + ' semaines' : dans > 1 ? 'dans ' + dans + ' jours' : dans === 1 ? 'demain' : 'maintenant') + '</span><span class="t2">' + esc(nb.nom) + ' · avec un adulte · tes records sont dans Bilans</span></span>' + icon('right', 16) + '</a>' : '';
+    // (v64, décision de Nicolas du 10/11) plus de date ni de compte à rebours : le bilan se lance quand on veut, avec un adulte
+    var prochainBilan = '<a class="li" href="#/bilans">' + icon('trophy', 20, 'style="color:var(--gold);flex:none"') + '<span class="grow"><span class="t1">Ton bilan, quand tu veux</span><span class="t2">12 tests avec un adulte · tes records sont dans Bilans</span></span>' + icon('right', 16) + '</a>';
     // (retouche UI-02, 25/10) l'action du jour d'abord ; les informations secondaires dans « À regarder »,
     // ouvert tant qu'il y a du nouveau, replié une fois consulté
     var aRegarder = bandeauMissions(me) + bilanNote + props + pendNote, aReg = '';
@@ -190,7 +190,7 @@
       aReg = '<details class="areg"' + (vu ? '' : ' open') + ' data-sig="' + esc(sig) + '"><summary><span class="hud">À regarder · ' + nbR + '</span>' + icon('down', 16) + '</summary><div class="areg-in">' + aRegarder + '</div></details>';
     }
     return '<main class="screen">' + kidBar(me, st) + prepaTabs('semaine') +
-      '<div class="head"><span class="kicker">' + esc(C.JOURS[type].jour.toUpperCase()) + ' · ' + (cy.semaine > 8 ? 'SEMAINE DU BILAN' : 'SEMAINE ' + cy.semaine + ' / 8') + '</span>' +
+      '<div class="head"><span class="kicker">' + esc(C.JOURS[type].jour.toUpperCase()) + ' · ' + (cy.semaine > 8 ? 'FIN DU CYCLE' : 'SEMAINE ' + cy.semaine + ' / 8') + '</span>' +
       '<h1 class="big">Séance du jour</h1></div>' +   // (v55) pas « Mission » : ça prêtait à confusion avec les vraies missions
       bravosCarte(me) +   // (v55) en haut de l'accueil, plus franc qu'en bas de la colonne
       '<div class="home"><div>' + mission + '</div><div class="side">' +
