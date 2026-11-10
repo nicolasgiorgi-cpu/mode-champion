@@ -58,7 +58,11 @@ with sync_playwright() as p:
     check('(v60) « ? » collé à droite du prénom, sur sa ligne (plus de chrono)', ch['n'] > 0 and all(x['texte'] == '?' and x['collé'] and x['ligne'] and not x['chrono'] for x in ch['place']), ch)
 
     # ----- 3. affichage côte à côte (au choix, gardé sur l'appareil) -----
-    check('« Affichage » : l\'une sous l\'autre par défaut', pg.query_selector('[data-act="cCote"][data-v="0"].on') is not None and pg.query_selector('.ccote') is None)
+    # (v66, accord de Nicolas du 10/11) sans choix sur l'appareil : côte à côte à partir de 900 px de large, sinon l'une sous l'autre
+    if W >= 900:
+        check('« Affichage » : côte à côte par défaut à partir de 900 px', pg.query_selector('[data-act="cCote"][data-v="1"].on') is not None and pg.query_selector('.ccote') is not None)
+        pg.click('[data-act="cCote"][data-v="0"]'); pg.wait_for_timeout(500)
+    check('« Affichage » : l\'une sous l\'autre' + (' une fois choisie' if W >= 900 else ' par défaut'), pg.query_selector('[data-act="cCote"][data-v="0"].on') is not None and pg.query_selector('.ccote') is None)
     pg.click('[data-act="cCote"][data-v="1"]'); pg.wait_for_timeout(500)
     pos = ev("""[...document.querySelectorAll('.ccote .ccol')].map(c => { const r = c.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top), Math.round(r.width)]; })""")
     check('côte à côte : A1 et B1 sur la même ligne, l\'une à côté de l\'autre', len(pos) == 2 and pos[0][1] == pos[1][1] and pos[0][0] < pos[1][0], pos)

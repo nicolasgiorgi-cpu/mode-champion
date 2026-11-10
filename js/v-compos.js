@@ -1382,7 +1382,8 @@ window.MC = window.MC || {};
     // (v66, accord de Nicolas du 10/11) « N à regarder » en haut, qui descend à la liste (elle est tout en bas)
     var nAl = nv === 1 ? alertesFull(C, B.vs[0], presentsOf(C, e), attenteOf(C, e)).length : 0;
     var areg = nAl ? '<button type="button" class="cnreg" data-act="cVoirAlertes" aria-label="' + nAl + ' à regarder" title="' + nAl + ' à regarder">' + icon('warn', 14) + '<b>' + nAl + '</b><span class="cnreg-t">à regarder</span>' + icon('down', 14) + '</button>' : '';
-    if (act || tl || areg) html += '<div class="row cacts ctop">' + (tl || areg ? '<span class="row ctl">' + tl + areg + '</span>' : '') + '<span class="row cact">' + act + '</span></div>';
+    // la puce après les boutons : sur une ligne trop étroite, c'est elle qui passe dessous (« Publier », « Modifier » restent en haut)
+    if (act || tl || areg) html += '<div class="row cacts ctop">' + (tl ? '<span class="row ctl">' + tl + '</span>' : '') + '<span class="row cact">' + act + '</span>' + areg + '</div>';
     return html;
   }
   MC.act.cVoirAlertes = function () {
