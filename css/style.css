@@ -349,6 +349,13 @@ label.lab{font:600 11px/1.2 var(--f-hud);letter-spacing:.14em;color:var(--dim);t
 /* « Passer le téléphone à Tom » : en haut à droite des espaces parent et éduc */
 .tb-pass{flex:none;display:inline-flex;align-items:center;gap:6px;min-height:44px;max-width:38vw;padding:0 12px;border:1.5px solid var(--cyan);background:rgba(56,232,255,.12);color:var(--cyan);font:700 13px/1 var(--f-hud);letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
 .tb-pass span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* (v66) les 4 onglets éduc au téléphone : le titre entier (« Entraînements ») ; « ▶ Tom » réduit à sa flèche (le prénom reste dans aria-label) */
+@media (max-width:430px){
+  .topbar:has(a[href="#/educ/reglages"]) .tb-pass{width:44px;padding:0;justify-content:center}
+  .topbar:has(a[href="#/educ/reglages"]) .tb-pass span{display:none}
+  .topbar:has(a[href="#/educ/reglages"]) .tb-title{font-size:13px;letter-spacing:.04em}
+}
+@media (max-width:370px){ .topbar:has(a[href="#/educ/reglages"]) .tb-title{font-size:12px;letter-spacing:0} }
 .tb-pass svg{flex:none}
 /* Les éléments d'interface (boutons, étiquettes, pastilles) ne reprennent jamais l'effet des grands titres :
    texte net, sans ombres de couleur ni italique, même placés dans un titre stylisé */
@@ -1093,6 +1100,13 @@ body:has(.cdock .cselp) .toast{top:calc(74px + var(--safe-t) + var(--vvt));botto
 .ccreer .ccr .ccr-i{flex:none;transition:transform .15s}
 .ccreer .ccr:not([data-act="cAuto"]) .ccr-i{display:none}
 .ccreer .ccr.on .ccr-i{transform:rotate(180deg)}
+/* (v66) « N à regarder » en haut de la compo ; le panneau d'un joueur : « Sa fiche » et « Absent » sur une ligne */
+.cnreg{display:inline-flex;align-items:center;gap:4px;min-height:44px;padding:0 10px;border:1px solid var(--orange);background:transparent;color:var(--orange);font:700 12px/1 var(--f-hud);letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
+.cnreg svg{flex:none}
+@media (max-width:430px){ .cnreg{padding:0 8px} .cnreg-t{display:none} }   /* au téléphone : « ⚠ 6 », Publier reste sur la même ligne */
+#calertes{scroll-margin-top:calc(76px + var(--safe-t) + var(--vvt))}
+.cselp-f{justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.cpres-b{gap:6px}
 .ccreer [data-act="cAuto"]{scroll-margin-top:calc(76px + var(--safe-t) + var(--vvt))}   /* sous la barre du haut, collée */
 .cauto{display:flex;flex-direction:column;gap:12px;padding:12px;border:1px solid var(--line3);background:var(--panel)}
 .cauto .obody{margin:0 -12px}

@@ -421,7 +421,7 @@
   function educBar(g, title, back, backLabel) {
     if (back) return ui.topbar({ back: back, backLabel: backLabel, title: title, help: ui.helpLink('educ') });
     var right = passBtn(mesEnfants(g).map(function (p) { return p.joueur; })) + '<a class="cbtn grey" href="#/educ/reglages" aria-label="Réglages et gestion">' + icon('settings', 20) + '</a>';
-    return ui.topbar({ kicker: 'Éduc · ' + g.moi.nom + (g.moi.admin ? ' · admin' : ''), title: title, right: right, help: ui.helpLink('educ') });
+    return ui.topbar({ title: title, right: right, help: ui.helpLink('educ') });   // (v66) sans « Éduc · nom · admin », qui coupait le titre
   }
   MC.educBar = educBar;
   // Progrès (v44) : Missions (ouvert de base) · Skills · Prépa physique ; une pastille sur ce qui attend (demandes d'étoiles, résultats de mon enfant)
