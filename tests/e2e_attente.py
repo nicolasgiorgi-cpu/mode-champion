@@ -10,6 +10,11 @@ res = []; errs = []
 def check(n, c, i=''): res.append((n, c)); print(('OK  ' if c else 'BAD ') + n, '' if c else i)
 def pin(pg, code):
     for c in code: pg.click('#adultzone [data-k="%s"]' % c); pg.wait_for_timeout(50)
+
+def ouvrirAuto(pg):
+    # (v65) sur la page de préparation, les options et « Générer » sont dans « Créer automatiquement » : l'ouvrir s'il est fermé
+    b = pg.query_selector('[data-act="cAuto"][aria-expanded="false"]')
+    if b: b.click(); pg.wait_for_timeout(300)
 with sync_playwright() as p:
     b = p.chromium.launch(); pg = b.new_page(viewport={'width': W, 'height': H}, is_mobile=W < 700, has_touch=True)
     pg.add_init_script('window.__MC_QUIET=1'); pg.on('pageerror', lambda e: errs.append(str(e)))
@@ -23,6 +28,7 @@ with sync_playwright() as p:
     pg.screenshot(path=OUT + 'a1-entrainements.png', clip={'x': 0, 'y': 0, 'width': W, 'height': 420})
     pg.goto(BASE + '#/educ/compo/sp-demo-p3'); pg.wait_for_timeout(1000)
     if pg.query_selector('[data-act="cGo"]'): pg.click('[data-act="cGo"]'); pg.wait_for_timeout(800)
+    ouvrirAuto(pg)   # (v65)
     btn = pg.query_selector('[data-act="cProposer"], [data-act="cPropose"], button:has-text("Proposer")')
     if btn: btn.click(); pg.wait_for_timeout(900)
     t = pg.inner_text('main')

@@ -8,6 +8,11 @@ BASE = 'http://localhost:8899/index.html'
 W, H = (int(sys.argv[1]), int(sys.argv[2])) if len(sys.argv) > 2 else (390, 844)
 res = []; errs = []
 def check(n, c, i=''): res.append((n, c)); print(('OK  ' if c else 'BAD ') + n, '' if c else i)
+
+def ouvrirAuto(pg):
+    # (v65) sur la page de préparation, les options et « Générer » sont dans « Créer automatiquement » : l'ouvrir s'il est fermé
+    b = pg.query_selector('[data-act="cAuto"][aria-expanded="false"]')
+    if b: b.click(); pg.wait_for_timeout(300)
 with sync_playwright() as p:
     b = p.chromium.launch(); ctx = b.new_context(viewport={'width': W, 'height': H}, is_mobile=W < 700, has_touch=True); pg = ctx.new_page()
     pg.add_init_script('window.__MC_QUIET=1'); pg.on('pageerror', lambda e: errs.append(str(e)))
@@ -85,7 +90,7 @@ with sync_playwright() as p:
     # ----- 2. la compo : les postes de la fiche, à droite, sur la ligne du plaquage -----
     pg.goto(BASE + '#/educ/compo/sp-demo-p3'); pg.wait_for_timeout(1200)
     pg.click('[data-act="cBase"][data-v="tous"]'); pg.wait_for_timeout(300)
-    pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(1300)
+    ouvrirAuto(pg); pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(1300)
     # un enfant qui a des postes passe « sans réponse » sur Spond : son « ? » et ses postes
     tid = ev("""(() => { const K = MC.compos, F = K.fiches(MC.app.S.cache.group), e = MC.app.S.cache.compos.evenements.find(e => e.id === 'sp-demo-p3');
       const id = (e.presents || []).find(id => F[id] && F[id].postesOk.length >= 2 && document.querySelector('.ccol:not(.banc) .cpj[data-id="' + id + '"]'));
@@ -163,8 +168,9 @@ with sync_playwright() as p:
     pg.click('[data-act="cCote"][data-v="0"]'); pg.wait_for_timeout(300)
     # les ateliers : pas de postes sur les pastilles
     pg.goto(BASE + '#/educ/compo/sp-demo-e1?p=ateliers'); pg.wait_for_timeout(1200)
+    ouvrirAuto(pg)   # (v65)
     if pg.query_selector('[data-act="cPropose"]'):
-        pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(1200)
+        ouvrirAuto(pg); pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(1200)
     check('ateliers : pas de pastilles de postes', len(pg.query_selector_all('.cpj')) > 0 and pg.query_selector('.cpj .cpps') is None)
 
     print('ERREURS JS :', errs or 'aucune')

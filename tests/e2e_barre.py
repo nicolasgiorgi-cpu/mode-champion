@@ -31,6 +31,11 @@ def audit(pg, hashes):
         hit = pg.evaluate("(() => { const r = document.querySelector('header.topbar').getBoundingClientRect(); const el = document.elementFromPoint(r.left + 30, r.top + r.height / 2); return !!(el && el.closest('header.topbar')); })()")
         check('barre visible après défilement : ' + h, top[0] >= -1 and top[1] > 30 and hit, top)
 
+
+def ouvrirAuto(pg):
+    # (v65) sur la page de préparation, les options et « Générer » sont dans « Créer automatiquement » : l'ouvrir s'il est fermé
+    b = pg.query_selector('[data-act="cAuto"][aria-expanded="false"]')
+    if b: b.click(); pg.wait_for_timeout(300)
 with sync_playwright() as p:
     b = p.chromium.launch(); ctx = b.new_context(viewport={'width': W, 'height': H}, is_mobile=W < 700, has_touch=True); pg = ctx.new_page()
     errs = []; pg.on('pageerror', lambda e: errs.append(str(e)))
@@ -46,7 +51,7 @@ with sync_playwright() as p:
                '#/educ/avis/' + avis, '#/educ/nouveautes', '#/educ/spond', '#/guide?pour=educ&de=educ%2Fcompos'])
     # le tableau d'une compo, une fois proposée (long), et la fenêtre « Composer »
     pg.goto(BASE + '#/educ/compo/sp-demo-p3'); pg.wait_for_timeout(700)
-    pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(900)
+    ouvrirAuto(pg); pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(900)
     pg.evaluate('window.scrollTo(0, document.scrollingElement.scrollHeight)'); pg.wait_for_timeout(250)
     check('tableau proposé : barre visible en bas de page', pg.evaluate("(() => { const r = document.querySelector('header.topbar').getBoundingClientRect(); return r.top >= -1 && r.bottom > 30; })()"))
     pg.locator('.ccol >> nth=0 >> .cpj >> nth=0').evaluate('e=>e.click()'); pg.wait_for_timeout(300)

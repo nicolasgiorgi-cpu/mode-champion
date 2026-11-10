@@ -14,6 +14,11 @@ def shot(pg, name, full=False): pg.screenshot(path=OUT + tag + '-' + name + '.pn
 def noscroll(pg): return pg.evaluate('document.scrollingElement.scrollWidth <= document.documentElement.clientWidth + 1')   # (v54) pas innerWidth : en mobile, il grandit avec la page
 def ev(pg, js): return pg.evaluate(js)
 def nbp(pg): return pg.evaluate("(function(){var a=document.querySelectorAll('#nav a')[1];var n=a&&a.querySelector('.nb');return n?n.textContent:''})()")
+
+def ouvrirAuto(pg):
+    # (v65) sur la page de préparation, les options et « Générer » sont dans « Créer automatiquement » : l'ouvrir s'il est fermé
+    b = pg.query_selector('[data-act="cAuto"][aria-expanded="false"]')
+    if b: b.click(); pg.wait_for_timeout(300)
 with sync_playwright() as p:
     b = p.chromium.launch(); ctx = b.new_context(viewport={'width': W, 'height': H}, is_mobile=W < 700, has_touch=True); pg = ctx.new_page()
     pg.on('pageerror', lambda e: errs.append(str(e)))
@@ -87,6 +92,9 @@ with sync_playwright() as p:
     npr = ev(pg, "MC.compos.presents(MC.app.S.cache.compos.evenements.find(e=>e.id==='sp-demo-p3')).length")
     check('(v49) joueurs par équipe : équilibrés, le total = les présents', vals and sum(vals) == npr and max(vals) - min(vals) <= 1, (t0, npr))
     check('(v49) replié, avec le résumé des tailles', not ev(pg, "document.querySelector('.ctaild').open") and all(x.split(':')[0] in pg.inner_text('.ctaild summary') for x in t0), pg.inner_text('.ctaild summary'))
+    # (v65) « Créer manuellement » puis « Créer automatiquement » ; les options et « Générer » seulement une fois « automatiquement » ouvert
+    check('(v65) avant « Créer automatiquement » : ni options, ni « Générer »', pg.query_selector('[data-act="cAuto"]') is not None and pg.query_selector('[data-act="cPropose"]') is None and pg.query_selector('[data-act="cOpt"]') is None)
+    ouvrirAuto(pg)
     pg.click('.ctaild summary'); pg.wait_for_timeout(200)
     pg.click('.ctail >> nth=0 >> [data-act="cTail"][data-d="1"]'); pg.wait_for_timeout(200)
     check('(v49) une place de trop : dit, et « Proposer » attend', 'de trop' in pg.inner_text('.ctailp') and pg.is_disabled('[data-act="cPropose"]'), pg.inner_text('.ctailp'))
@@ -99,9 +107,9 @@ with sync_playwright() as p:
     ks = ev(pg, "[...new Set([...document.querySelectorAll('[data-act=\"cOpt\"]')].map(b=>b.getAttribute('data-k')))].join(',')")
     check('(v56) les options : organisation, joueurs par équipe, passerelles, copains', ks == 'orga,effectifs,passerelles,copains', ks)
     check('(v56) plus de compteur « Montent en A » ; Passerelles : Plaquage d\'abord ou Roulant, Roulant par défaut', pg.query_selector('.cmont') is None and pg.query_selector('[data-act="cOpt"][data-k="passerelles"][data-v="roulant"].on') is not None and pg.query_selector('[data-act="cOpt"][data-k="passerelles"][data-v="niveau"]') is not None)
-    pg.click('[data-act="cOpt"][data-k="orga"][data-v="aforte"]'); pg.wait_for_timeout(200)
+    ouvrirAuto(pg); pg.click('[data-act="cOpt"][data-k="orga"][data-v="aforte"]'); pg.wait_for_timeout(200)
     check('(v48) A forte : la note des équipes', 'les équipes C comptent comme des B' in pg.inner_text('main'))
-    pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(900)
+    ouvrirAuto(pg); pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(900)
     af = ev(pg, """(()=>{const k=Object.keys(localStorage).find(k=>k.indexOf('mc-cdraft:')===0&&k.indexOf('sp-demo-p3')>0); const d=JSON.parse(localStorage.getItem(k)).vs[0]; const F=MC.compos.fiches(MC.app.S.cache.group);
       const a=d.equipes[0], As=d.equipes.flatMap(t=>t.joueurs).filter(j=>(F[j.id]||{}).niveau==='A');
       return JSON.stringify({ids:d.equipes.map(t=>t.id), style:d.reglages.style, tousA: As.length<=a.joueurs.length ? As.every(j=>a.joueurs.some(x=>x.id===j.id)) : a.joueurs.every(j=>(F[j.id]||{}).niveau==='A'),
@@ -114,8 +122,8 @@ with sync_playwright() as p:
     pg.click('[data-act="cDiscard"]'); pg.wait_for_timeout(300); pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(700)
     # (relecture v50) « Effacer le brouillon » garde les options
     check('(v50) brouillon effacé : les options restent (A forte)', pg.query_selector('[data-act="cOpt"][data-k="orga"][data-v="aforte"].on') is not None)
-    pg.click('[data-act="cOpt"][data-k="orga"][data-v="niveau"]'); pg.wait_for_timeout(200)
-    pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(800)
+    ouvrirAuto(pg); pg.click('[data-act="cOpt"][data-k="orga"][data-v="niveau"]'); pg.wait_for_timeout(200)
+    ouvrirAuto(pg); pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(800)
     nteams = len(pg.query_selector_all('.ccol')); nchips = len(pg.query_selector_all('.ccol .cpj'))
     npres = ev(pg, "MC.compos.presents(MC.app.S.cache.compos.evenements.find(e=>e.id==='sp-demo-p3')).length")
     check('proposition : 3 équipes', nteams == 3, nteams)
@@ -314,7 +322,7 @@ with sync_playwright() as p:
     pg.click('a[href^="#/educ/compo/"]'); pg.wait_for_timeout(700)
     pg.click('[data-act="cNb"][data-n="A"][data-d="1"]') if ev(pg, "+document.querySelectorAll('.cstep output')[0].textContent") == 0 else None
     pg.wait_for_timeout(200)
-    pg.click('[data-act="cPropose2"]'); pg.wait_for_timeout(1000)
+    ouvrirAuto(pg); pg.click('[data-act="cPropose2"]'); pg.wait_for_timeout(1000)
     check('2 versions : V1 | V2 dans chaque niveau', pg.query_selector('.cvcols.nv2') is not None and len(pg.query_selector_all('.cvlab')) >= 2)
     check('2 versions : pas de défilement horizontal', noscroll(pg))
     shot(pg, 'k09a-2versions'); shot(pg, 'k09a-2versions-full', True)
@@ -362,12 +370,13 @@ with sync_playwright() as p:
     check('entraînement : 2 étapes (ateliers, matchs)', len(pg.query_selector_all('.cpart')) == 2 and 'LES ATELIERS' in pg.inner_text('.cpart >> nth=0').upper())
     shot(pg, 'k13-entrainement', True)
     pg.click('.cpart >> nth=0'); pg.wait_for_timeout(700)
+    ouvrirAuto(pg)   # (v65) le choix des groupes est dans « Créer automatiquement »
     check('ateliers : réglages', 'p=ateliers' in pg.url and len(pg.query_selector_all('.csteps .cstp')) == 2 and pg.query_selector('[data-act="cEMode"][data-v="equilibre"]') is not None)
     pg.click('[data-act="cEMode"][data-v="equilibre"]'); pg.wait_for_timeout(200)
     pg.click('[data-act="cESep"][data-v="1"]'); pg.wait_for_timeout(200)
     check('ateliers séparés : groupes d\'avants et d\'arrières', pg.query_selector('[data-act="cEN"][data-k="nAv"]') is not None and pg.query_selector('[data-act="cEN"][data-k="nAr"]') is not None)
     shot(pg, 'k14-ateliers-reglages', True)
-    pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(900)
+    ouvrirAuto(pg); pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(900)
     blocs = ev(pg, "[...document.querySelectorAll('.clevel .clvh')].map(x=>x.textContent.split(' ·')[0]).join('|')")
     check('ateliers séparés : avants puis arrières', blocs.startswith('Avants|Arrières'), blocs)
     ok_cote = ev(pg, """(()=>{const k=Object.keys(localStorage).find(k=>k.indexOf('mc-cdraft:')===0&&k.endsWith(':ateliers')); const d=JSON.parse(localStorage.getItem(k)).vs[0]; const F=MC.compos.fiches(MC.app.S.cache.group);
@@ -378,17 +387,17 @@ with sync_playwright() as p:
     pg.click('[data-act="cDiscard"]'); pg.wait_for_timeout(300); pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(700)
     # (v48) ateliers « A forte » : un groupe A, puis des groupes B mélangés
     check('(v48) ateliers : trois façons (par niveau, équilibrés, A forte)', len(pg.query_selector_all('[data-act="cEMode"]')) == 3 and pg.query_selector('[data-act="cEMode"][data-v="aforte"]') is not None)
-    pg.click('[data-act="cEMode"][data-v="aforte"]'); pg.wait_for_timeout(150)
+    ouvrirAuto(pg); pg.click('[data-act="cEMode"][data-v="aforte"]'); pg.wait_for_timeout(150)
     pg.click('[data-act="cESep"][data-v="0"]'); pg.wait_for_timeout(150)
-    pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(900)
+    ouvrirAuto(pg); pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(900)
     noms = ev(pg, "[...document.querySelectorAll('.ccol:not(.banc) .ctid')].map(x=>x.textContent).join(',')")
     check('(v48) ateliers A forte : le groupe A puis les groupes B', noms.startswith('A,B1') and 'C' not in noms, noms)
     md = ev(pg, "(()=>{const k=Object.keys(localStorage).find(k=>k.indexOf('mc-cdraft:')===0&&k.endsWith(':ateliers')); return JSON.parse(localStorage.getItem(k)).vs[0].reglages.mode;})()")
     check('(v48) ateliers A forte : le mode gardé dans le brouillon', md == 'aforte', md)
     pg.click('[data-act="cDiscard"]'); pg.wait_for_timeout(300); pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(700)
-    pg.click('[data-act="cEMode"][data-v="niveau"]'); pg.wait_for_timeout(150)
+    ouvrirAuto(pg); pg.click('[data-act="cEMode"][data-v="niveau"]'); pg.wait_for_timeout(150)
     pg.click('[data-act="cESep"][data-v="0"]'); pg.wait_for_timeout(150)
-    pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(900)
+    ouvrirAuto(pg); pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(900)
     noms = ev(pg, "[...document.querySelectorAll('.ccol:not(.banc) .ctid')].map(x=>x.textContent).join(',')")
     check('ateliers par niveau : groupes A, B, C', noms.split(',')[0].startswith('A') and 'CONFIRMÉS' in pg.inner_text('.cboard2').upper(), noms)
     pg.click('[data-act="cPublish"]'); pg.wait_for_timeout(300); pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(1000)
@@ -399,6 +408,7 @@ with sync_playwright() as p:
     pg.click('a.cstp >> nth=1'); pg.wait_for_timeout(800)
     check('matchs : réglages', 'LES MATCHS' in pg.inner_text('h1').upper() and pg.query_selector('[data-act="cEN"][data-k="nbMatchs"]') is None and pg.query_selector('[data-act="cESep"]') is None)
     # (v57, demande de Nicolas du 07/11) un match, deux équipes équilibrées avec tout le monde ; « Avec qui ? »
+    ouvrirAuto(pg)   # (v65) « Deux équipes équilibrées » est dit dans « Créer automatiquement »
     check('(v57) matchs : deux équipes équilibrées, plus de choix par niveau ni de 2 versions', pg.query_selector('[data-act="cEMode"]') is None and pg.query_selector('[data-act="cPropose2"]') is None and 'DEUX ÉQUIPES ÉQUILIBRÉES' in pg.inner_text('main').upper())
     check('(v57) matchs : « Avec qui ? » les présents (par défaut) ou tout le groupe', len(pg.query_selector_all('[data-act="cBase"]')) == 2 and ev(pg, "document.querySelector('[data-act=cBase][data-v=presents]').classList.contains('on')"))
     check('matchs : plus de chasubles contre maillots', 'CHASUBLES' not in pg.inner_text('main').upper() and 'ÉQUIPE 1 CONTRE ÉQUIPE 2' in pg.inner_text('main').upper())
@@ -406,7 +416,7 @@ with sync_playwright() as p:
     eq = ev(pg, "[...document.querySelectorAll('.ccol:not(.banc) .ctid')].map(x=>x.textContent).join(',')")
     check('(v57) matchs : repris du dernier entraînement, toujours deux équipes', eq == 'Équipe 1,Équipe 2', eq)
     pg.click('[data-act="cDiscard"]'); pg.wait_for_timeout(300); pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(700)
-    pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(1000)
+    ouvrirAuto(pg); pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(1000)
     mh = ev(pg, "[...document.querySelectorAll('.clevel .clvh')].map(x=>x.textContent.split(' ·')[0]).join('|')")
     check('(v57) matchs : un seul match', mh.startswith('Match 1') and 'Match 2' not in mh, mh)
     check('matchs : « Équipe 1 contre Équipe 2 »', 'Équipe 1 contre Équipe 2' in pg.inner_text('.cboard2') and 'Équipe 3' not in pg.inner_text('.cboard2'))
@@ -434,7 +444,7 @@ with sync_playwright() as p:
             pg.click('[data-act="cNb"][data-n="%s"][data-d="-1"]' % n); pg.wait_for_timeout(150)
     while ev(pg, "+document.querySelector('[data-act=\"cNb\"][data-n=\"B\"][data-d=\"1\"]').closest('.cstep').querySelector('output').textContent") < 2:
         pg.click('[data-act="cNb"][data-n="B"][data-d="1"]'); pg.wait_for_timeout(150)
-    pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(900)
+    ouvrirAuto(pg); pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(900)
     check('jeu à 10 : postes affichés', len(pg.query_selector_all('.cpj .cpo')) >= 16)
     check('jeu à 10 : bouton Postes auto', pg.query_selector('[data-act="cPostes"]') is not None)
     ordre = ev(pg, """[...document.querySelectorAll('.ccol')].map(c => [...c.querySelectorAll('.csec')].map(s => ((s.querySelector('.csech span') || {}).textContent || '') + ':' + [...s.querySelectorAll('.cpo')].map(x => x.textContent).join(',')))""")

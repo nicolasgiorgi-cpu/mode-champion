@@ -8,6 +8,11 @@ BASE = 'http://localhost:8899/index.html'
 W, H = (int(sys.argv[1]), int(sys.argv[2])) if len(sys.argv) > 2 else (390, 844)
 res = []; errs = []
 def check(n, c, i=''): res.append((n, c)); print(('OK  ' if c else 'BAD ') + n, '' if c else i)
+
+def ouvrirAuto(pg):
+    # (v65) sur la page de préparation, les options et « Générer » sont dans « Créer automatiquement » : l'ouvrir s'il est fermé
+    b = pg.query_selector('[data-act="cAuto"][aria-expanded="false"]')
+    if b: b.click(); pg.wait_for_timeout(300)
 with sync_playwright() as p:
     b = p.chromium.launch(); ctx = b.new_context(viewport={'width': W, 'height': H}, is_mobile=W < 700, has_touch=True); pg = ctx.new_page()
     pg.add_init_script('window.__MC_QUIET=1'); pg.on('pageerror', lambda e: errs.append(str(e)))
@@ -44,17 +49,20 @@ with sync_playwright() as p:
     pg.goto(BASE + '#/educ/compo/sp-demo-p3'); pg.wait_for_timeout(1200)
     t = txt()
     check('préparer : plus de paragraphe sous le format ni sous les boutons', 'chaque joueur a son poste du plateau' not in t and 'Tout se déplace ensuite' not in t and '« Poste par poste » :' not in t)
-    check('préparer : les trois boutons sont là', all(pg.query_selector('[data-act="%s"]' % a) is not None for a in ('cPropose', 'cPropose2', 'cZero10')))
+    # (v65) « Créer manuellement » (poste par poste au jeu à 10) et « Créer automatiquement », qui déplie « Générer » et les 2 versions
+    check('préparer : « Créer manuellement » et « Créer automatiquement »', all(pg.query_selector('[data-act="%s"]' % a) is not None for a in ('cZero10', 'cAuto')))
+    ouvrirAuto(pg)
+    check('préparer : « Générer la compo » et « 2 versions » dans « Créer automatiquement »', all(pg.query_selector('[data-act="%s"]' % a) is not None for a in ('cPropose', 'cPropose2')))
     # (10/11) « Suivre les niveaux » : la taille moyenne des équipes reste dite, en une ligne
-    pg.click('[data-act="cOpt"][data-k="effectifs"][data-v="niveaux"]'); pg.wait_for_timeout(400)
+    ouvrirAuto(pg); pg.click('[data-act="cOpt"][data-k="effectifs"][data-v="niveaux"]'); pg.wait_for_timeout(400)
     check('préparer, « Suivre les niveaux » : « environ N joueurs par équipe » en une ligne', pg.query_selector('.ctailn') is not None and 'environ' in pg.inner_text('.ctailn') and 'joueurs par équipe' in pg.inner_text('.ctailn'), txt()[:600])
-    pg.click('[data-act="cOpt"][data-k="effectifs"][data-v="equilibre"]'); pg.wait_for_timeout(400)
+    ouvrirAuto(pg); pg.click('[data-act="cOpt"][data-k="effectifs"][data-v="equilibre"]'); pg.wait_for_timeout(400)
     check('… plus de cette ligne avec les effectifs équilibrés (le réglage par équipe est là)', pg.query_selector('.ctailn') is None and pg.query_selector('.ctaild') is not None)
     # (10/11) « Tout le groupe » : ceux qui n'ont pas répondu sur Spond seront marqués « (?) » dans le texte partagé
     pg.click('[data-act="cBase"][data-v="tous"]'); pg.wait_for_timeout(500)
 
     # ----- 3. la compo : « Légende et gestes » ouverts la toute première fois, repliés ensuite -----
-    pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(1500)
+    ouvrirAuto(pg); pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(1500)
     check('1re fois sur l\'appareil : « Légende et gestes » ouverts', ev("document.querySelector('.caide').open") is True and pg.is_visible('.caide .clegend'))
     check('… et retenu sur l\'appareil', ev("localStorage.getItem('mc-caide')") is not None)
     ev("document.querySelectorAll('.cpj[data-id]')[1].click()"); pg.wait_for_timeout(400)
@@ -95,7 +103,7 @@ with sync_playwright() as p:
     # ----- 5. les ateliers publiés : « Partager » donne les groupes -----
     pg.goto(BASE + '#/educ/compo/sp-demo-e1?p=ateliers'); pg.wait_for_timeout(1200)
     check('ateliers : les choix gardent une ligne d\'explication courte', 'Un groupe peut réunir deux niveaux voisins' not in txt() and 'Tout se déplace ensuite' not in txt())
-    pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(1500)
+    ouvrirAuto(pg); pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(1500)
     pg.click('[data-act="cPublish"]'); pg.wait_for_timeout(700)
     pg.click('.modal button:has-text("Publier")'); pg.wait_for_timeout(2200)
     ev('window.__copie = null'); pg.click('[data-act="cPartager"]'); pg.wait_for_timeout(600)

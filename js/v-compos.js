@@ -616,7 +616,7 @@ window.MC = window.MC || {};
     if (s) { dropDraft(e.id, partie); if (B && B.evtId === e.id && (B.partie || '') === partie && B.dirty) ui.toast('La compo a changé entre-temps : vos changements non envoyés sont effacés.', true); }
     if (c && c.statut === 'vote') B = { evtId: e.id, partie: partie, moi: C.moi.id, base: base, compoId: c.id, mode: 'vote', vs: JSON.parse(JSON.stringify(c.versions)), undo: [], sel: null, dirty: false };
     else if (c) B = { evtId: e.id, partie: partie, moi: C.moi.id, base: base, compoId: c.id, mode: canEdit(C, c) ? 'pub' : 'view', vs: [copyCompo(c)], undo: [], sel: null, dirty: false };
-    else B = { evtId: e.id, partie: partie, moi: C.moi.id, base: 0, compoId: null, mode: 'reglages', vs: [], undo: [], sel: null, dirty: false, reg: null };
+    else B = { evtId: e.id, partie: partie, moi: C.moi.id, base: 0, compoId: null, mode: 'reglages', vs: [], undo: [], sel: null, dirty: false, reg: null, auto: false };
     return B;
   }
   function editable() { return B && (B.mode === 'draft' || B.mode === 'edit' || B.mode === 'counter'); }
@@ -797,15 +797,33 @@ window.MC = window.MC || {};
       (!af && ['A', 'B', 'C'].some(function (n) { return cnt[n] && !reg.nb[n]; }) ? '<p class="small" style="margin:0">Un niveau sans équipe joue dans le niveau voisin.</p>' : '') +
       (noLv.length ? '<p class="small" style="margin:0;color:var(--orange)">Sans niveau (placés en B en attendant) : ' + noLv.map(function (id) { return esc(nom(C, id)); }).join(', ') + '. <a href="#/educ/joueurs">Fiche terrain</a></p>' : '') + '</section>' +
       taillesHtml(ids, C.F, reg, 'data-act="cTail" data-t', 'data-act="cTailEq"') +   // (v56) juste sous le nombre d'équipes
-      graphePresents(C, ids, 'plateau', baseTous(reg)) +
-      '<section class="sec"><h2 class="h2">Les options</h2>' + optionsHtml(reg, 'data-act="cOpt" data-k') +
-      (af ? '<p class="small" style="margin:0">A forte : ' + af.A + ' équipe' + (af.A > 1 ? 's' : '') + ' A, ' + af.B + ' équipe' + (af.B > 1 ? 's' : '') + ' B (les équipes C comptent comme des B : Débrouillés et Débutants mélangés' + (reg.nb.B + reg.nb.C > 9 ? ' ; 9 équipes B au plus' : '') + ').</p>' : '') + '</section>' +
-      '<div class="sec"><button type="button" class="btn" data-act="cPropose"' + (ok ? '' : ' disabled') + '>' + icon('spark', 18) + ' Proposer une compo</button>' +
-      '<button type="button" class="btn2" data-act="cPropose2"' + (ok ? '' : ' disabled') + '>' + icon('swap', 16) + ' Proposer 2 versions côte à côte</button>' +
-      (reg.format === 10 ? '<button type="button" class="btn2" data-act="cZero10"' + (tot ? '' : ' disabled') + '>' + icon('board', 16) + ' Poste par poste, à la main</button>' :
-        '<button type="button" class="btn2 grey" data-act="cZero"' + (tot ? '' : ' disabled') + '>Partir de zéro</button>') +
-      '</div></main>');
+      // (v65) les boutons pour créer la compo juste sous le nombre d'équipes et de joueurs ; les options seulement avec « Créer automatiquement »
+      creerHtml({ titre: 'Créer la compo', manuel: 'data-act="' + (reg.format === 10 ? 'cZero10' : 'cZero') + '"', manuelOff: !tot,
+        auto: '<h3 class="mlab" style="margin:0">Les options</h3>' + optionsHtml(reg, 'data-act="cOpt" data-k') +
+          (af ? '<p class="small" style="margin:0">A forte : ' + af.A + ' équipe' + (af.A > 1 ? 's' : '') + ' A, ' + af.B + ' équipe' + (af.B > 1 ? 's' : '') + ' B (les équipes C comptent comme des B : Débrouillés et Débutants mélangés' + (reg.nb.B + reg.nb.C > 9 ? ' ; 9 équipes B au plus' : '') + ').</p>' : '') +
+          '<button type="button" class="btn2" data-act="cPropose"' + (ok ? '' : ' disabled') + '>' + icon('spark', 16) + ' Générer la compo</button>' +
+          '<button type="button" class="btn2" data-act="cPropose2"' + (ok ? '' : ' disabled') + '>' + icon('swap', 16) + ' Générer 2 versions côte à côte</button>' }) +
+      graphePresents(C, ids, 'plateau', baseTous(reg)) + '</main>');
   }
+  // (v65, demande de Nicolas du 10/11) créer une compo, des groupes ou des équipes : « Créer manuellement » d'abord, puis
+  // « Créer automatiquement », au même style (aucun des deux mis en avant). « Créer automatiquement » déplie les seules options
+  // et les boutons pour générer. o : { titre, manuel (attributs du bouton), manuelOff, auto (le contenu déplié), reprise }
+  function creerHtml(o) {
+    var ouvert = !!(B && B.auto);
+    return '<section class="sec ccreer"><h2 class="h2">' + o.titre + '</h2>' +
+      '<button type="button" class="btn2 ccr" ' + o.manuel + (o.manuelOff ? ' disabled' : '') + '>' + icon('edit', 16) + ' Créer manuellement</button>' +
+      '<button type="button" class="btn2 ccr' + (ouvert ? ' on' : '') + '" data-act="cAuto" aria-expanded="' + ouvert + '">' + icon('spark', 16) + ' Créer automatiquement' + icon('down', 14, 'class="ccr-i"') + '</button>' +
+      (ouvert ? '<div class="cauto" id="cauto">' + o.auto + '</div>' : '') +
+      (o.reprise || '') + '</section>';
+  }
+  MC.act.cAuto = function () {
+    if (!B || B.mode !== 'reglages') return;
+    B.auto = !B.auto; app.rerender();
+    if (B.auto) setTimeout(function () {
+      var x = document.getElementById('cauto'), calme = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (x && x.scrollIntoView) x.scrollIntoView({ block: 'nearest', behavior: calme ? 'auto' : 'smooth' });
+    }, 60);
+  };
   // ---------- réglages d'un entraînement : par niveau ou équilibrés ; ateliers : avants et arrières ensemble ou séparés ----------
   function stepsHtml(C, e, P) {
     return '<nav class="csteps" aria-label="Étapes de l\'entraînement">' + K.PARTIES.map(function (x, i) {
@@ -835,11 +853,9 @@ window.MC = window.MC || {};
   function regEntHtml(C, reg, ids, A, e) {
     var at = reg.partie === 'ateliers', M = MODES[reg.partie], co = cotes(C, ids);
     // (v57, demande de Nicolas du 07/11) les matchs : deux équipes équilibrées avec tout le monde, et « Avec qui ? »
-    if (!at) return '<section class="sec"><h2 class="h2">Les équipes</h2><p class="small" style="margin:0">Deux équipes équilibrées : Équipe 1 contre Équipe 2, environ ' + par(ids.length, 2) + ' par équipe. Jeu à 10 : chacun a son poste du match.</p></section>' +
-      baseHtml(C, e, reg, A.base);
-    var html = '<section class="sec"><h2 class="h2">' + (at ? 'Les groupes' : 'Les matchs') + '</h2><div class="cstyles' + (at ? '' : ' c2') + '">' + Object.keys(M).map(function (m) {
-      return '<button type="button" class="opt cstyle' + (reg.mode === m ? ' on' : '') + '" aria-pressed="' + (reg.mode === m) + '" ' + A.mode + '="' + m + '"><b>' + M[m][0] + '</b><small>' + M[m][1] + '</small></button>';
-    }).join('') + '</div></section>';
+    // (v65) les matchs comme un plateau : « Avec qui ? », puis les équipes ; le choix des groupes des ateliers passe dans « Créer automatiquement »
+    if (!at) return baseHtml(C, e, reg, A.base) + '<section class="sec"><h2 class="h2">Les équipes</h2><p class="small" style="margin:0">Équipe 1 contre Équipe 2, environ ' + par(ids.length, 2) + ' par équipe. Jeu à 10 : chacun a son poste du match.</p></section>';
+    var html = '';
     if (at) html += '<section class="sec"><h2 class="h2">Avants et arrières</h2><div class="cstyles c2">' + [['0', 'Ensemble', 'Les mêmes groupes pour tous.'], ['1', 'Séparés', 'Des groupes d\'avants, des groupes d\'arrières.']].map(function (o) {
       var on = (reg.separer ? '1' : '0') === o[0];
       return '<button type="button" class="opt cstyle' + (on ? ' on' : '') + '" aria-pressed="' + on + '" ' + A.sep + '="' + o[0] + '"><b>' + o[1] + '</b><small>' + o[2] + '</small></button>';
@@ -855,6 +871,13 @@ window.MC = window.MC || {};
     }
     return html + '</section>';
   }
+  // (v65) ateliers : par niveau, équilibrés ou A forte (dans « Créer automatiquement »)
+  function modesHtml(reg, A) {
+    var M = MODES[reg.partie];
+    return '<h3 class="mlab" style="margin:0">Les groupes</h3><div class="cstyles">' + Object.keys(M).map(function (m) {
+      return '<button type="button" class="opt cstyle' + (reg.mode === m ? ' on' : '') + '" aria-pressed="' + (reg.mode === m) + '" ' + A.mode + '="' + m + '"><b>' + M[m][0] + '</b><small>' + M[m][1] + '</small></button>';
+    }).join('') + '</div>';
+  }
   function paintReglagesEnt(C, e) {
     var reg = regOf(C, e), ids = idsBase(C, e, reg), at = B.partie === 'ateliers', last = derniere(C, e, B.partie);
     var le = last ? C.evts[last.evenementId] : null, autre = autreMode(reg.mode);
@@ -864,13 +887,14 @@ window.MC = window.MC || {};
       stepsHtml(C, e, B.partie) + avant +
       (ids.length < 2 && !(!at && tousOf(C).length >= 2) ? '<div class="empty">Cochez d\'abord les présents sur la page de l\'entraînement.</div><a class="btn2" href="#/educ/evt/' + esc(e.id) + '">Les présents</a></main>' :
       regEntHtml(C, reg, ids, { mode: 'data-act="cEMode" data-v', sep: 'data-act="cESep" data-v', n: 'data-act="cEN" data-k', base: 'data-act="cBase" data-v' }, e) +
-      (at ? '' : graphePresents(C, ids, 'matchs', baseTous(reg))) +
-      '<div class="sec"><button type="button" class="btn" data-act="cPropose"' + (ids.length < 2 ? ' disabled' : '') + '>' + icon('spark', 18) + (at ? ' Proposer les groupes' : ' Proposer les 2 équipes') + '</button>' +
-      (at ? '<button type="button" class="btn2" data-act="cPropose2">' + icon('swap', 16) + ' 2 versions côte à côte (' + minus(MODES[B.partie][reg.mode][0]) + ' et ' + minus(MODES[B.partie][autre][0]) + ')</button>' :
-        '<button type="button" class="btn2" data-act="cZero10"' + (ids.length < 2 ? ' disabled' : '') + '>' + icon('board', 16) + ' Poste par poste, à la main</button>') +   // (v57) les matchs : plus de 2 versions « par niveau / équilibrés »
-      (last ? '<button type="button" class="btn2" data-act="cReprise">' + icon('refresh', 16) + ' Reprendre ' + (at ? 'les groupes' : 'les équipes') + ' du ' + esc(ui.fmtDate(jour(le))) + '</button>' : '') +
-      (at ? '<button type="button" class="btn2 grey" data-act="cZero">Partir de zéro</button>' : '') +
-      '</div></main>');
+      creerHtml({ titre: at ? 'Créer les groupes' : 'Créer les équipes', manuel: 'data-act="' + (at ? 'cZero' : 'cZero10') + '"', manuelOff: at ? !ids.length : ids.length < 2,
+        auto: at ? modesHtml(reg, { mode: 'data-act="cEMode" data-v' }) +
+          '<button type="button" class="btn2" data-act="cPropose"' + (ids.length < 2 ? ' disabled' : '') + '>' + icon('spark', 16) + ' Générer les groupes</button>' +
+          '<button type="button" class="btn2" data-act="cPropose2"' + (ids.length < 2 ? ' disabled' : '') + '>' + icon('swap', 16) + ' Générer 2 versions côte à côte (' + minus(MODES[B.partie][reg.mode][0]) + ' et ' + minus(MODES[B.partie][autre][0]) + ')</button>' :
+          '<p class="small" style="margin:0">Deux équipes équilibrées : niveaux, plaquage et postes.</p>' +
+          '<button type="button" class="btn2" data-act="cPropose"' + (ids.length < 2 ? ' disabled' : '') + '>' + icon('spark', 16) + ' Générer les 2 équipes</button>',
+        reprise: last ? '<button type="button" class="btn2 ccr" data-act="cReprise">' + icon('refresh', 16) + ' Reprendre ' + (at ? 'les groupes' : 'les équipes') + ' du ' + esc(ui.fmtDate(jour(le))) + '</button>' : '' }) +
+      (at ? '' : graphePresents(C, ids, 'matchs', baseTous(reg))) + '</main>');
   }
   // (v48) la 2e version à côté : par niveau ↔ équilibrés ; A forte ↔ équilibrés
   function autreMode(m) { return m === 'equilibre' ? 'niveau' : 'equilibre'; }
@@ -973,7 +997,7 @@ window.MC = window.MC || {};
     var ok = false;
     withC(function (C, e) {
       var reg = B.reg, d, ids = idsBase(C, e, reg);
-      if (B.partie) d = K.videEnt(ids, C.F, reg, L.today());
+      if (B.partie) d = K.videEnt(ids, C.F, B.partie === 'ateliers' ? Object.assign({}, reg, { mode: 'equilibre' }) : reg, L.today());   // (v65) à la main : groupes G1, G2…
       else { var oz = K.optsDe(reg); d = K.vide(ids, reg); d.reglages = { format: reg.format, nb: K.nbOf(reg), style: K.styleDe(oz), opts: oz }; if (baseTous(reg)) d.reglages.base = 'tous'; }
       B.vs = [d]; B.mode = 'draft'; B.dirty = true; B.sel = null; saveDraft(); app.rerender(); window.scrollTo(0, 0); ok = true;
     });
@@ -1992,7 +2016,8 @@ window.MC = window.MC || {};
       if (!ok || !B) return;
       dropDraft(B.evtId, B.partie); var keepReg = draft ? B.vs[0].reglages : null; B = null;
       app.rerender();
-      if (keepReg) setTimeout(function () { if (B) { B.reg = keepReg.partie ? JSON.parse(JSON.stringify(keepReg)) : regDe(keepReg); } app.rerender(); }, 0);   // (v50) avec les options
+      // (v50) avec les options ; (v65) « Créer automatiquement » rouvert, pour les voir
+      if (keepReg) setTimeout(function () { if (B) { B.reg = keepReg.partie ? JSON.parse(JSON.stringify(keepReg)) : regDe(keepReg); B.auto = true; } app.rerender(); }, 0);
     });
   };
   // (v58, demande de Nicolas) une compo publiée se rouvre en un geste pour ajuster équipes et postes ; « Terminer » sans changement la referme

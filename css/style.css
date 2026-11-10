@@ -1089,6 +1089,14 @@ body:has(.cdock .cselp) .toast{top:calc(74px + var(--safe-t) + var(--vvt));botto
 .caide>p{margin:0 0 8px}
 .caide>.clegend{margin:0 0 4px}
 .cstate.draft{padding:8px 12px;font-size:13px;align-items:center}
+/* (v65) créer la compo : « Créer manuellement », « Créer automatiquement » (même style), les options dépliées dessous */
+.ccreer .ccr.on{background:color-mix(in srgb,var(--cyan) 12%,transparent)}
+.ccreer .ccr .ccr-i{flex:none;transition:transform .15s}
+.ccreer .ccr:not([data-act="cAuto"]) .ccr-i{display:none}
+.ccreer .ccr.on .ccr-i{transform:rotate(180deg)}
+.cauto{display:flex;flex-direction:column;gap:12px;padding:12px;border:1px solid var(--line3);background:var(--panel)}
+.cauto .obody{margin:0 -12px}
+@media (prefers-reduced-motion:reduce){.ccreer .ccr .ccr-i{transition:none}}
 .ctxt{width:100%;min-height:260px;font:13px/1.45 var(--f-mono,monospace);white-space:pre-wrap;resize:vertical}
 .ctl{gap:6px;margin-right:auto}
 /* le tableau, téléphone d'abord : les niveaux l'un sous l'autre ; dans un niveau, une colonne par version (V1 | V2) ;

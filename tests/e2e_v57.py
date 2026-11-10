@@ -10,6 +10,11 @@ W, H = (int(sys.argv[1]), int(sys.argv[2])) if len(sys.argv) > 2 else (390, 844)
 res = []; errs = []
 def check(n, c, i=''): res.append((n, c)); print(('OK  ' if c else 'BAD ') + n, '' if c else i)
 NIV = {'A': 0, 'B': 1, 'C': 2}
+
+def ouvrirAuto(pg):
+    # (v65) sur la page de préparation, les options et « Générer » sont dans « Créer automatiquement » : l'ouvrir s'il est fermé
+    b = pg.query_selector('[data-act="cAuto"][aria-expanded="false"]')
+    if b: b.click(); pg.wait_for_timeout(300)
 with sync_playwright() as p:
     b = p.chromium.launch(); ctx = b.new_context(viewport={'width': W, 'height': H}, is_mobile=W < 700, has_touch=True); pg = ctx.new_page()
     pg.add_init_script('window.__MC_QUIET=1'); pg.on('pageerror', lambda e: errs.append(str(e)))
@@ -59,7 +64,7 @@ with sync_playwright() as p:
     pg.click('[data-act="cBase"][data-v="tous"]'); pg.wait_for_timeout(400)
     check('tout le groupe : les joueurs par équipe comptent tout le groupe', ('pour %d enfants' % ntous) in ev("document.querySelector('main').textContent"), ev("(document.querySelector('.ctailp') || {}).textContent"))
     check('réglages : pas de défilement de côté', noscroll())
-    pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(1200)
+    ouvrirAuto(pg); pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(1200)
     d = draft('sp-demo-p3')
     check('proposée avec tout le groupe : base « tous », équipes A1 et B1', d and d['reglages'].get('base') == 'tous' and [t['id'] for t in d['equipes']] == ['A1', 'B1'], d and d['reglages'])
     placed = sum(len(t['joueurs']) for t in d['equipes']) + len(d['banc'])
@@ -174,6 +179,7 @@ with sync_playwright() as p:
     # ----- (relecture v57, I2) un plateau de décembre sans présents encore : « Tout le groupe » refait le nombre d'équipes -----
     eid = ev("""MC.app.adultCall('setEvenement', { titre: 'Plateau 9 - Essai', debut: '2026-12-12T09:00:00.000Z', lieu: 'Essai', sorte: 'plateau', presents: [] }).then(r => MC.loadCompos(true).then(() => r.evenement.id))""")
     pg.goto(BASE + '#/educ/compo/' + eid); pg.wait_for_timeout(1200)
+    ouvrirAuto(pg)   # (v65) « Générer » est dans « Créer automatiquement »
     check('0 présent : une ligne dit de choisir « Tout le groupe », équipes à 0', pg.query_selector('.cbaseh') is not None and ev("[...document.querySelectorAll('.cstep .cnbv')].map(o => o.textContent).join(',')") == '0,0,0' and ev("document.querySelector('[data-act=cPropose]').disabled"))
     pg.click('[data-act="cBase"][data-v="tous"]'); pg.wait_for_timeout(400)
     check('« Tout le groupe » : une équipe A, une équipe B, « Proposer » possible', ev("[...document.querySelectorAll('.cstep .cnbv')].map(o => o.textContent).join(',')") == '1,1,0' and not ev("document.querySelector('[data-act=cPropose]').disabled") and pg.query_selector('.cbaseh') is None)
@@ -187,14 +193,14 @@ with sync_playwright() as p:
     eid2 = ev("""MC.loadGroup().then(g => { const ids = g.joueurs.filter(p => p.joueur.actif).slice(0, 12).map(p => p.joueur.id); return MC.app.adultCall('setEvenement', { titre: 'Plateau 10 - Essai', debut: '2026-12-19T09:00:00.000Z', lieu: 'Essai', sorte: 'plateau', presents: ids }); }).then(r => MC.loadCompos(true).then(() => r.evenement.id))""")
     pg.goto(BASE + '#/educ/compo/' + eid2); pg.wait_for_timeout(1200)
     pg.click('[data-act="cBase"][data-v="tous"]'); pg.wait_for_timeout(400)
-    pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(1200)
+    ouvrirAuto(pg); pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(1200)
     m = ev("""(() => { const eqs = [...document.querySelectorAll('.ccol')].filter(c => c.querySelector('.chd .cn'));
       return { n: eqs.reduce((a, c) => a + +c.querySelector('.chd .cn').textContent, 0), gone: document.querySelectorAll('.cpj.gone').length, neutres: document.querySelectorAll('.cpj .chors').length,
         alerte: document.querySelector('main').textContent.indexOf("pas dans l'événement") >= 0 }; })()""")
     check('à la main, tout le groupe : les non-cochés sont absents (barrés), les équipes ne comptent que les 12 cochés', m['n'] == 12 and m['gone'] == ntous - 12 and m['neutres'] == 0 and not m['alerte'], m)
     pg.click('[data-act="cDiscard"]'); pg.wait_for_timeout(300); pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(700)
     pg.click('[data-act="cBase"][data-v="presents"]'); pg.wait_for_timeout(300)
-    pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(1200)
+    ouvrirAuto(pg); pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(1200)
     d2 = draft(eid2); vic = d2['equipes'][0]['joueurs'][0]['id']; n0 = len(d2['equipes'][0]['joueurs'])
     ev("""([e, id]) => MC.app.adultCall('setEvenement', { id: e, marques: { [id]: false } }).then(() => MC.loadCompos(true))""", [eid2, vic])
     pg.goto(BASE + '#/educ/compo/' + eid2 + '?x=1'); pg.wait_for_timeout(1200)
@@ -205,6 +211,7 @@ with sync_playwright() as p:
     pg.goto(BASE + '#/educ/compo/sp-demo-e1?p=matchs'); pg.wait_for_timeout(1200)
     if pg.query_selector('[data-act="cDiscard"]'):
         pg.click('[data-act="cDiscard"]'); pg.wait_for_timeout(300); pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(700)
+    ouvrirAuto(pg)   # (v65) « Deux équipes équilibrées » est dit dans « Créer automatiquement »
     check('matchs : deux équipes équilibrées, « Avec qui ? », poste par poste', 'DEUX ÉQUIPES ÉQUILIBRÉES' in pg.inner_text('main').upper() and len(pg.query_selector_all('[data-act="cBase"]')) == 2 and pg.query_selector('[data-act="cZero10"]') is not None and pg.query_selector('[data-act="cEN"]') is None)
     pg.click('[data-act="cZero10"]'); pg.wait_for_timeout(800)
     lab = ev("[...document.querySelector('.modal .pprow').querySelectorAll('.ppb')].map(b => b.textContent)")

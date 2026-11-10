@@ -9,6 +9,11 @@ BASE = 'http://localhost:8899/index.html'
 W, H = (int(sys.argv[1]), int(sys.argv[2])) if len(sys.argv) > 2 else (390, 844)
 res = []; errs = []
 def check(n, c, i=''): res.append((n, c)); print(('OK  ' if c else 'BAD ') + n, '' if c else i)
+
+def ouvrirAuto(pg):
+    # (v65) sur la page de préparation, les options et « Générer » sont dans « Créer automatiquement » : l'ouvrir s'il est fermé
+    b = pg.query_selector('[data-act="cAuto"][aria-expanded="false"]')
+    if b: b.click(); pg.wait_for_timeout(300)
 with sync_playwright() as p:
     b = p.chromium.launch(); ctx = b.new_context(viewport={'width': W, 'height': H}, is_mobile=W < 700, has_touch=True); pg = ctx.new_page()
     pg.add_init_script('window.__MC_QUIET=1'); pg.on('pageerror', lambda e: errs.append(str(e)))
@@ -30,7 +35,7 @@ with sync_playwright() as p:
     # ----- 1. une compo de décembre, tout le groupe -----
     pg.goto(BASE + '#/educ/compo/sp-demo-p3'); pg.wait_for_timeout(1200)
     pg.click('[data-act="cBase"][data-v="tous"]'); pg.wait_for_timeout(300)
-    pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(1300)
+    ouvrirAuto(pg); pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(1300)
 
     # ----- 2. en haut de chaque équipe : la couverture des postes en compact -----
     cov = ev("""(() => { const K = MC.compos, F = K.fiches(MC.app.S.cache.group), d = JSON.parse(localStorage.getItem(Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0 && k.endsWith(':sp-demo-p3')))).vs[0];
@@ -152,8 +157,9 @@ with sync_playwright() as p:
 
     # ----- 7. les matchs d'un entraînement : « Modifier les matchs » une fois publiés -----
     pg.goto(BASE + '#/educ/compo/sp-demo-e1?p=matchs'); pg.wait_for_timeout(1200)
+    ouvrirAuto(pg)   # (v65)
     if pg.query_selector('[data-act="cPropose"]'):
-        pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(1300)
+        ouvrirAuto(pg); pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(1300)
     pg.click('[data-act="cPublish"]'); pg.wait_for_timeout(500)
     if pg.query_selector('.modal'): pg.click('.modal .mbtns button[data-i="0"]'); pg.wait_for_timeout(1800)
     check('matchs publiés : en lecture, « Modifier la compo », la couverture des postes', pg.query_selector('[data-act="cEditer"]') is not None and len(pg.query_selector_all('.ccol .chd .cpg')) == 2)

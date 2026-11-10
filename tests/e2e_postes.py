@@ -20,6 +20,11 @@ def attendu(pg, filtre):
     return pg.evaluate("""f => { const K = MC.compos, F = K.fiches(MC.app.S.cache.group);
       const ids = Object.keys(F).filter(id => F[id].actif && !/^test$/i.test(F[id].prenom) && (f === 'all' || (F[id].niveau || '') === (f === 'none' ? '' : f)));
       const R = K.repartition(ids, F); return [ids.length, R.postes.map(p => p.princ.length + (p.autres.length ? '+' + p.autres.length : '')), R.sans.length]; }""", filtre)
+
+def ouvrirAuto(pg):
+    # (v65) sur la page de préparation, les options et « Générer » sont dans « Créer automatiquement » : l'ouvrir s'il est fermé
+    b = pg.query_selector('[data-act="cAuto"][aria-expanded="false"]')
+    if b: b.click(); pg.wait_for_timeout(300)
 with sync_playwright() as p:
     b = p.chromium.launch(); pg = b.new_page(viewport={'width': W, 'height': H}, is_mobile=W < 700, has_touch=True)
     pg.add_init_script('window.__MC_QUIET=1'); pg.on('pageerror', lambda e: errs.append(str(e)))
@@ -80,7 +85,7 @@ with sync_playwright() as p:
     check('matchs : « jeu à 10 », chacun son poste du match', 'Jeu à 10' in t and 'poste du match' in t, t[:400])
     check('matchs : la répartition des présents', pg.query_selector('details[data-rp="matchs"]') is not None)
     check('(v57) matchs : plus de choix « Combien ? » (un match, deux équipes)', pg.query_selector('[data-act="cEN"][data-k="nbMatchs"]') is None)
-    pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(1500)
+    ouvrirAuto(pg); pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(1500)
     d0 = ev(pg, "(() => { const k = Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0 && k.endsWith(':matchs')); return JSON.parse(localStorage.getItem(k)).vs[0]; })()")
     check('matchs proposés au jeu à 10', d0['reglages']['format'] == 10, d0['reglages'])
     pl = [[j['poste'] for j in t['joueurs']] for t in d0['equipes']]
@@ -119,7 +124,7 @@ with sync_playwright() as p:
     pg.goto(BASE + '#/educ/compo/' + eid + '?p=matchs'); pg.wait_for_timeout(1300)
     # (Nicolas, 31/10) un enfant sans aucun poste n'est pas placé d'office : il est montré « Sans poste »
     check('(démo : un enfant sans aucun poste)', sp is not None)
-    pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(1500)
+    ouvrirAuto(pg); pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(1500)
     dsp = ev(pg, "(() => { const k = Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0 && k.indexOf('%s:matchs') > 0); return JSON.parse(localStorage.getItem(k)).vs[0]; })()" % eid)
     psp = [x['poste'] for t in dsp['equipes'] for x in t['joueurs'] if x['id'] == sp]
     check('enfant sans aucun poste : pas de poste donné d\'office', psp == [''], psp)

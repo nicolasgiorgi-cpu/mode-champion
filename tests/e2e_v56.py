@@ -7,6 +7,11 @@ BASE = 'http://localhost:8899/index.html'
 W, H = (int(sys.argv[1]), int(sys.argv[2])) if len(sys.argv) > 2 else (390, 844)
 res = []; errs = []
 def check(n, c, i=''): res.append((n, c)); print(('OK  ' if c else 'BAD ') + n, '' if c else i)
+
+def ouvrirAuto(pg):
+    # (v65) sur la page de préparation, les options et « Générer » sont dans « Créer automatiquement » : l'ouvrir s'il est fermé
+    b = pg.query_selector('[data-act="cAuto"][aria-expanded="false"]')
+    if b: b.click(); pg.wait_for_timeout(300)
 with sync_playwright() as p:
     b = p.chromium.launch(); ctx = b.new_context(viewport={'width': W, 'height': H}, is_mobile=W < 700, has_touch=True); pg = ctx.new_page()
     pg.add_init_script('window.__MC_QUIET=1'); pg.on('pageerror', lambda e: errs.append(str(e)))
@@ -61,6 +66,7 @@ with sync_playwright() as p:
     ordre = ev("""(() => { const eq = [...document.querySelectorAll('main section.sec')].findIndex(s => s.querySelector('[data-act="cNb"]')), l = [...document.querySelectorAll('main section.sec')]; return { eq, suivant: !!l[eq + 1] && !!l[eq + 1].querySelector('.ctaild') } })()""")
     check('préparer : « Joueurs par équipe » juste sous le nombre d\'équipes', ordre['suivant'], ordre)
     check('préparer : plus de « Montent en A »', 'Montent en A' not in pg.inner_text('main') and pg.query_selector('.cmont') is None)
+    ouvrirAuto(pg)   # (v65)
     vals = ev("""[...document.querySelectorAll('[data-act="cOpt"][data-k="passerelles"]')].map(b => b.textContent)""")
     check('Passerelles : Plaquage d\'abord ou Roulant', vals == ["Plaquage d'abord", 'Roulant'], vals)
     check('plus de ligne « Qui change de niveau »', pg.query_selector('[data-k="change"]') is None and 'Qui change' not in pg.inner_text('main'))
@@ -69,25 +75,25 @@ with sync_playwright() as p:
     check('Copains : trois choix, dont Sans', cop == ['Un pour chacun', "Copains d'abord", 'Sans'], cop)
     check('les choix des copains ne débordent pas', ev("""[...document.querySelectorAll('.oseg .opt')].every(e => e.scrollWidth <= e.clientWidth + 1)""") and noscroll())
     # Suivre les niveaux : personne ne change de niveau, plus de lignes passerelles et « qui change »
-    pg.click('[data-act="cOpt"][data-k="effectifs"][data-v="niveaux"]'); pg.wait_for_timeout(250)
+    ouvrirAuto(pg); pg.click('[data-act="cOpt"][data-k="effectifs"][data-v="niveaux"]'); pg.wait_for_timeout(250)
     check('suivre les niveaux : la ligne Passerelles disparaît', pg.query_selector('[data-k="passerelles"]') is None and pg.query_selector('.ctaild') is None)
-    pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(900)
+    ouvrirAuto(pg); pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(900)
     tous = ev("""(() => { const k = Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0), d = JSON.parse(localStorage.getItem(k)).vs[0], F = MC.compos.fiches(MC.app.S.cache.group); return d.equipes.every(t => t.joueurs.every(j => !F[j.id].niveau || F[j.id].niveau === t.niveau || !d.equipes.some(x => x.niveau === F[j.id].niveau))) })()""")
     check('suivre les niveaux : chacun dans son niveau (ou le niveau voisin s\'il n\'a pas d\'équipe : v57, au jeu à 10, A et B)', tous)
     pg.click('[data-act="cDiscard"]'); pg.wait_for_timeout(300); pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(700)
     # le jeu à 5, à trois niveaux : chacun strictement dans son niveau (relecture v57)
     pg.click('[data-act="cFmt"][data-v="5"]'); pg.wait_for_timeout(300)
-    pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(900)
+    ouvrirAuto(pg); pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(900)
     j5 = ev("""(() => { const k = Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0), d = JSON.parse(localStorage.getItem(k)).vs[0], F = MC.compos.fiches(MC.app.S.cache.group); return { f: d.reglages.format, nivs: d.equipes.map(t => t.niveau).join(''), ok: d.equipes.every(t => t.joueurs.every(j => !F[j.id].niveau || F[j.id].niveau === t.niveau)) } })()""")
     check('jeu à 5, suivre les niveaux : A, B et C, chacun strictement dans son niveau', j5['f'] == 5 and 'C' in j5['nivs'] and j5['ok'], j5)
     pg.click('[data-act="cDiscard"]'); pg.wait_for_timeout(300); pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(700)
     pg.click('[data-act="cFmt"][data-v="10"]'); pg.wait_for_timeout(300)
-    pg.click('[data-act="cOpt"][data-k="effectifs"][data-v="equilibre"]'); pg.wait_for_timeout(250)
+    ouvrirAuto(pg); pg.click('[data-act="cOpt"][data-k="effectifs"][data-v="equilibre"]'); pg.wait_for_timeout(250)
 
     # ----- une compo en A forte : le bouclier rouge pour tous sous le repère de l'équipe -----
-    pg.click('[data-act="cOpt"][data-k="orga"][data-v="aforte"]'); pg.wait_for_timeout(200)
-    pg.click('[data-act="cOpt"][data-k="copains"][data-v="sans"]'); pg.wait_for_timeout(200)
-    pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(900)
+    ouvrirAuto(pg); pg.click('[data-act="cOpt"][data-k="orga"][data-v="aforte"]'); pg.wait_for_timeout(200)
+    ouvrirAuto(pg); pg.click('[data-act="cOpt"][data-k="copains"][data-v="sans"]'); pg.wait_for_timeout(200)
+    ouvrirAuto(pg); pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(900)
     # un Débutant à 0, posé dans la 1re équipe B de la démo
     donnees = ev("""(() => { const k = Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0), l = JSON.parse(localStorage.getItem(k)), d = l.vs[0], F = MC.compos.fiches(MC.app.S.cache.group);
       const eqB = d.equipes.filter(t => t.niveau === 'B'); return { opts: d.reglages.opts, lignes: eqB.flatMap(t => t.joueurs.map(j => ({ id: j.id, niv: F[j.id].niveau, pl: F[j.id].plaquage, prenom: F[j.id].prenom }))) } })()""")
