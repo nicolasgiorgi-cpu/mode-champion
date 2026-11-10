@@ -205,9 +205,9 @@
           'Refusé par erreur ? Ouvrez « résultats refusés » et touchez <b>Rétablir</b>, puis Enregistrer mes choix.',
           'Seuls les résultats confirmés comptent pour le classement, les badges et les records.'
         ])) +
-      card('p-bilan', 'sheet', '#4D9BFF', 'Le bilan', 'Les 12 tests, quand vous voulez',
+      card('p-bilan', 'sheet', '#4D9BFF', 'Le bilan', 'Les 12 tests, sans date imposée',
         ul([
-          'Pas de date imposée : <b>votre enfant le lance quand il veut</b>, quand un adulte est disponible.',
+          '<b>Pas de date imposée</b> : il le fait quand un adulte est disponible.',
           'Votre enfant le lance depuis Prépa › Bilans (bilan guidé, test par test). Il faut <b>un adulte à côté</b> pour regarder, compter et chronométrer.',
           'Ses niveaux se règlent tout seuls à partir des résultats.'
         ])) +

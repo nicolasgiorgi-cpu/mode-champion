@@ -44,6 +44,20 @@ with sync_playwright() as p:
     t = pg.inner_text('main')
     check('Bilans : « Ton bilan, quand tu veux », plus de « Prochain bilan »', 'Ton bilan, quand tu veux' in t and 'Prochain bilan' not in t, t[-500:])
 
+    check('Bilans : le bouton du bilan sans « mi-novembre »', 'mi-novembre' not in t.lower(), t[-500:])
+    pg.goto(BASE + '#/bilan'); pg.wait_for_timeout(700)
+    k = pg.inner_text('main .head .kicker')
+    check('Mon bilan : en haut « Bilan 1 », sans « mi-novembre »', 'BILAN' in k.upper() and 'NOVEMBRE' not in k.upper(), k)
+    # (relecture) un enfant qui a fini son bilan : pas de « quand tu veux » qui ne mène à rien
+    e = ev("""(() => { const bl = MC.logic.currentBilan(), T = MC.CONTENT.TESTS;
+      const plein = { records: T.map(t => ({ bilan: String(bl.n), test: t.id, valeur: 1, statut: 'ok' })) };
+      const moitie = { records: T.slice(0, 5).map(t => ({ bilan: String(bl.n), test: t.id, valeur: 1, statut: 'ok' })) };
+      return [MC.bilanEtat({ records: [] }).etat, MC.bilanEtat(moitie).etat + ' ' + MC.bilanEtat(moitie).n, MC.bilanEtat(plein).etat]; })()""")
+    check('état du bilan : vide, en cours (5), fait', e == ['vide', 'encours 5', 'fait'], e)
+    accueil('2026-11-12')
+    li = pg.inner_text('a.li[href="#/bilans"]')
+    check('accueil : la ligne du bilan dit l\'un des trois états, jamais une date', any(x in li for x in ('Ton bilan, quand tu veux', 'Ton bilan est fait', 'Ton bilan : ')) and 'novembre' not in li.lower(), li)
+
     # l'aide « ? » : plus de date du prochain bilan
     pg.goto(BASE + '#/guide'); pg.wait_for_timeout(700)
     t = pg.inner_text('main')

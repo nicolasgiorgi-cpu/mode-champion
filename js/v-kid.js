@@ -178,7 +178,10 @@
     var pendNote = pend ? '<div class="note">' + icon('clock', 20) + '<span>' + pend + ' record' + (pend > 1 ? 's' : '') + ' en attente : un parent ou ton éduc doit confirmer.</span></div>' : '';
 
     // (v64, décision de Nicolas du 10/11) plus de date ni de compte à rebours : le bilan se lance quand on veut, avec un adulte
-    var prochainBilan = '<a class="li" href="#/bilans">' + icon('trophy', 20, 'style="color:var(--gold);flex:none"') + '<span class="grow"><span class="t1">Ton bilan, quand tu veux</span><span class="t2">12 tests avec un adulte · tes records sont dans Bilans</span></span>' + icon('right', 16) + '</a>';
+    var be = MC.bilanEtat ? MC.bilanEtat(me) : { etat: 'vide' };
+    var prochainBilan = '<a class="li" href="#/bilans">' + icon(be.etat === 'fait' ? 'check' : 'trophy', 20, 'style="color:var(--gold);flex:none"') + '<span class="grow"><span class="t1">' +
+      (be.etat === 'fait' ? 'Ton bilan est fait' : be.etat === 'encours' ? 'Ton bilan : ' + be.n + ' / ' + be.tot + ' tests' : 'Ton bilan, quand tu veux') + '</span><span class="t2">' +
+      (be.etat === 'encours' ? 'À finir quand tu veux, avec un adulte' : be.etat === 'fait' ? 'Tes records sont dans Bilans' : '12 tests avec un adulte · tes records sont dans Bilans') + '</span></span>' + icon('right', 16) + '</a>';
     // (retouche UI-02, 25/10) l'action du jour d'abord ; les informations secondaires dans « À regarder »,
     // ouvert tant qu'il y a du nouveau, replié une fois consulté
     var aRegarder = bandeauMissions(me) + bilanNote + props + pendNote, aReg = '';

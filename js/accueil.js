@@ -132,7 +132,7 @@ MC.accueil = (function () {
     if (i === 3) return frame('k', n, i, '<div class="obtests">' + C.TESTS.map(function (t) { return '<span>' + esc(t.court) + '</span>'; }).join('') + '</div>', 'le bilan',
       'Le bilan, c\'est quoi ?', '<ul class="obul"><li><b>12 petits tests</b> (sauts, gainage, navette…), quand tu veux, <b>avec un adulte</b> qui regarde et compte.</li>' +
       '<li>Il <b>règle tes niveaux</b> exercice par exercice, et tes résultats deviennent tes <b>records</b>.</li>' +
-      '<li>' + (noBilan ? '<b>Pas encore fait ? Pas grave :</b> tu peux t\'entraîner tout de suite, au niveau 1. Tu feras ton bilan quand un adulte sera là.' : 'Tu l\'as déjà fait : tes niveaux sont réglés. Le prochain arrive dans quelques semaines.') + '</li></ul>', nextBtn, { kc: 'var(--cyan)' });
+      '<li>' + (noBilan ? '<b>Pas encore fait ? Pas grave :</b> tu peux t\'entraîner tout de suite, au niveau 1. Tu feras ton bilan quand un adulte sera là.' : 'Tu l\'as déjà fait : tes niveaux sont réglés. Tu pourras en refaire un plus tard pour voir tes progrès.') + '</li></ul>', nextBtn, { kc: 'var(--cyan)' });
     var last = '<button type="button" class="btn green" data-act="obDoneKid">' + icon('play', 18) + ' Je commence' + (noBilan ? ' au niveau 1' : '') + ' !</button>' +
       (noBilan ? '<a class="btn2 gold" href="#/bilan" data-act="obBilan">' + icon('trophy', 16) + ' D\'abord mon bilan, avec un adulte</a>' : '');
     return frame('k', n, i, '<div class="obgrades">' + C.GRADES.slice(0, 4).reverse().map(function (g, j) { return '<span class="' + (j === 3 ? 'me' : '') + '"><b>' + esc(g.nom) + '</b><small>' + ui.fmtNum(g.xp) + ' XP</small></span>'; }).join('') + '</div>', 'monte en grade',
@@ -234,7 +234,7 @@ MC.accueil = (function () {
     return [
       { done: true, html: chk(true, 'Choisir mon code secret') },
       { done: seance, html: chk(seance, 'Faire ma 1re séance', 'Avec le guidage, c\'est plus facile : 15 à 20 min', go) },
-      { done: bilan, html: chk(bilan, 'Passer mon bilan 0', 'Avec un adulte. Tu peux t\'entraîner avant !', '#/bilan') },
+      { done: bilan, html: chk(bilan, 'Passer mon bilan', 'Avec un adulte. Tu peux t\'entraîner avant !', '#/bilan') },
       { done: arene, html: chk(arene, 'Visiter l\'arène', 'Le classement des joueurs de ton niveau', '#/classement') }
     ];
   }

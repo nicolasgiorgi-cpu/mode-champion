@@ -117,15 +117,20 @@
       '<ol class="list">' + rows + '</ol>' +
       bilanBtn(me, bl) +
       '<a class="btn2" href="#/progression">' + icon('up', 16) + ' Ma progression d\'un bilan à l\'autre</a>' +
-      '<div class="note gold">' + icon('trophy', 20) + '<span><b>Ton bilan, quand tu veux.</b> Tu le passes avec un adulte. Il confirme tes résultats, puis ils arrivent ici.</span></div>' +   // (v64) plus de date
+      (MC.bilanEtat(me).etat !== 'fait' ? '<div class="note gold">' + icon('trophy', 20) + '<span><b>Ton bilan, quand tu veux.</b> Tu le passes avec un adulte. Il confirme tes résultats, puis ils arrivent ici.</span></div>' : '') +   // (v64) plus de date
       '</main>';
   }
 
   // (retouche UI-08) le bouton du bilan dit où on en est vraiment : à saisir, à compléter, en attente d'un adulte, fait
+  // (v64) où en est le bilan en cours : 'vide' (rien de noté), 'encours' (n tests sur 12), 'fait' (les 12 notés)
+  MC.bilanEtat = function (me) {
+    var bl = L.currentBilan(), n = Object.keys(L.bilanRecords(me && me.records, bl.n)).length;
+    return { etat: !n ? 'vide' : n < C.TESTS.length ? 'encours' : 'fait', n: n, tot: C.TESTS.length };
+  };
   function bilanBtn(me, bl) {
     var faits = L.bilanRecords(me.records, bl.n), n = Object.keys(faits).length, tot = C.TESTS.length;
     var att = Object.keys(faits).filter(function (k) { return faits[k].statut === 'attente'; }).length, nom = esc(bl.nom.toLowerCase());
-    if (!n) return '<a class="btn" href="#/bilan">' + icon('plus', 18) + ' Saisir mon ' + nom + ' · ' + esc(bl.quand) + '</a>';
+    if (!n) return '<a class="btn" href="#/bilan">' + icon('plus', 18) + ' Saisir mon ' + nom + '</a>';   // (v64) sans date
     if (n < tot) return '<a class="btn" href="#/bilan">' + icon('plus', 18) + ' Compléter mon ' + nom + ' · ' + n + ' / ' + tot + ' tests</a>';
     if (att) return '<a class="btn2" href="#/bilan">' + icon('clock', 16) + ' ' + esc(bl.nom) + ' envoyé · ' + att + ' en attente d\'un adulte</a>';
     return '<a class="btn2" href="#/bilan">' + icon('check', 16) + ' ' + esc(bl.nom) + ' fait ✓ · revoir</a>';
@@ -482,7 +487,7 @@
     }).join('');
     var pct = Math.round(done / C.TESTS.length * 100);
     return '<main class="screen">' + MC.kidSubBar('#/bilans', 'Bilans', 'Mon bilan') +
-      '<div class="head"><span class="kicker">' + esc(B.nom) + ' · ' + esc(B.quand) + '</span><h1 class="big md">Mon bilan<br>de champion</h1></div>' +
+      '<div class="head"><span class="kicker">' + esc(B.nom) + '</span><h1 class="big md">Mon bilan<br>de champion</h1></div>' +   // (v64) sans « mi-novembre »
       bilanExplain(me) +
       guidedCta() + dateField('bil_date') +
       (mini ? '<div class="note yellow">' + icon('home', 20) + '<span>Mode mini matériel : les tests 4, 5, 10 et 11 sont en version « SM ».</span></div>' : '') +
