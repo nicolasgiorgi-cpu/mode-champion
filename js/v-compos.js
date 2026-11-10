@@ -744,7 +744,7 @@ window.MC = window.MC || {};
   function taillesHtml(ids, F, reg, attr, attrEq, ligne) {
     if (K.optsDe(reg).effectifs === 'niveaux') {   // (v50) « Suivre les niveaux » : pas de réglage par équipe ; (v63) la taille moyenne en une ligne
       var nt = K.idsEquipes(reg).length;
-      return ligne || !nt ? '' : '<section class="sec"><p class="small ctailn" style="margin:0">Effectifs des niveaux : environ ' + par(ids.length, nt) + ' joueurs par équipe.</p></section>';
+      return ligne || !nt || !ids.length ? '' : '<section class="sec"><p class="small ctailn" style="margin:0">Effectifs des niveaux : environ ' + par(ids.length, nt) + ' joueurs par équipe.</p></section>';
     }
     var tids = K.idsEquipes(reg), t = taillesReg(ids, F, reg), s = 0, def = K.taillesDefaut(ids, F, reg), modif = false;
     tids.forEach(function (id) { s += t[id]; if (t[id] !== def[id]) modif = true; });

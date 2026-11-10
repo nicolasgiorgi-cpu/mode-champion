@@ -957,7 +957,8 @@ MC.compos = (function () {
   function blocDe(t) { return (t && (t.bloc || t.niveau)) || ''; }
   function nomEq(t) { return (t && (t.nom || t.id)) || ''; }
   // (v63) la compo en texte, pour la partager entre éducs (WhatsApp : *gras*). Les prénoms seulement : ni plaquage, ni copains,
-  // ni passerelles. o : { titre, quand, absent(id) → vrai s'il ne vient pas (il sort de son équipe, cité à la fin) }
+  // ni passerelles. o : { titre, quand, absent(id) → vrai s'il ne vient pas (il sort de son équipe, cité à la fin),
+  // marque(id) → vrai si sa présence n'est pas confirmée (« (?) ») }
   var POSTES_TXT = { pilier: ['Pilier', 'Piliers'], talonneur: ['Talonneur', 'Talonneurs'], 'troisieme-ligne': ['3e ligne', '3es lignes'], 'demi-de-melee': ['9', '9'], ouvreur: ['10', '10'], centre: ['Centre', 'Centres'], ailier: ['Ailier', 'Ailiers'] };
   function texteCompo(c, F, o) {
     o = o || {};
