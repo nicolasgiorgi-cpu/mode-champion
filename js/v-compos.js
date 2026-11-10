@@ -822,7 +822,7 @@ window.MC = window.MC || {};
     setTimeout(function () {
       var bt = document.querySelector('[data-act="cAuto"]'), x = document.getElementById('cauto'), nav = document.getElementById('nav');
       if (bt) try { bt.focus({ preventScroll: true }); } catch (er) { bt.focus(); }
-      if (!B.auto || !bt || !x) return;
+      if (!B || !B.auto || !bt || !x) return;
       // le bas visible : le haut de la barre du bas (téléphone, iPad portrait), sinon le bas de la fenêtre
       var nr = nav && nav.getBoundingClientRect(), bas = nr && nr.top > innerHeight / 2 ? nr.top : innerHeight;
       if (x.getBoundingClientRect().bottom <= bas - 8) return;

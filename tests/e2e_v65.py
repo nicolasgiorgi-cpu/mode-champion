@@ -46,6 +46,7 @@ with sync_playwright() as p:
     check('plateau : au jeu à 10, « Créer manuellement » = poste par poste', pg.query_selector('.ccreer [data-act="cZero10"]') is not None)
     check('plateau : rien d\'automatique avant d\'ouvrir (ni options, ni « Générer »)', pg.query_selector('[data-act="cOpt"]') is None and pg.query_selector('[data-act="cPropose"]') is None and pg.query_selector('[data-act="cPropose2"]') is None)
     check('plateau : « Créer automatiquement » fermé (aria-expanded)', ev("document.querySelector('[data-act=cAuto]').getAttribute('aria-expanded')") == 'false')
+    ev("document.querySelectorAll('details.rpost').forEach(d => d.open = true)"); pg.wait_for_timeout(300)   # (relecture) une page plus longue
     pg.click('[data-act="cAuto"]'); pg.wait_for_timeout(900)
     check('plateau, ouvert : les options, « Générer la compo » et « Générer 2 versions côte à côte »', pg.query_selector('#cauto [data-act="cOpt"]') is not None and pg.query_selector('#cauto [data-act="cPropose"]') is not None and pg.query_selector('#cauto [data-act="cPropose2"]') is not None)
     check('plateau, ouvert : aria-expanded vrai', ev("document.querySelector('[data-act=cAuto]').getAttribute('aria-expanded')") == 'true')
