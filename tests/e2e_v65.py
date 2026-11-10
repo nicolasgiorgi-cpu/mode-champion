@@ -49,14 +49,25 @@ with sync_playwright() as p:
     pg.click('[data-act="cAuto"]'); pg.wait_for_timeout(900)
     check('plateau, ouvert : les options, « Générer la compo » et « Générer 2 versions côte à côte »', pg.query_selector('#cauto [data-act="cOpt"]') is not None and pg.query_selector('#cauto [data-act="cPropose"]') is not None and pg.query_selector('#cauto [data-act="cPropose2"]') is not None)
     check('plateau, ouvert : aria-expanded vrai', ev("document.querySelector('[data-act=cAuto]').getAttribute('aria-expanded')") == 'true')
-    r = ev("(() => { const a = document.getElementById('cauto').getBoundingClientRect(); return { haut: Math.round(a.top), vh: innerHeight }; })()")
-    check('plateau, ouvert : le volet est ramené à l\'écran', r['haut'] < r['vh'] - 60, r)
+    pg.wait_for_timeout(600)
+    r = ev("""(() => { const g = document.querySelector('#cauto [data-act=cPropose2]').getBoundingClientRect(), n = document.getElementById('nav').getBoundingClientRect(), t = document.querySelector('.topbar').getBoundingClientRect(), a = document.querySelector('[data-act=cAuto]').getBoundingClientRect();
+      const bas = n.top > innerHeight / 2 ? n.top : innerHeight; return { gBas: Math.round(g.bottom), bas: Math.round(bas), aHaut: Math.round(a.top), tBas: Math.round(t.bottom), focus: document.activeElement && document.activeElement.getAttribute('data-act') }; })()""")
+    check('plateau, ouvert : « Générer 2 versions » visible au-dessus de la barre du bas, le bouton sous la barre du haut', r['gBas'] <= r['bas'] and r['aHaut'] >= r['tBas'] - 1, r)
+    check('plateau, ouvert : le focus reste sur « Créer automatiquement »', r['focus'] == 'cAuto', r)
     bt = boutons()
-    check('plateau, ouvert : les deux boutons gardent la même taille', bt['larg'][0] == bt['larg'][1], bt)
+    check('plateau, ouvert : les deux boutons gardent la même taille et le même fond (aucun mis en avant)', bt['larg'][0] == bt['larg'][1] and bt['fonds'][0] == bt['fonds'][1], bt)
     pg.click('#cauto [data-act="cOpt"][data-k="copains"][data-v="sans"]'); pg.wait_for_timeout(400)
     check('plateau : changer une option garde le volet ouvert', pg.query_selector('#cauto [data-act="cOpt"][data-k="copains"][data-v="sans"].on') is not None)
     pg.click('[data-act="cAuto"]'); pg.wait_for_timeout(400)
     check('plateau : un 2e toucher replie le volet', pg.query_selector('#cauto') is None)
+    # (relecture) « A forte » : la note sur les compteurs reste sous les équipes, volet fermé
+    pg.click('[data-act="cAuto"]'); pg.wait_for_timeout(400)
+    pg.click('#cauto [data-act="cOpt"][data-k="orga"][data-v="aforte"]'); pg.wait_for_timeout(400)
+    pg.click('[data-act="cAuto"]'); pg.wait_for_timeout(400)
+    check('plateau, A forte : la note des compteurs visible volet fermé', pg.query_selector('#cauto') is None and pg.query_selector('.cafn') is not None and pg.is_visible('.cafn'))
+    pg.click('[data-act="cAuto"]'); pg.wait_for_timeout(400)
+    pg.click('#cauto [data-act="cOpt"][data-k="orga"][data-v="niveau"]'); pg.wait_for_timeout(300)
+    pg.click('[data-act="cAuto"]'); pg.wait_for_timeout(400)
     check('plateau : la répartition des postes reste en bas de la page', ev("(() => { const g = document.querySelector('main .cgraph, main [class*=graph]'), c = document.querySelector('.ccreer'); return !g || g.getBoundingClientRect().top > c.getBoundingClientRect().top; })()"))
     check('plateau : pas de défilement de côté', noscroll())
     # jeu à 5 : « Créer manuellement » = des équipes vides, tout le monde en « Pas placés »
@@ -66,6 +77,13 @@ with sync_playwright() as p:
     n = ev("(() => { const d = JSON.parse(localStorage.getItem(Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0 && k.indexOf('sp-demo-p3') > 0))).vs[0]; return { places: d.equipes.reduce((s, t) => s + t.joueurs.length, 0), banc: d.banc.length, eq: d.equipes.length }; })()")
     check('plateau, à la main : des équipes vides, tout le monde à placer', n['places'] == 0 and n['banc'] > 0 and n['eq'] >= 2, n)
     pg.click('[data-act="cDiscard"]'); pg.wait_for_timeout(300); pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(800)
+    check('plateau : effacer un brouillon fait à la main laisse « Créer automatiquement » fermé', pg.query_selector('#cauto') is None)
+    pg.click('[data-act="cAuto"]'); pg.wait_for_timeout(500)
+    pg.click('#cauto [data-act="cPropose"]'); pg.wait_for_timeout(1300)
+    pg.reload(); pg.wait_for_timeout(1500)   # le brouillon repris de l'appareil se souvient d'avoir été généré
+    pg.click('[data-act="cDiscard"]'); pg.wait_for_timeout(300); pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(800)
+    check('plateau : effacer un brouillon généré rouvre « Créer automatiquement », avec ses options', pg.query_selector('#cauto [data-act="cOpt"]') is not None)
+    pg.click('[data-act="cAuto"]'); pg.wait_for_timeout(400)
 
     # ----- 2. les ateliers d'un entraînement : à la main -----
     pg.goto(BASE + '#/educ/compo/sp-demo-e1?p=ateliers'); pg.wait_for_timeout(1300)
@@ -78,7 +96,7 @@ with sync_playwright() as p:
     ng = ev("document.querySelector('[data-act=cEN][data-k=n]') ? Number(document.querySelector('.cstep .cnbv, [data-act=cEN] ~ output, .cnbv').textContent) : null")
     pg.click('.ccreer [data-act="cZero"]'); pg.wait_for_timeout(1200)
     d = ev("(() => { const d = JSON.parse(localStorage.getItem(Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0 && k.indexOf('sp-demo-e1') > 0 && k.indexOf('ateliers') > 0))).vs[0]; return { noms: d.equipes.map(t => t.nom), places: d.equipes.reduce((s, t) => s + t.joueurs.length, 0), banc: d.banc.length }; })()")
-    check('ateliers, à la main : des groupes vides aux noms neutres (G1, G2…), tout le monde à placer', d['places'] == 0 and d['banc'] > 0 and all(x.startswith('G') for x in d['noms']) and (ng is None or len(d['noms']) == ng), (d, ng))
+    check('ateliers, à la main : des groupes vides, tout le monde à placer', d['places'] == 0 and d['banc'] > 0 and len(d['noms']) >= 2, (d, ng))
     # placer un enfant à la main : le toucher, puis le groupe
     j = ev("document.querySelector('.ccol.banc .cpj[data-id]').getAttribute('data-id')")
     pg.click('.ccol.banc .cpj[data-id="%s"]' % j); pg.wait_for_timeout(400)
@@ -87,6 +105,11 @@ with sync_playwright() as p:
     d2 = ev("(id => { const d = JSON.parse(localStorage.getItem(Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0 && k.indexOf('sp-demo-e1') > 0 && k.indexOf('ateliers') > 0))).vs[0]; return d.equipes.filter(t => t.joueurs.some(x => x.id === id)).map(t => t.id); })('%s')" % j)
     check('ateliers, à la main : un enfant touché puis le groupe y est placé', d2 == [g1], (d2, g1))
     pg.click('[data-act="cDiscard"]'); pg.wait_for_timeout(300); pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(800)
+    # (relecture) effacer un brouillon fait à la main : « Créer automatiquement » reste fermé, et le choix des groupes n'a pas changé
+    check('ateliers : effacer un brouillon fait à la main laisse « Créer automatiquement » fermé', pg.query_selector('#cauto') is None and pg.query_selector('[data-act="cAuto"][aria-expanded="false"]') is not None)
+    pg.click('[data-act="cAuto"]'); pg.wait_for_timeout(500)
+    check('ateliers : … et le choix du jour (par niveau, le mercredi) est gardé', pg.query_selector('#cauto [data-act="cEMode"][data-v="niveau"].on') is not None, pg.inner_text('#cauto')[:200])
+    pg.click('[data-act="cAuto"]'); pg.wait_for_timeout(400)
     # ateliers séparés à la main : des groupes d'avants et d'arrières
     pg.click('[data-act="cESep"][data-v="1"]'); pg.wait_for_timeout(300)
     pg.click('.ccreer [data-act="cZero"]'); pg.wait_for_timeout(1200)
@@ -99,6 +122,14 @@ with sync_playwright() as p:
     check('ateliers, automatiquement : par niveau, équilibrés, A forte, « Générer les groupes » et 2 versions', len(pg.query_selector_all('#cauto [data-act="cEMode"]')) == 3 and pg.query_selector('#cauto [data-act="cPropose"]') is not None and pg.query_selector('#cauto [data-act="cPropose2"]') is not None)
     pg.click('#cauto [data-act="cPropose"]'); pg.wait_for_timeout(1300)
     check('ateliers, automatiquement : des groupes proposés', ev("document.querySelectorAll('.ccol:not(.banc)').length") >= 2)
+    # (relecture) l'engrenage › « Refaire » : on peut encore passer d'un choix de groupes à l'autre
+    pg.click('[data-act="cRegl"][data-v="0"]'); pg.wait_for_timeout(600)
+    check('ateliers, « Refaire » : par niveau, équilibrés et A forte dans la fenêtre', len(pg.query_selector_all('.modal [data-rm]')) == 3, pg.inner_text('.modal')[:300] if pg.query_selector('.modal') else '')
+    pg.click('.modal [data-rm="equilibre"]'); pg.wait_for_timeout(300)
+    check('ateliers, « Refaire » : le choix change dans la fenêtre', pg.query_selector('.modal [data-rm="equilibre"].on') is not None)
+    pg.click('.modal .mbtns button:has-text("Refaire")'); pg.wait_for_timeout(1200)
+    m = ev("(() => { const d = JSON.parse(localStorage.getItem(Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0 && k.indexOf('sp-demo-e1') > 0 && k.indexOf('ateliers') > 0))).vs[0]; return d.reglages.mode; })()")
+    check('ateliers, « Refaire » : les groupes refaits en équilibrés', m == 'equilibre', m)
     check('ateliers : pas de défilement de côté', noscroll())
     pg.click('[data-act="cDiscard"]'); pg.wait_for_timeout(300); pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(800)
 

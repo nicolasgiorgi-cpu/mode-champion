@@ -1090,7 +1090,6 @@ body:has(.cdock .cselp) .toast{top:calc(74px + var(--safe-t) + var(--vvt));botto
 .caide>.clegend{margin:0 0 4px}
 .cstate.draft{padding:8px 12px;font-size:13px;align-items:center}
 /* (v65) créer la compo : « Créer manuellement », « Créer automatiquement » (même style), les options dépliées dessous */
-.ccreer .ccr.on{background:color-mix(in srgb,var(--cyan) 12%,transparent)}
 .ccreer .ccr .ccr-i{flex:none;transition:transform .15s}
 .ccreer .ccr:not([data-act="cAuto"]) .ccr-i{display:none}
 .ccreer .ccr.on .ccr-i{transform:rotate(180deg)}

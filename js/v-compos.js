@@ -599,7 +599,7 @@ window.MC = window.MC || {};
   // Téléphone d'abord : les niveaux l'un sous l'autre ; dans chaque niveau, la version 1 à gauche et la version 2 à droite.
   var B = null;
   function draftKey(id, partie) { return 'mc-cdraft:' + ((app.S.adult && app.S.adult.id) || (app.S.cache.group && app.S.cache.group.moi.id) || '') + ':' + id + (partie ? ':' + partie : ''); }
-  function saveDraft() { if (B && B.dirty) app.lsSet(draftKey(B.evtId, B.partie), { base: B.base, compoId: B.compoId, mode: B.mode, vs: B.vs, undo: B.undo.slice(-15) }); }
+  function saveDraft() { if (B && B.dirty) app.lsSet(draftKey(B.evtId, B.partie), { base: B.base, compoId: B.compoId, mode: B.mode, vs: B.vs, undo: B.undo.slice(-15), cree: B.cree || null }); }
   function dropDraft(id, partie) { app.lsSet(draftKey(id, partie), null); }
   function copyCompo(c) { return JSON.parse(JSON.stringify({ reglages: c.reglages, equipes: c.equipes, banc: c.banc || [], raisons: c.raisons || {} })); }
   function canEdit(C, c) { var e = C.evts[c.evenementId]; return c.auteur === C.moi.id || (e && jour(e) === L.today()); }
@@ -610,7 +610,7 @@ window.MC = window.MC || {};
     if (s && (s.vs || s.d) && s.base === base && (s.compoId || null) === cid && !(c && c.statut === 'vote')) {
       // un brouillon « jour J » repris le lendemain devient une contre-proposition
       var mode = s.mode === 'edit' && c && !canEdit(C, c) ? 'counter' : s.mode;
-      B = { evtId: e.id, partie: partie, moi: C.moi.id, base: base, compoId: cid, mode: mode, vs: s.vs || [s.d], undo: s.undo || [], sel: null, dirty: true };
+      B = { evtId: e.id, partie: partie, moi: C.moi.id, base: base, compoId: cid, mode: mode, vs: s.vs || [s.d], undo: s.undo || [], sel: null, dirty: true, cree: s.cree || null };
       return B;
     }
     if (s) { dropDraft(e.id, partie); if (B && B.evtId === e.id && (B.partie || '') === partie && B.dirty) ui.toast('La compo a changé entre-temps : vos changements non envoyés sont effacés.', true); }
@@ -795,12 +795,12 @@ window.MC = window.MC || {};
       (reg.format === 10 ? baseHtml(C, e, reg, 'data-act="cBase" data-v') : '') +
       '<section class="sec"><h2 class="h2">Équipes par niveau</h2>' + stepperHtml('A', reg, cnt, sug, 'data-act="cNb" data-n') + stepperHtml('B', reg, cnt, sug, 'data-act="cNb" data-n') + stepperHtml('C', reg, cnt, sug, 'data-act="cNb" data-n') +
       (!af && ['A', 'B', 'C'].some(function (n) { return cnt[n] && !reg.nb[n]; }) ? '<p class="small" style="margin:0">Un niveau sans équipe joue dans le niveau voisin.</p>' : '') +
-      (noLv.length ? '<p class="small" style="margin:0;color:var(--orange)">Sans niveau (placés en B en attendant) : ' + noLv.map(function (id) { return esc(nom(C, id)); }).join(', ') + '. <a href="#/educ/joueurs">Fiche terrain</a></p>' : '') + '</section>' +
+      (noLv.length ? '<p class="small" style="margin:0;color:var(--orange)">Sans niveau (placés en B en attendant) : ' + noLv.map(function (id) { return esc(nom(C, id)); }).join(', ') + '. <a href="#/educ/joueurs">Fiche terrain</a></p>' : '') +
+      (af ? '<p class="small cafn" style="margin:0">A forte : ' + af.A + ' équipe' + (af.A > 1 ? 's' : '') + ' A, ' + af.B + ' équipe' + (af.B > 1 ? 's' : '') + ' B (les équipes C comptent comme des B : Débrouillés et Débutants mélangés' + (reg.nb.B + reg.nb.C > 9 ? ' ; 9 équipes B au plus' : '') + ').</p>' : '') + '</section>' +
       taillesHtml(ids, C.F, reg, 'data-act="cTail" data-t', 'data-act="cTailEq"') +   // (v56) juste sous le nombre d'équipes
       // (v65) les boutons pour créer la compo juste sous le nombre d'équipes et de joueurs ; les options seulement avec « Créer automatiquement »
       creerHtml({ titre: 'Créer la compo', manuel: 'data-act="' + (reg.format === 10 ? 'cZero10' : 'cZero') + '"', manuelOff: !tot,
         auto: '<h3 class="mlab" style="margin:0">Les options</h3>' + optionsHtml(reg, 'data-act="cOpt" data-k') +
-          (af ? '<p class="small" style="margin:0">A forte : ' + af.A + ' équipe' + (af.A > 1 ? 's' : '') + ' A, ' + af.B + ' équipe' + (af.B > 1 ? 's' : '') + ' B (les équipes C comptent comme des B : Débrouillés et Débutants mélangés' + (reg.nb.B + reg.nb.C > 9 ? ' ; 9 équipes B au plus' : '') + ').</p>' : '') +
           '<button type="button" class="btn2" data-act="cPropose"' + (ok ? '' : ' disabled') + '>' + icon('spark', 16) + ' Générer la compo</button>' +
           '<button type="button" class="btn2" data-act="cPropose2"' + (ok ? '' : ' disabled') + '>' + icon('swap', 16) + ' Générer 2 versions côte à côte</button>' }) +
       graphePresents(C, ids, 'plateau', baseTous(reg)) + '</main>');
@@ -819,9 +819,15 @@ window.MC = window.MC || {};
   MC.act.cAuto = function () {
     if (!B || B.mode !== 'reglages') return;
     B.auto = !B.auto; app.rerender();
-    if (B.auto) setTimeout(function () {
-      var x = document.getElementById('cauto'), calme = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-      if (x && x.scrollIntoView) x.scrollIntoView({ block: 'nearest', behavior: calme ? 'auto' : 'smooth' });
+    setTimeout(function () {
+      var bt = document.querySelector('[data-act="cAuto"]'), x = document.getElementById('cauto'), nav = document.getElementById('nav');
+      if (bt) try { bt.focus({ preventScroll: true }); } catch (er) { bt.focus(); }
+      if (!B.auto || !bt || !x) return;
+      // le bas visible : le haut de la barre du bas (téléphone, iPad portrait), sinon le bas de la fenêtre
+      var nr = nav && nav.getBoundingClientRect(), bas = nr && nr.top > innerHeight / 2 ? nr.top : innerHeight;
+      if (x.getBoundingClientRect().bottom <= bas - 8) return;
+      var calme = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+      bt.scrollIntoView({ block: 'start', behavior: calme ? 'auto' : 'smooth' });
     }, 60);
   };
   // ---------- réglages d'un entraînement : par niveau ou équilibrés ; ateliers : avants et arrières ensemble ou séparés ----------
@@ -913,7 +919,7 @@ window.MC = window.MC || {};
       if (!last) return;
       var d = K.reprendre(last, idsBase(C, e, B.reg), C.F), le = C.evts[last.evenementId];
       if (baseTous(B.reg)) d.reglages.base = 'tous'; else delete d.reglages.base;   // (v57) avec qui : le choix d'aujourd'hui
-      B.vs = [d]; B.mode = 'draft'; B.dirty = true; B.sel = null; saveDraft();
+      B.vs = [d]; B.mode = 'draft'; B.dirty = true; B.sel = null; B.cree = 'reprise'; saveDraft();
       ui.toast('Repris du ' + ui.fmtDate(jour(le)) + (d.banc.length ? ' : ' + d.banc.length + ' à placer (« Pas placés »)' : ''));
       app.rerender(); window.scrollTo(0, 0);
     });
@@ -972,7 +978,7 @@ window.MC = window.MC || {};
       var reg = B.reg;
       if (B.vs.length) B.undo.push(JSON.stringify(B.vs));
       B.vs = [proposition(C, e, reg, B.partie ? reg.mode : K.optsDe(reg))];
-      B.mode = 'draft'; B.dirty = true; B.sel = null; saveDraft();
+      B.mode = 'draft'; B.dirty = true; B.sel = null; B.cree = 'auto'; saveDraft();
       ui.toast((B.partie === 'ateliers' ? 'Groupes proposés' : B.partie === 'matchs' ? 'Matchs proposés' : 'Compo proposée') + ' : à vous d\'ajuster'); app.rerender(); window.scrollTo(0, 0);
     });
   };
@@ -988,7 +994,7 @@ window.MC = window.MC || {};
         B.vs = [proposition(C, e, reg, o1), proposition(C, e, reg, o2)];
         ui.toast('2 versions proposées : ' + nomOpts(o1, o2) + ' et ' + nomOpts(o2, o1));
       }
-      B.mode = 'draft'; B.dirty = true; B.sel = null; saveDraft();
+      B.mode = 'draft'; B.dirty = true; B.sel = null; B.cree = 'auto'; saveDraft();
       app.rerender(); window.scrollTo(0, 0);
     });
   };
@@ -997,9 +1003,9 @@ window.MC = window.MC || {};
     var ok = false;
     withC(function (C, e) {
       var reg = B.reg, d, ids = idsBase(C, e, reg);
-      if (B.partie) d = K.videEnt(ids, C.F, B.partie === 'ateliers' ? Object.assign({}, reg, { mode: 'equilibre' }) : reg, L.today());   // (v65) à la main : groupes G1, G2…
+      if (B.partie) d = K.videEnt(ids, C.F, reg, L.today());
       else { var oz = K.optsDe(reg); d = K.vide(ids, reg); d.reglages = { format: reg.format, nb: K.nbOf(reg), style: K.styleDe(oz), opts: oz }; if (baseTous(reg)) d.reglages.base = 'tous'; }
-      B.vs = [d]; B.mode = 'draft'; B.dirty = true; B.sel = null; saveDraft(); app.rerender(); window.scrollTo(0, 0); ok = true;
+      B.vs = [d]; B.mode = 'draft'; B.dirty = true; B.sel = null; B.cree = 'manuel'; saveDraft(); app.rerender(); window.scrollTo(0, 0); ok = true;
     });
     return ok;
   }
@@ -1892,7 +1898,8 @@ window.MC = window.MC || {};
   function reglEnt(v, d) {
     withC(function (C, e) {
       var reg = K.regEnt(JSON.parse(JSON.stringify(d.reglages)), presentsOf(C, e), C.F);
-      function body() { return regEntHtml(C, reg, idsBase(C, e, reg), { mode: 'data-rm', sep: 'data-rsep', n: 'data-rk', base: 'data-rb' }, e); }
+      // (relecture v65) aux ateliers, le choix des groupes (par niveau, équilibrés, A forte) en tête de la fenêtre
+      function body() { return (reg.partie === 'ateliers' ? modesHtml(reg, { mode: 'data-rm' }) : '') + regEntHtml(C, reg, idsBase(C, e, reg), { mode: 'data-rm', sep: 'data-rsep', n: 'data-rk', base: 'data-rb' }, e); }
       ui.modal({
         title: B.vs.length > 1 ? 'Refaire · ' + vName(v) : 'Refaire', body: '<div class="creg">' + body() + '</div>',
         actions: [{ label: B.partie === 'ateliers' ? 'Refaire les groupes' : 'Refaire les matchs', value: true, cls: 'btn' }, { label: 'Annuler', value: null, cls: 'btn2 grey' }],
@@ -2014,10 +2021,10 @@ window.MC = window.MC || {};
     var draft = B && B.mode === 'draft';
     ui.modal({ title: draft ? 'Effacer le brouillon ?' : 'Annuler vos changements ?', body: '<p class="lead">' + (draft ? 'On revient aux réglages.' : 'On revient à la compo publiée.') + '</p>', actions: [{ label: draft ? 'Effacer' : 'Oui, annuler', value: true, cls: 'btn pink' }, { label: 'Non', value: false, cls: 'btn2 grey' }] }).then(function (ok) {
       if (!ok || !B) return;
-      dropDraft(B.evtId, B.partie); var keepReg = draft ? B.vs[0].reglages : null; B = null;
+      dropDraft(B.evtId, B.partie); var keepReg = draft ? B.vs[0].reglages : null, autoAvant = draft && B.cree === 'auto'; B = null;
       app.rerender();
-      // (v50) avec les options ; (v65) « Créer automatiquement » rouvert, pour les voir
-      if (keepReg) setTimeout(function () { if (B) { B.reg = keepReg.partie ? JSON.parse(JSON.stringify(keepReg)) : regDe(keepReg); B.auto = true; } app.rerender(); }, 0);
+      // (v50) avec les options ; (v65) « Créer automatiquement » rouvert seulement si le brouillon venait de là
+      if (keepReg) setTimeout(function () { if (B) { B.reg = keepReg.partie ? JSON.parse(JSON.stringify(keepReg)) : regDe(keepReg); B.auto = autoAvant; } app.rerender(); }, 0);
     });
   };
   // (v58, demande de Nicolas) une compo publiée se rouvre en un geste pour ajuster équipes et postes ; « Terminer » sans changement la referme
