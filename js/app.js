@@ -359,7 +359,7 @@ MC.app = (function () {
   // Éduc : Entraîn. · Plateaux · Progrès (v44 : s'ouvre sur Missions) · Enfants ; la gestion est derrière l'engrenage (aucun onglet allumé).
   // Chaque onglet a 2 ou 3 sous-onglets ; (v44) l'onglet du bas mène toujours au premier (venir d'ailleurs = le premier onglet).
   var NAVS = {
-    // (v67, N5 validée par Nicolas le 09/11) une question par onglet : je fais quoi ? les copains ? je progresse ? ce que j'ai gagné
+    // (v68, N5 validée par Nicolas le 09/11) une question par onglet : je fais quoi ? les copains ? je progresse ? ce que j'ai gagné
     k: [['accueil', '#/semaine', 'home', 'Accueil', '#38E8FF'], ['equipe', '#/classement', 'group', 'Équipe', '#FF7FBC'], ['progres', '#/bilans', 'trend', 'Progrès', '#FFC23D'], ['moi', '#/profil', 'user', 'Moi', '#3DFFB0']],
     p: [['p:prepa', '#/parent', 'bolt', 'Prépa', '#38E8FF'], ['p:missions', '#/parent/missions', 'target', 'Missions', '#FF7FBC'], ['p:skills', '#/parent/skills', 'star', 'Skills', '#FFC23D'], ['p:plus', '#/parent/plus', 'menu', 'Plus', '#C9AEFF']],
     e: [['e:entrain', '#/educ/entrainements', 'calendar', 'Entraîn.', '#38E8FF'], ['e:plateaux', '#/educ/plateaux', 'flag', 'Plateaux', '#FFC23D'], ['e:progres', '#/educ/missions', 'trend', 'Progrès', '#3DFFB0'], ['e:enfants', '#/educ/joueurs', 'kids', 'Enfants', '#C9AEFF']]
@@ -372,7 +372,7 @@ MC.app = (function () {
   function mesEnfantsDuGroupe(g) { var mine = (g.moi && g.moi.enfants) || []; return g.joueurs.filter(function (p) { return p.joueur.actif && mine.indexOf(p.joueur.id) >= 0; }); }
   function navBadge(key) {
     var c = S.cache || {};
-    if (key === 'accueil' && S.me && MC.missions) return MC.missions.aFaire(S.me).length + MC.missions.nouveaux('k', S.me).enc.length;   // (v67) les missions sont sur l'accueil
+    if (key === 'accueil' && S.me && MC.missions) return MC.missions.aFaire(S.me).length + MC.missions.nouveaux('k', S.me).enc.length;   // (v68) les missions sont sur l'accueil
     // (visuels v2) des étoiles arrivées depuis la dernière visite du carnet : l'onglet Skills s'allume en doré
     if (key === 'progres' && S.me && MC.nouvellesEtoiles && MC.ouvert('skills')) return MC.nouvellesEtoiles(S.me, MC.luSkills ? MC.luSkills(S.me.joueur.id) : (lsGet('mc-sklu:' + S.me.joueur.id) || '')).length;
     if (key === 'p:prepa' && c.family) return pendingCount(c.family.enfants);
@@ -396,7 +396,7 @@ MC.app = (function () {
     // V1 (28/10) : pas d'onglet Skills pour les enfants ni les parents tant qu'il n'est pas ouvert (MC.CONFIG.ENFANTS)
     var items = NAVS[set].filter(function (it) { return (it[0] !== 'skills' && it[0] !== 'p:skills') || MC.ouvert('skills'); });
     navEl.style.setProperty('--n', items.length);
-    navEl.classList.toggle('navk', set === 'k');   // (v67) libellés des onglets enfant à 12 px
+    navEl.classList.toggle('navk', set === 'k');   // (v68) libellés des onglets enfant à 12 px
     navEl.setAttribute('aria-label', set === 'k' ? 'Navigation principale' : set === 'p' ? 'Navigation de l\'espace parent' : 'Navigation de l\'espace éduc');
     navEl.innerHTML = items.map(function (it) {
       var on = active === it[0], n = navBadge(it[0]);

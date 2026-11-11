@@ -47,7 +47,7 @@ with sync_playwright() as p:
     m = pg.query_selector('.modal.sheet-bvn')
     tb = m.inner_text() if m else ''
     check('1re ouverture : le message de bienvenue', m is not None)
-    # (v67) l'enfant a toujours 4 onglets : Accueil · Équipe · Progrès · Moi (les Skills seront un sous-onglet de Progrès)
+    # (v68) l'enfant a toujours 4 onglets : Accueil · Équipe · Progrès · Moi (les Skills seront un sous-onglet de Progrès)
     check('bienvenue : 4 onglets, sans Skills', '4 onglets' in tb and 'Skills' not in tb, tb)
     check('bienvenue : l\'Accueil = la séance et tes missions', 'tes missions' in tb, tb)
     shot(pg, 'k00-bienvenue')

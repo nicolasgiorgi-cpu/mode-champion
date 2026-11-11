@@ -147,7 +147,7 @@ with sync_playwright() as p:
     back(pg)
     check('après une séance : Retour saute « Bravo » et la séance guidée', h(pg) == '#/jour/' + J, h(pg))
     push(pg, '#/classement', 1300)
-    pg.evaluate("document.querySelector('.rkf') && (document.querySelector('.rkf').open = true)"); pg.wait_for_timeout(200)   # (v67) les filtres des podiums sont repliés sous une ligne
+    pg.evaluate("document.querySelector('.rkf') && (document.querySelector('.rkf').open = true)"); pg.wait_for_timeout(200)   # (v68) les filtres des podiums sont repliés sous une ligne
     check('classement : toutes les épreuves au départ', pg.locator('.rkchips .rkc-all.on').count() == 1 and pg.locator('.rkcard').count() >= 3, pg.locator('.rkcard').count())
     check('classement : les épreuves reviennent à la ligne', pg.evaluate(HSCROLL) == [] and pg.evaluate("getComputedStyle(document.querySelector('.rkchips')).flexWrap") == 'wrap', pg.evaluate(HSCROLL))
     pg.click('.rkchips [data-v="pompes"]'); pg.wait_for_timeout(300)

@@ -358,7 +358,7 @@
   function paintRank(me, Lg) {
     var R = rankCards(Lg, { id: me.joueur.id, prenom: me.joueur.prenom, toi: true }, rank.sel, rank.mode);
     var meNote = !R.seen ? '<div class="note">' + icon('info', 20) + '<span>Tu n\'apparais pas encore : saisis ton bilan (ou un défi) et fais-le confirmer par un adulte.</span></div>' : '';
-    // (v67) l'onglet Équipe : les podiums de ta ligue ; pas de grand titre, les filtres repliés sous une ligne
+    // (v68) l'onglet Équipe : les podiums de ta ligue ; pas de grand titre, les filtres repliés sous une ligne
     return '<main class="screen">' + MC.kidBar(me, app.S.stats) + '<div class="head acc-h"><h1 class="acc-t">Les podiums</h1>' +
       '<p class="small" style="margin:0">Sur chaque épreuve, avec les joueurs de ton niveau (ta ligue).</p></div>' +
       '<details class="rkf"' + (rank.ouvert ? ' open' : '') + '><summary>' + icon('menu', 16) + '<span class="grow">' + (rank.mode === 'prog' ? 'Par progrès' : 'Par record') + ' · ' + (rank.sel.length ? rank.sel.length + ' épreuve' + (rank.sel.length > 1 ? 's' : '') : 'toutes les épreuves') + '</span>' + icon('down', 14, 'class="rkf-i"') + '</summary>' +
@@ -367,7 +367,7 @@
       meNote + R.html +
       '<p class="small" style="text-align:center;margin:0">' + (rank.mode === 'prog' ? 'Progrès depuis ton 1er résultat : tout le monde peut être 1er.' : 'Records des bilans et des défis, confirmés par un adulte.') + '</p></main>';
   }
-  document.addEventListener('toggle', function (ev) { var t = ev.target; if (t && t.classList && t.classList.contains('rkf')) rank.ouvert = t.open; }, true);   // (v67) les filtres restent ouverts d'un toucher à l'autre
+  document.addEventListener('toggle', function (ev) { var t = ev.target; if (t && t.classList && t.classList.contains('rkf')) rank.ouvert = t.open; }, true);   // (v68) les filtres restent ouverts d'un toucher à l'autre
   MC.act.rkTest = function (b) { rank.sel = toggleSel(rank.sel, b.getAttribute('data-v')); app.lsSet('mc-rank', rank); paintAgain(); };
   MC.act.rkMode = function (b) { rank.mode = b.getAttribute('data-v'); app.lsSet('mc-rank', rank); paintAgain(); };
   // déplier / replier le classement complet d'une épreuve (enfant et parent)

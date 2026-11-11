@@ -1999,7 +1999,7 @@ textarea.txt{min-height:84px;padding:10px 12px;resize:vertical;font:500 16px/1.4
 /* la répartition des postes, plus serrée : les lignes se touchent, chacune reste facile à toucher */
 .rpost .pbars:not(.serre){gap:0}
 .rpost .pbarw summary{min-height:34px}
-/* ---------- (v67) côté enfant : Accueil · Équipe · Progrès · Moi ---------- */
+/* ---------- (v68) côté enfant : Accueil · Équipe · Progrès · Moi ---------- */
 .nav.navk a{font-size:12px;letter-spacing:.08em}   /* libellés des onglets enfant à 12 px */
 .acc-h{gap:6px}
 .acc-t{margin:0;font:italic 900 26px/1.05 var(--f-title);text-transform:uppercase}   /* plus de grand titre sur les onglets */

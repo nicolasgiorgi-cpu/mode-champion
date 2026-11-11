@@ -13,7 +13,7 @@ window.MC = window.MC || {};
   var esc = ui.esc, icon = ui.icon;
 
   // R : qui regarde. Enfant : { k: true, d: me, base: '#/missions', sk: '#/skills' } ; parent : { k: false, d: dossier de l'enfant, fam }
-  // (v67) enfant : Missions s'ouvre depuis l'accueil (barre avec Retour) ; Skills est un sous-onglet de Progrès
+  // (v68) enfant : Missions s'ouvre depuis l'accueil (barre avec Retour) ; Skills est un sous-onglet de Progrès
   function bar(R, title) {
     if (!R.k) return MC.parentBar(R.fam, R.d, title);
     return title === 'Skills' ? MC.kidBar(R.d, app.S.stats) + MC.kidProgresTabs('skills') : MC.kidSubBar('#/semaine', 'Accueil', 'Mes missions');

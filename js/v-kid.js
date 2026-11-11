@@ -67,7 +67,7 @@
   MC.kidBar = kidBar;
   function subBar(back, backLabel, title) { return ui.topbar({ back: back, backLabel: backLabel, title: title, right: adultBtn(), help: ui.helpLink('joueur') }); }
   MC.kidSubBar = subBar;
-  // (v67) les sous-onglets de Progrès : Records · Niveaux (· Skills une fois ouverts aux enfants)
+  // (v68) les sous-onglets de Progrès : Records · Niveaux (· Skills une fois ouverts aux enfants)
   function kidProgresTabs(on) {
     var l = [['records', '#/bilans', 'Records'], ['niveaux', '#/niveaux', 'Niveaux']];
     if (MC.ouvert('skills')) l.push(['skills', '#/skills', 'Skills']);
@@ -140,7 +140,7 @@
         '<div class="body"><div><div class="ttl">' + esc(j.nomSeance) + '</div><div class="sub">' + items.length + ' exos · ≈ ' + j.duree + ' min · +' + C.XP.seance + ' XP</div></div>' +
         (doneToday ? '<div class="note green">' + icon('check', 22) + '<span><b>Séance faite cette semaine !</b> Ton étoile est gagnée. Tu peux la refaire pour le plaisir.</span></div>' : '') +
         (!doneToday && MC.accueil && !(me.seances || []).length ? MC.accueil.tip('k-lancer', me.joueur.id, 'Touche ici : le site t\'explique chaque exercice et lance le chrono pour toi.') : '') +
-        // (v67) le bouton au premier écran ; les exercices repliés dessous
+        // (v68) le bouton au premier écran ; les exercices repliés dessous
         '<a class="btn' + (doneToday ? '' : ' glow') + '" href="#/jour/' + type + '">' + icon('play', 18) + (doneToday ? ' Revoir la séance' : ' Lancer la séance') + '</a>' +
         '<details class="exd"><summary>' + icon('list', 16) + '<span class="grow">Les ' + items.length + ' exercices</span>' + icon('down', 14, 'class="exd-i"') + '</summary>' +
         '<ul class="exlist">' + items.map(function (it, i) {
@@ -152,7 +152,7 @@
       var txt = j.intro, act = '';
       if (type === 'club') act = doneToday ? '<div class="note green">' + icon('check', 22) + '<span>Club noté : étoile gagnée !</span></div>' : '<a class="btn" href="#/noter?type=club">' + icon('ball', 18) + ' J\'ai fait le club</a>';
       if (type === 'recup') act = doneToday ? '<div class="note green">' + icon('check', 22) + '<span>Récup notée : étoile gagnée !</span></div>' : '<a class="btn" href="#/noter?type=recup">' + icon('leaf', 18) + ' Valider ma récup</a>';
-      if (type === 'repos') act = '';   // (v67) « Repos aujourd'hui », sans « pas d'étoile » : c'est dit dans la carte
+      if (type === 'repos') act = '';   // (v68) « Repos aujourd'hui », sans « pas d'étoile » : c'est dit dans la carte
       mission = '<section class="mission" style="' + jourColors(j) + '"><div class="in">' +
         '<div class="art"><span class="pill" style="--pc:' + j.color + '">' + esc(j.theme) + '</span><span class="ico">' + icon(j.icon, 96) + '</span></div>' +
         '<div class="body"><div><div class="ttl">' + (type === 'repos' ? 'Repos aujourd\'hui' : esc(j.nomSeance)) + '</div>' + (j.slot >= 0 ? '<div class="sub">+1 étoile · +' + (type === 'club' ? C.XP.club : C.XP.recup) + ' XP</div>' : '') + '</div>' +
@@ -196,10 +196,10 @@
       var nbR = [bandeauMissions(me), bilanNote, props, pendNote].filter(Boolean).length;
       aReg = '<details class="areg"' + (vu ? '' : ' open') + ' data-sig="' + esc(sig) + '"><summary><span class="hud">À regarder · ' + nbR + '</span>' + icon('down', 16) + '</summary><div class="areg-in">' + aRegarder + '</div></details>';
     }
-    // (v67) l'accueil : je fais quoi ? La séance (le bouton au premier écran), mes missions, ma semaine en une ligne
+    // (v68) l'accueil : je fais quoi ? La séance (le bouton au premier écran), mes missions, ma semaine en une ligne
     return '<main class="screen">' + kidBar(me, st) +
       '<div class="head acc-h"><span class="kicker">' + esc(C.JOURS[type].jour.toUpperCase()) + ' · ' + (cy.semaine > 8 ? 'FIN DU CYCLE' : 'SEMAINE ' + cy.semaine + ' / 8') + '</span>' +
-      '<h1 class="acc-t">' + (type === 'repos' ? 'Aujourd\'hui' : 'Séance du jour') + '</h1></div>' +   // (v55) pas « Mission » ; (v67) plus de grand titre
+      '<h1 class="acc-t">' + (type === 'repos' ? 'Aujourd\'hui' : 'Séance du jour') + '</h1></div>' +   // (v55) pas « Mission » ; (v68) plus de grand titre
       bravosCarte(me) +
       '<div class="home"><div>' + mission + '</div><div class="side">' +
       (MC.accueil ? MC.accueil.kidChecklist(me, st) : '') +
@@ -211,7 +211,7 @@
       '<div class="row" style="gap:8px;flex-wrap:wrap"><button type="button" class="pastoi" data-act="switchKid">' + icon('user', 14) + ' Pas ' + esc(me.joueur.prenom) + ' ? Changer de joueur</button>' +
       (app.S.adult ? '<a class="pastoi" href="#/adultes" style="text-decoration:none">' + icon('lock', 14) + ' Rendre le téléphone</a>' : '') + '</div></main>';
   }
-  // (v67) les missions à faire, une carte chacune, sur l'accueil (il n'y a plus d'onglet Missions) ; « Toutes » mène à la liste
+  // (v68) les missions à faire, une carte chacune, sur l'accueil (il n'y a plus d'onglet Missions) ; « Toutes » mène à la liste
   function missionsAccueil(me) {
     if (!MC.missions) return '';
     var M = MC.missions, l = M.aFaire(me);

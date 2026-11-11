@@ -16,7 +16,7 @@ MC.accueil = (function () {
 
   // ---------- le 1er message : l'appli en 4 lignes (un onglet = une ligne), sans détails ----------
   var RESUME = {
-    // (v67) Accueil · Équipe · Progrès · Moi
+    // (v68) Accueil · Équipe · Progrès · Moi
     k: [['home', '#38E8FF', 'Accueil', 'ta séance du jour (15 à 20 minutes, guidée avec le chrono) et tes missions'],
       ['group', '#FF7FBC', 'Équipe', 'les podiums, avec les joueurs de ton niveau'],
       ['trend', '#FFC23D', 'Progrès', 'tes records et tes niveaux'],
