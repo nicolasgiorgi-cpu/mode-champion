@@ -37,6 +37,7 @@ def redirige(pg, h, vers, name):
 with sync_playwright() as p:
     b = p.chromium.launch(); ctx = b.new_context(viewport={'width': W, 'height': H}, is_mobile=W < 700, has_touch=True)
     pg = ctx.new_page()
+    pg.clock.set_system_time('2026-11-05T10:00:00')   # (11/11/2026) la mission « Choisis ton poste » finit le 09/11 (contenu daté) : un jour où elle est en cours
     pg.on('pageerror', lambda e: errs.append(str(e)))
     pg.on('console', lambda m: errs.append('console: ' + m.text) if m.type == 'error' and 'favicon' not in m.text and 'ytimg' not in m.text and 'youtube' not in m.text and 'Failed to load resource' not in m.text else None)
     go(pg, ''); pg.evaluate('localStorage.clear()'); pg.reload(); pg.wait_for_timeout(800)

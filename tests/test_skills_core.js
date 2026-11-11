@@ -1,5 +1,8 @@
 // Tests serveur : étoiles Skills, +1 des éducs, missions des éducs (vidéo, QCM, mission perso), accès des enfants et des parents.
 // Lancer : sh outils/fabriquer-serveur.sh && node tests/test_skills_core.js
+// (11/11/2026) dates de fin relatives à aujourd'hui : écrites en dur (« 2026-11-02 »), elles étaient passées et le test échouait
+const jourPlus = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+const FIN1 = jourPlus(20), FIN2 = jourPlus(40);
 const assert = require('assert');
 const { makeEnv } = require('./gas_mock.js');
 
@@ -118,9 +121,9 @@ g.call({ action: 'defMission', token: nico, id: r.mission.id, retirer: true });
 // ----- missions du groupe : vidéo + quiz, QCM -----
 const qs = [{ q: 'Au ruck, où est ta tête ?', opts: ['Devant le ballon', 'Au-dessus, dos plat', 'Baissée'], ok: 1 }, { q: 'Tu rentres…', opts: ['Par le côté', 'Dans l\'axe'], ok: 1 }];
 r = g.call({ action: 'defMission', token: nico, sorte: 'video', titre: 'Le ruck en vidéo', video: 'pas une vidéo', questions: qs }); assert.strictEqual(r.error, 'invalide');
-r = g.call({ action: 'defMission', token: nico, sorte: 'video', titre: 'Le ruck en vidéo', video: 'https://www.youtube.com/watch?v=abcdefghijk&t=3', questions: qs, fin: '2026-11-02' });
+r = g.call({ action: 'defMission', token: nico, sorte: 'video', titre: 'Le ruck en vidéo', video: 'https://www.youtube.com/watch?v=abcdefghijk&t=3', questions: qs, fin: FIN1 });
 assert.ok(r.ok, JSON.stringify(r)); const mVid = r.mission;
-assert.strictEqual(mVid.video, 'abcdefghijk'); assert.strictEqual(mVid.xp, 50); assert.strictEqual(mVid.fin, '2026-11-02');
+assert.strictEqual(mVid.video, 'abcdefghijk'); assert.strictEqual(mVid.xp, 50); assert.strictEqual(mVid.fin, FIN1);
 r = g.call({ action: 'defMission', token: nico, sorte: 'qcm', titre: 'Le hors-jeu', questions: [] }); assert.strictEqual(r.error, 'invalide', 'un QCM a des questions');
 r = g.call({ action: 'defMission', token: nico, sorte: 'qcm', titre: 'Le hors-jeu', questions: [{ q: 'Q', opts: ['a', 'b'], ok: 2 }] }); assert.strictEqual(r.error, 'invalide');
 r = g.call({ action: 'defMission', token: julien, sorte: 'qcm', titre: 'Le hors-jeu', questions: [{ q: 'Q1', opts: ['a', 'b', 'c'], ok: 2 }], xp: 9999 });
@@ -140,7 +143,7 @@ r = g.call({ action: 'repondreMission', token: lea, missionId: mQcm.id, reponses
 assert.strictEqual(r.missions.find(m => m.mission === mQcm.id).faite, true);
 // modifier, retirer : l'auteur ou l'admin
 r = g.call({ action: 'defMission', token: julien, id: mVid.id, titre: 'Autre' }); assert.strictEqual(r.error, 'interdit');
-r = g.call({ action: 'defMission', token: nico, id: mQcm.id, fin: '2026-11-30' }); assert.ok(r.ok); assert.strictEqual(r.mission.fin, '2026-11-30');
+r = g.call({ action: 'defMission', token: nico, id: mQcm.id, fin: FIN2 }); assert.ok(r.ok); assert.strictEqual(r.mission.fin, FIN2);
 r = g.call({ action: 'defMission', token: julien, id: mQcm.id, retirer: true }); assert.ok(r.ok); assert.strictEqual(r.mission.statut, 'retiree');
 r = g.call({ action: 'me', token: lea }); assert.strictEqual(r.defmissions.length, 1);
 r = g.call({ action: 'repondreMission', token: tom, missionId: mQcm.id, reponses: [2] }); assert.strictEqual(r.error, 'introuvable');

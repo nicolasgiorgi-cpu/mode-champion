@@ -15,6 +15,7 @@ def mes_bravos(pg, jid):
     return pg.evaluate("(function(){var g=MC.app.S.cache.group,p=g.joueurs.filter(function(x){return x.joueur.id==='%s';})[0];return (p.bravos||[]).filter(function(b){return b.parQui===g.moi.id;});})()" % jid)
 with sync_playwright() as p:
     b = p.chromium.launch(); pg = b.new_page(viewport={'width': W, 'height': H}, is_mobile=True, has_touch=True)
+    pg.clock.set_system_time('2026-11-10T10:00:00')   # (11/11/2026) un mardi (l'heure continue d'avancer : la cloche compare des heures) : le lundi, le bravo de la démo (séance de la semaine d'avant) n'est pas dans « Ma semaine »
     pg.add_init_script('window.__MC_QUIET=1'); pg.on('pageerror', lambda e: errs.append(str(e)))
     pg.goto(BASE + '#/adultes'); pg.evaluate('localStorage.clear()'); pg.reload(); pg.wait_for_timeout(900)
     codes = pg.evaluate('MC.demo.CODES')

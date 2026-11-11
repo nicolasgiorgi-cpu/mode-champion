@@ -27,6 +27,7 @@ def ouvrirAuto(pg):
     if b: b.click(); pg.wait_for_timeout(300)
 with sync_playwright() as p:
     b = p.chromium.launch(); pg = b.new_page(viewport={'width': W, 'height': H}, is_mobile=W < 700, has_touch=True)
+    pg.clock.set_system_time('2026-11-10T10:00:00')   # (11/11/2026) un mardi : le lundi, la démo n'a pas encore de séance dans la semaine
     pg.add_init_script('window.__MC_QUIET=1'); pg.on('pageerror', lambda e: errs.append(str(e)))
     pg.goto(BASE + '#/adultes'); pg.evaluate('localStorage.clear()'); pg.reload(); pg.wait_for_timeout(900)
     codes = pg.evaluate('MC.demo.CODES')
