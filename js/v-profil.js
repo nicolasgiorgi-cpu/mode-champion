@@ -286,7 +286,7 @@
   // ---------- CLASSEMENT ----------
   // (29/10) Toutes les épreuves s'affichent d'abord ; on touche une ou plusieurs épreuves pour ne garder qu'elles,
   // « Toutes » pour tout revoir. Les choix reviennent à la ligne (pas de bande qui défile de côté).
-  var rank = { sel: [], mode: 'best' }, rankFull = {};   // rankFull : les épreuves dépliées (classement complet)
+  var rank = { sel: [], mode: 'best', vue: 'prog' }, rankFull = {};   // (v73) vue : prog (Progrès du mois, par défaut : on y revient en venant d'ailleurs) | reg (Régularité) | rec (Records)   // rankFull : les épreuves dépliées (classement complet)
   (function () {
     var r = app.lsGet('mc-rank');
     if (r && Array.isArray(r.sel)) rank.sel = r.sel.filter(function (id) { return C.TESTS.some(function (t) { return t.id === id; }); });
@@ -326,8 +326,10 @@
       var lname = lg.lo === lg.hi ? 'Ligue N' + lg.lo : 'Ligue N' + lg.lo + '-N' + lg.hi, lc = C.NIVEAUX[lg.myLv].color;
       // beaucoup d'épreuves à l'écran : le podium et la place de l'enfant (avec celui juste devant) ; « Voir les N » déplie
       var mi = mine ? lg.rows.indexOf(mine) : -1, keep = {};
-      var compact = lg.rows.length > 5 && ids.length > 2 && !rankFull[tid];
-      [0, 1, 2, mi - 1, mi].forEach(function (k) { if (k >= 0) keep[k] = 1; });
+      // (v73, E5) l'enfant : toujours le podium puis « toi et tes voisins », jamais le bas du tableau ; les parents peuvent tout déplier
+      var compact = who.toi ? lg.rows.length > 5 : lg.rows.length > 5 && ids.length > 2 && !rankFull[tid];
+      if (who.toi) keep = L.podiumVoisins(lg.rows.length, mi);
+      else [0, 1, 2, mi - 1, mi].forEach(function (k) { if (k >= 0) keep[k] = 1; });
       var rows = lg.rows.map(function (r, k) {
         var me = r.p.id === who.id, hide = compact && !keep[k];
         var v = mode === 'prog' ? (r.prog > 0 ? '+' : '') + ui.fmtVal(r.prog, t.unite, t.decimales) : ui.fmtVal(r.best, t.unite, t.decimales);
@@ -337,7 +339,7 @@
           '<span class="grow"><span class="t1">' + esc(r.p.prenom.toUpperCase()) + (me && who.toi ? '<b class="rk-toi">Toi</b>' : '') + '</span>' + (lg.lo !== lg.hi ? '<span class="t2">N' + r.lv + '</span>' : '') + '</span>' +
           '<span class="rkv" style="color:' + (mode === 'prog' ? 'var(--green)' : me ? 'var(--cyan)' : 'var(--ink)') + '">' + v + '</span></li>';
       }).join('');
-      var more = lg.rows.length > 5 && ids.length > 2 ? '<button type="button" class="btn2 grey sm rkmore" data-act="rkFull" data-v="' + tid + '">' + (compact ? icon('chevd', 16) + ' Voir les ' + lg.rows.length + ' joueurs' : icon('chevd', 16, 'style="transform:rotate(180deg)"') + ' Réduire') + '</button>' : '';
+      var more = !who.toi && lg.rows.length > 5 && ids.length > 2 ? '<button type="button" class="btn2 grey sm rkmore" data-act="rkFull" data-v="' + tid + '">' + (compact ? icon('chevd', 16) + ' Voir les ' + lg.rows.length + ' joueurs' : icon('chevd', 16, 'style="transform:rotate(180deg)"') + ' Réduire') + '</button>' : '';
       var place = mine ? (who.toi ? 'Toi : ' : esc(who.prenom) + ' : ') + mine.rank + (mine.rank === 1 ? 'er' : 'e') + ' / ' + lg.rows.length : lg.rows.length + ' joueur' + (lg.rows.length > 1 ? 's' : '');
       return '<section class="rkcard" style="--lc:' + lc + '"><div class="rkcard-h"><h2 class="h2">' + esc(t.nom) + '</h2><span class="rkcard-p' + (mine ? ' me' : '') + '">' + place + '</span></div>' +
         '<span class="rkcard-l">' + esc(lname) + (lg.sm ? ' · mini matériel' : '') + '</span>' +
@@ -359,22 +361,50 @@
     });
   }, { kid: true, nav: 'equipe', bg: '#2A1640' });
 
-  function paintRank(me, Lg) {
-    var R = rankCards(Lg, { id: me.joueur.id, prenom: me.joueur.prenom, toi: true }, rank.sel, rank.mode);
-    var meNote = !R.seen ? '<div class="note">' + icon('info', 20) + '<span>Tu n\'apparais pas encore : note ton bilan (ou un défi).</span></div>' : '';
-    // (v68) l'onglet Équipe : les podiums de ta ligue ; pas de grand titre, les filtres repliés sous une ligne
-    // (E5) l'onglet Équipe : « Ça bouge » (le fil des copains, js/v-equipe.js) · « Podiums »
-    return '<main class="screen">' + MC.kidBar(me, app.S.stats) + (MC.equipeTabs ? MC.equipeTabs('podiums') : '') +
-      '<p class="small" style="margin:0">Sur chaque épreuve, avec les joueurs de ton niveau (ta ligue).</p>' +
-      '<details class="rkf"' + (rank.ouvert ? ' open' : '') + '><summary>' + icon('menu', 16) + '<span class="grow">' + (rank.mode === 'prog' ? 'Par progrès' : 'Par record') + ' · ' + (rank.sel.length ? rank.sel.length + ' épreuve' + (rank.sel.length > 1 ? 's' : '') : 'toutes les épreuves') + '</span>' + icon('down', 14, 'class="rkf-i"') + '</summary>' +
-      '<div class="sec" style="gap:8px"><span class="lab">Épreuves' + (rank.sel.length ? ' · ' + rank.sel.length + ' choisie' + (rank.sel.length > 1 ? 's' : '') : ' · toutes') + '</span>' + rankChips(rank.sel, 'rkTest') + '</div>' +
-      '<div class="sec" style="gap:8px"><span class="lab">Classer par</span>' + modeBtns(rank.mode, 'rkMode') + '</div></details>' +
-      meNote + R.html +
-      '<p class="small" style="text-align:center;margin:0">' + (rank.mode === 'prog' ? 'Progrès depuis ton 1er résultat : tout le monde peut être 1er.' : 'Records des bilans et des défis.') + '</p></main>';
+  // (v73, lot E5) une carte de podium pour toute l'équipe : le podium, puis toi et tes voisins
+  function equipeCard(titre, rows, me, val, vide, cle) {
+    var mi = -1;
+    rows.forEach(function (r, i) { if (r.p.id === me.joueur.id) mi = i; });
+    var keep = L.podiumVoisins(rows.length, mi), medal = ['#FFC23D', '#C7CEDF', '#E39A5B'], out = '';
+    rows.forEach(function (r, k) {
+      if (!keep[k]) return;
+      if (k > 0 && !keep[k - 1]) out += '<li class="rkgap" aria-hidden="true">⋯</li>';
+      var moi = k === mi;
+      out += '<li class="li rkl' + (moi ? ' me' : '') + '"><span class="rank" style="--rc:' + (r.rank <= 3 ? medal[r.rank - 1] : 'var(--dim)') + '">' + r.rank + '</span>' +
+        '<span class="grow"><span class="t1">' + esc(r.p.prenom.toUpperCase()) + (moi ? '<b class="rk-toi">Toi</b>' : '') + '</span></span><span class="rkv" style="color:' + (moi ? 'var(--cyan)' : 'var(--ink)') + '">' + val(r) + '</span></li>';
+    });
+    var place = mi >= 0 ? 'Toi : ' + rows[mi].rank + (rows[mi].rank === 1 ? 'er' : 'e') + ' / ' + rows.length : rows.length + ' joueur' + (rows.length > 1 ? 's' : '');
+    return '<div class="rkcards"><section class="rkcard" data-podium="' + cle + '" style="--lc:var(--pink)"><div class="rkcard-h"><h2 class="h2">' + esc(titre) + '</h2><span class="rkcard-p' + (mi >= 0 ? ' me' : '') + '">' + place + '</span></div>' +
+      (out ? '<ol class="list">' + out + '</ol>' : '<div class="empty">' + vide + '</div>') +
+      (rows.length && mi < 0 ? '<p class="small" style="margin:0">' + (cle === 'prog' ? 'Bats un de tes records (un défi, ton bilan) pour entrer dans ce classement !' : 'Fais une séance pour gagner tes étoiles et entrer dans ce classement !') + '</p>' : '') +
+      '</section></div>';
   }
+  function paintRank(me, Lg) {
+    // (v68) l'onglet Équipe : pas de grand titre ; (E5) « Ça bouge » · « Podiums » ; (v73) Progrès du mois · Régularité · Records
+    var vues = ui.seg([['prog', 'Progrès'], ['reg', 'Régularité'], ['rec', 'Records']], rank.vue, 'rkVue'), corps = '';
+    if (rank.vue === 'prog') {
+      corps = '<p class="small" style="margin:0">Les records battus ces 30 derniers jours, dans toute l\'équipe : tout le monde peut gagner !</p>' +
+        equipeCard('Progrès du mois', L.progresMois(Lg), me, function (r) { return r.n + ' record' + (r.n > 1 ? 's' : ''); }, 'Personne n\'a encore battu de record ces 30 derniers jours. À toi de commencer !', 'prog');
+    } else if (rank.vue === 'reg') {
+      corps = '<p class="small" style="margin:0">Les étoiles des 4 dernières semaines, dans toute l\'équipe.</p>' +
+        equipeCard('Régularité', L.regularite(Lg), me, function (r) { return r.etoiles + ' ★'; }, 'Pas encore d\'étoile ces 4 dernières semaines.', 'reg');
+    } else {
+      var R = rankCards(Lg, { id: me.joueur.id, prenom: me.joueur.prenom, toi: true }, rank.sel, rank.mode);
+      var meNote = !R.seen ? '<div class="note">' + icon('info', 20) + '<span>Tu n\'apparais pas encore : note ton bilan (ou un défi).</span></div>' : '';
+      corps = '<p class="small" style="margin:0">Sur chaque épreuve, avec les joueurs de ton niveau (ta ligue).</p>' +
+        '<details class="rkf"' + (rank.ouvert ? ' open' : '') + '><summary>' + icon('menu', 16) + '<span class="grow">' + (rank.mode === 'prog' ? 'Par progrès' : 'Par record') + ' · ' + (rank.sel.length ? rank.sel.length + ' épreuve' + (rank.sel.length > 1 ? 's' : '') : 'toutes les épreuves') + '</span>' + icon('down', 14, 'class="rkf-i"') + '</summary>' +
+        '<div class="sec" style="gap:8px"><span class="lab">Épreuves' + (rank.sel.length ? ' · ' + rank.sel.length + ' choisie' + (rank.sel.length > 1 ? 's' : '') : ' · toutes') + '</span>' + rankChips(rank.sel, 'rkTest') + '</div>' +
+        '<div class="sec" style="gap:8px"><span class="lab">Classer par</span>' + modeBtns(rank.mode, 'rkMode') + '</div></details>' +
+        meNote + R.html +
+        '<p class="small" style="text-align:center;margin:0">' + (rank.mode === 'prog' ? 'Progrès depuis ton 1er résultat : tout le monde peut être 1er.' : 'Records des bilans et des défis.') + '</p>';
+    }
+    return '<main class="screen">' + MC.kidBar(me, app.S.stats) + (MC.equipeTabs ? MC.equipeTabs('podiums') : '') + vues + corps + '</main>';
+  }
+  MC.act.rkVue = function (b) { rank.vue = b.getAttribute('data-v'); app.lsSet('mc-rank', rank); paintAgain(); };
   document.addEventListener('toggle', function (ev) { var t = ev.target; if (t && t.classList && t.classList.contains('rkf')) rank.ouvert = t.open; }, true);   // (v68) les filtres restent ouverts d'un toucher à l'autre
   // (v68, relecture) venir d'ailleurs = les filtres repliés (règle v44) ; l'événement arrive sur window, pas sur document
-  window.addEventListener('hashchange', function (e) { if (/#\/classement/.test(e.newURL || '') && !/#\/classement/.test(e.oldURL || '')) rank.ouvert = false; });
+  // (v73) et le podium par défaut, le Progrès du mois (« tout le monde peut gagner »)
+  window.addEventListener('hashchange', function (e) { if (/#\/classement/.test(e.newURL || '') && !/#\/classement/.test(e.oldURL || '')) { rank.ouvert = false; rank.vue = 'prog'; } });
   MC.act.rkTest = function (b) { rank.sel = toggleSel(rank.sel, b.getAttribute('data-v')); app.lsSet('mc-rank', rank); paintAgain(); };
   MC.act.rkMode = function (b) { rank.mode = b.getAttribute('data-v'); app.lsSet('mc-rank', rank); paintAgain(); };
   // déplier / replier le classement complet d'une épreuve (enfant et parent)

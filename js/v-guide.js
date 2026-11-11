@@ -151,7 +151,8 @@
         ])) +
       card('classement', 'podium', '#4D9BFF', 'Le classement et les ligues', 'Tu te compares aux joueurs de ton niveau',
         ul([
-          '<b>Équipe</b> › <b>Podiums</b> : il y a un podium <b>par test du bilan</b> (planche, navette, pompes…), tous affichés d\'un coup ; ouvre la ligne des filtres, puis touche les épreuves que tu veux garder, « Toutes » pour tout revoir. Seule la prépa physique compte : ' + (SKON ? 'tes missions et tes Skills ne sont jamais classés.' : 'tes missions ne sont jamais classées.') + '',
+          '<b>Équipe</b> › <b>Podiums</b>, 3 classements : <b>Progrès</b> (les records que tu as battus ces 30 derniers jours, dans toute l\'équipe : tout le monde peut gagner), <b>Régularité</b> (tes étoiles des 4 dernières semaines) et <b>Records</b>. Tu vois toujours le podium, puis toi et tes voisins.',
+          '<b>Records</b> : il y a un podium <b>par test du bilan</b> (planche, navette, pompes…), tous affichés d\'un coup ; ouvre la ligne des filtres, puis touche les épreuves que tu veux garder, « Toutes » pour tout revoir. Seule la prépa physique compte : ' + (SKON ? 'tes missions et tes Skills ne sont jamais classés.' : 'tes missions ne sont jamais classées.') + '',
           'Tu es dans la <b>ligue</b> des joueurs qui ont <b>le même niveau</b> que toi sur ce test. S\'il y a moins de ' + MC.CONFIG.LIGUE_MIN + ' joueurs, la ligue s\'ouvre aux niveaux voisins.',
           '2 façons de classer : <b>meilleur score</b>, ou <b>plus gros progrès</b> depuis ton premier bilan. Même si tu n\'es pas le plus fort, tu peux être celui qui progresse le plus !',
           'Tes résultats y comptent tout de suite (un exploit, une fois confirmé). On n\'y voit que les prénoms. Tes parents peuvent choisir de ne pas t\'afficher.'

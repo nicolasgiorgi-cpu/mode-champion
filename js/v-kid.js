@@ -101,6 +101,7 @@
       if (MC.accueil && MC.accueil.needTour('k', me.joueur.id)) { setTimeout(function () { app.go('#/bienvenue', true); }, 0); return null; }
       cur.after = function (root) {
         if (MC.news) setTimeout(function () { if (location.hash.indexOf('#/semaine') === 0) MC.news.maybeShow('k', me.joueur.id); }, 350);
+        if (MC.equipe) MC.equipe.rafraichir(me);   // (v73) la dernière nouvelle de l'équipe, en fond
         // « À regarder » : consulté = replié la prochaine fois. « Consulté » = refermé à la main, ou l'enfant a quitté l'écran
         // (pas à l'affichage : la mise à jour qui arrive du serveur juste après le replierait sous ses yeux)
         var ar = root && root.querySelector('.areg');
@@ -214,6 +215,7 @@
       '<section class="sec acc-sem"><div class="between"><h2 class="h2">Ma semaine</h2><span class="hud" style="color:var(--gold)">' + wk.stars + ' / 6 étoiles</span></div>' +
       '<div class="week">' + days.map(function (d) { return d.strip; }).join('') + '</div>' +
       '<p class="acc-sp">' + icon('gift', 18, 'style="color:var(--gold);flex:none"') + '<span>' + (wk.bonus ? '<b>Semaine parfaite !</b> +1 étoile bonus et +' + C.XP.bonus + ' XP.' : '<b>Semaine parfaite</b> : les 6 étoiles de la semaine = +1 étoile bonus et +' + C.XP.bonus + ' XP.') + '</span></p></section>' +
+      '<div class="acc-eq-slot">' + (MC.equipe ? MC.equipe.derniere(me) : '') + '</div>' +   // (v73) la dernière nouvelle de l'équipe
       aReg + prochainBilan + '</div></div>' +
       '<div class="row" style="gap:8px;flex-wrap:wrap"><button type="button" class="pastoi" data-act="switchKid">' + icon('user', 14) + ' Pas ' + esc(me.joueur.prenom) + ' ? Changer de joueur</button>' +
       (app.S.adult ? '<a class="pastoi" href="#/adultes" style="text-decoration:none">' + icon('lock', 14) + ' Rendre le téléphone</a>' : '') + '</div></main>';

@@ -2052,3 +2052,8 @@ textarea.txt{min-height:84px;padding:10px 12px;resize:vertical;font:500 16px/1.4
 .eqn{flex:none;font:700 13px/1 var(--f-hud);color:var(--gold)}
 .eqmots button.on{border-color:var(--green);color:var(--green)}
 .eqli .bvb[data-wait]{opacity:.75;pointer-events:none}
+/* (v73) la dernière nouvelle de l'équipe sur l'Accueil */
+.acc-eq{gap:10px}
+.acc-eq .t1{font:600 14px/1.25 var(--f-body);letter-spacing:0;text-transform:none}
+.acc-eq .t1 b{font-weight:700}
+.acc-eq-slot:empty{display:none}
