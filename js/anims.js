@@ -126,7 +126,7 @@
     var pp = dir(t - 90);
     function off(p, k) { return front ? [p[0] + pp[0] * k, p[1] + pp[1] * k] : p; }
     var J = {
-      front: front, hip: hip, sh: sh, nk: nk, head: head, ha: ha,
+      front: front, hip: hip, sh: sh, nk: nk, head: head, ha: ha, flip: !!spec.flip,
       o: spec.o == null ? 1 : spec.o, bow: spec.bow || 0,
       hipN: off(hip, 3.5), hipF: off(hip, -3.5), shN: off(sh, 5), shF: off(sh, -5)
     };
@@ -166,7 +166,8 @@
       t: lerp(A.t == null ? 180 : A.t, B.t == null ? 180 : B.t, s),
       h: lerp(A.h || 0, B.h || 0, s),
       bow: lerp(A.bow || 0, B.bow || 0, s),
-      o: lerp(A.o == null ? 1 : A.o, B.o == null ? 1 : B.o, s)
+      o: lerp(A.o == null ? 1 : A.o, B.o == null ? 1 : B.o, s),
+      flip: !!A.flip
     };
     for (var i = 0; i < 4; i++) {
       var k = LIMBS[i], la = normLimb(A[k]), lb = normLimb(B[k]), r;
@@ -568,6 +569,46 @@
     }
   };
 
+  /* --- navette 5 x 10 m (test du bilan, v78) -------------------------- */
+  /* Depart DEBOUT derriere la ligne, sprint, le pied touche la ligne d'en face, demi-tour, retour.
+     Les lignes sont fixes ; au retour le bonhomme est dessine en miroir (flip), ses x sont alors comptes depuis la droite. */
+  var NVL = { a: 52, b: 196 };                      // les deux lignes (10 m)
+  function nvFlipX(x) { return 240 - x; }
+  var nvReady = { x: 33, y: 99.5, t: 154, h: 14, aN: [-38, 24], aF: [58, 128], lN: { ik: [42, CY] }, lF: { ik: [18, CY], f: 55 } };   // la pointe du pied avant juste derriere la ligne
+  var nvDrive = { x: 50, y: 100, t: 140, h: 10, aN: [70, 150], aF: [-50, 20], lN: { ik: [42, CY] }, lF: [62, -30] };
+  function nvBrake(line) { return { x: line - 13, y: 100, t: 186, h: 4, aN: [35, 85], aF: [-25, 35], lN: { ik: [line + 1, CY] }, lF: { ik: [line - 34, CY - 3] } }; }
+  function nvTouch(line) { return { x: line - 8, y: 106, t: 168, h: 8, aN: [45, 105], aF: [5, 60], lN: { ik: [line + 1, CY] }, lF: { ik: [line - 22, CY] } }; }
+  function nvTurn(line) { return { x: line + 8, y: 103, t: 146, h: 10, aN: [70, 150], aF: [-50, 20], lN: { ik: [line - 1, CY] }, lF: [62, -30] }; }
+  function nvFlip(sp) { return ext(sp, { flip: true }); }
+  function nvRun(t, t0, t1, x0, x1, l0, l1, flip) {
+    var s = clamp((t - t0) / (t1 - t0), 0, 1);
+    var r = runSpec(lerp(x0, x1, 0.45 * s + 0.55 * s * s), 0.25 + 1.75 * s, lerp(l0, l1, io(s)));
+    if (flip) { r.flip = true; }
+    return r;
+  }
+  // aller (vers la droite), retour (en miroir), puis on repart et on s'efface
+  var nvAller = kf([[0, ext(nvReady, { o: 0 })], [0.03, nvReady], [0.15, nvReady, 'out'], [0.19, nvDrive, 'lin'], [0.22, runSpec(66, 0.25, 142)], [0.38, runSpec(182, 2, 160)],
+    [0.41, nvBrake(NVL.b)], [0.44, nvTouch(NVL.b)], [0.441, nvTouch(NVL.b)]]);
+  var nvRetour = kf([[0.44, nvFlip(nvTurn(nvFlipX(NVL.b)))], [0.47, nvFlip(runSpec(60, 0.25, 145))], [0.63, nvFlip(runSpec(176, 2, 160))],
+    [0.66, nvFlip(nvBrake(nvFlipX(NVL.a)))], [0.69, nvFlip(nvTouch(nvFlipX(NVL.a)))], [0.691, nvFlip(nvTouch(nvFlipX(NVL.a)))]]);
+  var nvRepart = kf([[0.69, nvTurn(NVL.a)], [0.72, runSpec(72, 0.25, 145)], [0.73, runSpec(72, 0.25, 145)]]);
+  A.navette = {
+    dur: 4.6, still: 0.1, chrono: true,
+    props: function (P) { P.line(NVL.a, 136, NVL.a, 156, { c: LITE, w: 2.5 }); P.line(NVL.b, 136, NVL.b, 156, { c: LITE, w: 2.5 }); },
+    pose: function (t, def) {
+      if (t < 0.22) { return nvAller(t, def); }
+      if (t < 0.38) { return nvRun(t, 0.22, 0.38, 66, 182, 142, 160); }
+      if (t < 0.44) { return nvAller(t, def); }
+      if (t < 0.47) { return nvRetour(t, def); }
+      if (t < 0.63) { return nvRun(t, 0.47, 0.63, 60, 176, 145, 160, true); }
+      if (t < 0.69) { return nvRetour(t, def); }
+      if (t < 0.72) { return nvRepart(t, def); }
+      var r = nvRun(t, 0.72, 0.9, 72, 170, 145, 158);
+      r.o = 1 - clamp((t - 0.84) / 0.06, 0, 1);
+      return r;
+    }
+  };
+
   /* --- montees sur une marche ---------------------------------------- */
   var MK = { x1: 112, x2: 172, top: 118 };
   function stepFloor(x) { return x >= MK.x1 - 1 && x <= MK.x2 ? MK.top - 3 : CY; }
@@ -959,7 +1000,7 @@
     rowing: 'Rowing assis avec élastique', planche: 'Planche sur les avant-bras', superman: 'Superman',
     corde: 'Corde à sauter', corde_imaginaire: 'Corde à sauter imaginaire',
     saut_longueur: 'Saut en longueur sans élan', sauts_lateraux: 'Sauts latéraux par-dessus une ligne',
-    skipping: 'Skipping', departs: 'Départ allongé puis sprint', montees_marche: 'Montées sur une marche',
+    skipping: 'Skipping', departs: 'Départ allongé puis sprint', navette: 'Navette 5 × 10 m, départ debout', montees_marche: 'Montées sur une marche',
     montees_genoux: 'Montées de genou explosives', burpees: 'Burpees', jumping_jacks: 'Jumping jacks',
     mountain_climbers: 'Mountain climbers', navette_plaquage: 'Navette avec passage au sol',
     debout: 'Se relever vite depuis le dos', squat: 'Squat', fentes: 'Fentes marchées',
@@ -1073,6 +1114,8 @@
       parts.head.setAttribute('cx', f1(J.head[0]));
       parts.head.setAttribute('cy', f1(J.head[1]));
       gMov.setAttribute('opacity', f1(clamp(J.o, 0, 1)));
+      // (v78) une pose « flip » est dessinee en miroir : le bonhomme court vers la gauche (le decor ne bouge pas)
+      if (J.flip) { gMov.setAttribute('transform', 'matrix(-1 0 0 1 240 0)'); } else { gMov.removeAttribute('transform'); }
     }
     function render(t) {
       t = frac(t);
@@ -1148,7 +1191,7 @@
   function exportJ(J) {
     function p(v) { return [Math.round(v[0] * 100) / 100, Math.round(v[1] * 100) / 100]; }
     function lm(l) { return { root: p(l.r), mid: p(l.j), end: p(l.e), a: [l.a[0], l.a[1]], miss: l.miss, toe: l.t ? p(l.t) : null, f: l.f }; }
-    return { front: J.front, o: J.o, pen: J.pen, hip: p(J.hip), sh: p(J.sh), nk: p(J.nk), head: p(J.head),
+    return { front: J.front, flip: J.flip, o: J.o, pen: J.pen, hip: p(J.hip), sh: p(J.sh), nk: p(J.nk), head: p(J.head),
       aN: lm(J.aN), aF: lm(J.aF), lN: lm(J.lN), lF: lm(J.lF) };
   }
 
