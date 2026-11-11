@@ -260,7 +260,7 @@
       function badgeCard(b) {
         var res = st.badges[b.id], on = res.earned;
         var pend = b.test && (me.records || []).some(function (r) { return r.bilan === 'defi' && r.statut === 'attente' && (r.test === b.test); });
-        var status = on ? (res.date ? 'Gagné · ' + ui.fmtDate(res.date) : 'Gagné') : pend ? 'À confirmer par un adulte' : (res.prog || (b.defi ? 'Tenter le défi' : 'À débloquer'));
+        var status = on ? (res.date ? 'Gagné · ' + ui.fmtDate(res.date) : 'Gagné') : pend ? 'À confirmer par un adulte' : (res.prog || (b.defi ? 'Je tente' : 'À débloquer'));
         var pips = '';
         if (b.paliers) {
           var P = C.PALIERS[(res.tier || 1) - 1];
@@ -313,9 +313,9 @@
         var nav = (me.records || []).filter(function (r) { return r.test === 'navette' && r.statut === 'ok'; }).sort(function (a, c) { return a.date < c.date ? -1 : 1; });
         prev = nav.length ? '<div class="note">' + icon('info', 20) + '<span>Ton 1er chrono de navette : <b>' + ui.fmtVal(nav[0].valeur, 's', 1) + '</b>. Fais mieux !</span></div>' : '<div class="note yellow">' + icon('info', 20) + '<span>Il faut d\'abord un 1er chrono de navette (au bilan) pour pouvoir le battre.</span></div>';
       }
-      return '<main class="screen">' + MC.kidSubBar('#/trophees', 'Mes trophées', 'Défi ' + b.nom) +
-        '<div class="row" style="gap:16px">' + MC.badgeIcon(b, true, 84) + '<div class="head"><span class="kicker" style="color:' + b.color + '">Défi badge</span><h1 class="big sm">' + esc(b.nom) + '</h1></div></div>' +
-        '<div class="box"><div class="hud" style="color:' + b.color + '">Le défi</div><p class="lead" style="margin-top:6px;color:var(--ink)">' + esc(b.cond) + '</p>' + (t.comment ? '<p class="small" style="margin:8px 0 0">' + esc(sm ? t.sm.comment : t.comment) + '</p>' : '') + '</div>' +
+      return '<main class="screen">' + MC.kidSubBar('#/trophees', 'Mes trophées', 'Badge ' + b.nom) +
+        '<div class="row" style="gap:16px">' + MC.badgeIcon(b, true, 84) + '<div class="head"><span class="kicker" style="color:' + b.color + '">Badge à gagner</span><h1 class="big sm">' + esc(b.nom) + '</h1></div></div>' +
+        '<div class="box"><div class="hud" style="color:' + b.color + '">Pour le gagner</div><p class="lead" style="margin-top:6px;color:var(--ink)">' + esc(b.cond) + '</p>' + (t.comment ? '<p class="small" style="margin:8px 0 0">' + esc(sm ? t.sm.comment : t.comment) + '</p>' : '') + '</div>' +
         prev + '<div class="note yellow">' + icon('group', 20) + '<span>Un adulte doit être là pour compter. Ton résultat compte tout de suite ; un exploit attend qu\'un parent ou ton éduc le confirme.</span></div>' +
         // (v74) un défi compte comme une tentative : une par épreuve et par jour, deux épreuves par jour
         (L.peutTenter(me.records, b.test) ? '<div class="note">' + icon('info', 20) + '<span>' + esc(MC.tenteMsg[L.peutTenter(me.records, b.test)]) + '</span></div></main>' :
@@ -451,7 +451,7 @@
     var place = mi >= 0 ? 'Toi : ' + rows[mi].rank + (rows[mi].rank === 1 ? 'er' : 'e') + ' / ' + rows.length : rows.length + ' joueur' + (rows.length > 1 ? 's' : '');
     return '<div class="rkcards"><section class="rkcard" data-podium="' + cle + '" style="--lc:var(--pink)"><div class="rkcard-h"><h2 class="h2">' + esc(titre) + '</h2><span class="rkcard-p' + (mi >= 0 ? ' me' : '') + '">' + place + '</span></div>' +
       (out ? '<ol class="list">' + out + '</ol>' : '<div class="empty">' + vide + '</div>') +
-      (rows.length && mi < 0 ? '<p class="small" style="margin:0">' + (cle === 'prog' ? 'Bats un de tes records (un défi, ton bilan) pour entrer dans ce classement !' : 'Fais une séance pour gagner tes étoiles et entrer dans ce classement !') + '</p>' : '') +
+      (rows.length && mi < 0 ? '<p class="small" style="margin:0">' + (cle === 'prog' ? 'Bats un de tes records (record du jour ou bilan) pour entrer dans ce classement !' : 'Fais une séance pour gagner tes étoiles et entrer dans ce classement !') + '</p>' : '') +
       '</section></div>';
   }
   function paintRank(me, Lg) {
@@ -465,13 +465,13 @@
         equipeCard('Régularité', L.regularite(Lg), me, function (r) { return r.etoiles + ' ★'; }, 'Pas encore d\'étoile ces 4 dernières semaines.', 'reg');
     } else {
       var R = rankCards(Lg, { id: me.joueur.id, prenom: me.joueur.prenom, toi: true }, rank.sel, rank.mode);
-      var meNote = !R.seen ? '<div class="note">' + icon('info', 20) + '<span>Tu n\'apparais pas encore : note ton bilan (ou un défi).</span></div>' : '';
+      var meNote = !R.seen ? '<div class="note">' + icon('info', 20) + '<span>Tu n\'apparais pas encore : tente un record ou fais ton bilan.</span></div>' : '';
       corps = '<p class="small" style="margin:0">Sur chaque épreuve, avec les joueurs de ton niveau (ta ligue).</p>' +
         '<details class="rkf"' + (rank.ouvert ? ' open' : '') + '><summary>' + icon('menu', 16) + '<span class="grow">' + (rank.mode === 'prog' ? 'Par progrès' : 'Par record') + ' · ' + (rank.sel.length ? rank.sel.length + ' épreuve' + (rank.sel.length > 1 ? 's' : '') : 'toutes les épreuves') + '</span>' + icon('down', 14, 'class="rkf-i"') + '</summary>' +
         '<div class="sec" style="gap:8px"><span class="lab">Épreuves' + (rank.sel.length ? ' · ' + rank.sel.length + ' choisie' + (rank.sel.length > 1 ? 's' : '') : ' · toutes') + '</span>' + rankChips(rank.sel, 'rkTest') + '</div>' +
         '<div class="sec" style="gap:8px"><span class="lab">Classer par</span>' + modeBtns(rank.mode, 'rkMode') + '</div></details>' +
         meNote + R.html +
-        '<p class="small" style="text-align:center;margin:0">' + (rank.mode === 'prog' ? 'Progrès depuis ton 1er résultat : tout le monde peut être 1er.' : 'Records des bilans et des défis.') + '</p>';
+        '<p class="small" style="text-align:center;margin:0">' + (rank.mode === 'prog' ? 'Progrès depuis ton 1er résultat : tout le monde peut être 1er.' : 'Le meilleur résultat de chacun : bilan ou record tenté.') + '</p>';
     }
     return '<main class="screen">' + MC.kidBar(me, app.S.stats) + (MC.equipeTabs ? MC.equipeTabs('podiums') : '') + vues + corps + '</main>';
   }

@@ -297,7 +297,7 @@ window.MC = window.MC || {};
     if (mp) rappel = blocMission(R, mp, true);
     else if (def) {
       var s = SK.star(def.d, def.e), Dd = SK.dom(def.d);
-      rappel = '<a class="defi2" href="' + R.sk + '/' + esc(def.d) + '"><span class="hud" style="color:var(--gold)">' + T(R, 'Ton prochain défi', 'Son prochain défi') + '</span>' +
+      rappel = '<a class="defi2" href="' + R.sk + '/' + esc(def.d) + '"><span class="hud" style="color:var(--gold)">' + T(R, 'Ta prochaine étoile', 'Sa prochaine étoile') + '</span>' +
         '<b>' + esc(Dd.nom) + ' · l\'étoile ' + esc(s.nom) + '</b><span class="small" style="color:var(--soft)">« ' + esc(s.phrase) + ' »</span></a>';
     }
     return '<main class="screen">' + bar(R, 'Skills') +
@@ -331,7 +331,7 @@ window.MC = window.MC || {};
       else if (pasvu[s.def.id] && !(s.row && (s.brille || pasvu[s.def.id].sorte === 'gagner'))) sub2 += '<br><span style="color:var(--dim)">Pas vu cette fois par ' + esc(pasvu[s.def.id].parNom || 'les éducs') + ' : retente ' + (pasvu[s.def.id].sorte === 'briller' ? 'au prochain plateau' : 'à l\'entraînement') + '.</span>';
       if (peut && !demIci) right += '<button type="button" class="btn2 sm' + (peut === 'briller' ? ' gold' : '') + ' skdem" data-act="skDem" data-d="' + esc(id) + '" data-e="' + esc(s.def.id) + '" data-s="' + peut + '">' + (peut === 'briller' ? icon('spark', 14) + ' Fait au plateau' : 'Demander') + '</button>';
       var et = s.row ? (s.brille ? 'brille' : 'gagnee') : isM ? 'mission' : 'a_gagner';
-      return '<li class="li sk-row' + (s.row ? ' on' : '') + (s.brille ? ' brille' : '') + (isM ? ' mis' : '') + '"><span class="sk-st">' + MC.etoileSvg(et, 22, 'r' + id + i) + '</span><span class="grow"><span class="t1">' + esc(s.def.nom) + (isDefi ? ' <span class="pill" style="--pc:var(--gold)">Prochain défi</span>' : '') + '</span><span class="t2">« ' + esc(s.def.phrase) + ' »</span><span class="t2" style="color:' + (s.row ? 'var(--gold)' : 'var(--dim)') + '">' + sub2 + '</span>' + right + '</span>' +
+      return '<li class="li sk-row' + (s.row ? ' on' : '') + (s.brille ? ' brille' : '') + (isM ? ' mis' : '') + '"><span class="sk-st">' + MC.etoileSvg(et, 22, 'r' + id + i) + '</span><span class="grow"><span class="t1">' + esc(s.def.nom) + (isDefi ? ' <span class="pill" style="--pc:var(--gold)">Prochaine étoile</span>' : '') + '</span><span class="t2">« ' + esc(s.def.phrase) + ' »</span><span class="t2" style="color:' + (s.row ? 'var(--gold)' : 'var(--dim)') + '">' + sub2 + '</span>' + right + '</span>' +
         (isM ? '<a class="cbtn grey" href="' + R.base + '/perso" aria-label="Voir la mission">' + icon('right', 16) + '</a>' : '') + '</li>';
     }).join('');
     var conseils = c.stars.filter(function (s) { return !s.row; }).sort(function (a, b) { var am = mpa && SK.dansMission(mpa, id, a.def.id), bm = mpa && SK.dansMission(mpa, id, b.def.id); return am === bm ? 0 : am ? -1 : 1; })

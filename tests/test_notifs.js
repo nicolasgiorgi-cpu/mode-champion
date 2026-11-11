@@ -172,7 +172,7 @@ const me2 = { joueur: { id: 'k3', prenom: 'Zia' }, seances: [], journal: [], rec
   missions: [], defmissions: [], etoiles: [], encouragements: [], demandes: [] };
 assert.ok(!N.events('k', { me: me2 }).some(e => e.cat === 'resultat'), 'un score qui compte tout de suite : pas de « confirmé »');
 me2.records[0].parQui = 'Parent';
-assert.ok(N.events('k', { me: me2 }).some(e => e.cat === 'resultat' && /Ton défi <b>.*<\/b> est confirmé par ta famille/.test(e.txt)), 'un exploit confirmé : prévenu');
+assert.ok(N.events('k', { me: me2 }).some(e => e.cat === 'resultat' && /Ton résultat <b>.*<\/b> est confirmé par ta famille/.test(e.txt)), 'un exploit confirmé : prévenu');
 
 // ---------- pas d'avalanche : réglages avant la 1re cloche, sorte qui apparaît, stockage borné ----------
 st = stock();

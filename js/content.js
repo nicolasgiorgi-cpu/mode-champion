@@ -351,7 +351,7 @@ window.MC = window.MC || {};
   //  - regularite : automatiques (étoiles, séries)
   //  - missions   : une mission spéciale accomplie (voir MISSIONS dans js/missions.js)
   var FAMILLES_BADGES = [
-    { id: 'exploit', nom: 'Badges d\'exploit', intro: 'Au bilan, ou un jour où tu te sens fort, avec un adulte qui compte. Touche un badge pour tenter le défi.' },
+    { id: 'exploit', nom: 'Badges d\'exploit', intro: 'Au bilan, ou un jour où tu te sens fort, avec un adulte qui compte. Touche un badge pour le tenter.' },
     { id: 'seances', nom: 'Badges de séances', intro: '10 séances = bronze, 25 = argent, 40 = or. Chaque palier rapporte des XP.' },
     { id: 'regularite', nom: 'Badges de régularité', intro: '' },
     { id: 'missions', nom: 'Badges de missions', intro: 'Une mission spéciale accomplie = un badge.' },

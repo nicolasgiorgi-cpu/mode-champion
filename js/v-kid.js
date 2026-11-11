@@ -365,7 +365,7 @@
     var rec = '';
     if (t) {
       var b = app.S.stats.bests[t.id + (t.sm && me.joueur.materiel === 'mini' ? ':sm' : '')];
-      if (b) rec = '<div class="note gold">' + icon('trophy', 26) + '<div style="flex:1"><div class="hud" style="color:var(--gold)">Ton record · ' + esc(t.nom) + '</div><div class="small" style="margin-top:3px">' + (b.bilan === 'defi' ? 'Défi' : 'Bilan ' + esc(b.bilan)) + ' · ' + ui.fmtDate(b.date) + '</div></div><span style="font:700 26px/1 var(--f-hud);color:var(--gold)">' + ui.fmtVal(b.valeur, t.unite, t.decimales) + '</span></div>';
+      if (b) rec = '<div class="note gold">' + icon('trophy', 26) + '<div style="flex:1"><div class="hud" style="color:var(--gold)">Ton record · ' + esc(t.nom) + '</div><div class="small" style="margin-top:3px">' + (b.bilan === 'defi' ? 'Tentative' : 'Bilan ' + esc(b.bilan)) + ' · ' + ui.fmtDate(b.date) + '</div></div><span style="font:700 26px/1 var(--f-hud);color:var(--gold)">' + ui.fmtVal(b.valeur, t.unite, t.decimales) + '</span></div>';
     }
     var nav = '';
     if (j && idx >= 0) {
