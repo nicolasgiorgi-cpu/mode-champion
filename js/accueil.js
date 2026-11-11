@@ -16,10 +16,11 @@ MC.accueil = (function () {
 
   // ---------- le 1er message : l'appli en 4 lignes (un onglet = une ligne), sans détails ----------
   var RESUME = {
-    k: [['bolt', '#38E8FF', 'Prépa', 'tes séances à la maison, 15 à 20 minutes, guidées avec le chrono'],
-      ['target', '#FF7FBC', 'Missions', 'les défis que te lancent tes éducs'],
-      ['star', '#FFC23D', 'Skills', 'tes étoiles rugby, validées par tes éducs au terrain'],
-      ['user', '#3DFFB0', 'Moi', 'ton niveau, tes badges et tes records']],
+    // (v67) Accueil · Équipe · Progrès · Moi
+    k: [['home', '#38E8FF', 'Accueil', 'ta séance du jour (15 à 20 minutes, guidée avec le chrono) et tes missions'],
+      ['group', '#FF7FBC', 'Équipe', 'les podiums, avec les joueurs de ton niveau'],
+      ['trend', '#FFC23D', 'Progrès', 'tes records et tes niveaux'],
+      ['user', '#3DFFB0', 'Moi', 'ton grade, tes badges et tes trophées']],
     f: [['bolt', '#38E8FF', 'Prépa', 'ses séances à la maison, et ses résultats à confirmer'],
       ['target', '#FF7FBC', 'Missions', 'les défis et les encouragements de ses éducs'],
       ['star', '#FFC23D', 'Skills', 'ses étoiles rugby, validées par les éducs au terrain'],
@@ -121,7 +122,7 @@ MC.accueil = (function () {
     var nextBtn = '<button type="button" class="btn" data-act="obNext" data-r="k">' + (i === 0 ? 'C\'est parti' : 'Suivant') + ' ' + icon('right', 18) + '</button>';
     var noBilan = !(me.records || []).some(function (r) { return /^\d+$/.test(String(r.bilan)); });
     if (i === 0) return frame('k', n, i, '<span class="obshield">' + ui.avatar(k.prenom, k.couleur, 170) + '</span>', 'bienvenue',
-      'Bienvenue dans l\'arène, ' + esc(k.prenom) + ' !', '<p class="lead">' + esc(intro('k')) + '</p>' + resume('k'), nextBtn);
+      'Bienvenue, ' + esc(k.prenom) + ' !', '<p class="lead">' + esc(intro('k')) + '</p>' + resume('k'), nextBtn);
     if (i === 1) {
       var wk = C.SEMAINE.map(function (tp, d) { var j = C.JOURS[tp]; return '<span style="--gc:' + j.color + '"><b>' + esc(j.court.charAt(0)) + '</b>' + (j.slot < 0 ? '<i class="zz">—</i>' : ui.starSvg(20, d < 3 || d === 5 ? '#FFC23D' : 'none', d < 3 || d === 5 ? '#FFC23D' : '#34405F')) + '</span>'; }).join('');
       return frame('k', n, i, '<div class="gweek obweek">' + wk + '</div><div class="note gold" style="margin-top:12px">' + icon('gift', 30) + '<span>6 étoiles dans la semaine : le coffre s\'ouvre, <b>+1 étoile bonus</b>.</span></div>', 'tes étoiles',
@@ -136,8 +137,8 @@ MC.accueil = (function () {
     var last = '<button type="button" class="btn green" data-act="obDoneKid">' + icon('play', 18) + ' Je commence' + (noBilan ? ' au niveau 1' : '') + ' !</button>' +
       (noBilan ? '<a class="btn2 gold" href="#/bilan" data-act="obBilan">' + icon('trophy', 16) + ' D\'abord mon bilan, avec un adulte</a>' : '');
     return frame('k', n, i, '<div class="obgrades">' + C.GRADES.slice(0, 4).reverse().map(function (g, j) { return '<span class="' + (j === 3 ? 'me' : '') + '"><b>' + esc(g.nom) + '</b><small>' + ui.fmtNum(g.xp) + ' XP</small></span>'; }).join('') + '</div>', 'monte en grade',
-      'Deviens une légende', '<p class="lead">Chaque séance rapporte des <b>XP</b> : tu montes de grade, tu débloques des <b>badges</b> et tu entres dans <b>l\'arène</b> face aux joueurs de ton niveau. ' + (MC.ouvert('skills') ? 'Et dans <b>Missions</b> et <b>Skills</b>, tes éducs te lancent des défis rugby et valident tes étoiles.' : 'Et dans <b>Missions</b>, tes éducs te lancent des défis, comme choisir ton poste pour le jeu à 10.') + '</p>' +
-      '<div class="note cyan">' + icon('star', 20) + '<span>Pour bien démarrer : <b>tes premiers pas</b>, 4 petites étapes sur Prépa › Ma semaine, <b>+' + C.XP.premiersPas + ' XP</b> à la fin.</span></div>', last, { kc: 'var(--violet)' });
+      'Deviens une légende', '<p class="lead">Chaque séance rapporte des <b>XP</b> : tu montes de grade, tu débloques des <b>badges</b> et tu montes sur les <b>podiums</b> face aux joueurs de ton niveau. ' + (MC.ouvert('skills') ? 'Et dans <b>Missions</b> et <b>Skills</b>, tes éducs te lancent des défis rugby et valident tes étoiles.' : 'Et dans <b>Missions</b>, tes éducs te lancent des défis, comme choisir ton poste pour le jeu à 10.') + '</p>' +
+      '<div class="note cyan">' + icon('star', 20) + '<span>Pour bien démarrer : <b>tes premiers pas</b>, 4 petites étapes sur l\'Accueil, <b>+' + C.XP.premiersPas + ' XP</b> à la fin.</span></div>', last, { kc: 'var(--violet)' });
   }
   MC.act.obDoneKid = function () { finish('k'); };
   MC.act.obBilan = function () { var id = app.S.kid && app.S.kid.joueur.id; if (id) markTour('k', id); step.k = 0; app.go('#/bilan', true); };
@@ -235,7 +236,7 @@ MC.accueil = (function () {
       { done: true, html: chk(true, 'Choisir mon code secret') },
       { done: seance, html: chk(seance, 'Faire ma 1re séance', 'Avec le guidage, c\'est plus facile : 15 à 20 min', go) },
       { done: bilan, html: chk(bilan, 'Passer mon bilan', 'Avec un adulte. Tu peux t\'entraîner avant !', '#/bilan') },
-      { done: arene, html: chk(arene, 'Visiter l\'arène', 'Le classement des joueurs de ton niveau', '#/classement') }
+      { done: arene, html: chk(arene, 'Voir les podiums', 'Dans Équipe : les joueurs de ton niveau', '#/classement') }
     ];
   }
   function hasPP(me) { return (me.journal || []).some(function (j) { return j.type === 'premiers_pas'; }); }

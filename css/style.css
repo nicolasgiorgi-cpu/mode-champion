@@ -1992,3 +1992,21 @@ textarea.txt{min-height:84px;padding:10px 12px;resize:vertical;font:500 16px/1.4
 .cible-on{animation:cibleEclair 2s ease-out 1}
 @keyframes cibleEclair{0%,35%{outline:2px solid var(--cyan);outline-offset:2px}100%{outline:2px solid transparent;outline-offset:2px}}
 @media (prefers-reduced-motion:reduce){.cible-on{animation:none;outline:2px solid var(--cyan);outline-offset:2px}}
+/* ---------- (v67) côté enfant : Accueil · Équipe · Progrès · Moi ---------- */
+.nav.navk a{font-size:12px;letter-spacing:.08em}   /* libellés des onglets enfant à 12 px */
+.acc-h{gap:6px}
+.acc-t{margin:0;font:italic 900 26px/1.05 var(--f-title);text-transform:uppercase}   /* plus de grand titre sur les onglets */
+.exd{border-top:1px solid var(--line)}
+.exd>summary{list-style:none;display:flex;align-items:center;gap:8px;min-height:44px;cursor:pointer;font:700 13px/1 var(--f-hud);letter-spacing:.06em;text-transform:uppercase;color:var(--soft)}
+.exd>summary::-webkit-details-marker{display:none}
+.exd[open] .exd-i{transform:rotate(180deg)}
+.exd .exlist{margin-top:4px}
+.acc-deja{align-self:center;display:inline-flex;align-items:center;gap:6px;min-height:44px;font-size:14px}
+.acc-sp{margin:0;display:flex;align-items:center;gap:8px;font-size:14px;line-height:1.35;color:var(--soft)}
+.acc-sp b{color:var(--gold)}
+.acc-mi .t2{color:var(--pink)}
+.rkf{display:flex;flex-direction:column;gap:12px;padding:0 14px;background:var(--panel);border:1px solid var(--line)}
+.rkf[open]{padding-bottom:14px}
+.rkf>summary{list-style:none;display:flex;align-items:center;gap:8px;min-height:44px;cursor:pointer;font-size:14px;color:var(--soft)}
+.rkf>summary::-webkit-details-marker{display:none}
+.rkf[open] .rkf-i{transform:rotate(180deg)}
