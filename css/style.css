@@ -161,6 +161,8 @@ img{display:block;max-width:100%}
 .note.pink{border-color:rgba(255,79,163,.6);background:rgba(255,79,163,.08)}
 .note.yellow{border-color:rgba(255,210,61,.5);background:rgba(255,210,61,.06)}
 .note svg{flex:none;margin-top:1px}
+.note.matos{align-items:center}.note.matos .grow{flex:1;min-width:0}.note.matos .btn2{flex:none;width:auto}
+.run .main .left>.note.matos{margin-bottom:12px}
 .list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
 .li{min-height:50px;padding:8px 12px;display:flex;align-items:center;gap:12px;background:var(--panel2);border:1px solid var(--line);color:var(--ink);text-decoration:none;text-align:left;width:100%}
 .li.me{background:rgba(56,232,255,.12);border:1.5px solid var(--cyan);box-shadow:0 0 14px rgba(56,232,255,.3)}
@@ -485,6 +487,7 @@ html.net-busy::before{content:'';position:fixed;top:0;left:0;right:0;height:3px;
 .bilrun .counter .row{gap:clamp(10px,4vw,28px)}
 .bilrun .main.single{align-items:center}
 .bilrun .main.single>*{width:100%;max-width:620px;align-self:center!important}
+.bilrun .main.avecmatos .ring{width:min(62vw,240px,32vh)}.bilrun .main.avecmatos .ring.clock .sec{font-size:clamp(54px,15vw,70px)}   /* (v82) le repos avec la ligne du matériel : tout tient dans l'écran */
 .tapcount{display:flex;align-items:baseline;justify-content:center;gap:12px}
 .tapcount b{font:700 54px/1 var(--f-hud);color:var(--rc,var(--gold))}
 .btn.tap1:active{filter:brightness(.85);transform:scale(.99)}
@@ -594,6 +597,7 @@ html.net-busy::before{content:'';position:fixed;top:0;left:0;right:0;height:3px;
   .run .main.routine{grid-template-areas:"left right";grid-template-rows:1fr;align-items:center}
   .run .main.single{display:flex}
   .run .main .left{display:flex;flex-direction:column;gap:12px;height:100%;justify-content:center}
+  .run .main .left>.note.matos{margin-bottom:0}
   .run .main .right{display:flex;flex-direction:column;gap:18px;justify-content:center}
   .run .demo{height:auto;flex:1;min-height:300px}
   .run h1{font-size:clamp(48px,5.4vw,84px)}
