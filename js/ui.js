@@ -17,6 +17,7 @@ MC.ui = (function () {
     check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
     chat: '<path d="M4 5h16v11H10l-5 4v-4H4z"/><path d="M8 9.5h8M8 12.5h5"/>',
     x: '<path d="M6 6l12 12M18 6L6 18"/>',
+    trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/>',   // (v67) effacer le brouillon
     left: '<path d="M15 6l-6 6 6 6"/>',
     right: '<path d="M9 6l6 6-6 6"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',

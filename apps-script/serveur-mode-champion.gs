@@ -1457,7 +1457,8 @@ var Core = (function () {
       var ex = etoileActive(ctx, me.id, d, e);
       if (ex && ex.brille) fail('invalide', 'Cette étoile brille déjà.');
       var auj = isoDate(ctx.now);
-      if (ctx.db.rows('demandes').filter(function (x) { return x.joueurId === me.id && String(x.cree || '').slice(0, 10) === auj; }).length >= 10) fail('limite', 'Assez de demandes pour aujourd\'hui : réessaie demain.');
+      // (v67) le jour de la demande à l'heure du club (cree est en UTC : entre minuit et 1 h, ce n'était pas le même jour)
+      if (ctx.db.rows('demandes').filter(function (x) { var t = Date.parse(x.cree || ''); return x.joueurId === me.id && !isNaN(t) && isoDate(t) === auj; }).length >= 10) fail('limite', 'Assez de demandes pour aujourd\'hui : réessaie demain.');
       // l'occasion vient seulement de l'événement choisi (jamais d'un texte tapé par l'enfant)
       var evId = String(req.evenementId || ''), ev = evId ? find(ctx.db.rows('evenements'), evId) : null;
       var o = { occasion: ev ? cleanText(ev.titre, 60) : '', evenementId: ev ? ev.id : '' }, now = isoNow(ctx.now);
@@ -1899,21 +1900,24 @@ var Core = (function () {
     var raisons = {};
     if (req.raisons && typeof req.raisons === 'object') for (var k in req.raisons) if (seen[k]) raisons[k] = cleanText(req.raisons[k], 200);
     var reglages = { format: Number(r.format) === 10 ? 10 : 5, nb: nb };
+    // (v67) les matchs d'un entraînement faits comme un plateau (vue: 'plateau') : mêmes réglages qu'un plateau
+    var plat = !partie || (partie === 'matchs' && r.vue === 'plateau');
     // (v48) le style de la proposition du plateau est gardé (« A forte » : les alertes en tiennent compte)
-    if (!partie && ['equilibre', 'copains', 'strict', 'aforte'].indexOf(r.style) >= 0) reglages.style = r.style;
-    // (v50) les options de la compo (voir optsDe dans js/compos.js)
-    if (!partie && r.opts && typeof r.opts === 'object') {
-      var OK = { orga: ['niveau', 'aforte'], effectifs: ['equilibre', 'niveaux'], passerelles: ['niveau', 'roulant', 'tour', 'aucune'], change: ['plaquage', 'tour'], copains: ['un', 'dabord', 'sans'] }, op = {};   // (v56) « tour » et « aucune » : un site plus ancien encore ouvert
+    if (plat && ['equilibre', 'copains', 'strict', 'aforte'].indexOf(r.style) >= 0) reglages.style = r.style;
+    // (v50) les options de la compo (voir optsDe dans js/compos.js) ; (v67) priorite : ce qui s'équilibre d'abord au jeu à 10
+    if (plat && r.opts && typeof r.opts === 'object') {
+      var OK = { orga: ['niveau', 'aforte'], effectifs: ['equilibre', 'niveaux'], passerelles: ['niveau', 'roulant', 'tour', 'aucune'], change: ['plaquage', 'tour'], copains: ['un', 'dabord', 'sans'], priorite: ['postes', 'plaquage'] }, op = {};   // (v56) « tour » et « aucune » : un site plus ancien encore ouvert
       Object.keys(OK).forEach(function (k) { if (OK[k].indexOf(r.opts[k]) >= 0) op[k] = r.opts[k]; });
       var mt = Math.floor(Number(r.opts.montees)); if (mt >= 0 && mt <= 3) op.montees = mt;
       if (Object.keys(op).length) reglages.opts = op;
     }
     // (v49) les joueurs voulus par équipe (pour refaire la proposition) : A1…C9, de 0 à 40
-    if (!partie && r.tailles && typeof r.tailles === 'object') {
+    if (plat && r.tailles && typeof r.tailles === 'object') {
       var tl = {}; Object.keys(r.tailles).slice(0, 18).forEach(function (k) { var v = Math.floor(Number(r.tailles[k])); if (/^[ABC][1-9]$/.test(k) && v >= 0 && v <= 40) tl[k] = v; });
       if (Object.keys(tl).length) reglages.tailles = tl;
     }
-    if (partie) {
+    if (partie === 'matchs' && plat) { reglages.partie = 'matchs'; reglages.vue = 'plateau'; }
+    else if (partie) {
       var borne = function (v, a, b, d) { v = Math.floor(Number(v)); return isNaN(v) ? d : v < a ? a : v > b ? b : v; };
       // (v35) les matchs d'entraînement peuvent se jouer avec des postes (jeu à 10, comme les plateaux)
       reglages = { format: partie === 'matchs' && Number(r.format) === 10 ? 10 : 5, nb: nb, partie: partie, mode: r.mode === 'equilibre' || (partie === 'matchs' && r.mode !== 'niveau') ? 'equilibre' : r.mode === 'aforte' && partie === 'ateliers' ? 'aforte' : 'niveau',   /* (v57) les matchs : équilibrés par défaut */ separer: partie === 'ateliers' && !!r.separer,

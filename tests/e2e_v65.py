@@ -137,11 +137,12 @@ with sync_playwright() as p:
     # ----- 3. les matchs : la même page que les plateaux -----
     pg.goto(BASE + '#/educ/compo/sp-demo-e1?p=matchs'); pg.wait_for_timeout(1300)
     t = titres()
-    check('matchs : « Avec qui ? », les équipes, puis « Créer les équipes » (comme un plateau)', t[:3] == ['AVEC QUI ?', 'LES ÉQUIPES', 'CRÉER LES ÉQUIPES'], t)
+    # (v67, demande de Nicolas du 11/11) la page du plateau en entier : le format, « Avec qui ? », les équipes par niveau
+    check('matchs : le format, « Avec qui ? », les équipes par niveau, puis « Créer les équipes » (la page du plateau)', t[:4] == ['LE FORMAT', 'AVEC QUI ?', 'ÉQUIPES PAR NIVEAU', 'CRÉER LES ÉQUIPES'], t)
     bt = boutons()
     check('matchs : « Créer manuellement » (poste par poste) puis « Créer automatiquement », même style', bt and pg.query_selector('.ccreer [data-act="cZero10"]') is not None and bt['cls'][0] == bt['cls'][1] and not bt['primaire'], bt)
     if pg.query_selector('[data-act="cAuto"][aria-expanded="false"]'): pg.click('[data-act="cAuto"]'); pg.wait_for_timeout(700)
-    check('matchs, automatiquement : « Deux équipes équilibrées » et « Générer les 2 équipes », pas de 2 versions', 'Deux équipes équilibrées' in pg.inner_text('#cauto') and pg.query_selector('#cauto [data-act="cPropose"]') is not None and pg.query_selector('[data-act="cPropose2"]') is None)
+    check('(v67) matchs, automatiquement : les options du plateau, « Générer les équipes » et les 2 versions côte à côte', pg.query_selector('#cauto [data-act="cOpt"][data-k="orga"]') is not None and pg.query_selector('#cauto [data-act="cPropose"]') is not None and pg.query_selector('#cauto [data-act="cPropose2"]') is not None)
     pg.click('.ccreer [data-act="cZero10"]'); pg.wait_for_timeout(900)
     check('matchs, à la main : la fenêtre « Poste par poste » s\'ouvre', pg.query_selector('.modal') is not None and 'PILIER' in pg.inner_text('.modal').upper(), pg.inner_text('.modal')[:200] if pg.query_selector('.modal') else '')
     check('matchs : pas de défilement de côté', noscroll())

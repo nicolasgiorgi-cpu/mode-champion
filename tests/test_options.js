@@ -14,7 +14,8 @@ function groupe(spec) {
 const tailles = (p) => J(p.equipes.map(t => t.id + ':' + t.joueurs.length));
 const dans = (p, id) => J(p.equipes.find(t => t.id === id).joueurs.map(j => j.id));
 const H1 = (d, n) => ({ plateaux: 1, autre: 1, dernierAutre: d, avecCopain: 0, sansCopainSerie: 0, vus: {}, niveaux: {}, postes: {}, liste: [{ date: d, niveau: n, autre: true }] });
-const O = (o) => Object.assign({ orga: 'niveau', effectifs: 'equilibre', passerelles: 'roulant', copains: 'un' }, o);
+// (v67) priorite : ce qui s'équilibre d'abord au jeu à 10, les postes par défaut
+const O = (o) => Object.assign({ orga: 'niveau', effectifs: 'equilibre', passerelles: 'roulant', copains: 'un', priorite: 'postes' }, o);
 const OM = (o, m) => Object.assign(O(o), { montees: m });
 
 // ----- les anciens styles et les anciennes valeurs -----

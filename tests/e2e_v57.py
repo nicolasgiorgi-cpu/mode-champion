@@ -207,22 +207,22 @@ with sync_playwright() as p:
     c0 = ev("""(id) => { const col = document.querySelector('.ccol'), b = col.querySelector('.cpj[data-id="' + id + '"]'); return { gone: !!b && b.classList.contains('gone'), n: +col.querySelector('.chd .cn').textContent, hd: col.querySelector('.cavtq').textContent }; }""", vic)
     check('compo des présents : un enfant décoché est barré et ne compte plus dans son équipe', c0['gone'] and c0['n'] == n0 - 1 and '1 absent' in c0['hd'], (c0, n0))
 
-    # ----- 4. les matchs d'un entraînement : deux équipes, boutons 1 et 2 -----
+    # ----- 4. les matchs d'un entraînement : deux équipes, boutons B1 et B2 (v67 : comme un plateau, 2 équipes B par défaut) -----
     pg.goto(BASE + '#/educ/compo/sp-demo-e1?p=matchs'); pg.wait_for_timeout(1200)
     if pg.query_selector('[data-act="cDiscard"]'):
         pg.click('[data-act="cDiscard"]'); pg.wait_for_timeout(300); pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(700)
-    ouvrirAuto(pg)   # (v65) « Deux équipes équilibrées » est dit dans « Créer automatiquement »
-    check('matchs : deux équipes équilibrées, « Avec qui ? », poste par poste', 'DEUX ÉQUIPES ÉQUILIBRÉES' in pg.inner_text('main').upper() and len(pg.query_selector_all('[data-act="cBase"]')) == 2 and pg.query_selector('[data-act="cZero10"]') is not None and pg.query_selector('[data-act="cEN"]') is None)
+    ouvrirAuto(pg)
+    check('matchs : deux équipes B par défaut, « Avec qui ? », poste par poste', ev("[...document.querySelectorAll('.cstep .cnbv')].slice(0, 3).map(e => e.textContent).join(',')") == '0,2,0' and len(pg.query_selector_all('[data-act="cBase"]')) == 2 and pg.query_selector('[data-act="cZero10"]') is not None and pg.query_selector('[data-act="cEN"]') is None)
     pg.click('[data-act="cZero10"]'); pg.wait_for_timeout(800)
     lab = ev("[...document.querySelector('.modal .pprow').querySelectorAll('.ppb')].map(b => b.textContent)")
-    check('matchs : boutons « 1 » et « 2 »', lab == ['1', '2'], lab)
-    check('matchs : aucun bouton en pointillés (pas de niveau)', len(pg.query_selector_all('.modal .ppb.hors')) == 0)
+    check('matchs : boutons « B1 » et « B2 »', lab == ['B1', 'B2'], lab)
+    check('matchs : aucun bouton en pointillés (seulement des équipes B : tout le monde y joue)', len(pg.query_selector_all('.modal .ppb.hors')) == 0)
     r0 = ev("document.querySelector('.modal .pprow .ppb').getAttribute('data-ppid')")
-    pg.click('.modal .ppb[data-ppid="%s"][data-ppt="E1"]' % r0); pg.wait_for_timeout(250)
-    pg.click('.modal .ppb[data-ppid="%s"][data-ppt="E2"]' % r0); pg.wait_for_timeout(250)
+    pg.click('.modal .ppb[data-ppid="%s"][data-ppt="B1"]' % r0); pg.wait_for_timeout(250)
+    pg.click('.modal .ppb[data-ppid="%s"][data-ppt="B2"]' % r0); pg.wait_for_timeout(250)
     d = draft('sp-demo-e1', 'matchs')
     w = [(t['id'], j['poste']) for t in d['equipes'] for j in t['joueurs'] if j['id'] == r0]
-    check('passer de l\'équipe 1 à la 2 d\'un toucher', w == [('E2', 'pilier')], w)
+    check('passer de l\'équipe B1 à la B2 d\'un toucher', w == [('B2', 'pilier')], w)
     for i in range(7): pg.click('.modal .mbtns button[data-i="0"]'); pg.wait_for_timeout(250)
     check('OK jusqu\'au bout : la fenêtre se ferme', pg.query_selector('.modal') is None)
     # (3e relecture) chaque version a sa règle : V1 les présents, V2 « tout le groupe » ; sur V2, ceux qui ne sont pas dans

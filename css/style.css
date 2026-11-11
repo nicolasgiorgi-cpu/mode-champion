@@ -1992,3 +1992,10 @@ textarea.txt{min-height:84px;padding:10px 12px;resize:vertical;font:500 16px/1.4
 .cible-on{animation:cibleEclair 2s ease-out 1}
 @keyframes cibleEclair{0%,35%{outline:2px solid var(--cyan);outline-offset:2px}100%{outline:2px solid transparent;outline-offset:2px}}
 @media (prefers-reduced-motion:reduce){.cible-on{animation:none;outline:2px solid var(--cyan);outline-offset:2px}}
+/* v67 (demandes de Nicolas du 11/11) */
+/* « Effacer » le brouillon à côté de « Publier » : l'icône seule au téléphone (le nom reste pour le lecteur d'écran) */
+.ceff{gap:6px}
+@media (max-width:560px){.btn2.sm.ceff{width:44px;min-width:44px;padding:0;justify-content:center}.ceff .ceff-t{display:none}}
+/* la répartition des postes, plus serrée : les lignes se touchent, chacune reste facile à toucher */
+.rpost .pbars{gap:0}
+.rpost .pbarw summary{min-height:34px}

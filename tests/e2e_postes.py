@@ -83,7 +83,7 @@ with sync_playwright() as p:
     # ----- 5. les matchs d'entraînement : avec des postes -----
     pg.goto(BASE + '#/educ/compo/sp-demo-e1?p=matchs'); pg.wait_for_timeout(1300)
     t = pg.inner_text('main')
-    check('matchs : « jeu à 10 », chacun son poste du match', 'Jeu à 10' in t and 'poste du match' in t, t[:400])
+    check('matchs : « jeu à 10 » par défaut (v67 : la page du plateau, le format en haut)', pg.query_selector('[data-act="cFmt"][data-v="10"].on') is not None, t[:400])
     check('matchs : la répartition des présents', pg.query_selector('details[data-rp="matchs"]') is not None)
     check('(v57) matchs : plus de choix « Combien ? » (un match, deux équipes)', pg.query_selector('[data-act="cEN"][data-k="nbMatchs"]') is None)
     ouvrirAuto(pg); pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(1500)

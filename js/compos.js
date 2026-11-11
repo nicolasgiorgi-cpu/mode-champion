@@ -53,11 +53,12 @@ MC.compos = (function () {
   //   roulant (chacun son tour, et une par équipe au-dessus même si elle est pleine : sinon, quand les Confirmés remplissent l'équipe A, personne ne monte) ;
   // quand les passerelles ne suffisent pas, les enfants sans passerelle changent selon le plaquage (v56 : plus d'option « qui change de niveau », un doublon) ;
   // copains : un pour chacun | d'abord | sans
-  var OPTS = { orga: ['niveau', 'aforte'], effectifs: ['equilibre', 'niveaux'], passerelles: ['niveau', 'roulant'], copains: ['un', 'dabord', 'sans'] };
+  // priorite (v67, demande de Nicolas du 11/11, jeu à 10) : ce qui s'équilibre d'abord entre les équipes, les postes ★ ou le plaquage
+  var OPTS = { orga: ['niveau', 'aforte'], effectifs: ['equilibre', 'niveaux'], passerelles: ['niveau', 'roulant'], copains: ['un', 'dabord', 'sans'], priorite: ['postes', 'plaquage'] };
   var PAS_ANC = { tour: 'roulant', aucune: 'niveau' };   // (v56) les valeurs d'avant : compos déjà faites, site plus ancien encore ouvert
   function optsDe(reglages, style) {
     var r = reglages || {}, o = r.opts && typeof r.opts === 'object' ? r.opts : null, st = style || r.style || 'equilibre', out = {};
-    var leg = { orga: st === 'aforte' ? 'aforte' : 'niveau', effectifs: st === 'strict' ? 'niveaux' : 'equilibre', passerelles: 'roulant', copains: st === 'copains' ? 'dabord' : 'un' };
+    var leg = { orga: st === 'aforte' ? 'aforte' : 'niveau', effectifs: st === 'strict' ? 'niveaux' : 'equilibre', passerelles: 'roulant', copains: st === 'copains' ? 'dabord' : 'un', priorite: 'postes' };
     Object.keys(OPTS).forEach(function (k) {
       var v = o ? o[k] : undefined;
       if (k === 'passerelles' && PAS_ANC[v]) v = PAS_ANC[v];
@@ -396,22 +397,51 @@ MC.compos = (function () {
     aforte: { nom: 'A forte', texte: 'Une équipe A avec les Confirmés (complétée par les meilleurs B), les autres mélangent B et C, équilibrées.', w: W, aforte: true }
   };
   // (v56) le poids des copains selon l'option : « sans » = ils ne comptent pas du tout
-  function poidsCop(O, base, dabord) { return O.copains === 'dabord' ? dabord : O.copains === 'sans' ? Object.assign({}, base, { copain: 0, seul: 0 }) : base; }
+  // (v67) et l'option « Équilibrer d'abord » (jeu à 10) : les postes ★ (par défaut) ou le plaquage. pst : le poids de l'écart de postes
+  // entre équipes ; pri : 'plaquage' double le poids du plaquage (au jeu à 10 seulement, voir scoreEquipe)
+  function poidsCop(O, base, dabord) {
+    var w = O.copains === 'dabord' ? dabord : O.copains === 'sans' ? Object.assign({}, base, { copain: 0, seul: 0 }) : base;
+    return Object.assign({}, w, { pst: PST[O.priorite] || PST.postes, pri: O.priorite || 'postes' });
+  }
+  // (v67) jeu à 10 : chaque équipe a autant de piliers, de talonneurs… ★ que les autres (et autant d'enfants sans poste).
+  // Le poste ★ d'un enfant (plusieurs ★ : chacun compte pour une part), sinon le 1er poste de sa fiche ou son 1er vœu, sinon « sans poste » ('')
+  var PST = { postes: 3, plaquage: 0.5 };
+  function partsPoste(f) {
+    var l = prefDe(f).filter(function (p) { return BESOIN[p]; });
+    if (!l.length) l = postesDe(f).filter(function (p) { return BESOIN[p]; }).slice(0, 1);
+    if (!l.length) l = [''];
+    var o = {}; l.forEach(function (p) { o[p] = 1 / l.length; });
+    return o;
+  }
+  function comptePostes(t, F) {
+    var c = {};
+    t.forEach(function (id) { var x = partsPoste(F[id] || {}); for (var p in x) c[p] = (c[p] || 0) + x[p]; });
+    return c;
+  }
   function niveauCtx(teams, F, w) {
-    var tot = 0, totP = 0, totB = 0, k = teams.length || 1, cn = { A: 0, B: 0, C: 0 }, av = 0;
+    var tot = 0, totP = 0, totB = 0, k = teams.length || 1, cn = { A: 0, B: 0, C: 0 }, av = 0, pst = {};
     teams.forEach(function (t) { t.forEach(function (id) {
       var f = F[id] || {}, p = f.plaquage || 0; tot++; totP += p; if (p >= BON) totB++;
       cn[niveauDe(f) || 'B']++; if (typePoste(posteDefaut(f)) === 'av') av++;
+      var x = partsPoste(f); for (var q in x) pst[q] = (pst[q] || 0) + x[q] / k;
     }); });
-    return { avgN: tot / k, mean: tot ? totP / tot : 0, avgB: totB / k, w: w || W, avgNiv: { A: cn.A / k, B: cn.B / k, C: cn.C / k }, avgAv: av / k };
+    return { avgN: tot / k, mean: tot ? totP / tot : 0, avgB: totB / k, w: w || W, avgNiv: { A: cn.A / k, B: cn.B / k, C: cn.C / k }, avgAv: av / k, avgPst: pst };
+  }
+  // l'écart d'une équipe aux postes moyens de son niveau
+  function ecartPostes(t, cx, F) {
+    var c = comptePostes(t, F), s = 0, vus = {};
+    for (var p in cx.avgPst) { s += Math.abs((c[p] || 0) - cx.avgPst[p]); vus[p] = true; }
+    for (var q in c) if (!vus[q]) s += c[q];
+    return s;
   }
   function scoreEquipe(t, cx, F, H, format) {
     var sp = 0, sb = 0, s = 0, W = cx.w;
     t.forEach(function (id) { var p = (F[id] || {}).plaquage || 0; sp += p; if (p >= BON) sb++; });
     s += W.taille * Math.abs(t.length - (t.cible !== undefined ? t.cible : cx.avgN));   // (v49) la taille voulue de l'équipe
-    if (t.length) s += W.plaq * Math.abs(sp / t.length - cx.mean);
+    if (t.length) s += W.plaq * (format === 10 && W.pri === 'plaquage' ? 2 : 1) * Math.abs(sp / t.length - cx.mean);   // (v67) « le plaquage d'abord »
     s += W.bons * Math.abs(sb - cx.avgB);
     if (format === 10) s += W.poste * apparier(t, F).manquants.length;
+    if (format === 10 && W.pst && cx.avgPst) s += W.pst * ecartPostes(t, cx, F);   // (v67)
     // entraînement : mélanger les niveaux (W.niv) et équilibrer avants / arrières (W.avar)
     if (W.niv || W.avar) {
       var cn = { A: 0, B: 0, C: 0 }, av = 0;
@@ -794,6 +824,7 @@ MC.compos = (function () {
   // c : { reglages, equipes, banc } ; presents : ids attendus ; renvoie [{ k, niveau: 'warn'|'info', texte, fix }]
   function alertes(c, F, H, presents) {
     var out = [], format = fmt(c.reglages), T = TAILLE[format], eqs = c.equipes || [], af = optsDe(c.reglages).orga === 'aforte';
+    var match = !!c.reglages && c.reglages.partie === 'matchs';   // (v67) des matchs d'entraînement faits comme un plateau
     var placed = {};
     eqs.forEach(function (t) { (t.joueurs || []).forEach(function (j) { placed[j.id] = t.id; }); });
     (c.banc || []).forEach(function (id) { placed[id] = 'banc'; });
@@ -824,11 +855,20 @@ MC.compos = (function () {
         if (hi >= 0 && lo >= 0 && st[hi].plaq - st[lo].plaq >= ECART) {
           out.push({ k: 'plaquage', niveau: 'warn', texte: 'Écart de plaquage moyen en ' + n + ' : ' + ts[hi].id + ' ' + virg(st[hi].plaq) + ', ' + ts[lo].id + ' ' + virg(st[lo].plaq) + '.', fix: bestSwap(c, F, H, ts[hi].id, ts[lo].id) });
         }
+        // (v67, demande de Nicolas du 11/11) jeu à 10 : un poste ★ bien plus fourni dans une équipe que dans une autre du même niveau
+        if (format === 10) {
+          var cp = ts.map(function (t) { return comptePostes(t.joueurs.map(function (j) { return j.id; }), F); }), pire = null;
+          ORDRE.forEach(function (p) {
+            var v = cp.map(function (x) { return Math.round(x[p] || 0); }), mx2 = Math.max.apply(null, v), mn2 = Math.min.apply(null, v);
+            if (mx2 - mn2 >= 2 && (!pire || mx2 - mn2 > pire.d)) pire = { p: p, d: mx2 - mn2, hi: v.indexOf(mx2), lo: v.indexOf(mn2), v: v };
+          });
+          if (pire) out.push({ k: 'postes', niveau: 'warn', texte: 'Postes déséquilibrés en ' + n + ' : ' + ts[pire.hi].id + ' a ' + pire.v[pire.hi] + ' ' + nomPostePl(pire.p, pire.v[pire.hi]) + ' ★, ' + ts[pire.lo].id + ' ' + pire.v[pire.lo] + '.', fix: bestSwap(c, F, H, ts[pire.hi].id, ts[pire.lo].id) });
+        }
       }
       ts.forEach(function (t, i) {
         // (v48) « A forte » : les équipes B mélangent B et C, les Débutants n'y sont pas signalés sous le repère B
         var ss = af && n === 'B' ? st[i].sousSeuil.filter(function (id) { return niveauDe(F[id]) === 'B'; }) : st[i].sousSeuil;
-        if (ss.length && SEUIL[n]) out.push({ k: 'seuil', niveau: 'info', texte: t.id + ' : ' + noms(ss, F) + ' sous ' + SEUIL[n] + ' au plaquage (repère pour le niveau ' + n + ').', ids: ss });
+        if (ss.length && SEUIL[n] && !match) out.push({ k: 'seuil', niveau: 'info', texte: t.id + ' : ' + noms(ss, F) + ' sous ' + SEUIL[n] + ' au plaquage (repère pour le niveau ' + n + ').', ids: ss });
         if (format === 10 && st[i].manquants.length) out.push({ k: 'poste', niveau: 'warn', texte: t.id + ' : poste' + (st[i].manquants.length > 1 ? 's' : '') + ' à couvrir (' + st[i].manquants.map(nomPoste).join(', ') + ').', equipe: t.id });
       });
     });
@@ -849,13 +889,16 @@ MC.compos = (function () {
       var t = eqs.filter(function (x) { return x.id === placed[id]; })[0];
       return t && t.niveau === f.niveau && jamais(id).length > 0;
     });
-    if (attente.length) out.push({ k: 'rotation', niveau: 'info', texte: 'Passerelles qui n\'ont pas encore joué dans l\'autre niveau : ' + attente.map(function (id) { return F[id].prenom + ' (' + F[id].niveau + '→' + jamais(id).join('/') + ')'; }).join(', ') + '.', ids: attente });
+    if (attente.length && !match) out.push({ k: 'rotation', niveau: 'info', texte: 'Passerelles qui n\'ont pas encore joué dans l\'autre niveau : ' + attente.map(function (id) { return F[id].prenom + ' (' + F[id].niveau + '→' + jamais(id).join('/') + ')'; }).join(', ') + '.', ids: attente });
     return out;
   }
   function virg(x) { return String(x).replace('.', ','); }
   function noms(ids, F) { return ids.map(function (id) { return (F[id] || {}).prenom || '?'; }).join(', '); }
   var NOMS_POSTES = { pilier: 'pilier', talonneur: 'talonneur', 'troisieme-ligne': '3e ligne', 'demi-de-melee': 'demi de mêlée', ouvreur: 'ouvreur', centre: 'centre', ailier: 'ailier' };
   function nomPoste(p) { return NOMS_POSTES[p] || p; }
+  // (v67) au pluriel : « 4 piliers », « 2 3es lignes », « 2 demis de mêlée »
+  var PL_POSTES = { 'troisieme-ligne': '3es lignes', 'demi-de-melee': 'demis de mêlée' };
+  function nomPostePl(p, n) { return n > 1 ? PL_POSTES[p] || nomPoste(p) + 's' : nomPoste(p); }
 
   // ---------- Modifications d'une compo ----------
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
@@ -1046,7 +1089,7 @@ MC.compos = (function () {
   }
   // poids pour des groupes mélangés (ateliers « équilibrés ») et pour les deux équipes d'un match
   var WMIX = { taille: 5, plaq: 3 * 5 / 3, bons: 1, copain: 1, seul: 0.5, poste: 0, niv: 1.5, avar: 1 };
-  var WMATCH = { taille: 5, plaq: 4 * 5 / 3, bons: 1.5, copain: 0.75, seul: 0.4, poste: 1.2, niv: 1.5, avar: 1.2 };   // (v35) postes : les deux équipes en ont autant de couverts
+  var WMATCH = { taille: 5, plaq: 4 * 5 / 3, bons: 1.5, copain: 0.75, seul: 0.4, poste: 1.2, niv: 1.5, avar: 1.2, pst: PST.postes };   // (v35) postes : les deux équipes en ont autant de couverts
   // des tranches successives (du plus avancé au moins avancé), coupées à la limite entre deux niveaux quand elle est proche
   // (à un quart de groupe près) : des groupes de niveau d'effectifs voisins
   function tranches(sorted, k, F) {
@@ -1174,7 +1217,9 @@ MC.compos = (function () {
     o.raisons = {};
     // (v57) les matchs : toujours deux équipes équilibrées ; d'anciens matchs à 2 matchs (4 équipes) se regroupent,
     // l'équipe 3 avec la 1, la 4 avec la 2 (sans niveau, un seul match)
-    if (o.reglages && o.reglages.partie === 'matchs') {
+    // (v67) des matchs faits comme un plateau (vue: 'plateau') : repris tels quels, comme une compo de plateau
+    var plat = o.reglages && o.reglages.partie === 'matchs' && o.reglages.vue === 'plateau';
+    if (o.reglages && o.reglages.partie === 'matchs' && !plat) {
       var base = o.reglages.base, fmt0 = o.reglages.format;
       if (o.equipes.length > 2) {
         o.equipes.slice(2).forEach(function (t, i) { o.equipes[i % 2].joueurs = o.equipes[i % 2].joueurs.concat(t.joueurs); });
@@ -1185,10 +1230,10 @@ MC.compos = (function () {
       o.reglages.format = fmt0 === 10 ? 10 : 5;   // le passage aux postes (ci-dessous) se fait d'après le format d'origine
     }
     // (v35) des matchs d'avant la v35 (sans postes) : ils passent avec postes, ceux des fiches
-    if (o.reglages && o.reglages.partie === 'matchs' && o.reglages.format !== 10) {
+    if (o.reglages && o.reglages.partie === 'matchs' && o.reglages.format !== 10 && !plat) {
       o.reglages.format = 10;
       o.equipes.forEach(function (t) { var po = postesEquipe(t.joueurs.map(function (j) { return j.id; }), F, true); t.joueurs.forEach(function (j) { j.poste = po[j.id] || ''; }); });
-    } else if (o.reglages && o.reglages.partie === 'matchs') {
+    } else if (o.reglages && o.reglages.partie === 'matchs' && o.reglages.format === 10) {
       // déjà avec postes : chacun garde le sien, les places laissées par les absents vont aux remplaçants
       o.equipes.forEach(function (t) { t.joueurs.forEach(function (j) { if (!j.poste) j.poste = placeLibre(t, j.id, F, true); }); });
     }
@@ -1281,6 +1326,7 @@ MC.compos = (function () {
     nomPoste: nomPoste, frDate: frDate,
     STYLES: STYLES, AVANTS: AVANTS, BESOIN: BESOIN, postesEquipe: postesEquipe, posteEnPlus: posteEnPlus, eligible: eligible, vivier: vivier, rangVivier: rangVivier, postesDe: postesDe, posteDefaut: posteDefaut, prefDe: prefDe, lienPoste: lienPoste, rang: rang, repartition: repartition, placeLibre: placeLibre, typePoste: typePoste, typeDe: typeDe, sections: sections, ORDRE: ORDRE,
     PARTIES: PARTIES, regEnt: regEnt, proposerEnt: proposerEnt, videEnt: videEnt, reprendre: reprendre, alertesEnt: alertesEnt,
-    blocDe: blocDe, blocsDe: blocsDe, nomBloc: nomBloc, nomEq: nomEq, texteCompo: texteCompo
+    blocDe: blocDe, blocsDe: blocsDe, nomBloc: nomBloc, nomEq: nomEq, texteCompo: texteCompo,
+    partsPoste: partsPoste, comptePostes: comptePostes
   };
 })();
