@@ -1475,8 +1475,9 @@ var Core = (function () {
   // (v76, lot E6) le défi d'équipe : une jauge commune, chacun y contribue à son niveau (les répétitions notées dans les
   // séances guidées) ; jamais le détail des autres, seulement le total et sa propre part. Jauge pleine : un badge pour tous
   // (décision de Nicolas, 10/11). Réglages proposés le 11/11, à valider : quoi, combien, jusqu'à quand.
+  // (v84) cible choisie par Nicolas le 11/11 : 5 000 (10 000 au départ)
   var DEFIS_EQUIPE = [
-    { id: 'noel26', nom: '10 000 mouvements de jambes avant Noël', quoi: 'squats, fentes, ponts et mollets', exos: ['squat', 'fentes', 'pont', 'mollets'], cible: 10000, debut: '2026-11-16', fin: '2026-12-20' }
+    { id: 'noel26', nom: '5 000 mouvements de jambes avant Noël', quoi: 'squats, fentes, ponts et mollets', exos: ['squat', 'fentes', 'pont', 'mollets'], cible: 5000, debut: '2026-11-16', fin: '2026-12-20' }
   ];
   // (relecture v76) une série de plus de 100 répétitions n'est pas crédible pour un M12 : écartée (même règle que MC.logic.compteurs)
   var SERIE_MAX = 100;
