@@ -389,7 +389,7 @@ window.MC = window.MC || {};
     { id: 'jeu10', famille: 'missions', nom: 'Prêt pour le jeu à 10', cond: 'Mission « Choisis ton poste » accomplie', mission: 'poste', lien: '#/mission/postes', icon: 'ball', color: '#38E8FF' },
     { id: 'copains', famille: 'missions', nom: 'Esprit d\'équipe', cond: 'Mission « Avec qui tu aimes jouer » accomplie', mission: 'copains', lien: '#/mission/copains', icon: 'group', color: '#3DFFB0' },
     // (v76, lot E6) le badge du défi d'équipe : pour tous quand la jauge est pleine
-    { id: 'equipe_noel26', famille: 'equipe', nom: 'Tous ensemble', icon: 'group', color: '#3DFFB0', cond: 'La jauge du défi d\'équipe pleine : 10 000 mouvements de jambes avant Noël', equipe: 'noel26' }
+    { id: 'equipe_noel26', famille: 'equipe', nom: 'Tous ensemble', icon: 'group', color: '#3DFFB0', cond: 'La jauge du défi d\'équipe pleine : 5 000 mouvements de jambes avant Noël', equipe: 'noel26' }
   ].filter(function (b) {
     // V1 (28/10) : la mission des copains n'est pas ouverte aux enfants, son badge non plus (voir MC.CONFIG.ENFANTS)
     return b.mission !== 'copains' || !MC.ouvert || MC.ouvert('copains');

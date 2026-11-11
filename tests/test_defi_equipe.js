@@ -48,7 +48,11 @@ assert.ok(g.call({ action: 'setVisible', token: fam.token, joueurId: ana.id, vis
 assert.ok(g.call({ action: 'updatePlayer', token: et, joueurId: eva.id, actif: false }).ok);
 let E = g.call({ action: 'equipe', token: tom.tok });
 assert.ok(E.ok && E.defi, JSON.stringify(E.defi));
-eq([E.defi.total, E.defi.moi, E.defi.plein, E.defi.cible], [66, 46, false, 10000], 'le total (Ana cachée comprise, pas Eva désactivée), sa part');
+eq([E.defi.total, E.defi.moi, E.defi.plein, E.defi.cible], [66, 46, false, 5000], 'le total (Ana cachée comprise, pas Eva désactivée), sa part');
+eq(E.defi.nom, '5 000 mouvements de jambes avant Noël', '(v84) la cible choisie par Nicolas : 5 000, dans le nom aussi');
+// (v84, relecture) la condition du badge (sur l'appareil) dit la même cible que le serveur : deux endroits à changer ensemble
+const milliers = n => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+assert.ok(((C.BADGES.find(b => b.id === 'equipe_' + D.id) || {}).cond || '').indexOf(': ' + milliers(E.defi.cible) + ' ') >= 0, '(v84) le badge dit la même cible que le serveur');
 eq(Object.keys(E.defi).sort(), ['cible', 'debut', 'fin', 'id', 'moi', 'nom', 'plein', 'quoi', 'total'], 'jamais la part des autres');
 eq(g.call({ action: 'equipe', token: ana.tok }).defi.moi, 20, 'la part d\'Ana');
 // la part calculée au serveur = ses compteurs sur l'appareil pour les mêmes exercices (mêmes règles)
