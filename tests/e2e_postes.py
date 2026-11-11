@@ -145,14 +145,14 @@ with sync_playwright() as p:
     sl = ev(pg, "[...document.querySelectorAll('.ccol')[0].querySelectorAll('.cslot')].map(x => x.textContent).join('|')")
     check('équipe vide de match : « + Ajouter un joueur » (pas « + Remplaçant »)', '+ Ajouter un joueur' in sl and 'Remplaçant' not in sl, sl)
     pg.locator('.ccol >> nth=0 >> .cslot:has-text("Ajouter un joueur")').evaluate('e => e.click()'); pg.wait_for_timeout(500)
-    pg.click('.modal .pprow >> nth=0 >> [data-ppt="E1"]'); pg.wait_for_timeout(400)
+    pg.click('.modal .pprow >> nth=0 >> [data-ppt="B1"]'); pg.wait_for_timeout(400)   # (v67) les matchs comme un plateau : B1, B2
     pg.click('.modal [data-close]'); pg.wait_for_timeout(500)
     po = ev(pg, "[...document.querySelectorAll('.ccol')[0].querySelectorAll('.cpj .cpo')].map(x => x.textContent).join(',')")
     check('… le joueur ajouté a un poste du match', po != '' and 'Remp' not in po, po)
     # déplacer un enfant de « Pas placés » vers l'équipe : une place, pas remplaçant (tout le monde joue)
     pid = ev(pg, "(() => { const F = MC.compos.fiches(MC.app.S.cache.group), k = Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0 && k.indexOf('%s:matchs') > 0); return JSON.parse(localStorage.getItem(k)).vs[0].banc.filter(id => MC.compos.postesDe(F[id]).length)[0]; })()" % eid)
     pg.locator('.cpj[data-id="%s"]' % pid).first.evaluate('e => e.click()'); pg.wait_for_timeout(300)
-    pg.click('[data-act="cMove"][data-t="E1"]'); pg.wait_for_timeout(500)
+    pg.click('[data-act="cMove"][data-t="B1"]'); pg.wait_for_timeout(500)
     d2 = ev(pg, "(() => { const k = Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0 && k.indexOf('%s:matchs') > 0); return JSON.parse(localStorage.getItem(k)).vs[0]; })()" % eid)
     pp = [x['poste'] for t in d2['equipes'] for x in t['joueurs'] if x['id'] == pid]
     check('déplacé dans une petite équipe de match : un poste, pas remplaçant', pp and pp[0] != '', pp)
