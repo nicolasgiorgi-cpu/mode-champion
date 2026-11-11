@@ -183,6 +183,7 @@
       if (v !== null) {
         if (t.mmss) { b.v[t.id + '_m'] = String(Math.floor(v / 60)); b.v[t.id + '_s'] = String(Math.round(v % 60)); }
         else b.v[t.id] = t.decimales ? String(v).replace('.', ',') : String(v);
+        MC.bilan.marquerVersion(b.v, t.id, isSm(t));   // (v79) la version faite (mini matériel ou complète) reste avec sa valeur
       }
       if (t.special === 'tract' && !isSm(t)) {
         if (v !== null && v < 5) {
@@ -651,8 +652,9 @@
   function finView() {
     var vals = MC.bilan.values(me()), bc = L.bilanCycle(me().records, G.n);
     var list = C.TESTS.map(function (t, k) {
+      var vv = vals.filter(function (x) { return x.test === t.id; })[0], nomV = vv ? (vv.extra && vv.extra.sm ? t.sm.nom : t.nom) : nomT(t);   // (v79)
       var tx = valText(t), cs = bc.cases[t.id], dc = !tx && cs ? 'fait ce cycle : ' + fmt(t, (cs.ok || cs.att).valeur) : '';
-      return '<li class="li"><span class="grow"><span class="t1">' + t.n + '. ' + esc(nomT(t)) + '</span><span class="t2" style="color:' + (tx || dc ? 'var(--soft)' : 'var(--dim)') + '">' + esc(tx || dc || 'pas fait') + '</span></span>' +
+      return '<li class="li"><span class="grow"><span class="t1">' + t.n + '. ' + esc(nomV) + '</span><span class="t2" style="color:' + (tx || dc ? 'var(--soft)' : 'var(--dim)') + '">' + esc(tx || dc || 'pas fait') + '</span></span>' +
         '<button type="button" class="btn2 sm grey" data-act="brGoto" data-i="' + (k + 1) + '">' + (tx ? 'Refaire' : 'Faire') + '</button></li>';
     }).join('');
     return '<div class="main single"><div class="hd"><span class="kicker" style="color:var(--rc)">Bilan terminé</span><h1>Bravo !</h1>' +

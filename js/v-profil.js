@@ -502,7 +502,7 @@
       var r = deja[v.test];
       if (r && Number(r.valeur) === Number(v.valeur) && JSON.stringify(r.extra || null) === JSON.stringify(v.extra || null)) return;
       var t = L.testDef(v.test);
-      [v.test, v.test + '_m', v.test + '_s'].concat(t.parPied ? ['flamant_g', 'flamant_d'] : []).concat(t.special === 'tract' ? ['tract_el', 'tract_nb'] : [])
+      [v.test, v.test + '_m', v.test + '_s', 'sm_' + v.test].concat(t.parPied ? ['flamant_g', 'flamant_d'] : []).concat(t.special === 'tract' ? ['tract_el', 'tract_nb'] : [])
         .forEach(function (k) { if (ancien.v[k] !== undefined) out[k] = ancien.v[k]; });
     });
     return out;
@@ -526,6 +526,7 @@
           if (!bil.date && r.date && B.n < L.GRILLE_DEPUIS) bil.date = r.date;   // (v75) à partir du cycle 2, la date du jour par défaut
           if (td && td.mmss) { bil.v[tid + '_m'] = String(Math.floor(r.valeur / 60)); bil.v[tid + '_s'] = String(Math.round(r.valeur % 60)); }
           else bil.v[tid] = String(r.valeur).replace('.', ',');
+          if (td && td.sm) bil.v['sm_' + tid] = r.extra && r.extra.sm ? '1' : '0';   // (v79)
           if (r.extra) {
             if (r.extra.g !== undefined) { bil.v.flamant_g = String(r.extra.g); bil.v.flamant_d = String(r.extra.d); }
             if (r.extra.elastique) { bil.v.tract_el = r.extra.elastique; bil.v.tract_nb = String(r.extra.nbElastique || ''); }
@@ -568,10 +569,19 @@
     return best;
   }
   function bilanValues(me) { return valeursDe(bil.v, me); }
+  // (v79) la version d'une valeur (mini matériel ou complète) est notée avec elle (« sm_<test> » : '1' ou '0') : changer de mode
+  // après coup ne la fait jamais passer pour l'autre épreuve (des tirages comptés comme des tractions). Sans marque (valeur notée
+  // avant la v79) : le mode actuel, comme avant.
+  function smDe(bv, t, mini) {
+    if (!t.sm) return false;
+    var m = (bv || {})['sm_' + t.id];
+    return m === '1' ? true : m === '0' ? false : !!mini;
+  }
+  function marquerVersion(bv, tid, mini) { var t = L.testDef(tid); if (t && t.sm) bv['sm_' + tid] = mini ? '1' : '0'; }
   function valeursDe(bv, me) {
     var mini = me.joueur.materiel === 'mini', out = [], bil = { v: bv || {} };
     C.TESTS.forEach(function (t) {
-      var sm = !!(t.sm && mini);
+      var sm = smDe(bil.v, t, mini);
       if (t.parPied) {
         var g = num(bil.v.flamant_g), d = num(bil.v.flamant_d);
         if (g !== null && d !== null) out.push({ test: t.id, valeur: Math.min(g, d), extra: { g: g, d: d } });
@@ -597,9 +607,9 @@
       var tests = C.TESTS.filter(function (t) { return C.CLES[t.cle] && C.CLES[t.cle].famille === f.id; });
       if (f.id === 'explo') tests = tests.concat([]);
       return '<section class="sec" style="gap:6px"><div class="row"><span class="dia" style="--dc:' + f.color + '"></span><h2 class="h2" style="font-size:21px">' + esc(f.nom) + '</h2></div>' + tests.map(function (t) {
-        var sm = !!(t.sm && mini), nom = sm ? t.sm.nom : t.nom;
-        var prev = prevBilanValue(me, t.id, B);
         var cur = vals.filter(function (v) { return v.test === t.id; })[0];
+        var sm = cur ? !!(cur.extra && cur.extra.sm) : !!(t.sm && mini), nom = sm ? t.sm.nom : t.nom;   // (v79) une valeur garde sa version
+        var prev = prevBilanValue(me, t.id, B);
         var b = bests[t.id + (sm ? ':sm' : '')];
         var isRec = cur && b && b.bilan !== String(B.n) && L.better(t, cur.valeur, b.valeur);
         if (isRec) recs++;
@@ -616,7 +626,7 @@
           inputs = '<span class="row" style="gap:4px">' + ui.numInput({ id: 'b_' + t.id, kind: dec ? 'dec' : 'int', max: dec ? 4 : 3, style: ic, label: nom + (t.unite ? ' (' + t.unite + ')' : ''), value: bil.v[t.id], attrs: 'data-bil="' + t.id + '"' }) + '<span class="unit" style="width:22px">' + esc(t.unite) + '</span></span>';
         }
         var extraRow = t.special === 'tract' ? tractExtra(sm) : '';
-        return '<div class="trow' + (isRec ? ' rec' : '') + '" id="row_' + t.id + '"><label class="grow" for="' + (t.parPied ? 'b_fg' : 'b_' + t.id + (t.mmss ? '_m' : '')) + '"><span class="t1">' + t.n + '. ' + esc(nom) + (sm ? ' <span class="small">(SM)</span>' : '') + '</span><span class="t2">' + (prev ? 'Bilan ' + esc(prev.bilan) + ' : ' + recVal(prev, t) : (t.parPied ? 'gauche · droit' : esc(t.comment.split('.')[0]))) + '</span></label>' +
+        return '<div class="trow' + (isRec ? ' rec' : '') + '" id="row_' + t.id + '"><label class="grow" for="' + (t.parPied ? 'b_fg' : 'b_' + t.id + (t.mmss ? '_m' : '')) + '"><span class="t1" id="nm_' + t.id + '">' + nomLigne(t, sm) + '</span><span class="t2">' + (prev ? 'Bilan ' + esc(prev.bilan) + ' : ' + recVal(prev, t) : (t.parPied ? 'gauche · droit' : esc(t.comment.split('.')[0]))) + '</span></label>' +
           '<span class="badge-rec" id="rb_' + t.id + '"' + (isRec ? '' : ' hidden') + '>Record</span>' + inputs + '</div>' + (t.special === 'tract' ? '<div id="tract_extra">' + extraRow + '</div>' : '');
       }).join('') + '</section>';
     }).join('');
@@ -659,11 +669,16 @@
   function elasNom(e) { return { fin: '10 kg', moyen: '20 kg', fort: '30 kg', '10': '10 kg', '20': '20 kg', '30': '30 kg' }[e] || e || '';
   }
   // mise à jour sans redessiner la page (le clavier reste ouvert)
+  // (v79) le nom d'une ligne du formulaire : celui de la version de sa valeur (mini matériel ou complète)
+  function nomLigne(t, sm) { return t.n + '. ' + esc(sm ? t.sm.nom : t.nom) + (sm ? ' <span class="small">(SM)</span>' : ''); }
   function refreshBilan() {
     var me = app.S.me, B = L.currentBilan(), mini = me.joueur.materiel === 'mini';
     var vals = bilanValues(me), bests = L.bests(me.records, {}), recs = 0;
     C.TESTS.forEach(function (t) {
-      var sm = !!(t.sm && mini), cur = vals.filter(function (v) { return v.test === t.id; })[0], b = bests[t.id + (sm ? ':sm' : '')];
+      var cur = vals.filter(function (v) { return v.test === t.id; })[0];
+      var sm = cur ? !!(cur.extra && cur.extra.sm) : !!(t.sm && mini), b = bests[t.id + (sm ? ':sm' : '')];   // (v79, relecture) la version de la valeur
+      var nm = document.getElementById('nm_' + t.id), html = nomLigne(t, sm);
+      if (nm && nm.innerHTML !== html) nm.innerHTML = html;
       var isRec = !!(cur && b && b.bilan !== String(B.n) && L.better(t, cur.valeur, b.valeur));
       if (isRec) recs++;
       var row = document.getElementById('row_' + t.id), rb = document.getElementById('rb_' + t.id);
@@ -682,6 +697,7 @@
     var clean = e.target.value.replace(e.target.getAttribute('data-num') === 'int' ? /[^0-9]/g : /[^0-9.,]/g, '');
     if (clean !== e.target.value) e.target.value = clean;
     bil.v[k] = clean; bil.nonEnvoye = true;
+    marquerVersion(bil.v, /_(m|s)$/.test(k) && L.testDef(k.slice(0, -2)) ? k.slice(0, -2) : k, app.S.me.joueur.materiel === 'mini');   // (v79)
     saveBil();
     e.target.classList.toggle('has', !!clean);
     refreshBilan();
@@ -726,7 +742,7 @@
   }
   // utilisé par le bilan guidé (v-bilan.js)
   MC.bilan = {
-    ensure: ensureBil, save: function () { if (bil) bil.nonEnvoye = true; saveBil(); }, submit: submitBilan, dateField: dateField,   // (v75) le bilan guidé note des valeurs pas encore envoyées
+    ensure: ensureBil, save: function () { if (bil) bil.nonEnvoye = true; saveBil(); }, submit: submitBilan, dateField: dateField, marquerVersion: marquerVersion, _smDe: smDe,   // (v75) le bilan guidé note des valeurs pas encore envoyées
     values: function (me) { ensureBil(me); return bilanValues(me); },
     _nonEnvoyees: nonEnvoyees   // (tests)
   };
