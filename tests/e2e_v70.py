@@ -19,8 +19,10 @@ with sync_playwright() as p:
     def pad(code):
         for c in code: pg.click('[data-k="%s"] >> visible=true' % c); pg.wait_for_timeout(40)
     def toast():
-        pg.wait_for_selector('#toast:not([hidden])', timeout=4000)
-        return pg.inner_text('#toast')
+        # le texte du dernier message (#toast.on), effacé avant chaque envoi
+        pg.wait_for_function("document.querySelector('#toast.on') && document.querySelector('#toast').textContent", timeout=5000)
+        return ev("document.querySelector('#toast').textContent")
+    def sans_toast(): ev("(() => { const t = document.querySelector('#toast'); if (t) { t.textContent = ''; t.className = 'toast'; } })()")
     def saisir(k, v):
         ev("([k, v]) => { const el = document.querySelector('[data-defi=\"' + k + '\"]'); el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); }", [k, v])
 
@@ -31,7 +33,7 @@ with sync_playwright() as p:
     # ----- l'enfant : un score qui compte tout de suite -----
     pg.goto(BASE + '#/defi/roc'); pg.wait_for_timeout(800); modals()
     check('défi : le texte dit que ça compte tout de suite', 'compte tout de suite' in pg.inner_text('main'), pg.inner_text('main')[:300])
-    saisir('m', '0'); saisir('s', '5')
+    saisir('m', '0'); saisir('s', '5'); sans_toast()
     pg.click('[data-act="sendDefi"]')
     t = toast(); check('défi normal : « ton résultat compte déjà »', 'compte déjà' in t, t)
     pg.wait_for_timeout(800)
@@ -42,7 +44,7 @@ with sync_playwright() as p:
     best = ev("""Math.max(-1, ...MC.app.S.me.records.filter(r => r.test === 'tract' && r.statut === 'ok' && !(r.extra && r.extra.sm)).map(r => r.valeur))""")
     cible = 2 if best <= 0 else int(best * 1.3) + 2
     pg.goto(BASE + '#/defi/cros'); pg.wait_for_timeout(800); modals()
-    saisir('v', str(cible)); pg.click('[data-act="sendDefi"]')
+    saisir('v', str(cible)); sans_toast(); pg.click('[data-act="sendDefi"]')
     t = toast(); check('exploit : « Exploit ! Un parent ou ton éduc doit le confirmer »', 'Exploit' in t and 'confirmer' in t, (t, best, cible))
     pg.wait_for_timeout(800)
     r = [x for x in db()['records'] if x['joueurId'] == tom and x['test'] == 'tract' and x['valeur'] == cible]
@@ -79,7 +81,7 @@ with sync_playwright() as p:
     r = [x for x in db()['records'] if x['id'] == rid]
     check('« Ce n\'est pas ça » : le score ne compte plus (pas retenu par le parent)', r and r[0]['statut'] == 'refuse' and r[0]['parQui'] == 'Parent', r)
     t = pg.inner_text('main')
-    check('… et il passe dans « pas retenus » (on peut le rétablir)', 'pas retenu' in t and pg.locator('details[data-cible="scores"] [data-act="pasCa"]').count() == n_sc - 1, t[:600])
+    check('… et il passe dans « pas retenus » (on peut le rétablir)', 'pas retenu' in t.lower() and pg.locator('details[data-cible="scores"] [data-act="pasCa"]').count() == n_sc - 1, t[:600])
     check('parent : pas de défilement de côté', noscroll())
     # le lien de l'alerte « ça compte déjà » : les scores ouverts
     pg.goto(BASE + '#/parent?k=' + tom + '&c=scores'); pg.wait_for_timeout(1500)
@@ -91,7 +93,7 @@ with sync_playwright() as p:
     pg.click('[data-act="decSend"] >> visible=true'); pg.wait_for_timeout(1200)
     r = [x for x in db()['records'] if x['id'] == eid]
     check('parent : un exploit confirmé compte (témoin : Parent)', r and r[0]['statut'] == 'ok' and r[0]['parQui'] == 'Parent', r)
-    pg.goto(BASE + '#/parent/aide'); pg.wait_for_timeout(800)
+    pg.goto(BASE + '#/guide?pour=parent'); pg.wait_for_timeout(800)
     ev("document.querySelectorAll('details').forEach(d => d.open = true)")
     t = pg.inner_text('main')
     check('aide des parents : « Ce n\'est pas ça » et le seuil de 25 %', 'Ce n\'est pas ça' in t and '25 %' in t, t[:200])

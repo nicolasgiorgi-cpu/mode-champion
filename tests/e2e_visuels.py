@@ -137,7 +137,8 @@ with sync_playwright() as p:
     check('séance : pas de défilement horizontal', noscroll(pg))
     go(pg, '#/bilans', 900)
     t = pg.inner_text('main')
-    check('records : le résultat proposé à part, en attente d\'un adulte', 'Résultat proposé' in t and 'en attente d\'un adulte' in t, t[:300])
+    # (v70) confiance par défaut : seul un exploit attend un adulte
+    check('records : l\'exploit à part, « un adulte doit le confirmer »', 'Exploit :' in t and 'un adulte doit le confirmer' in t, t[:300])
     check('records : le bouton du bilan dit où on en est', bool(re.search(r'Saisir mon|Compléter mon|envoyé|fait', pg.inner_text('a[href="#/bilan"]'), re.I)), pg.inner_text('a[href="#/bilan"]'))
     go(pg, '#/classement', 1000)
     # (v68) les podiums : les réglages repliés sous une ligne, au-dessus de la liste

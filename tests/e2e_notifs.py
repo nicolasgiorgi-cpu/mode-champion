@@ -78,7 +78,8 @@ with sync_playwright() as p:
     pg.goto(BASE + '#/parent?k=' + tom); pg.wait_for_timeout(1000)
     check('un lien de notification (?k=) : l\'adresse redevient #/parent', pg.url.endswith('#/parent'), pg.url)
     # Tom note un défi, le parent le voit, le confirme ; Tom le voit dans sa cloche
-    pg.evaluate("""() => MC.api.call('submitRecords', { token: MC.app.S.kid.token, bilan: 'defi', valeurs: [{ test: 'saut', valeur: 150 }] })"""); pg.wait_for_timeout(600)
+    # (v70) un exploit (bien plus de 25 % de mieux que son saut du bilan) : la famille doit le confirmer
+    pg.evaluate("""() => MC.api.call('submitRecords', { token: MC.app.S.kid.token, bilan: 'defi', valeurs: [{ test: 'saut', valeur: 300 }] })"""); pg.wait_for_timeout(600)
     pg.evaluate("MC.app.S.cache.family = null; MC.app.lsSet('mc-fam', null)"); pg.goto(BASE + '#/parent/classement'); pg.wait_for_timeout(1500)
     check('parent : le défi de Tom allume la cloche', nb(pg) == '1', nb(pg))
     pg.goto(BASE + '#/parent/notifs'); pg.wait_for_timeout(1300)

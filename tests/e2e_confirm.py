@@ -17,7 +17,8 @@ with sync_playwright() as p:
     pg.click('.kidbtn:has-text("TOM")'); pg.wait_for_timeout(300); pad(pg,'2580'); pg.wait_for_timeout(900)
     assert pg.evaluate("!!localStorage.getItem('mc-me')"), 'profil gardé sur l appareil'
     pg.goto(BASE+'#/bilan'); pg.wait_for_timeout(800)
-    pg.evaluate("(function(){var b=MC.bilan.ensure(MC.app.S.me); b.v.pompes='21'; b.v.squats='44'; b.v.burpees='19'; MC.bilan.save();})()")
+    # (v70) des exploits (bien plus de 25 % de mieux que ses records de démo) : ils attendent la famille
+    pg.evaluate("(function(){var b=MC.bilan.ensure(MC.app.S.me); b.v.pompes='40'; b.v.squats='80'; b.v.burpees='40'; MC.bilan.save();})()")
     pg.goto(BASE+'#/profil'); pg.wait_for_timeout(300); pg.goto(BASE+'#/bilan'); pg.wait_for_timeout(800)
     d3 = (datetime.date.today() - datetime.timedelta(days=3)).isoformat()
     pg.fill('#bil_date', d3); pg.dispatch_event('#bil_date', 'change'); pg.wait_for_timeout(200)
@@ -31,8 +32,8 @@ with sync_playwright() as p:
     pg.goto(BASE+'#/reglages'); pg.wait_for_timeout(600); pg.click('[data-act="logoutKid"]'); pg.wait_for_timeout(500)
     # ----- le parent : choix modifiables, rien n'est envoyé avant « Enregistrer mes choix » -----
     pg.goto(BASE+'#/adultes'); pg.wait_for_timeout(600); pick(pg, 'Tom'); pad(pg,'1357'); pg.wait_for_timeout(1200)
-    n = pg.locator('.decis').count(); print('résultats à confirmer', n); assert n >= 3
-    first = pg.locator('.decis').first
+    n = pg.locator('[data-cible="confirmer"] .decis').count(); print('exploits à confirmer', n); assert n >= 3
+    first = pg.locator('[data-cible="confirmer"] .decis').first
     first.locator('[data-v="refuse"]').click(); pg.wait_for_timeout(150)
     assert 'on' in first.locator('[data-v="refuse"]').get_attribute('class')
     assert pg.is_visible('[data-decbar] >> nth=0'); print('barre :', pg.text_content('[data-decbar] .decn >> nth=0'))
@@ -44,16 +45,16 @@ with sync_playwright() as p:
     # rien n'a été envoyé
     assert pg.evaluate("JSON.parse(localStorage.getItem(Object.keys(localStorage).find(k=>k.indexOf('mc-demo-')===0))).tables.records.filter(r=>r.statut==='attente').length") >= pend_before
     pg.click('[data-act="decAll"]'); pg.wait_for_timeout(150)
-    pg.locator('.decis').nth(1).locator('[data-v="refuse"]').click(); pg.wait_for_timeout(150)
-    txt = pg.text_content('[data-decbar] .decn >> nth=0'); print('barre :', txt); assert 'à refuser' in txt and 'à confirmer' in txt
+    pg.locator('[data-cible="confirmer"] .decis').nth(1).locator('[data-v="refuse"]').click(); pg.wait_for_timeout(150)
+    txt = pg.text_content('[data-decbar] .decn >> nth=0'); print('barre :', txt); assert 'pas ça' in txt and 'à confirmer' in txt
     pg.screenshot(path='/home/claude/shots/cf-parent-choix.png')
     pg.click('[data-act="decSend"]'); pg.wait_for_timeout(1200)
     pg.screenshot(path='/home/claude/shots/cf-parent-apres.png', full_page=True)
     st = pg.evaluate("JSON.parse(localStorage.getItem(Object.keys(localStorage).find(k=>k.indexOf('mc-demo-')===0))).tables.records.filter(r=>r.statut==='refuse').map(r=>r.id)")
     print('refusés', st); assert len(st) == 1
     # rétablir le résultat refusé
-    pg.click('details.note summary'); pg.wait_for_timeout(200)
-    pg.click('details.note [data-act="decide"][data-v="ok"]'); pg.wait_for_timeout(150)
+    pg.click('details.note.refus summary'); pg.wait_for_timeout(200)
+    pg.click('details.note.refus [data-act="decide"][data-v="ok"]'); pg.wait_for_timeout(150)
     pg.click('[data-act="decSend"]'); pg.wait_for_timeout(1200)
     st = pg.evaluate("JSON.parse(localStorage.getItem(Object.keys(localStorage).find(k=>k.indexOf('mc-demo-')===0))).tables.records.filter(r=>r.statut==='refuse').length")
     print('refusés après rétablissement', st); assert st == 0

@@ -168,7 +168,7 @@
       '<ul class="list" style="width:100%;margin-top:8px">' + recents.map(function (r) {
         return recLine(r, '', false).replace(/<\/li>$/, '<span class="decis"><button type="button" class="dbtn dno" data-act="pasCa" data-id="' + esc(r.id) + '" data-t="' + esc(testName(r) + ' · ' + recVal(r)) + '" aria-label="Ce n\'est pas ça : ' + esc(testName(r)) + '">' + icon('x', 16) + ' Ce n\'est pas ça</button></span></li>');
       }).join('') + '</ul></details>';
-    if (refused.length && corr) pendHtml += '<details class="note" style="flex-direction:column;gap:8px;display:block"><summary style="cursor:pointer;min-height:32px"><span class="hud" style="color:var(--muted)">' + refused.length + ' résultat' + (refused.length > 1 ? 's' : '') + ' pas retenu' + (refused.length > 1 ? 's' : '') + '</span> <span class="small">· retiré par erreur ? Rétablissez-le.</span></summary>' +
+    if (refused.length && corr) pendHtml += '<details class="note refus" style="flex-direction:column;gap:8px;display:block"><summary style="cursor:pointer;min-height:32px"><span class="hud" style="color:var(--muted)">' + refused.length + ' résultat' + (refused.length > 1 ? 's' : '') + ' pas retenu' + (refused.length > 1 ? 's' : '') + '</span> <span class="small">· retiré par erreur ? Rétablissez-le.</span></summary>' +
       '<ul class="list" style="width:100%;margin-top:8px">' + refused.map(function (r) { return recLine(r, '', true); }).join('') + '</ul>' + (pending.length ? '' : decBar()) + '</details>';
     var niv = k.niveaux || {};
     var editing = !!(opts.editLevels && lvDraft && lvDraft.id === k.id);
