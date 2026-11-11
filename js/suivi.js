@@ -32,7 +32,8 @@ MC.suivi = (function () {
   // o.vide : texte si aucun bilan ; o.compact : sans le résumé des bilans
   function progression(records, o) {
     o = o || {};
-    var recs = (records || []).filter(function (r) { return r.statut !== 'refuse' && /^\d+$/.test(String(r.bilan)); });
+    // (v75, lot E4) une valeur par épreuve et par cycle : le bilan n = le meilleur des lignes « bilan n » et des tentatives du cycle
+    var recs = MC.logic.recordsParCycle(records || []);
     if (!recs.length) return '<div class="empty">' + esc(o.vide || 'Pas encore de bilan noté.') + '</div>';
     var ns = [];
     recs.forEach(function (r) { var n = Number(r.bilan); if (ns.indexOf(n) < 0) ns.push(n); });
@@ -133,7 +134,7 @@ MC.suivi = (function () {
     var rows = [];
     joueurs.forEach(function (p) {
       if (!p.joueur.actif) return;
-      var recs = (p.records || []).filter(function (r) { return r.test === t.id && r.statut !== 'refuse' && /^\d+$/.test(String(r.bilan)); })
+      var recs = MC.logic.recordsParCycle(p.records || []).filter(function (r) { return r.test === t.id; })   // (v75) une valeur par cycle
         .sort(function (a, b) { return Number(a.bilan) - Number(b.bilan); });
       var last = recs[recs.length - 1] || null, prev = recs[recs.length - 2] || null;
       var d = last && prev && isSm(last) === isSm(prev) ? last.valeur - prev.valeur : null;

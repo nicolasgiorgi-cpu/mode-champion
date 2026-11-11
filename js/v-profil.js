@@ -93,6 +93,7 @@
   }, { kid: true, nav: 'progres', live: true });
   function paintBilans(me, st) {
     var k = me.joueur, niv = k.niveaux || {}, bl = L.currentBilan(), dj = L.recordDuJour(me.records), faites = L.tentativesDu(me.records, L.today());
+    var bc = L.bilanCycle(me.records, bl.n), reste = bc.tot - bc.faits, cyc = bl.n >= L.GRILLE_DEPUIS && bc.cycle;   // la grille : à partir du cycle 2
     var recs = (me.records || []).filter(function (r) { return r.statut !== 'refuse'; });
     // (v74, lot E3) les 12 épreuves en cartes : le record, ce qu'il a gagné, le record du jour ; une carte ouvre la fiche de l'épreuve
     var cartes = C.TESTS.map(function (t) {
@@ -107,18 +108,26 @@
         gain = t.moinsMieux ? ui.fmtVal(d, t.unite, t.decimales) + ' plus rapide' : '+' + ui.fmtVal(d, t.unite, t.decimales);
       }
       var lv = C.CLES[t.cle] ? (niv[t.cle] || 1) : null, duJour = dj && dj.test === t.id, tente = faites.indexOf(t.id) >= 0;
-      var tag = tente ? '<span class="epc-tag ok">' + icon('check', 12) + ' Tenté aujourd\'hui</span>' : duJour && dj.etat !== 'plein' ? '<span class="epc-tag dj">' + icon('trophy', 12) + ' Record du jour</span>' : '';
+      var tag = tente ? '<span class="epc-tag ok">' + icon('check', 12) + ' Tenté aujourd\'hui</span>' : duJour && dj.etat !== 'plein' ? '<span class="epc-tag dj">' + icon('trophy', 12) + ' Record du jour</span>'
+        : cyc && !bc.cases[t.id] ? '<span class="epc-tag afaire">À faire ce cycle</span>' : '';   // (v75, lot E4)
       var attTxt = att ? '<span class="epc-att">' + icon('clock', 12) + (att.exploit ? ' Exploit : <b>' : ' Résultat proposé : <b>') + ui.fmtVal(att.valeur, t.unite, t.decimales) + '</b> · un adulte doit le confirmer</span>' : '';
       return '<a class="epc' + (duJour ? ' dj' : '') + '" href="#/epreuve/' + t.id + '" data-test="' + t.id + '"><span class="epc-h"><span class="epc-n">' + esc(sm ? t.sm.nom : t.court) + '</span>' + (lv ? ui.lvl(lv) : '') + '</span>' +
         '<span class="epc-v' + (b ? '' : ' vide') + '">' + (b ? ui.valHtml(b.valeur, t.unite, t.decimales) : '—') + '</span>' +
         '<span class="epc-t">' + (gain ? '<b style="color:var(--green)">' + esc(gain) + '</b>' : b ? 'ton record' : att ? 'pas encore de record' : 'pas encore de résultat') + '</span>' + attTxt + tag + '</a>';
     }).join('');
-    return '<main class="screen">' + MC.kidBar(me, st) + MC.kidProgresTabs('records') +
+    // (v75, lot E4) le bilan qui se remplit : chaque épreuve faite pendant le cycle coche sa case ; « Finir mon bilan » = les cases vides
+    var seg = C.TESTS.map(function (t) { return '<i class="' + (bc.cases[t.id] ? 'on' : '') + '" title="' + esc(t.court) + '"></i>'; }).join('');
+    var bilH = cyc ? '<section class="sec bilcy"><div class="between"><h2 class="h2">Mon ' + esc(bl.nom.toLowerCase()) + '</h2><span class="hud" style="color:var(--gold)">' + bc.faits + ' / ' + bc.tot + '</span></div>' +
+      '<div class="bilseg" aria-hidden="true">' + seg + '</div>' +
+      (reste ? '<p class="small" style="margin:0">Chaque épreuve faite d\'ici le ' + esc(ui.fmtDate(bc.cycle.fin)) + ' coche sa case : ton record du jour aussi.</p>' +
+        '<div class="row bilcy-a"><a class="btn sm gold" href="#/bilan/go?reste=1">' + icon('play', 16) + (bc.faits ? ' Finir mon bilan · ' + reste + ' épreuve' + (reste > 1 ? 's' : '') : ' Lancer mon bilan') + '</a><a class="lnk" href="#/bilan">Tout le bilan</a></div>'
+        : '<p class="small" style="margin:0;color:var(--green)"><b>Bilan complet !</b> Les 12 épreuves de ce cycle sont faites. Continue à battre tes records.</p><div class="row bilcy-a"><a class="lnk" href="#/bilan">Tout le bilan</a></div>') + '</section>' : '';
+    return '<main class="screen">' + MC.kidBar(me, st) + MC.kidProgresTabs('records') + bilH +
       '<p class="small" style="margin:0">Tes records sur les 12 épreuves. Touche une épreuve pour voir ta courbe et tenter de battre ton record.</p>' +
       '<div class="epcs">' + cartes + '</div>' +
-      bilanBtn(me, bl) +
+      (cyc ? '' : bilanBtn(me, bl)) +
       '<a class="btn2" href="#/progression">' + icon('up', 16) + ' Ma progression d\'un bilan à l\'autre</a>' +
-      (MC.bilanEtat(me).etat !== 'fait' ? '<div class="note gold">' + icon('trophy', 20) + '<span><b>Ton bilan, quand tu veux.</b> Tu le passes avec un adulte : tes résultats arrivent ici tout de suite.</span></div>' : '') +   // (v64) plus de date
+      (!cyc && MC.bilanEtat(me).etat !== 'fait' ? '<div class="note gold">' + icon('trophy', 20) + '<span><b>Ton bilan, quand tu veux.</b> Tu le passes avec un adulte : tes résultats arrivent ici tout de suite.</span></div>' : '') +   // (v64) avant la grille (cycle 1)
       '</main>';
   }
 
@@ -181,7 +190,7 @@
   // (retouche UI-08) le bouton du bilan dit où on en est vraiment : à saisir, à compléter, en attente d'un adulte, fait
   // (v64) où en est le bilan en cours : 'vide' (rien de noté), 'encours' (n tests sur 12), 'fait' (les 12 notés)
   MC.bilanEtat = function (me) {
-    var bl = L.currentBilan(), n = Object.keys(L.bilanRecords(me && me.records, bl.n)).length;
+    var bl = L.currentBilan(), n = bl.n >= L.GRILLE_DEPUIS ? L.bilanCycle(me && me.records, bl.n).faits : Object.keys(L.bilanRecords(me && me.records, bl.n)).length;   // (v75) les épreuves du cycle, à partir du cycle 2
     return { etat: !n ? 'vide' : n < C.TESTS.length ? 'encours' : 'fait', n: n, tot: C.TESTS.length };
   };
   function bilanBtn(me, bl) {
@@ -267,7 +276,7 @@
       return '<main class="screen">' + MC.kidSubBar('#/profil', 'Moi', 'Mes trophées') +
         '<div class="head"><span class="kicker" style="color:var(--gold)">Salle des trophées</span><h1 class="big md">Grades<br>et badges</h1></div>' +
         '<div class="cols2"><section class="sec"><div class="between"><h2 class="h2">Ma carrière</h2><span class="small">1 séance = ' + C.XP.seance + ' XP</span></div><ol class="grades">' + grades + '</ol>' +
-        '<div class="box small" style="line-height:1.5">Séance à la maison +' + C.XP.seance + ' · club +' + C.XP.club + ' · récup +' + C.XP.recup + ' · semaine parfaite +' + C.XP.bonus + ' · badge ou palier +' + C.XP.badge + ' · record battu +' + C.XP.record + ' · record tenté (une fois par jour) +' + C.XP.tentative + ' · niveau monté +' + C.XP.niveau + ' · mission spéciale +' + C.XP.mission + '</div></section>' +
+        '<div class="box small" style="line-height:1.5">Séance à la maison +' + C.XP.seance + ' · club +' + C.XP.club + ' · récup +' + C.XP.recup + ' · semaine parfaite +' + C.XP.bonus + ' · badge ou palier +' + C.XP.badge + ' · record battu +' + C.XP.record + ' · record tenté (une fois par jour) +' + C.XP.tentative + ' · bilan complet +' + C.XP.bilanComplet + ' · niveau monté +' + C.XP.niveau + ' · mission spéciale +' + C.XP.mission + '</div></section>' +
         '<div class="sec" style="gap:20px">' + familles + '</div></div></main>';
     });
   }, { kid: true, nav: 'moi', bg: '#2E2612', live: true });
@@ -480,15 +489,35 @@
   // Les valeurs du bilan en cours (formulaire et bilan guidé partagent le même état, gardé sur l'appareil)
   var bil = null, BIL_KEY = 'mc-bil';
   function saveBil() { app.lsSet(BIL_KEY, bil); }
+  // (v75, relecture) à la bascule d'un cycle : seulement les épreuves notées mais pas envoyées (jamais une copie de l'ancien bilan)
+  function nonEnvoyees(ancien, me) {
+    var deja = L.bilanRecords(me.records, ancien.n), out = {};
+    valeursDe(ancien.v, me).forEach(function (v) {
+      var r = deja[v.test];
+      if (r && Number(r.valeur) === Number(v.valeur) && JSON.stringify(r.extra || null) === JSON.stringify(v.extra || null)) return;
+      var t = L.testDef(v.test);
+      [v.test, v.test + '_m', v.test + '_s'].concat(t.parPied ? ['flamant_g', 'flamant_d'] : []).concat(t.special === 'tract' ? ['tract_el', 'tract_nb'] : [])
+        .forEach(function (k) { if (ancien.v[k] !== undefined) out[k] = ancien.v[k]; });
+    });
+    return out;
+  }
+  // (v75, relecture) les valeurs du bilan déjà envoyées (pour n'envoyer que ce qui change)
+  function envoyees(me, B) {
+    var ex = L.bilanRecords(me.records, B.n), out = {};
+    Object.keys(ex).forEach(function (tid) { out[tid] = ex[tid]; });
+    return out;
+  }
   function ensureBil(me) {
     var B = L.currentBilan();
     if (!bil) bil = app.lsGet(BIL_KEY);
     if (!bil || bil.n !== B.n || bil.kid !== me.joueur.id) {
+        // (v75, relecture) à la bascule d'un cycle, des valeurs notées mais pas envoyées passent au nouveau bilan (pas perdues)
+        var gardees = bil && bil.kid === me.joueur.id && bil.n !== B.n && bil.v && bil.nonEnvoye ? nonEnvoyees(bil, me) : null;
         bil = { n: B.n, kid: me.joueur.id, v: {}, date: '' };
         var ex = L.bilanRecords(me.records, B.n);
         Object.keys(ex).forEach(function (tid) {
           var r = ex[tid], td = L.testDef(tid);
-          if (!bil.date && r.date) bil.date = r.date;
+          if (!bil.date && r.date && B.n < L.GRILLE_DEPUIS) bil.date = r.date;   // (v75) à partir du cycle 2, la date du jour par défaut
           if (td && td.mmss) { bil.v[tid + '_m'] = String(Math.floor(r.valeur / 60)); bil.v[tid + '_s'] = String(Math.round(r.valeur % 60)); }
           else bil.v[tid] = String(r.valeur).replace('.', ',');
           if (r.extra) {
@@ -496,8 +525,9 @@
             if (r.extra.elastique) { bil.v.tract_el = r.extra.elastique; bil.v.tract_nb = String(r.extra.nbElastique || ''); }
           }
         });
+        if (gardees && Object.keys(gardees).length) { Object.keys(gardees).forEach(function (k) { if (gardees[k] !== '' && gardees[k] !== undefined) bil.v[k] = gardees[k]; }); bil.nonEnvoye = true; }
     }
-    if (!bil.date) {
+    if (!bil.date && B.n < L.GRILLE_DEPUIS) {
       var ex2 = L.bilanRecords(me.records, B.n), k2 = Object.keys(ex2)[0];
       if (k2 && ex2[k2].date) bil.date = ex2[k2].date;
     }
@@ -531,8 +561,9 @@
     });
     return best;
   }
-  function bilanValues(me) {
-    var mini = me.joueur.materiel === 'mini', out = [];
+  function bilanValues(me) { return valeursDe(bil.v, me); }
+  function valeursDe(bv, me) {
+    var mini = me.joueur.materiel === 'mini', out = [], bil = { v: bv || {} };
     C.TESTS.forEach(function (t) {
       var sm = !!(t.sm && mini);
       if (t.parPied) {
@@ -644,7 +675,7 @@
     if (!k || !bil) return;
     var clean = e.target.value.replace(e.target.getAttribute('data-num') === 'int' ? /[^0-9]/g : /[^0-9.,]/g, '');
     if (clean !== e.target.value) e.target.value = clean;
-    bil.v[k] = clean;
+    bil.v[k] = clean; bil.nonEnvoye = true;
     saveBil();
     e.target.classList.toggle('has', !!clean);
     refreshBilan();
@@ -653,20 +684,25 @@
       if (box) { var show = !!tractExtra(app.S.me.joueur.materiel === 'mini'); if (show !== !!box.innerHTML) box.innerHTML = tractExtra(app.S.me.joueur.materiel === 'mini'); }
     }
   });
-  MC.act.bilEl = function (b) { bil.v.tract_el = b.getAttribute('data-v'); saveBil(); var box = document.getElementById('tract_extra'); if (box) box.innerHTML = tractExtra(false); refreshBilan(); };
+  MC.act.bilEl = function (b) { bil.v.tract_el = b.getAttribute('data-v'); bil.nonEnvoye = true; saveBil(); var box = document.getElementById('tract_extra'); if (box) box.innerHTML = tractExtra(false); refreshBilan(); };
   MC.act.sendBilan = function (btn) { submitBilan(btn); };
   function submitBilan(btn) {
     var me = app.S.me, B = L.currentBilan();
     ensureBil(me);
-    var vals = bilanValues(me);
-    if (!vals.length) { ui.toast('Aucun résultat à envoyer.', true); return Promise.resolve(false); }
+    var tous = bilanValues(me), deja = envoyees(me, B);
+    // (v75, relecture) seulement ce qui est nouveau ou changé : les résultats déjà envoyés gardent leur date, et les niveaux ne
+    // sont recalculés que sur les nouveaux résultats (un niveau changé entre-temps n'est pas écrasé par une ancienne valeur)
+    var vals = tous.filter(function (v) { var r = deja[v.test]; return !r || Number(r.valeur) !== Number(v.valeur) || JSON.stringify(r.extra || null) !== JSON.stringify(v.extra || null); });
+    if (!vals.length) { ui.toast(tous.length ? 'Ces résultats sont déjà envoyés.' : 'Aucun résultat à envoyer.', true); return Promise.resolve(false); }
     if (btn) btn.disabled = true;
     var newLv = L.levelsFromBilan(vals, me.joueur.niveaux || {});
     var old = me.joueur.niveaux || {};
     var journal = [{ type: 'bilan_niveaux', data: { bilan: B.n, niveaux: newLv } }];
     // un seul appel : résultats datés + niveaux + profil à jour en retour
-    var nEx = 0;
-    return app.kidCall('submitRecords', { bilan: String(B.n), valeurs: vals, date: bil.date || L.today(), niveaux: newLv, journal: journal, avecDossier: true }).then(function (r) {
+    var nEx = 0, bc0 = (app.S.stats && app.S.stats.bilansComplets) || 0;
+    var q = { bilan: String(B.n), valeurs: vals, niveaux: newLv, journal: journal, avecDossier: true };
+    if (bil.date && bil.date !== L.today()) q.date = bil.date;   // une date choisie seulement (sans date : aujourd'hui, et rien n'est re-daté)
+    return app.kidCall('submitRecords', q).then(function (r) {
       nEx = (r.records || []).filter(function (x) { return x.statut === 'attente' && x.exploit; }).length;   // pas les anciens résultats « à confirmer » renvoyés tels quels
       if (r.me) return r.me;
       return app.kidCall('updateMe', { niveaux: newLv, journal: journal }); // serveur pas encore à jour
@@ -676,6 +712,7 @@
       // (v70) confiance par défaut : les résultats comptent déjà ; seuls les exploits attendent un adulte
       var body = '<p class="lead">' + vals.length + ' test' + (vals.length > 1 ? 's' : '') + ' envoyé' + (vals.length > 1 ? 's' : '') + ' : ' + (nEx < vals.length ? 'tes résultats comptent déjà !' : 'bravo !') + '</p>' +
         (nEx ? '<div class="note gold">' + icon('trophy', 20) + '<span>' + (nEx > 1 ? nEx + ' exploits ! Un parent ou ton éduc doit les confirmer.' : 'Un exploit ! Un parent ou ton éduc doit le confirmer.') + '</span></div>' : '') +
+        ((app.S.stats.bilansComplets || 0) > bc0 ? '<div class="note gold" data-complet>' + icon('trophy', 20) + '<span><b>Bilan complet !</b> Les 12 épreuves de ce cycle : +' + C.XP.bilanComplet + ' XP.</span></div>' : '') +   // (v75)
         (changes.length ? '<ul class="list">' + changes.map(function (k) { return '<li class="li"><span class="grow t1">' + esc(C.CLES[k].nom) + '</span>' + ui.lvl(old[k] || 1) + icon('right', 16) + ui.lvl(newLv[k]) + '</li>'; }).join('') + '</ul>' : '<p class="small">Tes niveaux ne changent pas.</p>');
       return ui.modal({ title: 'Bilan envoyé !', body: body, actions: [{ label: 'Voir mes bilans', value: 1, cls: 'btn' }] });
     }).then(function () { bil = null; saveBil(); app.go('#/bilans', true); return true; })
@@ -683,8 +720,9 @@
   }
   // utilisé par le bilan guidé (v-bilan.js)
   MC.bilan = {
-    ensure: ensureBil, save: saveBil, submit: submitBilan, dateField: dateField,
-    values: function (me) { ensureBil(me); return bilanValues(me); }
+    ensure: ensureBil, save: function () { if (bil) bil.nonEnvoye = true; saveBil(); }, submit: submitBilan, dateField: dateField,   // (v75) le bilan guidé note des valeurs pas encore envoyées
+    values: function (me) { ensureBil(me); return bilanValues(me); },
+    _nonEnvoyees: nonEnvoyees   // (tests)
   };
 
   // ---------- RÉGLAGES ----------

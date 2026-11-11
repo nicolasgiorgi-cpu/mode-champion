@@ -30,7 +30,7 @@
   function xpTable() {
     var X = C.XP;
     var rows = [['Séance à la maison (lundi → jeudi)', X.seance], ['Club du mercredi ou du samedi', X.club], ['Récup du dimanche', X.recup], ['Semaine parfaite (les 6 étoiles)', X.bonus],
-      ['Badge gagné, ou palier bronze / argent / or', X.badge], ['Record battu', X.record], ['Record tenté, pas battu (une fois par jour)', X.tentative], ['Niveau monté (la 1re fois)', X.niveau], ['Premiers pas réussis (une fois)', X.premiersPas], ['Mission spéciale accomplie', X.mission]];
+      ['Badge gagné, ou palier bronze / argent / or', X.badge], ['Record battu', X.record], ['Record tenté, pas battu (une fois par jour)', X.tentative], ['Bilan complet (les 12 épreuves d\'un cycle)', X.bilanComplet], ['Niveau monté (la 1re fois)', X.niveau], ['Premiers pas réussis (une fois)', X.premiersPas], ['Mission spéciale accomplie', X.mission]];
     if (MC.ouvert('skills')) rows.push(['Étoile Skills validée par un éduc', X.etoile], ['Étoile Skills qui brille (vue au plateau)', X.brille]);
     return '<div class="gxp">' + rows.map(function (r) { return '<span>' + esc(r[0]) + '</span><span>+' + r[1] + ' XP</span>'; }).join('') + '</div>';
   }
@@ -103,9 +103,10 @@
       card('bilan', 'sheet', '#38E8FF', 'Le bilan', 'Les 12 tests, quand tu veux',
         ul([
           '12 tests, toujours dans le même ordre, avec un adulte qui regarde et compte. <b>Tu le lances quand tu veux</b> : pas de date imposée.',
+          '<b>Ton bilan se remplit</b> pendant le cycle (8 semaines) : chaque épreuve faite, au bilan ou en record du jour, coche sa case (en haut de Progrès › Records). <b>Finir mon bilan</b> ne te propose que les épreuves qui manquent. Les 12 : <b>bilan complet</b>, +' + C.XP.bilanComplet + ' XP.',
           '<b>Pas d\'adulte dispo ?</b> Tu peux t\'entraîner sans bilan : tes exercices sont au niveau 1, et le bilan les réglera ensuite.',
-          'Progrès › Records › <b>Saisir mon bilan</b> › <b>Lancer le bilan guidé</b> : échauffement, puis chaque test avec la démo, le chrono et le compteur, 2 min de repos entre deux tests. Tu peux aussi tout noter dans le formulaire.',
-          'Le bilan <b>règle tes niveaux</b> tout seul et donne tes <b>records</b>.',
+          'Progrès › Records › <b>Finir mon bilan</b> (ou <b>Tout le bilan</b>) : le bilan guidé, échauffement puis chaque test avec la démo, le chrono et le compteur, 2 min de repos entre deux tests. Tu peux aussi tout noter dans le formulaire.',
+          'Le bilan guidé (ou le formulaire) <b>règle tes niveaux</b> tout seul et donne tes <b>records</b>. Un record du jour te <b>propose</b> un niveau (dans la fiche de l\'épreuve), il ne le change pas.',
           'Tes résultats comptent <b>tout de suite</b>. Un <b>exploit</b> (un très gros progrès, ou une place sur le podium) attend qu\'un parent ou ton éduc le confirme.'
         ])) +
       card('record', 'trophy', '#FFC23D', 'Le record du jour', 'Bats tes records, une épreuve à la fois',
@@ -218,8 +219,9 @@
       card('p-bilan', 'sheet', '#4D9BFF', 'Le bilan', 'Les 12 tests, sans date imposée',
         ul([
           '<b>Pas de date imposée</b> : il le fait quand un adulte est disponible.',
+          '<b>Le bilan se remplit</b> pendant les 8 semaines du cycle : chaque épreuve faite (au bilan guidé ou en record du jour) coche sa case ; la valeur retenue est la meilleure du cycle. « Finir mon bilan » ne propose que les épreuves qui manquent. Les 12 faites : bilan complet.',
           'Votre enfant le lance depuis Progrès › Records (bilan guidé, test par test). Il faut <b>un adulte à côté</b> pour regarder, compter et chronométrer.',
-          'Ses niveaux se règlent tout seuls à partir des résultats.'
+          'Ses niveaux se règlent tout seuls à partir des résultats du bilan guidé ou du formulaire ; un record du jour propose un niveau sans le changer.'
         ])) +
       card('p-niveaux', 'up', '#B48CFF', 'Ajuster ses niveaux', 'Trop facile, trop dur ?',
         ul([

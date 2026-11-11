@@ -410,6 +410,7 @@ window.MC = window.MC || {};
     badge: 100,       // badge gagné
     record: 50,       // record battu (v70 : compte tout de suite ; un exploit, une fois confirmé)
     tentative: 10,    // (v74) une tentative de record qui ne le bat pas : une fois par jour
+    bilanComplet: 200, // (v75) les 12 épreuves faites dans un cycle (montant proposé le 11/11, à valider par Nicolas)
     niveau: 100,      // montée de niveau (une fois par niveau atteint)
     premiersPas: 100, // les 4 « premiers pas » du nouveau joueur (une fois)
     mission: 200,     // une mission spéciale accomplie (en plus de son badge)
