@@ -94,7 +94,7 @@
       '<div class="between" style="align-items:center;gap:10px">' + (bk ? '<span class="row" style="gap:10px;align-items:center;min-width:0">' + bk : '') + '<span class="kicker">' + esc(MC.CONFIG.CLUB) + '</span>' + (bk ? '</span>' : '') +
       '<span class="row" style="gap:6px"><a class="tag" href="#/guide" style="min-height:40px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--soft)">' + ui.icon('info', 14) + 'Aide</a>' +
       '<a class="tag" href="#/adultes" style="min-height:40px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--soft)">' + ui.icon('lock', 14) + 'Adultes</a></span></div>' +
-      '<div class="head"><h1 class="big">Mode<br>champion</h1><p class="lead">Touche ton avatar, puis tape ton code secret pour entrer dans l\'arène.</p></div>' +
+      '<div class="head"><h1 class="big">Mode<br>champion</h1><p class="lead">Touche ton avatar, puis tape ton code secret pour entrer.</p></div>' +
       demo +
       (recents.length ? '<section class="sec"><h2 class="h2">Déjà venus ici</h2><div class="roster">' + recents.map(kidButton).join('') + '</div></section>' : '') +
       '<section class="sec"><div class="between"><h2 class="h2">Qui s\'entraîne ?</h2><span class="small">' + list.length + ' joueurs</span></div>' +
@@ -197,7 +197,7 @@
       body = digitsHtml(4, '', false) + '<div class="msg" aria-live="polite">' + (st === 'code' ? 'Astuce : le numéro de maillot de ton joueur préféré + ton âge ?' : '') + '</div>' + padHtml(true);
     } else {
       body = '<div class="note green">' + ui.icon('check', 28) + '<div><div class="hud" style="color:var(--green)">' + (first.change ? 'Nouveau code' : 'Tu es Recrue · c\'est parti !') + '</div><div style="margin-top:4px">Ton code est à toi seul. Ne le donne à personne, même pas à tes copains.</div></div></div>' +
-        '<a class="btn" href="#/semaine">' + ui.icon('play', 18) + ' Entrer dans l\'arène</a>';
+        '<a class="btn" href="#/semaine">' + ui.icon('play', 18) + ' C\'est parti !</a>';
     }
     return '<main class="screen nonav" id="firstzone">' +
       '<div class="row">' + ui.avatar(k.prenom, first.couleur, 48) + '<div><div class="kicker">' + (first.change ? 'CHANGER MON CODE' : '1RE CONNEXION') + ' · ' + stepLabel + '</div><div style="font:700 16px/1.2 var(--f-hud);margin-top:5px">' + (first.change ? '' : 'Bienvenue ') + esc(k.prenom) + (first.change ? '' : ' !') + '</div></div></div>' +

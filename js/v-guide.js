@@ -84,7 +84,7 @@
           'Chaque jour fait = <b>1 étoile</b>. Les 6 étoiles de la semaine = <b>+1 étoile bonus</b> (semaine parfaite).',
           'Tu as raté un jour ? Fais sa séance un autre jour de la même semaine : son étoile s\'allume quand même.',
           icon('flame', 14) + ' <b>Ta série</b> : les étoiles d\'affilée, sans en rater (le vendredi ne compte pas). Si tu rates un jour, elle repart à 0.',
-          '👏 <b>Bravo !</b> Quand tes éducs voient ta séance, ils peuvent te dire bravo (parfois avec un petit mot) : tu le vois dans Ma semaine, sous ta séance et dans la cloche.'
+          '👏 <b>Bravo !</b> Quand tes éducs voient ta séance, ils peuvent te dire bravo (parfois avec un petit mot) : tu le vois en haut de l\'Accueil et dans la cloche.'
         ])) +
       card('seance', 'play', '#3DFFB0', 'Faire une séance', 'Guidée exo par exo, ou notée en 10 secondes',
         ul([
@@ -97,14 +97,14 @@
       card('niveaux', 'up', '#B48CFF', 'Tes niveaux N1 → N4', 'Chaque exercice a son niveau',
         levels() + ul([
           'Chaque famille d\'exercices a son niveau. C\'est <b>ton bilan</b> qui les règle au départ (N1 à N3). Pas encore de bilan ? Tu commences au <b>niveau 1</b>.',
-          'Un exercice <b>facile</b> ? À la fin de la séance, touche <b>Passer au niveau d\'après</b>. <b>Dur</b> ? <b>Reviens au niveau d\'avant</b>. Tu peux aussi le faire dans Prépa › Bilans › Mes niveaux (boutons + et −). Monte seulement si ta technique est parfaite.',
+          'Un exercice <b>facile</b> ? À la fin de la séance, touche <b>Passer au niveau d\'après</b>. <b>Dur</b> ? <b>Reviens au niveau d\'avant</b>. Tu peux aussi le faire dans Progrès › Niveaux (boutons + et −). Monte seulement si ta technique est parfaite.',
           '<b>N4 = niveau champion</b> : il s\'ouvre quand le N3 est « facile » 2 séances de suite, jamais directement par le bilan.'
         ])) +
       card('bilan', 'sheet', '#38E8FF', 'Le bilan', 'Les 12 tests, quand tu veux',
         ul([
           '12 tests, toujours dans le même ordre, avec un adulte qui regarde et compte. <b>Tu le lances quand tu veux</b> : pas de date imposée.',
           '<b>Pas d\'adulte dispo ?</b> Tu peux t\'entraîner sans bilan : tes exercices sont au niveau 1, et le bilan les réglera ensuite.',
-          'Prépa › Bilans › <b>Saisir mon bilan</b> › <b>Lancer le bilan guidé</b> : échauffement, puis chaque test avec la démo, le chrono et le compteur, 2 min de repos entre deux tests. Tu peux aussi tout noter dans le formulaire.',
+          'Progrès › Records › <b>Saisir mon bilan</b> › <b>Lancer le bilan guidé</b> : échauffement, puis chaque test avec la démo, le chrono et le compteur, 2 min de repos entre deux tests. Tu peux aussi tout noter dans le formulaire.',
           'Le bilan <b>règle tes niveaux</b> tout seul et donne tes <b>records</b>.',
           'Un parent ou ton éduc <b>confirme</b> tes résultats. Sans confirmation, ils ne comptent pas au classement.'
         ])) +
@@ -118,13 +118,13 @@
         ])) +
       (!SKON && !MEON && !COPON ? card('mission', 'target', '#FF4FA3', 'Les missions', 'Ce que demandent tes éducs',
         ul([
-          'Onglet <b>Missions</b> : ce que tes éducs te demandent. Une pastille rose te prévient quand une mission t\'attend.',
+          'Sur l\'<b>Accueil</b>, <b>Mes missions</b> : ce que tes éducs te demandent. Une pastille rose sur l\'onglet Accueil te prévient quand une mission t\'attend.',
           'Pour le jeu à 10 : « <b>Choisis ton poste</b> ». Découvre les 7 postes avec leurs cartes, ou fais le test « Aide-moi à choisir », puis choisis ton top : 1 à 3 postes, dans l\'ordre. Mission accomplie : <b>+' + C.XP.mission + ' XP</b> et le badge « Prêt pour le jeu à 10 ».',
           'Tu peux changer ton choix quand tu veux : Moi › Mes postes.'
         ])) :
       card('mission', 'target', '#FF4FA3', 'Les missions et les +1', 'Ce que demandent tes éducs',
         ul([
-          'Onglet <b>Missions</b> : tout ce que tes éducs te demandent. Une pastille rose, et une fois un bandeau « Nouveau dans Missions » en haut de Prépa, te préviennent.',
+          'Sur l\'<b>Accueil</b>, <b>Mes missions</b> : tout ce que tes éducs te demandent (« Toutes » pour la liste). Une pastille rose sur l\'onglet Accueil, et une fois un bandeau « Nouveau dans tes missions », te préviennent.',
           '<b>Pour toute l\'équipe</b> : regarder une vidéo puis répondre à quelques questions, ou un QCM. Mission faite = des XP (ils sont écrits sur la mission).',
           'Pour le jeu à 10, <b>2 missions</b>. « <b>Choisis ton poste</b> » : 1 à 3 postes, dans l\'ordre, avec les 7 cartes ou le test « Aide-moi à choisir ». Puis « <b>Avec qui tu aimes jouer</b> » : tes copains, autant que tu veux, c\'est <b>secret</b> (seuls les éducs les voient). Chaque mission accomplie : <b>+' + C.XP.mission + ' XP</b> et son badge. Tu peux changer tes choix quand tu veux (Moi › Mes postes, Mes copains).',
           '<b>Ta mission principale</b> : 1 à 3 étoiles Skills à décrocher, rien que pour toi, jusqu\'à une date (souvent les prochaines vacances). Elle a un cadre arc-en-ciel, ici et sur sa carte Skills. Quand un éduc voit que tu es sur la bonne voie, il t\'<b>encourage</b> (un +1, avec un petit mot parfois). Un encouragement ne donne pas l\'étoile : c\'est un éduc qui la valide.'
@@ -151,7 +151,7 @@
         ])) +
       card('classement', 'podium', '#4D9BFF', 'Le classement et les ligues', 'Tu te compares aux joueurs de ton niveau',
         ul([
-          'Prépa › <b>Classement</b> : il y a un classement <b>par test du bilan</b> (planche, navette, pompes…), tous affichés d\'un coup ; touche les épreuves que tu veux garder, « Toutes » pour tout revoir. Seule la prépa physique compte : ' + (SKON ? 'tes missions et tes Skills ne sont jamais classés.' : 'tes missions ne sont jamais classées.') + '',
+          '<b>Équipe</b> › <b>Les podiums</b> : il y a un podium <b>par test du bilan</b> (planche, navette, pompes…), tous affichés d\'un coup ; ouvre la ligne des filtres, puis touche les épreuves que tu veux garder, « Toutes » pour tout revoir. Seule la prépa physique compte : ' + (SKON ? 'tes missions et tes Skills ne sont jamais classés.' : 'tes missions ne sont jamais classées.') + '',
           'Tu es dans la <b>ligue</b> des joueurs qui ont <b>le même niveau</b> que toi sur ce test. S\'il y a moins de ' + MC.CONFIG.LIGUE_MIN + ' joueurs, la ligue s\'ouvre aux niveaux voisins.',
           '2 façons de classer : <b>meilleur score</b>, ou <b>plus gros progrès</b> depuis ton premier bilan. Même si tu n\'es pas le plus fort, tu peux être celui qui progresse le plus !',
           'Seuls les résultats <b>confirmés par un adulte</b> comptent. On n\'y voit que les prénoms. Tes parents peuvent choisir de ne pas t\'afficher.'
@@ -180,7 +180,7 @@
       card('p-connexion', 'lock', '#38E8FF', 'Se connecter', 'Un code par famille',
         ul([
           'Bouton <b>Adultes</b> (en haut de l\'écran d\'accueil) › <b>Je suis parent</b> › le <b>prénom de votre enfant</b> › votre <b>code famille</b> à 4 chiffres. La 1re fois, c\'est le code provisoire donné par l\'éducateur : vous choisissez ensuite le vôtre.',
-          'Votre espace a ' + (SKON ? 4 : 3) + ' onglets en bas, comme celui de votre enfant : <b>Prépa</b> (les résultats à confirmer en premier, sa semaine et ses séances, ses <b>Bilans</b> et son <b>Classement</b>), ' + (SKON ? '<b>Missions</b> (ce que demandent les éducs, ses +1 et leurs mots), <b>Skills</b> (son carnet de compétences)' : '<b>Missions</b> (ce que demandent les éducs, comme choisir son poste pour le jeu à 10)') + ' et <b>Plus</b> (codes, appareil, aide). Plusieurs enfants ? Touchez son prénom en haut à gauche : vous restez sur le même onglet.',
+          'Votre espace a ' + (SKON ? 4 : 3) + ' onglets en bas : <b>Prépa</b> (les résultats à confirmer en premier, sa semaine et ses séances, ses <b>Bilans</b> et son <b>Classement</b>), ' + (SKON ? '<b>Missions</b> (ce que demandent les éducs, ses +1 et leurs mots), <b>Skills</b> (son carnet de compétences)' : '<b>Missions</b> (ce que demandent les éducs, comme choisir son poste pour le jeu à 10)') + ' et <b>Plus</b> (codes, appareil, aide). Plusieurs enfants ? Touchez son prénom en haut à gauche : vous restez sur le même onglet.',
           'La <b>flèche en haut à gauche</b>, sur tous les écrans, ramène à l\'écran d\'avant, là où vous étiez. Tout en haut d\'un écran, <b>tirez vers le bas</b> puis relâchez pour l\'actualiser. Quand une nouvelle version de l\'appli sort, elle se met à jour toute seule, à l\'ouverture ou en y revenant.',
           'Un seul code pour la famille : les deux parents peuvent l\'utiliser, et il donne accès à tous vos enfants inscrits.',
           'Vous restez connecté sur l\'appareil. Pour changer de code : Plus › Changer mon code parent. Code perdu : l\'éducateur vous en crée un provisoire. Après 5 codes faux, l\'accès se bloque 10 minutes.'
@@ -207,7 +207,7 @@
       card('p-bilan', 'sheet', '#4D9BFF', 'Le bilan', 'Les 12 tests, sans date imposée',
         ul([
           '<b>Pas de date imposée</b> : il le fait quand un adulte est disponible.',
-          'Votre enfant le lance depuis Prépa › Bilans (bilan guidé, test par test). Il faut <b>un adulte à côté</b> pour regarder, compter et chronométrer.',
+          'Votre enfant le lance depuis Progrès › Records (bilan guidé, test par test). Il faut <b>un adulte à côté</b> pour regarder, compter et chronométrer.',
           'Ses niveaux se règlent tout seuls à partir des résultats.'
         ])) +
       card('p-niveaux', 'up', '#B48CFF', 'Ajuster ses niveaux', 'Trop facile, trop dur ?',

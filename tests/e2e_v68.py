@@ -57,6 +57,9 @@ with sync_playwright() as p:
     pg.click('details.rkf > summary'); pg.wait_for_timeout(300)
     check('Équipe : les filtres se déplient', ev("document.querySelector('details.rkf').open"))
     check('Équipe : pas de défilement de côté', noscroll())
+    # (relecture) venir d'un autre onglet : les filtres repliés de nouveau
+    pg.click('#nav a[href="#/profil"]'); pg.wait_for_timeout(700); pg.click('#nav a[href="#/classement"]'); pg.wait_for_timeout(900)
+    check('Équipe : revenue d\'un autre onglet, les filtres repliés', pg.query_selector('details.rkf:not([open])') is not None)
 
     # ----- Progrès : Records · Niveaux (les Skills sont fermés aux enfants en V1) -----
     pg.click('#nav a[href="#/bilans"]'); pg.wait_for_timeout(900)
@@ -69,6 +72,24 @@ with sync_playwright() as p:
     # ----- Moi -----
     pg.click('#nav a[href="#/profil"]'); pg.wait_for_timeout(900)
     check('Moi : onglet Moi allumé', on_tab() == 'MOI', on_tab())
+
+    # ----- (relecture) l'aide « ? » ne parle plus des anciens onglets -----
+    pg.goto(BASE + '#/guide'); pg.wait_for_timeout(800)
+    t = pg.inner_text('main')
+    check('aide : plus de « Prépa › » ni d\'« onglet Missions »', 'Prépa ›' not in t and 'Onglet Missions' not in t and 'Nouveau dans Missions' not in t, [x for x in ('Prépa ›', 'Onglet Missions', 'Nouveau dans Missions') if x in t])
+
+    # ----- (relecture) 3 bravos : le dernier en entier, les autres repliés ; le bouton reste au premier écran -----
+    ev("""(() => { const k = Object.keys(localStorage).find(x => x.indexOf('mc-demo-') === 0), db = JSON.parse(localStorage.getItem(k)), jid = MC.app.S.me.joueur.id;
+      const b0 = db.tables.bravos.find(b => b.joueurId === jid && !b.retire); if (!b0) return false;
+      for (let i = 1; i <= 2; i++) db.tables.bravos.push(Object.assign({}, b0, { id: b0.id + 'x' + i, mot: 'Super séance, continue comme ça ' + i }));
+      localStorage.setItem(k, JSON.stringify(db)); localStorage.removeItem('mc-me'); return true; })()""")
+    pg.goto(BASE + '#/semaine'); pg.reload(); pg.wait_for_timeout(1500)
+    while pg.query_selector('.modal button'): pg.click('.modal button >> nth=0'); pg.wait_for_timeout(300)
+    r = ev("""(() => { const c = document.querySelector('.bvcard'); if (!c) return null; const a = [...document.querySelectorAll('main a.btn')].find(x => /Lancer la séance|Revoir la séance/.test(x.textContent));
+      const n = document.getElementById('nav').getBoundingClientRect(), bas = n.top > innerHeight / 2 ? n.top : innerHeight;
+      return { visibles: [...c.children].filter(x => x.classList.contains('bvc-l')).length, plie: !!c.querySelector('details.bvc-plus:not([open])'), resume: (c.querySelector('.bvc-plus summary') || {}).textContent || '', bouton: a ? Math.round(a.getBoundingClientRect().bottom) : 9999, limite: Math.round(bas) }; })()""")
+    check('3 bravos : le dernier en entier, « + 2 autres bravos » replié', r and r['visibles'] == 1 and r['plie'] and '2 autres bravos' in r['resume'], r)
+    check('3 bravos : le bouton de la séance toujours au premier écran', r and r['bouton'] <= r['limite'], r)
 
     # ----- un jour de repos (vendredi) -----
     pg.clock.set_system_time('2026-11-13T10:00:00')

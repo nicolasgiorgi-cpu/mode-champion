@@ -40,6 +40,7 @@ MC.accueil = (function () {
     if (role === 'e') return RESUME.e;
     var plein = MC.ouvert('skills') && MC.ouvert('missionsEducs');
     return RESUME[role].filter(function (x) { return x[2] !== 'Skills' || MC.ouvert('skills'); }).map(function (x) {
+      if (role === 'k' && x[2] === 'Progrès' && MC.ouvert('skills')) return [x[0], x[1], x[2], 'tes records, tes niveaux et tes Skills'];   // (v68)
       if (x[2] !== 'Missions' || plein) return x;
       return [x[0], x[1], x[2], role === 'k' ? 'les missions de tes éducs, comme choisir ton poste pour le jeu à 10' : 'les missions de ses éducs, comme choisir son poste pour le jeu à 10'];
     });
@@ -126,7 +127,7 @@ MC.accueil = (function () {
     if (i === 1) {
       var wk = C.SEMAINE.map(function (tp, d) { var j = C.JOURS[tp]; return '<span style="--gc:' + j.color + '"><b>' + esc(j.court.charAt(0)) + '</b>' + (j.slot < 0 ? '<i class="zz">—</i>' : ui.starSvg(20, d < 3 || d === 5 ? '#FFC23D' : 'none', d < 3 || d === 5 ? '#FFC23D' : '#34405F')) + '</span>'; }).join('');
       return frame('k', n, i, '<div class="gweek obweek">' + wk + '</div><div class="note gold" style="margin-top:12px">' + icon('gift', 30) + '<span>6 étoiles dans la semaine : le coffre s\'ouvre, <b>+1 étoile bonus</b>.</span></div>', 'tes étoiles',
-        '1 séance =<br>1 étoile', '<p class="lead">Chaque jour, ta séance t\'attend dans <b>Ma semaine</b> : 15 à 20 minutes. Un jour raté ? Tu le rattrapes un autre jour de la même semaine.</p>', nextBtn);
+        '1 séance =<br>1 étoile', '<p class="lead">Chaque jour, ta séance t\'attend sur l\'<b>Accueil</b> : 15 à 20 minutes. Un jour raté ? Tu le rattrapes un autre jour de la même semaine.</p>', nextBtn);
     }
     if (i === 2) return frame('k', n, i, '<svg class="obring" viewBox="0 0 200 200" role="img" aria-label="Le chrono de la séance"><circle cx="100" cy="100" r="82" fill="none" stroke="#1E2740" stroke-width="14"/><circle cx="100" cy="100" r="82" fill="none" stroke="#3DFFB0" stroke-width="14" stroke-dasharray="515" stroke-dashoffset="190" transform="rotate(-90 100 100)" style="filter:drop-shadow(0 0 8px #3DFFB0)"/><text x="100" y="108" text-anchor="middle" font-family="Chakra Petch,monospace" font-weight="700" font-size="56" fill="#E8ECF7">30</text><text x="100" y="134" text-anchor="middle" font-family="Chakra Petch,monospace" font-weight="600" font-size="12" letter-spacing="2" fill="#8A93AD">IL RESTE</text></svg>', 'la séance guidée',
       'L\'appli<br>te guide', '<p class="lead">Touche <b>C\'est parti !</b> puis <b>GO</b> : le chrono, les bips et le bonhomme animé te montrent quoi faire. <b>Détails</b> explique comment bien faire sans te blesser, et <b>Retour</b> annule un clic de trop.</p>', nextBtn, { kc: 'var(--green)' });
@@ -137,7 +138,7 @@ MC.accueil = (function () {
     var last = '<button type="button" class="btn green" data-act="obDoneKid">' + icon('play', 18) + ' Je commence' + (noBilan ? ' au niveau 1' : '') + ' !</button>' +
       (noBilan ? '<a class="btn2 gold" href="#/bilan" data-act="obBilan">' + icon('trophy', 16) + ' D\'abord mon bilan, avec un adulte</a>' : '');
     return frame('k', n, i, '<div class="obgrades">' + C.GRADES.slice(0, 4).reverse().map(function (g, j) { return '<span class="' + (j === 3 ? 'me' : '') + '"><b>' + esc(g.nom) + '</b><small>' + ui.fmtNum(g.xp) + ' XP</small></span>'; }).join('') + '</div>', 'monte en grade',
-      'Deviens une légende', '<p class="lead">Chaque séance rapporte des <b>XP</b> : tu montes de grade, tu débloques des <b>badges</b> et tu montes sur les <b>podiums</b> face aux joueurs de ton niveau. ' + (MC.ouvert('skills') ? 'Et dans <b>Missions</b> et <b>Skills</b>, tes éducs te lancent des défis rugby et valident tes étoiles.' : 'Et dans <b>Missions</b>, tes éducs te lancent des défis, comme choisir ton poste pour le jeu à 10.') + '</p>' +
+      'Deviens une légende', '<p class="lead">Chaque séance rapporte des <b>XP</b> : tu montes de grade, tu débloques des <b>badges</b> et tu montes sur les <b>podiums</b> face aux joueurs de ton niveau. ' + (MC.ouvert('skills') ? 'Et dans <b>tes missions</b> et tes <b>Skills</b>, tes éducs te lancent des défis rugby et valident tes étoiles.' : 'Et dans <b>tes missions</b>, tes éducs te lancent des défis, comme choisir ton poste pour le jeu à 10.') + '</p>' +
       '<div class="note cyan">' + icon('star', 20) + '<span>Pour bien démarrer : <b>tes premiers pas</b>, 4 petites étapes sur l\'Accueil, <b>+' + C.XP.premiersPas + ' XP</b> à la fin.</span></div>', last, { kc: 'var(--violet)' });
   }
   MC.act.obDoneKid = function () { finish('k'); };
@@ -358,7 +359,7 @@ MC.accueil = (function () {
   MC.act.obBilanHow = function () {
     ui.modal({
       title: 'Le bilan 0',
-      body: '<p class="lead">12 petits tests (sauts, gainage, navette…) pour régler les niveaux de votre enfant. Il le lance depuis <b>Prépa › Bilans</b> : le bilan guidé enchaîne les tests avec la démo et le chrono. Comptez 45 minutes, avec vous à côté pour regarder et compter.</p>' +
+      body: '<p class="lead">12 petits tests (sauts, gainage, navette…) pour régler les niveaux de votre enfant. Il le lance depuis <b>Progrès › Records</b> : le bilan guidé enchaîne les tests avec la démo et le chrono. Comptez 45 minutes, avec vous à côté pour regarder et compter.</p>' +
         '<p class="small">Ensuite, ses résultats arrivent en haut de l\'onglet <b>Prépa</b> : touchez Confirmer (ou Refuser) pour chacun, puis « Enregistrer mes choix ». Pas de bilan encore ? Il peut s\'entraîner au niveau 1 en attendant.</p>',
       actions: [{ label: 'Compris', value: null, cls: 'btn' }]
     });

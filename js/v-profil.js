@@ -138,7 +138,7 @@
   // ---------- MA PROGRESSION ----------
   app.route('/progression', function () {
     return app.loadMe().then(function (me) {
-      return '<main class="screen">' + MC.kidSubBar('#/bilans', 'Bilans', 'Ma progression') +
+      return '<main class="screen">' + MC.kidSubBar('#/bilans', 'Records', 'Ma progression') +
         '<div class="head"><span class="kicker">Bilans de la saison</span><h1 class="big md">Ma progression</h1><p class="lead" style="margin:0">Tes résultats à chaque bilan, et ce que tu as gagné depuis le bilan d\'avant.</p></div>' +
         '<section class="sec">' + MC.suivi.progression(me.records, { vide: 'Fais ton premier bilan pour voir ta progression ici.' }) + '</section>' +
         '<section class="sec"><h2 class="h2">Mes séances</h2><p class="small" style="margin:0">Touche une séance pour revoir le détail.</p>' + MC.suivi.seances(me.seances, { bravos: me.bravos }) + '</section></main>';
@@ -368,6 +368,8 @@
       '<p class="small" style="text-align:center;margin:0">' + (rank.mode === 'prog' ? 'Progrès depuis ton 1er résultat : tout le monde peut être 1er.' : 'Records des bilans et des défis, confirmés par un adulte.') + '</p></main>';
   }
   document.addEventListener('toggle', function (ev) { var t = ev.target; if (t && t.classList && t.classList.contains('rkf')) rank.ouvert = t.open; }, true);   // (v68) les filtres restent ouverts d'un toucher à l'autre
+  // (v68, relecture) venir d'ailleurs = les filtres repliés (règle v44) ; l'événement arrive sur window, pas sur document
+  window.addEventListener('hashchange', function (e) { if (/#\/classement/.test(e.newURL || '') && !/#\/classement/.test(e.oldURL || '')) rank.ouvert = false; });
   MC.act.rkTest = function (b) { rank.sel = toggleSel(rank.sel, b.getAttribute('data-v')); app.lsSet('mc-rank', rank); paintAgain(); };
   MC.act.rkMode = function (b) { rank.mode = b.getAttribute('data-v'); app.lsSet('mc-rank', rank); paintAgain(); };
   // déplier / replier le classement complet d'une épreuve (enfant et parent)
@@ -487,7 +489,7 @@
       }).join('') + '</section>';
     }).join('');
     var pct = Math.round(done / C.TESTS.length * 100);
-    return '<main class="screen">' + MC.kidSubBar('#/bilans', 'Bilans', 'Mon bilan') +
+    return '<main class="screen">' + MC.kidSubBar('#/bilans', 'Records', 'Mon bilan') +
       '<div class="head"><span class="kicker">' + esc(B.nom) + '</span><h1 class="big md">Mon bilan<br>de champion</h1></div>' +   // (v64) sans « mi-novembre »
       bilanExplain(me) +
       guidedCta() + dateField('bil_date') +
@@ -506,7 +508,7 @@
       '<li><span class="num" style="--sc:var(--cyan)">1</span><span class="tx"><b>12 petits tests</b> (sauts, gainage, navette…) pour voir où tu en es. Quand tu veux, avec un adulte.</span></li>' +
       '<li><span class="num" style="--sc:var(--cyan)">2</span><span class="tx"><b>Avec un adulte</b> à côté qui regarde, compte et chronomètre. Environ 45 min, 2 min de repos entre deux tests.</span></li>' +
       '<li><span class="num" style="--sc:var(--cyan)">3</span><span class="tx">Il <b>règle tes niveaux</b> exercice par exercice, et tes résultats deviennent tes <b>records</b>.</span></li>' +
-      '<li><span class="num" style="--sc:var(--cyan)">4</span><span class="tx">Un parent ou ton éduc les <b>confirme</b> : ils entrent alors dans les podiums de l\'équipe.</span></li></ol>' +
+      '<li><span class="num" style="--sc:var(--cyan)">4</span><span class="tx">Un parent ou ton éduc les <b>confirme</b> : ils comptent alors pour les podiums.</span></li></ol>' +
       (first ? '<p class="small" style="margin:0;color:var(--soft)">' + icon('info', 14) + ' Pas d\'adulte dispo aujourd\'hui ? Pas de souci : <b>tu peux t\'entraîner dès maintenant</b>, tes exos sont au niveau 1. Tu feras ton bilan quand un adulte sera là.</p>' : '') + '</section>';
   }
   function guidedCta() {

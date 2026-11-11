@@ -124,7 +124,7 @@ window.MC = window.MC || {};
       });
       body += '<section class="sec"><h2 class="h2">' + (skOn ? 'Missions ponctuelles' : 'Pour toute l\'équipe') + '</h2>' + (eq ? '<ul class="list">' + eq + '</ul>' : '<p class="small" style="margin:0">Rien à faire pour l\'instant.</p>') + '</section>';
       if (meOn) body += '<a class="li" href="' + R.base + '/mots">' + icon('heart', 20, 'style="color:var(--green);flex:none"') + '<span class="grow"><span class="t1">' + T(R, 'Tous les mots de mes éducs', 'Tous les mots de ses éducs') + '</span><span class="t2">' + encs.length + ' en tout, du plus récent au plus ancien</span></span>' + icon('right', 16) + '</a>';
-      if (!R.k) body += '<p class="small" style="margin:0">' + (meOn ? 'Les missions, les encouragements et les mots viennent des éducs. Les parents suivent, sans en donner.' : 'Les missions viennent des éducs : ' + esc(prenom(R)) + ' les fait dans son onglet Missions, vous suivez ici.') + '</p>';
+      if (!R.k) body += '<p class="small" style="margin:0">' + (meOn ? 'Les missions, les encouragements et les mots viennent des éducs. Les parents suivent, sans en donner.' : 'Les missions viennent des éducs : ' + esc(prenom(R)) + ' les fait depuis son Accueil, vous suivez ici.') + '</p>';
     }
     return '<main class="screen">' + bar(R, 'Missions') + tabs + body + '</main>';
   }
@@ -156,7 +156,7 @@ window.MC = window.MC || {};
           return '<li><b>' + esc(q.q) + '</b><span class="' + (a === q.ok ? 'ok' : 'ko') + '">' + (a === q.ok ? icon('check', 14) + ' ' : a >= 0 ? icon('x', 14) + ' ' + esc(q.opts[a]) + ' · ' : '') + 'Bonne réponse : ' + esc(q.opts[q.ok]) + '</span></li>';
         }).join('') + '</ol></details>' : '') + '</section>';
     } else if (!R.k) {
-      quiz = '<div class="note">' + icon('info', 20) + '<span>' + esc(prenom(R)) + ' ne l\'a pas encore faite' + (vid ? (x.vu ? ' (vidéo vue, quiz à faire)' : '') : '') + '. Elle est dans son onglet Missions.</span></div>';
+      quiz = '<div class="note">' + icon('info', 20) + '<span>' + esc(prenom(R)) + ' ne l\'a pas encore faite' + (vid ? (x.vu ? ' (vidéo vue, quiz à faire)' : '') : '') + '. Elle est sur son Accueil, dans « Mes missions ».</span></div>';
     } else if (qs.length && (!vid || x.vu)) {
       var Q = quizState(R, m), i = Math.min(Q.i, qs.length - 1), q = qs[i], sel = Q.ans[i], voir = Q.voir && sel !== undefined;
       var fin = Q.ans.length === qs.length && Q.ans.every(function (a) { return a !== undefined && a !== null; }) && Q.i >= qs.length - 1 && voir;

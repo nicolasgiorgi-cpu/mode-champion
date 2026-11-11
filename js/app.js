@@ -355,7 +355,7 @@ MC.app = (function () {
   }
 
   // ---------- Onglets du bas (les mêmes règles pour les enfants, les parents et les éducs) ----------
-  // Enfant : Prépa · Missions · Skills · Moi. Parent : Prépa · Missions · Skills · Plus (sans Skills en V1 : 3 onglets).
+  // Enfant (v68) : Accueil · Équipe · Progrès · Moi. Parent : Prépa · Missions · Skills · Plus (sans Skills en V1 : 3 onglets).
   // Éduc : Entraîn. · Plateaux · Progrès (v44 : s'ouvre sur Missions) · Enfants ; la gestion est derrière l'engrenage (aucun onglet allumé).
   // Chaque onglet a 2 ou 3 sous-onglets ; (v44) l'onglet du bas mène toujours au premier (venir d'ailleurs = le premier onglet).
   var NAVS = {

@@ -2012,8 +2012,14 @@ textarea.txt{min-height:84px;padding:10px 12px;resize:vertical;font:500 16px/1.4
 .acc-sp{margin:0;display:flex;align-items:center;gap:8px;font-size:14px;line-height:1.35;color:var(--soft)}
 .acc-sp b{color:var(--gold)}
 .acc-mi .t2{color:var(--pink)}
-.rkf{display:flex;flex-direction:column;gap:12px;padding:0 14px;background:var(--panel);border:1px solid var(--line)}
+.rkf{display:block;padding:0 14px;background:var(--panel);border:1px solid var(--line)}   /* (v68, relecture) pas de flex sur un details (Safari) */
+.rkf>.sec{margin-top:12px}
 .rkf[open]{padding-bottom:14px}
 .rkf>summary{list-style:none;display:flex;align-items:center;gap:8px;min-height:44px;cursor:pointer;font-size:14px;color:var(--soft)}
 .rkf>summary::-webkit-details-marker{display:none}
 .rkf[open] .rkf-i{transform:rotate(180deg)}
+/* (v68, relecture) les bravos : le dernier en entier, les autres repliés */
+.bvc-plus>summary{list-style:none;display:flex;align-items:center;gap:6px;min-height:44px;cursor:pointer;font-size:13px;color:var(--soft)}
+.bvc-plus>summary::-webkit-details-marker{display:none}
+.bvc-plus[open] .bvc-pi{transform:rotate(180deg)}
+.bvc-plus .bvc-l{margin-top:10px}
