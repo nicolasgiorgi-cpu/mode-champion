@@ -79,6 +79,8 @@
     if (!nb) { nb = document.createElement('span'); nb.className = 'tb-nb'; el.appendChild(nb); }
     nb.textContent = n > 9 ? '9+' : String(n);
   }
+  // (v81) « C'est bon » sur les derniers scores d'un enfant : leurs lignes de la cloche sont lues
+  MC.clocheLireIds = function (ids) { var w = qui(); if (!w || !w.id) return 0; var n = N.lireIds(w.role, w.id, ids); if (n) { paintBell(); app.refreshNav(); } return n; };
   MC.cloche = bellHtml;
   MC.clocheMaj = paintBell;
 

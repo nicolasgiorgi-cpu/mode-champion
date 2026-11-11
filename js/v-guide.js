@@ -210,7 +210,7 @@
         ].filter(Boolean))) +
       card('p-confirmer', 'check', '#FFC23D', 'Ses résultats et ses exploits', 'Ça compte tout de suite',
         ul([
-          'Un résultat de bilan ou un record tenté <b>compte tout de suite</b> (classement, badges, records). Une erreur ? Dans « scores notés ces 14 jours », touchez <b>Ce n\'est pas ça</b> : il ne compte plus.',
+          'Un résultat de bilan ou un record tenté <b>compte tout de suite</b> (classement, badges, records). Une erreur ? Dans « scores notés ces 14 jours », touchez <b>Ce n\'est pas ça</b> : il ne compte plus. Tout est juste ? <b>C\'est bon</b> les range (sur ce téléphone) jusqu\'au prochain score.',
           '<b>Le record du jour</b> (du lundi au jeudi) : votre enfant peut tenter de battre un record, une épreuve à la fois (une tentative par épreuve et par jour, deux épreuves par jour au plus). Vous recevez une alerte « a tenté un record » ; le score compte tout de suite, comme au bilan.',
           'Seul un <b>exploit</b> attend votre confirmation : plus de 25 % de mieux que son record d\'un coup, ou une entrée sur le podium de sa ligue. Touchez <b>Confirmer</b> ou <b>Ce n\'est pas ça</b>, puis <b>Enregistrer mes choix</b>, juste sous la liste. Un éduc parent de l\'enfant peut aussi confirmer.',
           'Retiré par erreur ? Ouvrez « résultats pas retenus » et touchez <b>Rétablir</b>, puis Enregistrer mes choix.',

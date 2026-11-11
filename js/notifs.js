@@ -402,6 +402,15 @@ MC.notifs = (function () {
     if (best) { s.lus[best.id] = 1; n = 1; save(st, k, s); }
     return n;
   }
+  // (v81) « C'est bon » sur les derniers scores : ces lignes de la cloche sont lues
+  function lireIds(role, id, ids, st) {
+    st = stor(st);
+    var k = key(role, id), s = load(st, k), n = 0;
+    if (!s) return 0;
+    (ids || []).forEach(function (x) { if (x && !s.lus[x]) { s.lus[x] = 1; n++; } });
+    if (n) save(st, k, s);
+    return n;
+  }
   // réglages : allumer ou éteindre une catégorie
   function regler(role, id, cat, on, st) {
     st = stor(st);
@@ -411,5 +420,5 @@ MC.notifs = (function () {
   }
   function reglages(role, id, st) { var s = load(stor(st), key(role, id)); return s ? s.off : {}; }
 
-  return { CATS: CATS, cats: cats, catOf: catOf, events: events, pour: pour, etat: etat, marquerLu: marquerLu, lireLien: lireLien, regler: regler, reglages: reglages, key: key, FENETRE: FENETRE };
+  return { CATS: CATS, cats: cats, catOf: catOf, events: events, pour: pour, etat: etat, marquerLu: marquerLu, lireLien: lireLien, lireIds: lireIds, regler: regler, reglages: reglages, key: key, FENETRE: FENETRE };
 })();
