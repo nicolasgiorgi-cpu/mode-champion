@@ -117,7 +117,7 @@ MC.api = (function () {
       var tm = setTimeout(function () {
         over = true;
         try { if (ctrl) ctrl.abort(); } catch (e) { }
-        reject(new ApiError({ error: 'lent', message: 'Le serveur ne répond pas. Vérifie la connexion internet (Wi-Fi ou 4G), puis réessaie.' }));
+        reject(new ApiError({ error: 'lent', message: 'Le serveur ne répond pas pour l\'instant : réessaie dans quelques minutes. Si ça dure, vérifie le Wi-Fi ou la 4G.' }));   // (v80) un serveur bloqué repart tout seul (6 min au plus)
       }, limit);
       var o = { method: 'POST', body: body, redirect: 'follow' };
       if (ctrl) o.signal = ctrl.signal;

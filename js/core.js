@@ -2745,6 +2745,22 @@ var Core = (function () {
     var morts = ctx.env.envoyerPush(msgs) || [];
     pushMorts(ctx.db, morts);
   }
+  // (v80) la veille du serveur (outils/code-google.gs, veilleServeur) : un blocage prévient les éducs administrateurs.
+  // Lecture seule (la veille ne prend pas le verrou) : les appareils morts ne sont pas désabonnés ici.
+  function veilleAlerte(db, env, texte) {
+    var ctx = { db: db, env: env, now: env.now() };
+    var admins = db.rows('educs').filter(function (x) { return x.actif && x.admin; });
+    admins.forEach(function (a) { alerter(ctx, { r: 'e', qui: a.id, soi: true, lien: '#/educ' }, '_serveur', texte); });
+    if (!ctx.alertes || !ctx.alertes.length || !env.envoyerPush) return 0;
+    var memo = {}, n = 0;
+    var rows = db.rows('push').filter(function (x) { return x.actif && x.jeton && x.role === 'e' && profilOk(ctx, x.role, x.qui, x.v, memo); });
+    var msgs = [];
+    ctx.alertes.forEach(function (a) {
+      rows.forEach(function (x) { if (x.qui === a.qui) msgs.push({ id: x.id, jeton: x.jeton, cat: a.cat, tag: 'e-serveur', titre: 'Mode champion', texte: a.texte, lien: a.lien }); });
+    });
+    if (msgs.length) { env.envoyerPush(msgs); n = msgs.length; }
+    return n;
+  }
   // les appareils qui n'existent plus (Firebase l'a dit) : désabonnés
   function pushMorts(db, ids) {
     (ids || []).forEach(function (id) { try { db.update('push', id, { actif: false }); } catch (e) { /* tant pis */ } });
@@ -2841,7 +2857,7 @@ var Core = (function () {
     _prenomsVoisins: prenomsVoisins, _ressemble: ressemble, _nomsConnexion: nomsConnexion,
     importPostesDepuis: function (db, env, rows) { return importPostes({ db: db, env: env, now: env.now() }, rows); },
     syncSpondDepuis: function (db, env, data) { return syncSpond({ db: db, env: env, now: env.now() }, data || {}); },
-    _diffCompo: diffCompo, _motsEnfants: MOTS_ENFANTS, _epreuves: EPREUVES, _exploitBond: EXPLOIT_BOND, _ligueMin: LIGUE_MIN, _defisEquipe: DEFIS_EQUIPE
+    veilleAlerte: veilleAlerte, _diffCompo: diffCompo, _motsEnfants: MOTS_ENFANTS, _epreuves: EPREUVES, _exploitBond: EXPLOIT_BOND, _ligueMin: LIGUE_MIN, _defisEquipe: DEFIS_EQUIPE
   };
 })();
 
