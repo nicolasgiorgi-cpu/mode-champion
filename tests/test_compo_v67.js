@@ -98,6 +98,15 @@ assert.strictEqual(o.reglages.format, 5, 'jeu à 5 : reste au jeu à 5');
 o = K.reprendre({ reglages: { partie: 'matchs', mode: 'equilibre', format: 10 }, equipes: [{ id: 'E1', nom: 'Équipe 1', bloc: 'm1', joueurs: [{ id: 'm0', poste: 'ailier' }] }, { id: 'E2', nom: 'Équipe 2', bloc: 'm1', joueurs: [{ id: 'm1', poste: 'ailier' }] }] }, ['m0', 'm1'], M);
 assert.deepStrictEqual(J(o.equipes.map(t => t.id)), ['E1', 'E2']); assert.strictEqual(o.reglages.mode, 'equilibre');
 
+// l'historique : dans des matchs sans équipe de son niveau, un Confirmé ou un Débutant n'a pas « joué hors de son niveau »
+const evts = { e1: { id: 'e1', debut: '2026-11-04T16:30:00Z', titre: 'Entraînement' }, e2: { id: 'e2', debut: '2026-11-05T16:30:00Z', titre: 'Entraînement 2' } };
+const passe = [{ evenementId: 'e1', partie: 'matchs', statut: 'publiee', reglages: cm.reglages, equipes: [{ id: 'B1', niveau: 'B', joueurs: [{ id: 'm0', n: 'C' }, { id: 'm2', n: 'B' }] }, { id: 'B2', niveau: 'B', joueurs: [{ id: 'm1', n: 'C' }] }] },
+  { evenementId: 'e2', partie: 'matchs', statut: 'publiee', reglages: cm.reglages, equipes: [{ id: 'B1', niveau: 'B', joueurs: [{ id: 'm0', n: 'C' }] }, { id: 'C1', niveau: 'C', joueurs: [{ id: 'm1', n: 'C' }] }] }];
+const Hm = K.historique(passe, evts, M, '2026-11-11');
+assert.strictEqual(Hm.m1.autre, 0, 'm1 (C) en B1 sans équipe C, puis en C1 : jamais hors niveau');
+assert.strictEqual(Hm.m0.autre, 1, 'm0 (C) en B1 alors qu\'il y avait une équipe C : hors niveau une fois');
+assert.strictEqual(Hm.m0.entrainements, 2);
+
 // ----- serveur : les réglages des matchs « comme un plateau » sont gardés -----
 const { makeEnv } = require('./gas_mock.js');
 const g = makeEnv(); g.installer();

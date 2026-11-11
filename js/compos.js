@@ -200,6 +200,9 @@ MC.compos = (function () {
           // (v48) ateliers « A forte » : un Confirmé dans un groupe B mélangé (sans niveau) a joué en B (tour de rôle des A en trop)
           var tn = t.niveau || (j.n === 'A' && /FB\d+$/.test(t.id || '') ? 'B' : '');
           var autre = !!(j.n && tn && tn !== j.n);
+          // (v67) des matchs faits comme un plateau, sans équipe de son niveau (par défaut 2 équipes B, tout le monde mélangé) :
+          // un Confirmé ou un Débutant y joue en B sans avoir changé de niveau (sinon son tour de passerelle serait faussé)
+          if (autre && sorte === 'matchs' && !(x.c.equipes || []).some(function (u) { return u.niveau === j.n; })) autre = false;
           if (autre) { o.autre++; o.dernierAutre = date; }
           if ((f.copains || []).length) {
             if (cps.length) { o.avecCopain++; o.sansCopainSerie = 0; } else o.sansCopainSerie++;

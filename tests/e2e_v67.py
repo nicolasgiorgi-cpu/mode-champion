@@ -87,6 +87,8 @@ with sync_playwright() as p:
     check('les postes ★ équilibrés : au plus 1 d\'écart par poste entre B1 et B2', st['pire'] <= 1, st)
     check('le tableau : le panneau des options en haut (comme un plateau)', pg.query_selector('details.cbopt') is not None)
     check('le tableau : pas de bouton « Réglages » d\'entraînement', pg.query_selector('.ctl [data-act="cRegl"]') is None)
+    rs = ev("JSON.parse(localStorage.getItem(Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0 && k.endsWith(':matchs')))).vs[0].raisons")
+    check('matchs : pas de « Pas d\'équipe A : joue en B » dans « Pourquoi ces choix »', not any(v.startswith("Pas d'équipe") for v in rs.values()), rs)
 
     # « Effacer » à côté de « Publier »
     r = ev("""(() => { const e = document.querySelector('.ctop [data-act="cDiscard"]'), p = document.querySelector('.ctop [data-act="cPublish"]');

@@ -1004,6 +1004,8 @@ window.MC = window.MC || {};
       var po = K.postesEquipe(t.joueurs.map(function (j) { return j.id; }), C.F, true);
       t.joueurs.forEach(function (j) { j.poste = po[j.id] || ''; });
     });
+    // (v67) des matchs avec 2 équipes B : « Pas d'équipe A : joue en B » pour chaque Confirmé et chaque Débutant n'apprend rien
+    if (out.partie === 'matchs') Object.keys(p.raisons || {}).forEach(function (id) { if (/^Pas d'équipe [ABC] : joue en [ABC]\.$/.test(p.raisons[id])) delete p.raisons[id]; });
     return { reglages: out, equipes: p.equipes, banc: p.banc, raisons: p.raisons };
   }
   // (v50) la 2e version à côté : A forte ↔ par niveau, sinon un copain ↔ copains d'abord (v56 : « Sans » → un copain)
