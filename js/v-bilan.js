@@ -46,7 +46,12 @@
   function num(s) { var x = parseFloat(String(s === undefined || s === null ? '' : s).replace(',', '.')); return isFinite(x) ? x : null; }
 
   // ---------- état (gardé sur l'appareil : on peut fermer et reprendre) ----------
-  function fresh(B, kid) { return { n: B.n, kid: kid, i: 0, e: 0, phase: 'warm', tr: {}, f: {}, back: false, startedAt: Date.now() }; }
+  function fresh(B, kid, reste) { return { n: B.n, kid: kid, i: 0, e: 0, phase: 'warm', tr: {}, f: {}, back: false, startedAt: Date.now(), reste: reste || null }; }
+  // (v75, lot E4) « Finir mon bilan » : seulement les épreuves pas encore faites dans le cycle (G.reste : leurs numéros 1..12)
+  function suivant(i) { if (!G.reste) return i + 1 <= NB ? i + 1 : 0; var l = G.reste.filter(function (k) { return k > i; }); return l.length ? l[0] : 0; }
+  // « Faire » ou « Refaire » une épreuve hors de la liste (depuis le récap) : on revient au numéro sur 12
+  function nbTests() { return G.reste && (G.i > NB || G.i === 0 || G.reste.indexOf(G.i) >= 0) ? G.reste.length : NB; }
+  function rang(i) { return G.reste && G.reste.indexOf(i) >= 0 ? G.reste.indexOf(i) + 1 : i; }
   function persist() {
     if (!G) { app.lsSet(KEY, null); return; }
     var c = {};
@@ -65,7 +70,7 @@
     progress: function () {
       var s = app.lsGet(KEY), B = L.currentBilan();
       if (!s || !app.S.kid || s.kid !== app.S.kid.joueur.id || s.n !== B.n || s.i < 1) return '';
-      return s.i > NB ? 'récap' : 'test ' + s.i + '/' + NB;
+      return s.i > NB ? 'récap' : s.reste && s.reste.indexOf(s.i) >= 0 ? 'test ' + (s.reste.indexOf(s.i) + 1) + '/' + s.reste.length : 'test ' + s.i + '/' + NB;
     },
     started: function () { return !!MC.bilanGuide.progress(); }
   };
@@ -193,8 +198,10 @@
     afterTest();
   }
   function afterTest() {
-    if (G.back || G.i >= NB) { toFin(); return; }
-    enterTest(G.i + 1);
+    if (G.back || !suivant(G.i)) { toFin(); return; }
+    var avant = G.i;
+    enterTest(suivant(G.i));
+    G.prevI = avant;   // (v75) le test d'avant (avec « Finir mon bilan », ce n'est pas forcément le numéro d'avant)
     G.phase = 'rest';
     startT('rest', REPOS, function () { G.phase = 'ready'; persist(); repaint(); });
     persist(); repaint(); window.scrollTo(0, 0);
@@ -211,7 +218,7 @@
   // ---------- actions ----------
   MC.act.brMute = function () { ui.setMuted(!ui.isMuted()); if (!ui.isMuted()) { ui.unlockAudio(); ui.beep(880, 0.08); } repaint(); };
   MC.act.brPause = function () { togglePause(); };
-  MC.act.brWarmDone = function () { snap(); if (G.rt) { MC.routine.stop(G.rt); G.rt = null; } enterTest(1); persist(); repaint(); window.scrollTo(0, 0); };
+  MC.act.brWarmDone = function () { snap(); if (G.rt) { MC.routine.stop(G.rt); G.rt = null; } enterTest(G.solo ? 1 : suivant(0) || 1); persist(); repaint(); window.scrollTo(0, 0); };
   MC.act.brGo = function () {
     var c = cfg(test());
     ui.unlockAudio();
@@ -268,8 +275,8 @@
     if (G.solo) { soloQuit(); return; }
     snap();
     G.t = null;
-    if (G.back || G.i >= NB) { toFin(); return; }
-    enterTest(G.i + 1); persist(); repaint(); window.scrollTo(0, 0);
+    if (G.back || !suivant(G.i)) { toFin(); return; }
+    enterTest(suivant(G.i)); persist(); repaint(); window.scrollTo(0, 0);
   };
   MC.act.brRestSkip = function () { snap(); G.t = null; G.phase = 'ready'; persist(); repaint(); };
   MC.act.brEl = function (btn) { G.f.el = btn.getAttribute('data-v'); persist(); repaint(); };
@@ -313,7 +320,11 @@
     return app.loadMe().then(function (m) {
       var B = L.currentBilan(), kid = m.joueur.id;
       MC.bilan.ensure(m);
-      if (!G || G.n !== B.n || G.kid !== kid) { G = restore(B, kid) || fresh(B, kid); H = []; }
+      if (!G || G.n !== B.n || G.kid !== kid) {
+        // (v75) « Finir mon bilan » : les épreuves pas encore faites dans le cycle ; un bilan déjà commencé reprend où il en était
+        var bc = L.bilanCycle(m.records, B.n), reste = q.reste === '1' && B.n >= L.GRILLE_DEPUIS ? C.TESTS.filter(function (t) { return !bc.cases[t.id]; }).map(function (t) { return t.n; }) : null;
+        G = restore(B, kid) || fresh(B, kid, reste && reste.length ? reste : null); H = [];
+      }
       ui.keepAwake(true);
       cur.cleanup = function () { stopTick(); if (G && G.rt) MC.routine.detach(G.rt); setTimeout(function () { if (location.hash.indexOf('#/bilan/go') !== 0) ui.keepAwake(false); }, 0); };
       cur.after = function () { startTick(); };
@@ -337,9 +348,9 @@
     return html + '</main>';
   }
   function topBar() {
-    var segs = '', nb = G.solo ? 1 : NB;
-    for (var i = 0; i <= nb + 1; i++) segs += '<i><b style="width:' + (i < G.i ? 100 : 0) + '%"></b></i>';
-    var label = G.solo ? (G.i === 0 && G.phase === 'warm' ? 'ÉCHAUFFEMENT' : G.duJour ? 'RECORD DU JOUR' : 'JE TENTE') : G.i === 0 ? 'ÉCHAUFFEMENT' : G.i > NB ? 'RÉCAP' : 'TEST ' + G.i + '/' + NB;
+    var segs = '', nb = G.solo ? 1 : nbTests(), pos = G.solo || !G.reste ? G.i : G.i > NB ? nb + 1 : G.i === 0 ? 0 : rang(G.i);   // (v75) la barre suit les épreuves à faire
+    for (var i = 0; i <= nb + 1; i++) segs += '<i><b style="width:' + (i < pos ? 100 : 0) + '%"></b></i>';
+    var label = G.solo ? (G.i === 0 && G.phase === 'warm' ? 'ÉCHAUFFEMENT' : G.duJour ? 'RECORD DU JOUR' : 'JE TENTE') : G.i === 0 ? 'ÉCHAUFFEMENT' : G.i > NB ? 'RÉCAP' : 'TEST ' + rang(G.i) + '/' + nbTests();
     if (G.solo && G.i === 2) return '';   // (v74) l'envoi et la fête : sans barre de progression
     return '<div class="top"><button type="button" class="cbtn grey" data-act="brQuit" aria-label="Faire une pause">' + icon('x', 20) + '</button>' +
       (H.length ? '<button type="button" class="cbtn wide" data-act="brBack" aria-label="Revenir en arrière (annuler le dernier clic)">' + icon('undo', 18) + '<span>Retour</span></button>' : '') +
@@ -377,18 +388,19 @@
     return MC.routine.html(G.rt, {
       kicker: B.nom + ' · ' + C.REVEIL.nom, color: COL,
       doneAct: 'brWarmDone', doneLabel: 'Échauffement fait',
-      after: 'Ensuite : test 1, ' + nomT(C.TESTS[0]).toLowerCase() + ' (puis les 12 tests, 2 min de repos entre deux)'
+      after: G.reste ? 'Ensuite : ' + nomT(C.TESTS[(G.reste[0] || 1) - 1]).toLowerCase() + ' (' + G.reste.length + ' test' + (G.reste.length > 1 ? 's' : '') + ' à faire, 2 min de repos entre deux)'
+        : 'Ensuite : test 1, ' + nomT(C.TESTS[0]).toLowerCase() + ' (puis les 12 tests, 2 min de repos entre deux)'
     });
   }
 
   function restView(t) {
-    var prev = C.TESTS[G.i - 2], val = prev ? valText(prev) : '';
+    var prev = C.TESTS[(G.prevI || G.i - 1) - 1], val = prev ? valText(prev) : '';
     var rem = G.t ? remaining() : REPOS;
     return '<div class="main single"><div class="hd"><span class="kicker" style="color:var(--rc)">Repos</span><h1>Récupère</h1><p class="lead" style="margin:0">Respire, bois un peu, marche.</p>' +
       (val ? '<div class="note gold">' + icon('check', 20) + '<span>' + esc(nomT(prev)) + ' : <b>' + esc(val) + '</b></span></div>' : '') + '</div>' +
       '<div class="right">' + ringHtml(clock(rem), 'Repos', 'rest', rem / REPOS, 'clock') +
       '<div class="grid2">' + pauseBtn() + '<button type="button" class="btn2" data-act="brRestSkip">Je suis prêt ' + icon('right', 16) + '</button></div>' +
-      '<p class="next">Prochain test : ' + t.n + '. ' + esc(nomT(t)) + '</p></div></div>';
+      '<p class="next">Prochain test : ' + (G.reste ? '' : t.n + '. ') + esc(nomT(t)) + '</p></div></div>';
   }
 
   function testView() {
@@ -397,7 +409,7 @@
     var an = (isSm(t) && ANIM_SM[t.id]) || ANIM[t.id];
     var focus = ph === 'count3' || ph === 'run';
     var essai = ph !== 'elas' && c.essais[G.e] ? c.essais[G.e] : '';
-    var hd = '<div class="hd"><span class="kicker" style="color:var(--rc)">' + (G.solo ? (G.duJour ? 'Record du jour' : 'Je tente mon record') : 'Test ' + t.n + ' / ' + NB) + (isSm(t) ? ' · version SM' : '') + '</span><h1>' + esc(nomT(t)) + '</h1>' +
+    var hd = '<div class="hd"><span class="kicker" style="color:var(--rc)">' + (G.solo ? (G.duJour ? 'Record du jour' : 'Je tente mon record') : 'Test ' + rang(t.n) + ' / ' + nbTests()) + (isSm(t) ? ' · version SM' : '') + '</span><h1>' + esc(nomT(t)) + '</h1>' +
       (essai ? '<span class="hud" style="color:var(--ink)">' + esc(essai) + '</span>' : '') +
       (G.solo && !focus && recordDe(t) ? '<span class="hud" style="color:var(--gold)">Ton record : ' + esc(fmt(t, recordDe(t).valeur)) + '</span>' : '') + (focus ? '' : ui.infoBtn(MC.fiche.key.test(t.id, isSm(t)), nomT(t), commentT(t))) + '</div>';
     var left = focus ? '' : ui.demoHtml({ anim: an, video: videoFor(an), color: COL, label: nomT(t) }) + '<p class="small" style="margin:0">' + esc(commentT(t)) + '</p>';
@@ -504,7 +516,7 @@
   }
   function soloSend() {
     var t = test(), st0 = app.S.stats, av = recordDe(t), g = G;
-    g.avant = av ? av.valeur : null; g.xp0 = st0 ? st0.xp : 0; g.phase = 'send'; g.err = ''; g.limite = false;
+    g.avant = av ? av.valeur : null; g.xp0 = st0 ? st0.xp : 0; g.bc0 = st0 ? st0.bilansComplets || 0 : 0; g.phase = 'send'; g.err = ''; g.limite = false;
     persist(); repaint();
     app.kidCall('submitRecords', { bilan: 'defi', tentative: true, valeurs: [{ test: t.id, valeur: g.res.valeur, extra: g.res.extra }], avecDossier: true }).then(function (r) {
       var rec = (r.records || [])[0] || {};
@@ -513,6 +525,7 @@
       return app.loadMe(true);
     }).then(function () {
       g.xp = Math.max(0, ((app.S.stats && app.S.stats.xp) || 0) - g.xp0); g.phase = 'fete';
+      g.complet = ((app.S.stats && app.S.stats.bilansComplets) || 0) > g.bc0;   // (v75) la 12e épreuve du cycle
       if (G === g) { persist(); repaint(); window.scrollTo(0, 0); }
       return chargerPlace(g);
     }).catch(function (e) {
@@ -556,6 +569,7 @@
       '<div class="head" style="text-align:center;align-items:center"><span class="kicker" style="color:var(--gold)">' + esc(nomT(t)) + '</span><h1 class="big md">' + titre + '</h1></div>' +
       '<div class="tn-val" data-res>' + ui.valHtml(v, t.unite, t.decimales) + '</div>' +
       '<p class="lead" style="margin:0;text-align:center">' + esc(txt) + '</p>' + pl +
+      (G.complet ? '<div class="note gold" data-complet>' + icon('trophy', 20) + '<span><b>Bilan complet !</b> Les 12 épreuves de ce cycle sont faites : +' + C.XP.bilanComplet + ' XP.</span></div>' : '') +
       (G.xp ? '<div class="reward" style="align-self:center;min-width:140px"><span class="v">+' + G.xp + '</span><span class="l">XP</span></div>' : '') +
       '<div class="sec">' + fin + '</div></div>';
   }
@@ -635,10 +649,10 @@
   }
 
   function finView() {
-    var vals = MC.bilan.values(me());
+    var vals = MC.bilan.values(me()), bc = L.bilanCycle(me().records, G.n);
     var list = C.TESTS.map(function (t, k) {
-      var tx = valText(t);
-      return '<li class="li"><span class="grow"><span class="t1">' + t.n + '. ' + esc(nomT(t)) + '</span><span class="t2" style="color:' + (tx ? 'var(--soft)' : 'var(--dim)') + '">' + esc(tx || 'pas fait') + '</span></span>' +
+      var tx = valText(t), cs = bc.cases[t.id], dc = !tx && cs ? 'fait ce cycle : ' + fmt(t, (cs.ok || cs.att).valeur) : '';
+      return '<li class="li"><span class="grow"><span class="t1">' + t.n + '. ' + esc(nomT(t)) + '</span><span class="t2" style="color:' + (tx || dc ? 'var(--soft)' : 'var(--dim)') + '">' + esc(tx || dc || 'pas fait') + '</span></span>' +
         '<button type="button" class="btn2 sm grey" data-act="brGoto" data-i="' + (k + 1) + '">' + (tx ? 'Refaire' : 'Faire') + '</button></li>';
     }).join('');
     return '<div class="main single"><div class="hd"><span class="kicker" style="color:var(--rc)">Bilan terminé</span><h1>Bravo !</h1>' +

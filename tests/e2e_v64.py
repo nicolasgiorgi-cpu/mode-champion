@@ -11,6 +11,7 @@ with sync_playwright() as p:
     b = p.chromium.launch(); ctx = b.new_context(viewport={'width': W, 'height': H}, is_mobile=W < 700, has_touch=True); pg = ctx.new_page()
     pg.add_init_script('window.__MC_QUIET=1'); pg.on('pageerror', lambda e: errs.append(str(e)))
     ev = pg.evaluate
+    pg.clock.set_fixed_time('2026-11-12T10:00:00')   # (v75, relecture) la démo est créée au 12/11, quelle que soit la date réelle
     pg.goto(BASE + '#/connexion'); ev('localStorage.clear()'); pg.reload(); pg.wait_for_timeout(700)
     pg.click('.kidbtn:has-text("TOM")'); pg.wait_for_timeout(350)
     for c in '2580': pg.click('[data-k="%s"] >> visible=true' % c); pg.wait_for_timeout(40)

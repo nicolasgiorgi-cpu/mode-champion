@@ -139,7 +139,9 @@ with sync_playwright() as p:
     t = pg.inner_text('main')
     # (v70) confiance par défaut : seul un exploit attend un adulte
     check('records : l\'exploit à part, « un adulte doit le confirmer »', 'Exploit :' in t and 'un adulte doit le confirmer' in t, t[:300])
-    check('records : le bouton du bilan dit où on en est', bool(re.search(r'Saisir mon|Compléter mon|envoyé|fait', pg.inner_text('a[href="#/bilan"]'), re.I)), pg.inner_text('a[href="#/bilan"]'))
+    # (v75) à partir du cycle 2 (16/11), « Mon bilan N » en haut : « Finir mon bilan », « Lancer mon bilan » ou « Bilan complet »
+    bt = pg.inner_text('.bilcy') if pg.query_selector('.bilcy') else pg.inner_text('a[href="#/bilan"]')
+    check('records : le bilan dit où on en est', bool(re.search(r'Saisir mon|Compléter mon|envoyé|fait|Finir mon bilan|Lancer mon bilan|Bilan complet', bt, re.I)), bt)
     go(pg, '#/classement', 1000)
     pg.click('.seg3 button[data-v="rec"]'); pg.wait_for_timeout(400)   # (v73) les podiums par épreuve : 3e classement (Records)
     # (v68) les podiums : les réglages repliés sous une ligne, au-dessus de la liste

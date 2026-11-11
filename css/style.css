@@ -2094,3 +2094,10 @@ section.rdj .lnk{min-height:44px}
 .tn-tro{position:relative;color:var(--gold);display:flex;animation:pop .6s cubic-bezier(.2,1.6,.4,1) both}
 .tn-val{text-align:center;font:700 44px/1 var(--f-hud);color:var(--gold)}
 .tn-val small{font-size:18px}
+/* (v75, lot E4) le bilan qui se remplit : en haut de Progrès › Records */
+.bilcy{gap:8px}
+.bilseg{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:3px}
+.bilseg i{height:8px;background:#1E2740}
+.bilseg i.on{background:var(--gold)}
+.bilcy-a{gap:14px;flex-wrap:wrap;align-items:center}
+.epc-tag.afaire{color:var(--dim)}

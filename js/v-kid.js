@@ -197,7 +197,7 @@
     for (var i = 0; i < 6; i++) seg += '<i class="' + (wk.filled[i] ? 'on' : '') + '"></i>';
 
     var props = st.proposals.length ? '<div class="note pink">' + icon('up', 22) + '<div style="flex:1"><b>Changement de niveau possible</b><div class="small" style="color:var(--soft);margin-top:3px">' + st.proposals.map(function (p) { return esc(C.CLES[p.cle].nom) + ' : N' + p.de + ' → N' + p.a; }).join(' · ') + '</div></div><a class="btn2 sm pink" href="#/niveaux">Voir</a></div>' : '';
-    var noBilan = !(me.records || []).some(function (r) { return r.bilan !== 'defi'; });
+    var blc = L.currentBilan(), noBilan = !(me.records || []).some(function (r) { return r.bilan !== 'defi'; }) && !(blc.n >= L.GRILLE_DEPUIS && L.bilanCycle(me.records, blc.n).faits);   // (v75) la grille remplie par les records du jour compte
     var bilanNote = noBilan && !(MC.accueil && MC.accueil.kidChecklistShown(me)) ? '<div class="note gold">' + icon('trophy', 22) + '<div style="flex:1"><b>Pas encore de bilan ? Pas grave.</b><div class="small" style="color:var(--soft);margin-top:3px">Tu t\'entraînes déjà, au niveau 1. Ton bilan (12 tests avec un adulte) réglera ensuite chaque exercice pile pour toi.</div></div><a class="btn2 sm gold" href="#/bilan">Le bilan</a></div>' : '';
     var pend = (me.records || []).filter(function (r) { return r.statut === 'attente'; }).length;
     // (v70) confiance par défaut : seuls les exploits (et les anciens résultats) attendent un adulte

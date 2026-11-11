@@ -137,10 +137,14 @@ MC.logic = (function () {
     (records || []).forEach(function (r) { if (String(r.bilan) === String(bilan) && r.statut !== 'refuse') out[r.test] = r; });
     return out;
   }
+  // (v75, lot E4) le bilan en cours = celui du cycle en cours (le bilan n clôt le cycle n ; avant le cycle 1, le bilan 0) :
+  // il se remplit pendant tout le cycle, il n'a plus de date à attendre
   function currentBilan() {
-    var t = today(), list = CFG.BILANS, cur = list[0];
-    for (var i = 0; i < list.length; i++) if (addDays(list[i].date, -10) <= t) cur = list[i];
-    return cur;
+    var t = today(), list = CFG.BILANS, cy = CFG.CYCLES;
+    if (!cy || !cy.length || t < cy[0].debut) return list[0];
+    var n = cycleAt(t).n;
+    for (var i = 0; i < list.length; i++) if (list[i].n === n) return list[i];
+    return list[list.length - 1];
   }
   function nextBilan() {
     var t = today(), list = CFG.BILANS;
@@ -217,7 +221,7 @@ MC.logic = (function () {
       (data.journal || []).forEach(function (j) {
         if (!j.data) return;
         if ((j.type === 'niveau' || j.type === 'niveau_refus') && j.data.cle === cle && j.cree > last) last = j.cree;
-        if (j.type === 'bilan_niveaux' && j.cree > last) last = j.cree;
+        if (j.type === 'bilan_niveaux' && j.cree > last && (!j.data.niveaux || j.data.niveaux[cle] !== undefined)) last = j.cree;   // (v75) seulement les clés de cet envoi
       });
       var ses = (data.seances || []).filter(function (s) { return s.cree > last; }).sort(function (a, b) { return a.cree < b.cree ? 1 : -1; });
       var feels = [];
@@ -390,6 +394,10 @@ MC.logic = (function () {
       if (best[k] === undefined || better(t, r.valeur, best[k])) best[k] = r.valeur;
     });
     xp += Object.keys(jourTente).length * (X.tentative || 0);
+    // (v75, lot E4) un bilan complet : les 12 épreuves faites dans un cycle (une fois par cycle)
+    var bilansComplets = 0;
+    (CFG.CYCLES || []).forEach(function (cy) { if (cy.n >= GRILLE_DEPUIS && cy.debut <= today() && bilanCycle(data.records, cy.n).faitsOk >= C.TESTS.length) bilansComplets++; });
+    xp += bilansComplets * (X.bilanComplet || 0);
     var sk = streaks(W, seances);
     var st = { totalStars: totalStars, perfectWeeks: perfectWeeks, maison: maison, bestStreak: sk.best, firstDate: firstDate, firstPerfect: firstPerfect };
     var badges = badgesOf(data, W, st);
@@ -400,7 +408,7 @@ MC.logic = (function () {
     var bd = board(W, cy);
     var thisWeek = weekInfo(W, monday(today()));
     return {
-      W: W, xp: xp, grade: gradeOf(xp), stars: totalStars, streak: sk.cur, bestStreak: sk.best, maison: maison,
+      W: W, xp: xp, bilansComplets: bilansComplets, grade: gradeOf(xp), stars: totalStars, streak: sk.cur, bestStreak: sk.best, maison: maison,
       perfectWeeks: perfectWeeks, badges: badges, nbBadges: nbBadges, recordsBattus: recordsBattus,
       cycle: cy, board: bd, week: thisWeek, niveaux: (data.joueur && data.joueur.niveaux) || {},
       bests: bests(data.records, {}), bestsOk: bests(data.records, { confirmed: true }),
@@ -522,6 +530,48 @@ MC.logic = (function () {
     return keep;
   }
 
+  // ---------- (v75, lot E4) le bilan qui se remplit ----------
+  // Le bilan d'un cycle n : pour chaque épreuve, le meilleur des lignes « bilan n » et des tentatives (défis) datées dans
+  // le cycle ; un résultat retiré par la famille ne compte pas ; un exploit en attente remplit sa case (à part, en attente).
+  // Pas de nouvelle table : tout se calcule à partir des records. Décision de Nicolas : validé le 10/11.
+  // La grille démarre avec le cycle 2 (16/11/2026) : le Bilan 1 clôt le cycle 1 avant que le record du jour existe (revue du 09/11)
+  var GRILLE_DEPUIS = 2, EPREUVE = {};
+  C.TESTS.forEach(function (t) { EPREUVE[t.id] = 1; });
+  function cycleDef(n) {
+    var list = CFG.CYCLES || [];
+    for (var i = 0; i < list.length; i++) if (list[i].n === n) return cycleAt(list[i].debut);
+    return null;
+  }
+  function bilanCycle(records, n) {
+    var c = cycleDef(n), cases = {}, faits = 0;
+    (records || []).forEach(function (r) {
+      if (r.statut === 'refuse') return;
+      var t = testDef(r.test);
+      if (!t || !EPREUVE[r.test]) return;   // (relecture) les 12 épreuves du bilan seulement (pas le défi Meafou)
+      if (!(String(r.bilan) === String(n) || (n >= GRILLE_DEPUIS && r.bilan === 'defi' && c && r.date >= c.debut && r.date <= c.fin))) return;
+      var cs = cases[r.test] = cases[r.test] || { ok: null, att: null }, k = r.statut === 'ok' ? 'ok' : 'att';
+      if (!cs[k] || (isSm(cs[k]) === isSm(r) ? better(t, Number(r.valeur), Number(cs[k].valeur)) : !isSm(r))) cs[k] = r;
+    });
+    var faitsOk = 0;
+    Object.keys(cases).forEach(function (k) { faits++; if (cases[k].ok) faitsOk++; });
+    // faitsOk : les cases qui comptent déjà (un exploit en attente remplit sa case, mais ses XP attendent la confirmation)
+    return { n: n, cycle: c, cases: cases, faits: faits, faitsOk: faitsOk, tot: C.TESTS.length };
+  }
+  // les bilans de la saison, une ligne par épreuve et par bilan : le bilan 0 tel quel, puis chaque cycle commencé
+  // (pour « Ma progression » et le suivi des éducs : une valeur par épreuve et par cycle)
+  function recordsParCycle(records) {
+    var out = (records || []).filter(function (r) { return String(r.bilan) === '0' && r.statut !== 'refuse'; }), t = today();
+    (CFG.CYCLES || []).forEach(function (cy) {
+      if (cy.debut > t) return;
+      var B = bilanCycle(records, cy.n);
+      Object.keys(B.cases).forEach(function (id) {
+        var cs = B.cases[id], r = cs.ok || cs.att;
+        out.push({ id: r.id, joueurId: r.joueurId, bilan: String(cy.n), test: id, valeur: r.valeur, extra: r.extra || null, statut: cs.ok ? 'ok' : r.statut, exploit: r.exploit || '', date: r.date, cree: r.cree });
+      });
+    });
+    return out;
+  }
+
   // ---------- (v74, lot E3) le record du jour ----------
   // Une épreuve par jour de séance à la maison, liée au thème du jour (lundi le haut du corps, mardi l'explosivité,
   // mercredi le cardio, jeudi les jambes) ; les 12 épreuves tournent en 4 semaines. Décisions de Nicolas (10/11) :
@@ -543,7 +593,11 @@ MC.logic = (function () {
   function recordDuJour(records, jour) {
     var d = jour || today(), type = C.SEMAINE[dow(d)], l = DU_JOUR[type];
     if (!l) return null;
-    var k = Math.floor(daysBetween('2026-01-05', monday(d)) / 7), id = l[((k % l.length) + l.length) % l.length];
+    var k = Math.floor(daysBetween('2026-01-05', monday(d)) / 7), i0 = ((k % l.length) + l.length) % l.length, rot = l.slice(i0).concat(l.slice(0, i0));
+    // (v75, lot E4) d'abord une épreuve du thème pas encore faite dans le cycle : le bilan se remplit en 4 semaines.
+    // Le choix ne regarde que ce qui était fait avant aujourd'hui, pour ne pas changer d'épreuve dans la journée.
+    var avant = (records || []).filter(function (r) { return r.date < d; }), cn = cycleAt(d).n, fait = cn >= GRILLE_DEPUIS ? bilanCycle(avant, cn).cases : {};
+    var id = rot.filter(function (x) { return !fait[x]; })[0] || rot[0];
     return { test: id, type: type, etat: peutTenter(records, id, d) };
   }
 
@@ -578,6 +632,7 @@ MC.logic = (function () {
     levelFromTest: levelFromTest, levelsFromBilan: levelsFromBilan, proposals: proposals, compute: compute, gradeOf: gradeOf,
     niveau: niveau, dayLevel: dayLevel, league: league, progresMois: progresMois, regularite: regularite, podiumVoisins: podiumVoisins,
     recordDuJour: recordDuJour, peutTenter: peutTenter, tentativesDu: tentativesDu, DU_JOUR: DU_JOUR, TENTATIVES_JOUR: TENTATIVES_JOUR,
+    bilanCycle: bilanCycle, recordsParCycle: recordsParCycle, cycleDef: cycleDef, GRILLE_DEPUIS: GRILLE_DEPUIS,
     _setToday: function (d) { fakeToday = d; }
   };
 })();
