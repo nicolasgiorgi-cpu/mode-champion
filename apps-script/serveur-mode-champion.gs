@@ -153,7 +153,9 @@ var Core = (function () {
       ['date', 's'], ['occasion', 's'], ['evenementId', 's'], ['retire', 'b'], ['cree', 's']],
     // (v36) un « bravo » d'un éduc à un enfant pour une séance de prépa faite : un par éduc et par séance, un mot facultatif
     // (ajouté après coup) ; retire = donné par erreur. Pas d'XP : c'est un encouragement, pas une récompense.
-    bravos: [['id', 's'], ['joueurId', 's'], ['seanceId', 's'], ['mot', 's'], ['parQui', 's'], ['parNom', 's'], ['retire', 'b'], ['cree', 's'], ['maj', 's']],
+    bravos: [['id', 's'], ['joueurId', 's'], ['seanceId', 's'], ['mot', 's'], ['parQui', 's'], ['parNom', 's'], ['retire', 'b'], ['cree', 's'], ['maj', 's'],
+      // (E5) de : 'p' pour le bravo d'un copain (un mot tout prêt), vide pour un éduc
+      ['de', 's']],
     // les missions créées par les éducs : pour le groupe (video : une vidéo + des questions ; qcm) ou individuelles
     // (etoile : décrocher une étoile précise, pour un enfant). statut : active, faite (étoile validée), retiree
     defmissions: [['id', 's'], ['sorte', 's'], ['titre', 's'], ['texte', 's'], ['video', 's'], ['questions', 'j'], ['joueurId', 's'], ['domaine', 's'],
@@ -341,7 +343,7 @@ var Core = (function () {
   }
   // (v36) un bravo : l'éduc qui l'a donné (parQui) seulement pour les éducs
   function pubBravo(x, full) {
-    var o = { id: x.id, joueurId: x.joueurId, seanceId: x.seanceId || '', mot: x.mot || '', parNom: x.parNom || '', cree: x.cree || '', maj: x.maj || x.cree || '' };
+    var o = { id: x.id, joueurId: x.joueurId, seanceId: x.seanceId || '', mot: x.mot || '', parNom: x.parNom || '', cree: x.cree || '', maj: x.maj || x.cree || '', de: x.de === 'p' ? 'p' : 'e' };
     if (full) o.parQui = x.parQui || '';
     return o;
   }
@@ -1444,6 +1446,85 @@ var Core = (function () {
       return { bravos: out, nouveaux: faits.filter(function (f) { return f.nouveau; }).length };
     }
   };
+  // ======================================================================
+  // (E5) L'équipe vivante : ce que font les copains ces 7 derniers jours, et le bravo entre enfants
+  // (décisions de Nicolas : le progrès, jamais le score ; le drapeau « visible » respecté ; un bravo d'enfant = un mot tout prêt, sans texte libre)
+  // ======================================================================
+  var FIL_JOURS = 7, BRAVOS_ENFANT_JOUR = 30;
+  var MOTS_ENFANTS = ['Trop balèze !', 'Bien joué !', 'La classe !', 'Respect !', 'Énorme !', 'Continue comme ça !', 'Tu gères !', 'Quelle séance !',
+    'Allez, on lâche rien !', 'Trop bien !', 'Impressionnant !', 'Une vraie machine !', 'Top !', 'Chapeau !', 'Waouh !', 'Tu progresses !',
+    'Super effort !', 'Tu assures !', 'Grosse séance !', 'Tu nous motives !', 'Quelle régularité !', 'Allez l\'équipe !', 'Bravo !',
+    'Trop stylé !', 'Au top !', 'Tu m\'impressionnes !', 'Solide !', 'En forme !', 'Belle série !', 'Rien ne t\'arrête !'];
+  function equipeVisible(ctx, me) {
+    var gens = {};
+    ctx.db.rows('joueurs').forEach(function (j) { if (j.actif && (j.visible || j.id === me.id)) gens[j.id] = j; });
+    return gens;
+  }
+  A.equipe = {
+    auth: ['p'],
+    run: function (req, ctx) {
+      var me = ctx.auth.row, depuis = isoDate(ctx.now - FIL_JOURS * DAY), gens = equipeVisible(ctx, me), vues = {};
+      var out = { joueurs: [], seances: [], progres: [], bravos: [], mots: MOTS_ENFANTS };
+      Object.keys(gens).forEach(function (id) { var j = gens[id]; out.joueurs.push({ id: j.id, prenom: j.prenom, couleur: j.couleur || '' }); });
+      ctx.db.rows('seances').forEach(function (s) {
+        if (!gens[s.joueurId] || !(s.date >= depuis)) return;
+        vues[s.id] = 1;
+        out.seances.push({ id: s.id, joueurId: s.joueurId, type: s.type, date: s.date, cree: s.cree || '', match: !!(s.details && s.details.match) });
+      });
+      // le progrès : un record battu ces 7 jours (un résultat qui compte), l'écart avec son record d'avant ; jamais la valeur
+      var parT = {};
+      ctx.db.rows('records').forEach(function (r) {
+        if (!gens[r.joueurId] || r.statut !== 'ok' || !EPREUVES[r.test]) return;
+        var k = r.joueurId + '|' + r.test + '|' + (r.extra && r.extra.sm ? 1 : 0);
+        (parT[k] = parT[k] || []).push(r);
+      });
+      Object.keys(parT).forEach(function (k) {
+        var l = parT[k].sort(function (a, b) { return (a.date + a.cree) < (b.date + b.cree) ? -1 : 1; }), moins = !!EPREUVES[l[0].test][1], best = null;
+        l.forEach(function (r) {
+          var v = Number(r.valeur);
+          if (!isFinite(v)) return;
+          var mieux = best === null || (moins ? v < best : v > best);
+          if (best !== null && mieux && r.date >= depuis) out.progres.push({ id: r.id, joueurId: r.joueurId, test: r.test, sm: !!(r.extra && r.extra.sm), gain: Math.round(Math.abs(v - best) * 10) / 10, date: r.date, cree: r.cree || '' });
+          if (mieux) best = v;
+        });
+      });
+      // les bravos de ces séances : tous comptés ; le nom et le mot seulement pour les siens (donnés ou reçus)
+      ctx.db.rows('bravos').forEach(function (b) {
+        if (b.retire || !vues[b.seanceId]) return;
+        var lui = b.parQui === me.id || b.joueurId === me.id;
+        out.bravos.push({ seanceId: b.seanceId, de: b.de === 'p' ? 'p' : 'e', moi: b.parQui === me.id, parNom: lui ? b.parNom || '' : '', mot: lui ? b.mot || '' : '' });
+      });
+      return out;
+    }
+  };
+  // le bravo d'un enfant à un copain : un mot tout prêt (jamais de texte libre), sur une séance de ces 7 jours ; un par séance (le 2e geste change le mot)
+  A.bravoCopain = {
+    auth: ['p'],
+    run: function (req, ctx) {
+      var me = ctx.auth.row, s = find(ctx.db.rows('seances'), String(req.seanceId || ''));
+      if (!s) fail('introuvable', 'Séance introuvable.');
+      if (s.joueurId === me.id) fail('interdit', 'Un bravo, c\'est pour les copains !');
+      var j = equipeVisible(ctx, me)[s.joueurId];
+      if (!j) fail('introuvable', 'Séance introuvable.');
+      if (!(s.date >= isoDate(ctx.now - FIL_JOURS * DAY))) fail('invalide', 'Cette séance date d\'il y a plus d\'une semaine.');
+      var mot = String(req.mot || '');
+      if (MOTS_ENFANTS.indexOf(mot) < 0) fail('invalide', 'Choisis un des mots proposés.');
+      var auj = isoDate(ctx.now), now = isoNow(ctx.now), ex = null, n = 0;
+      ctx.db.rows('bravos').forEach(function (b) {
+        if (b.parQui !== me.id || b.retire) return;
+        if (b.seanceId === s.id) ex = b;
+        if (isoDate(Date.parse(b.cree)) === auj) n++;
+      });
+      if (ex) {
+        if (ex.mot !== mot) ctx.db.update('bravos', ex.id, { mot: mot, maj: now });
+        return { bravo: pubBravo(find(ctx.db.rows('bravos'), ex.id), false), nouveau: false };
+      }
+      if (n >= BRAVOS_ENFANT_JOUR) fail('limite', 'Déjà ' + BRAVOS_ENFANT_JOUR + ' bravos aujourd\'hui : reviens demain !');
+      var row = { id: genId(ctx.env), joueurId: j.id, seanceId: s.id, mot: mot, parQui: me.id, parNom: me.prenom, retire: false, cree: now, maj: now, de: 'p' };
+      ctx.db.insert('bravos', row);
+      return { bravo: pubBravo(row, false), nouveau: true };
+    }
+  };
   // retirer un bravo donné par erreur : son auteur, ou l'admin
   A.retirerBravo = {
     auth: ['e'],
@@ -2482,6 +2563,12 @@ var Core = (function () {
         alerter(ctx, { r: 'p', qui: j.id, sujet: j.id + '-mot', lien: '#/semaine?c=bravos' }, 'bravo', '💬 ' + nom + ' t\'a laissé un mot ' + pourSeance(s, true) + '.');
       }
     },
+    // (E5) le bravo d'un copain : l'enfant (le prénom du copain, jamais le mot) ; sa propre étiquette, à part de celle des éducs
+    bravoCopain: function (req, ctx, res) {
+      var b = res.bravo, s = b ? find(ctx.db.rows('seances'), b.seanceId) : null;
+      if (!s || !res.nouveau) return;
+      alerter(ctx, { r: 'p', qui: s.joueurId, sujet: s.joueurId + '-copains', lien: '#/semaine?c=bravos' }, 'bravo', '👏 ' + ctx.auth.row.prenom + ' te dit bravo ' + pourSeance(s, true) + ' !');
+    },
     // (v71) les bravos en série : les mêmes alertes qu'un bravo, une par enfant (la pause de 10 minutes par enfant reste)
     bravos: function (req, ctx, res) {
       var vus = {};   // (relecture v71) une alerte par enfant, même si la liste a deux de ses séances
@@ -2675,7 +2762,7 @@ var Core = (function () {
     _prenomsVoisins: prenomsVoisins, _ressemble: ressemble, _nomsConnexion: nomsConnexion,
     importPostesDepuis: function (db, env, rows) { return importPostes({ db: db, env: env, now: env.now() }, rows); },
     syncSpondDepuis: function (db, env, data) { return syncSpond({ db: db, env: env, now: env.now() }, data || {}); },
-    _diffCompo: diffCompo, _epreuves: EPREUVES, _exploitBond: EXPLOIT_BOND, _ligueMin: LIGUE_MIN
+    _diffCompo: diffCompo, _motsEnfants: MOTS_ENFANTS, _epreuves: EPREUVES, _exploitBond: EXPLOIT_BOND, _ligueMin: LIGUE_MIN
   };
 })();
 

@@ -102,6 +102,13 @@ assert.strictEqual(envois.filter(m => m.token === T.tom).length, 1, 'une alerte 
     assert.strictEqual(new Set(l.map(x => x[0])).size, n, n + ' enfants : les 1ers mots (ceux de « Bravo à tous ») tous différents');
     if (n * 3 <= M.length) assert.strictEqual(new Set([].concat(...l)).size, n * 3, n + ' enfants : tous les mots de l\'écran différents');
   }
+  // un enfant qui arrive pendant la visite : son 1er mot n'est pas déjà à l'écran
+  for (let k = 0; k < 30; k++) {
+    const ecran = Array.from({ length: 20 }, (_, i) => ({ joueur: { id: 'v' + k + '-' + i }, bravos: [] })), R0 = B.repartir(ecran, 3), affiches = {};
+    Object.keys(R0).forEach(id => R0[id].forEach(m => { affiches[m] = 1; }));
+    const nouveau = { joueur: { id: 'n' + k }, bravos: [] }, Rn = B.repartir([nouveau], 3, affiches)[nouveau.joueur.id];
+    assert.ok(!affiches[Rn[0]], 'le 1er mot du nouveau n\'est pas déjà affiché');
+  }
   // pas un mot qu'il vient de recevoir (les 3 proposés, marqués reçus, ne reviennent pas)
   const p0 = { joueur: { id: 'jx' }, bravos: [] }, avant = B.motsPour(p0, 3);
   p0.bravos = avant.map((m, i) => ({ mot: m, cree: '2026-11-1' + i }));

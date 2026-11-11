@@ -41,7 +41,7 @@
       if (e.r) {
         var t = L.testDef(x.test) || { court: x.test, unite: '' }, nom = x.sm && t.sm ? t.sm.nom : t.court;
         var g = t.moinsMieux ? ui.fmtVal(x.gain, t.unite, t.decimales) + ' plus rapide' : '+' + ui.fmtVal(x.gain, t.unite, t.decimales);
-        return '<li class="li eqli rec">' + dot + '<span class="grow"><span class="t1">' + qui + (moi ? ' : ton record' : ' bat son record') + '</span><span class="t2">' + esc(nom) + ' · <b style="color:var(--green)">' + esc(g) + '</b> · ' + esc(quand(x.cree, x.date)) + '</span></span>' + icon('trophy', 18, 'style="color:var(--gold);flex:none"') + '</li>';
+        return '<li class="li eqli eqrec">' + dot + '<span class="grow"><span class="t1">' + qui + (moi ? ' : ton record' : ' bat son record') + '</span><span class="t2">' + esc(nom) + ' · <b style="color:var(--green)">' + esc(g) + '</b> · ' + esc(quand(x.cree, x.date)) + '</span></span>' + icon('trophy', 18, 'style="color:var(--gold);flex:none"') + '</li>';
       }
       var bv = parS[x.id] || [], mien = bv.filter(function (b) { return b.moi; })[0], n = bv.length;
       var compte = n ? '<span class="eqn" aria-label="' + n + ' bravo' + (n > 1 ? 's' : '') + '">👏 ' + n + '</span>' : '';

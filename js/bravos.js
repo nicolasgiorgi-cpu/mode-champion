@@ -34,8 +34,10 @@
     return { l: l, recus: recus };
   }
   // (relecture v71) pour tout l'écran : le 1er mot de chacun d'abord (tous différents jusqu'à 54 enfants), puis le 2e, puis le 3e
-  function repartir(ps, n) {
+  // deja : les mots déjà à l'écran (un enfant qui arrive pendant la visite ne reprend pas le 1er mot d'un autre)
+  function repartir(ps, n, deja0) {
     var pris = {}, out = {}, O = {};
+    Object.keys(deja0 || {}).forEach(function (m) { pris[m] = 1; });
     ps.forEach(function (p) { O[p.joueur.id] = ordreMots(p); out[p.joueur.id] = []; });
     for (var k = 0; k < n; k++) {
       ps.forEach(function (p) {
@@ -204,7 +206,11 @@
       });
       a.forEach(function (x) { if (par[x.p.joueur.id]) { l.push(x); BV.ordre.push(x.p.joueur.id); } });
       var neufs = l.filter(function (x) { return !BV.mots[x.p.joueur.id]; }).map(function (x) { return x.p; });
-      if (neufs.length) { var R = repartir(neufs, 3); Object.keys(R).forEach(function (id) { BV.mots[id] = R[id]; }); }
+      if (neufs.length) {
+        var affiches = {};
+        Object.keys(BV.mots).forEach(function (k) { BV.mots[k].forEach(function (m) { affiches[m] = 1; }); });
+        var R = repartir(neufs, 3, affiches); Object.keys(R).forEach(function (id) { BV.mots[id] = R[id]; });
+      }
       var reste = l.filter(function (x) { return !BV.faits[x.p.joueur.id]; });
       var tous = reste.length > 1 ? '<button type="button" class="btn gold" data-act="bvTous">👏 Bravo à tous (' + reste.length + ')</button>' : '';
       return '<main class="screen">' + MC.educBar(g, 'Bravos', '#/educ/progres', 'Prépa physique') +
@@ -236,7 +242,9 @@
     }).then(function (v) {
       var mot = v && String(v.mot || '').replace(/\s+/g, ' ').trim();
       if (!mot) return;
-      return envoyer([{ seanceId: sid, mot: mot }]).then(function () { ui.toast('👏 Bravo envoyé à ' + p.joueur.prenom); app.rerender(); }, function (e) { ui.toast(e.message, true); });
+      var l2 = document.querySelector('.bvk[data-j="' + jid + '"]');
+      if (l2) l2.classList.add('wait');   // (relecture v71) la ligne attend aussi pendant l'envoi du mot écrit
+      return envoyer([{ seanceId: sid, mot: mot }]).then(function () { ui.toast('👏 Bravo envoyé à ' + p.joueur.prenom); app.rerender(); }, function (e) { if (l2) l2.classList.remove('wait'); ui.toast(e.message, true); });
     });
   };
   MC.act.bvTous = function (b) {
