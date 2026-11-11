@@ -988,9 +988,15 @@ var Core = (function () {
       var ids = {};
       players.forEach(function (j) { ids[j.id] = true; });
       var recs = ctx.db.rows('records').filter(function (r) { return ids[r.joueurId] && (r.statut === 'ok' || mine[r.joueurId]); });
+      // (v73, E5) le podium « Régularité » des enfants : les séances des 4 dernières semaines (le type et le jour,
+      // rien d'autre) ; les parents et les éducs n'en ont pas besoin (relecture)
+      var depuis = isoDate(ctx.now - 34 * DAY);
+      var seances = ctx.auth.r !== 'p' ? [] : ctx.db.rows('seances').filter(function (s) { return ids[s.joueurId] && s.date >= depuis; })
+        .map(function (s) { return { joueurId: s.joueurId, type: s.type, date: s.date }; });
       return {
         joueurs: players.map(function (j) { return { id: j.id, prenom: j.prenom, couleur: j.couleur, niveaux: j.niveaux || {}, materiel: j.materiel || 'complet' }; }),
-        records: recs.map(pubRecord)
+        records: recs.map(pubRecord),
+        seances: seances
       };
     }
   };

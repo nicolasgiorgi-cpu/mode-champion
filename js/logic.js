@@ -457,6 +457,68 @@ MC.logic = (function () {
     return { lo: lo, hi: hi, myLv: myLv, rows: list, sm: mySm, test: t };
   }
 
+  // (v73, lot E5) les podiums de toute l'équipe (n'importe qui peut gagner) ; rang partagé en cas d'égalité
+  function rangs(rows, cle) {
+    var rank = 0, prev = null;
+    rows.forEach(function (r, i) { var v = cle(r); if (v !== prev) rank = i + 1; prev = v; r.rank = rank; });
+    return rows;
+  }
+  // Progrès du mois : le nombre de fois où il a battu son record ces 30 derniers jours (résultats qui comptent,
+  // comme « Ça bouge ») ; à égalité, le plus gros progrès en pourcentage (sur chaque épreuve, du repère à son
+  // meilleur du mois, additionnés). Un 1er résultat n'est pas un progrès.
+  function progresMois(L, jour) {
+    var depuis = addDays(jour || today(), -30), par = {};
+    (L.records || []).forEach(function (r) {
+      if (r.statut !== 'ok' || !testDef(r.test)) return;
+      var k = r.joueurId + '|' + r.test + '|' + (isSm(r) ? 1 : 0);
+      (par[k] = par[k] || []).push(r);
+    });
+    var gens = {};
+    (L.joueurs || []).forEach(function (p) { gens[p.id] = { p: p, n: 0, pct: 0 }; });
+    Object.keys(par).forEach(function (k) {
+      var l = par[k], t = testDef(l[0].test), avant = null, mois = null, g = gens[l[0].joueurId];
+      if (!g) return;
+      // dans l'ordre : le meilleur d'avant le mois sert de repère ; s'il n'y en a pas, le 1er résultat du mois ;
+      // chaque résultat du mois qui bat le meilleur jusque-là est un record battu
+      l.sort(function (a, b) { return (a.date + (a.cree || '')) < (b.date + (b.cree || '')) ? -1 : 1; });
+      var n = 0;
+      l.forEach(function (r) {
+        var v = Number(r.valeur);
+        if (!isFinite(v)) return;
+        if (r.date < depuis || avant === null) { if (avant === null || better(t, v, avant)) avant = v; return; }
+        if (better(t, v, mois === null ? avant : better(t, mois, avant) ? mois : avant)) n++;
+        if (mois === null || better(t, v, mois)) mois = v;
+      });
+      if (!n) return;
+      g.n += n;
+      g.pct += avant ? Math.abs(mois - avant) / Math.abs(avant) : 1;
+    });
+    var rows = Object.keys(gens).map(function (id) { return gens[id]; }).filter(function (g) { return g.n > 0; });
+    rows.forEach(function (g) { g.pct = Math.round(g.pct * 100); });
+    rows.sort(function (a, b) { return b.n - a.n || b.pct - a.pct; });
+    return rangs(rows, function (r) { return r.n + '|' + r.pct; });
+  }
+  // Régularité : les étoiles des 4 dernières semaines (celle-ci comprise), bonus de la semaine parfaite compris
+  function regularite(L, jour) {
+    var t = jour || today(), mon0 = addDays(monday(t), -21), par = {};
+    (L.seances || []).forEach(function (s) { if (s.date >= mon0 && s.date <= t) (par[s.joueurId] = par[s.joueurId] || []).push(s); });
+    var rows = (L.joueurs || []).map(function (p) {
+      var W = weeks(par[p.id] || []), n = 0;
+      for (var w = 0; w < 4; w++) { var wi = weekInfo(W, addDays(mon0, w * 7)); n += wi.stars + (wi.bonus ? 1 : 0); }
+      return { p: p, etoiles: n };
+    }).filter(function (r) { return r.etoiles > 0; });
+    rows.sort(function (a, b) { return b.etoiles - a.etoiles; });
+    return rangs(rows, function (r) { return r.etoiles; });
+  }
+  // le podium (les rangs 1 à 3, ex aequo compris), puis « toi et tes voisins » (celui devant, toi, celui derrière) :
+  // jamais le bas du tableau. rows : les lignes classées, avec leur rang (rank) ; mi : la place de l'enfant (-1 : pas classé)
+  function podiumVoisins(rows, mi) {
+    var keep = {}, n = rows.length;
+    rows.forEach(function (r, k) { if (r.rank <= 3) keep[k] = 1; });
+    if (mi >= 0) [mi - 1, mi, mi + 1].forEach(function (k) { if (k >= 0 && k < n) keep[k] = 1; });
+    return keep;
+  }
+
   // Classement de tout le groupe sur une épreuve (vue des éducs), filtré sur un niveau (0 = tous)
   function ranking(L, testId, mode, lvFilter, sm) {
     var t = testDef(testId), cle = t.cle, vals = {}, rows = [];
@@ -486,7 +548,7 @@ MC.logic = (function () {
     slotOf: slotOf, weeks: weeks, weekInfo: weekInfo, cycleAt: cycleAt, board: board,
     testDef: testDef, isSm: isSm, better: better, bests: bests, bilanRecords: bilanRecords, currentBilan: currentBilan, nextBilan: nextBilan,
     levelFromTest: levelFromTest, levelsFromBilan: levelsFromBilan, proposals: proposals, compute: compute, gradeOf: gradeOf,
-    niveau: niveau, dayLevel: dayLevel, league: league,
+    niveau: niveau, dayLevel: dayLevel, league: league, progresMois: progresMois, regularite: regularite, podiumVoisins: podiumVoisins,
     _setToday: function (d) { fakeToday = d; }
   };
 })();

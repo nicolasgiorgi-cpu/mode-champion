@@ -54,6 +54,7 @@ with sync_playwright() as p:
     pg.click('#nav a[href="#/equipe"]'); pg.wait_for_timeout(900)
     pg.click('.stabs a[href="#/classement"]'); pg.wait_for_timeout(900)
     check('Équipe : « Podiums », onglet Équipe allumé', on_tab() == 'ÉQUIPE' and pg.inner_text('.stabs a.on').strip().upper() == 'PODIUMS' and pg.query_selector('.rkcards') is not None, on_tab())
+    pg.click('.seg3 button[data-v="rec"]'); pg.wait_for_timeout(500)   # (v73) les podiums par épreuve : 3e classement
     check('Équipe : les filtres repliés sous une ligne', pg.query_selector('details.rkf:not([open])') is not None)
     # (v69, Nicolas 11/11) « Toi » à droite du prénom : les prénoms commencent tous au même endroit
     # carte par carte (sur iPad paysage, les cartes sont sur 2 colonnes), dont la carte où se trouve l'enfant
@@ -71,6 +72,7 @@ with sync_playwright() as p:
     # (relecture) venir d'un autre onglet : les filtres repliés de nouveau
     pg.click('#nav a[href="#/profil"]'); pg.wait_for_timeout(700); pg.click('#nav a[href="#/equipe"]'); pg.wait_for_timeout(900)
     pg.click('.stabs a[href="#/classement"]'); pg.wait_for_timeout(900)
+    pg.click('.seg3 button[data-v="rec"]'); pg.wait_for_timeout(500)
     check('Équipe : revenue d\'un autre onglet, les filtres repliés', pg.query_selector('details.rkf:not([open])') is not None)
 
     # ----- Progrès : Records · Niveaux (les Skills sont fermés aux enfants en V1) -----

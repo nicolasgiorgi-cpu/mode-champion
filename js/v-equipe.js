@@ -50,10 +50,49 @@
       return '<li class="li eqli">' + dot + '<span class="grow"><span class="t1">' + qui + (moi ? ' : ta séance' : ' a fait sa séance') + '</span><span class="t2">' + t2 + '</span></span>' + btn + '</li>';
     }).join('');
   }
+  // (v73) la dernière nouvelle de l'équipe sur l'Accueil : gardée sur l'appareil, rafraîchie en fond (10 minutes au plus)
+  function cleEq(me) { return 'mc-eq:' + me.joueur.id; }
+  function garder(me, d) { app.lsSet(cleEq(me), { t: Date.now(), d: d }); }
+  function derniere(me) {
+    var c = app.lsGet(cleEq(me)), d = c && c.d;
+    if (!d || !d.joueurs) return '';
+    var noms = {}, ev = [];
+    d.joueurs.forEach(function (j) { noms[j.id] = j; });
+    var depuis = L.addDays(L.today(), -7);   // comme le fil : rien de plus vieux qu'une semaine (appli pas ouverte depuis longtemps)
+    (d.seances || []).forEach(function (s) { if (s.joueurId !== me.joueur.id && s.date >= depuis) ev.push({ t: s.cree || s.date, s: s }); });
+    (d.progres || []).forEach(function (r) { if (r.joueurId !== me.joueur.id && r.date >= depuis) ev.push({ t: r.cree || r.date, r: r }); });
+    if (!ev.length) return '';
+    ev.sort(function (a, b) { return a.t < b.t ? 1 : -1; });
+    var e = ev[0], x = e.s || e.r, j = noms[x.joueurId];
+    if (!j) return '';
+    var txt;
+    if (e.r) {
+      var t = L.testDef(x.test) || { court: x.test, unite: '' }, nom = x.sm && t.sm ? t.sm.nom : t.court;
+      txt = '<b>' + esc(j.prenom) + '</b> bat son record · ' + esc(nom) + ' ' + esc(t.moinsMieux ? ui.fmtVal(x.gain, t.unite, t.decimales) + ' plus rapide' : '+' + ui.fmtVal(x.gain, t.unite, t.decimales));
+    } else txt = '<b>' + esc(j.prenom) + '</b> a fait ' + esc(nomSeance(x));
+    return '<a class="li acc-eq" href="#/equipe"><span class="eqdot" style="--c:' + esc(j.couleur || '#38E8FF') + '"></span><span class="grow"><span class="t1">' + txt + '</span><span class="t2">L\'équipe · ' + esc(quand(x.cree, x.date)) + '</span></span>' + icon('right', 16) + '</a>';
+  }
+  // (relecture) en fond : sans indicateur d'activité, un seul appel à la fois, et seulement pour l'enfant toujours connecté
+  var enCours = false;
+  function rafraichir(me) {
+    var c = app.lsGet(cleEq(me)), id = me.joueur.id, kid = app.S.kid;
+    if (enCours || !kid || kid.joueur.id !== id || (c && Date.now() - c.t < 600000)) return;
+    enCours = true;
+    MC.api.call('equipe', { token: kid.token }, { silent: true }).then(function (d) {
+      enCours = false;
+      if (!app.S.kid || app.S.kid.joueur.id !== id) return;
+      garder(me, d);
+      var el = document.querySelector('.acc-eq-slot');
+      if (el && location.hash.indexOf('#/semaine') === 0 && app.S.me && app.S.me.joueur.id === id) el.innerHTML = derniere(me);
+    }).catch(function () { enCours = false; });
+  }
+  MC.equipe = { derniere: derniere, rafraichir: rafraichir };
+
   app.route('/equipe', function () {
     return Promise.all([app.loadMe(), app.kidCall('equipe')]).then(function (res) {
       var me = res[0], d = res[1];
       EQ.data = d;
+      garder(me, d);
       var l = fil(me, d), cache = !me.joueur.visible;
       return '<main class="screen">' + MC.kidBar(me, app.S.stats) + tabs('fil') +
         '<p class="small" style="margin:0">Les séances et les records de l\'équipe, ces 7 derniers jours.' + (cache ? '' : ' Un 👏 pour encourager les autres !') + '</p>' +
