@@ -523,7 +523,6 @@
         var ex = L.bilanRecords(me.records, B.n);
         Object.keys(ex).forEach(function (tid) {
           var r = ex[tid], td = L.testDef(tid);
-          if (!bil.date && r.date && B.n < L.GRILLE_DEPUIS) bil.date = r.date;   // (v75) à partir du cycle 2, la date du jour par défaut
           if (td && td.mmss) { bil.v[tid + '_m'] = String(Math.floor(r.valeur / 60)); bil.v[tid + '_s'] = String(Math.round(r.valeur % 60)); }
           else bil.v[tid] = String(r.valeur).replace('.', ',');
           if (td && td.sm) bil.v['sm_' + tid] = r.extra && r.extra.sm ? '1' : '0';   // (v79)
@@ -534,16 +533,14 @@
         });
         if (gardees && Object.keys(gardees).length) { Object.keys(gardees).forEach(function (k) { if (gardees[k] !== '' && gardees[k] !== undefined) bil.v[k] = gardees[k]; }); bil.nonEnvoye = true; }
     }
-    if (!bil.date && B.n < L.GRILLE_DEPUIS) {
-      var ex2 = L.bilanRecords(me.records, B.n), k2 = Object.keys(ex2)[0];
-      if (k2 && ex2[k2].date) bil.date = ex2[k2].date;
-    }
+    // (v83) la date du jour par défaut, à tous les cycles : la date choisie ne vaut que pour les tests envoyés (avant, au cycle 1,
+    // le champ reprenait la date d'un résultat déjà envoyé, et les nouveaux tests la prenaient sans qu'on la voie)
     return bil;
   }
   // date de réalisation du bilan (aujourd'hui par défaut, modifiable)
   function dateField(id) {
     var t = L.today();
-    return '<div class="sec" style="gap:6px"><label class="lab" for="' + id + '">' + icon('calendar', 14) + ' Date du bilan : le jour où tu as fait les tests</label>' +
+    return '<div class="sec" style="gap:6px"><label class="lab" for="' + id + '">' + icon('calendar', 14) + ' Date des tests que tu envoies : le jour où tu les as faits</label>' +
       '<input id="' + id + '" class="txt" type="date" max="' + t + '" min="' + L.addDays(t, -150) + '" value="' + esc(bil.date || t) + '" data-bildate></div>';
   }
   function onBilDate(e) {
