@@ -123,6 +123,17 @@ with sync_playwright() as p:
     pg.click('[data-act="cEditer"]'); pg.wait_for_timeout(600)
     check('« Modifier » : le panneau des options du plateau', pg.query_selector('details.cbopt') is not None)
     check('matchs publiés : pas de défilement de côté', noscroll())
+    # (relecture) l'entraînement suivant : « Reprendre les équipes du … » reprend B1 et B2, avec les effectifs d'aujourd'hui
+    eid = ev("""(() => { const c = MC.app.S.cache.compos.evenements.find(e => e.id === 'sp-demo-e1'), d = String(c.debut).slice(0, 10), x = new Date(d + 'T12:00:00Z'); x.setUTCDate(x.getUTCDate() + 7);
+      const F = MC.compos.fiches(MC.app.S.cache.group), ids = Object.keys(F).filter(id => F[id].actif).slice(0, 15);
+      return MC.api.call('setEvenement', { token: MC.app.S.adult.token, titre: 'Entraînement - Suite', debut: x.toISOString().slice(0, 10), presents: ids }).then(r => r.evenement.id); })()""")
+    ev("MC.loadCompos && MC.loadCompos(true)"); pg.wait_for_timeout(900)
+    pg.goto(BASE + '#/educ/compo/' + eid + '?p=matchs'); pg.wait_for_timeout(1400)
+    check('entraînement suivant : « Reprendre les équipes du … »', pg.query_selector('.ccreer [data-act="cReprise"]') is not None)
+    pg.click('.ccreer [data-act="cReprise"]'); pg.wait_for_timeout(1000)
+    rp = ev("(id => { const k = Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0 && k.indexOf(id + ':matchs') > 0); const d = JSON.parse(localStorage.getItem(k)).vs[0]; return { reg: d.reglages, ids: d.equipes.map(t => t.id) }; })('%s')" % eid)
+    check('repris : B1 et B2, comme un plateau, sans les effectifs de la dernière fois', rp['ids'] == ['B1', 'B2'] and rp['reg'].get('vue') == 'plateau' and 'tailles' not in rp['reg'], rp)
+    check('repris : « Générer une nouvelle compo » possible (pas d\'enfant en trop ni en moins)', pg.query_selector('details.cbopt [data-act="cRegen"]:not([disabled])') is not None)
 
     # ----- 3. les anciens matchs (« Équipe 1 contre Équipe 2 ») restent lisibles -----
     pg.goto(BASE + '#/educ/compo/sp-demo-e0?p=matchs'); pg.wait_for_timeout(1300)

@@ -107,6 +107,51 @@ assert.strictEqual(Hm.m1.autre, 0, 'm1 (C) en B1 sans équipe C, puis en C1 : ja
 assert.strictEqual(Hm.m0.autre, 1, 'm0 (C) en B1 alors qu\'il y avait une équipe C : hors niveau une fois');
 assert.strictEqual(Hm.m0.entrainements, 2);
 
+// (relecture) d'anciens matchs (sans vue: 'plateau') : l'historique ne change pas
+const ancien = [{ evenementId: 'e1', partie: 'matchs', statut: 'publiee', reglages: { partie: 'matchs', mode: 'niveau', format: 10 }, equipes: [{ id: 'E1', niveau: 'B', bloc: 'm1', joueurs: [{ id: 'm1', n: 'C' }] }] }];
+assert.strictEqual(K.historique(ancien, evts, M, '2026-11-11').m1.autre, 1, 'anciens matchs par niveau : joué au-dessus, comme avant');
+
+// ----- (relecture) des matchs : les niveaux se mélangent, même quand les copains sont du même niveau -----
+const N = {};
+for (let i = 0; i < 24; i++) {
+  const niv = i < 8 ? 'A' : i < 16 ? 'B' : 'C', f = fiche('n' + i, niv, niv === 'A' ? 3 : niv === 'B' ? 2 : 1, [['pilier', 'talonneur', 'troisieme-ligne', 'demi-de-melee', 'ouvreur', 'centre', 'ailier', 'ailier'][i % 8]]);
+  const base = Math.floor(i / 8) * 8; f.copains = [0, 1, 2].map(k => 'n' + (base + (i - base + 1 + k) % 8));   // 3 copains, tous de son niveau
+  N['n' + i] = f;
+}
+// des groupes tirés au sort (plaquage lié au niveau sans le suivre, 2 copains du même niveau) : sans le poids des niveaux,
+// ces deux tirages donnaient 5 Confirmés d'écart entre B1 et B2
+let graine = 0; const rnd = () => { graine = (graine * 1103515245 + 12345) % 2147483648; return graine / 2147483648; };
+const PO = ['pilier', 'pilier', 'talonneur', 'troisieme-ligne', 'troisieme-ligne', 'demi-de-melee', 'ouvreur', 'centre', 'ailier', 'ailier'];
+[162, 1216].forEach(g => {
+  graine = g; const T = {};
+  for (let i = 0; i < 24; i++) { const niv = ['A', 'B', 'B', 'C'][Math.floor(rnd() * 4)], pq = Math.max(0, Math.min(3, (niv === 'A' ? 2 : niv === 'B' ? 1.5 : 0.7) + (rnd() - 0.5) * 2)), p1 = PO[Math.floor(rnd() * PO.length)];
+    T['t' + i] = fiche('t' + i, niv, Math.round(pq), [p1]); }
+  Object.keys(T).forEach(id => { T[id].copains = Object.keys(T).filter(x => x !== id && T[x].niveau === T[id].niveau).slice(0, 2); });
+  ['postes', 'plaquage'].forEach(pr => {
+    const r = K.proposer(Object.keys(T), T, {}, { format: 10, nb: { A: 0, B: 2, C: 0 }, opts: Object.assign(OPTS(pr), { copains: 'un' }), partie: 'matchs' }, '2026-11-11');
+    const c = r.equipes.map(t => t.joueurs.filter(j => T[j.id].niveau === 'A').length), d = r.equipes.map(t => t.joueurs.filter(j => T[j.id].niveau === 'C').length);
+    assert.ok(Math.abs(c[0] - c[1]) <= 1 && Math.abs(d[0] - d[1]) <= 1, 'matchs (tirage ' + g + ', ' + pr + ') : Confirmés ' + c + ', Débutants ' + d);
+  });
+});
+// au plateau, rien ne change : pas de poids des niveaux (ce sont des équipes de niveau)
+const rp = K.proposer(Object.keys(N), N, {}, { format: 10, nb: { A: 0, B: 2, C: 0 }, opts: Object.assign(OPTS('postes'), { copains: 'un' }) }, '2026-11-11');
+const rm = K.proposer(Object.keys(N), N, {}, { format: 10, nb: { A: 0, B: 2, C: 0 }, opts: Object.assign(OPTS('postes'), { copains: 'un' }), partie: 'matchs' }, '2026-11-11');
+assert.ok(rp.equipes.length === 2 && rm.equipes.length === 2);
+
+// ----- (relecture) petits matchs : pas d'alerte « il en faut au moins 10 » ni « postes à couvrir » -----
+const petits = { reglages: { format: 10, nb: { A: 0, B: 2, C: 0 }, opts: OPTS('postes'), partie: 'matchs', vue: 'plateau' }, banc: [],
+  equipes: [{ id: 'B1', niveau: 'B', joueurs: ['n0', 'n1', 'n2', 'n3', 'n8', 'n9', 'n10', 'n11'].map(id => ({ id, poste: N[id].postesOk[0] })) },
+    { id: 'B2', niveau: 'B', joueurs: ['n4', 'n5', 'n6', 'n7', 'n12', 'n13', 'n14', 'n15'].map(id => ({ id, poste: N[id].postesOk[0] })) }] };
+let ks = K.alertes(petits, N, {}, []).map(a => a.k);
+assert.ok(ks.indexOf('effectif') < 0 && ks.indexOf('poste') < 0, 'matchs à 8 contre 8 : ' + ks);
+const plat8 = J(petits); delete plat8.reglages.partie; delete plat8.reglages.vue;
+ks = K.alertes(plat8, N, {}, []).map(a => a.k);
+assert.ok(ks.indexOf('effectif') >= 0 && ks.indexOf('poste') >= 0, 'au plateau, si : ' + ks);
+// « hors niveau » : dans des matchs sans équipe A ni C, personne ; au plateau, les A et les C
+assert.deepStrictEqual(J(K.niveauxMatch(petits)), ['B']);
+assert.strictEqual(K.stats(petits.equipes[0], N, 10, K.niveauxMatch(petits)).passerelles, 0, 'matchs : pas hors niveau');
+assert.strictEqual(K.stats(plat8.equipes[0], N, 10, K.niveauxMatch(plat8)).passerelles, 4, 'plateau : 4 Confirmés hors niveau en B1');
+
 // ----- serveur : les réglages des matchs « comme un plateau » sont gardés -----
 const { makeEnv } = require('./gas_mock.js');
 const g = makeEnv(); g.installer();

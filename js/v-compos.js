@@ -956,6 +956,7 @@ window.MC = window.MC || {};
         d.reglages = regSortie(rp, K.optsDe(rp));
       }
       if (baseTous(B.reg)) d.reglages.base = 'tous'; else delete d.reglages.base;   // (v57) avec qui : le choix d'aujourd'hui
+      if (platR(d.reglages)) delete d.reglages.tailles;   // (v67, relecture) les effectifs d'aujourd'hui, pas ceux de la dernière fois
       B.vs = [d]; B.mode = 'draft'; B.dirty = true; B.sel = null; B.cree = 'reprise'; saveDraft();
       ui.toast('Repris du ' + ui.fmtDate(jour(le)) + (d.banc.length ? ' : ' + d.banc.length + ' à placer (« Pas placés »)' : ''));
       app.rerender(); window.scrollTo(0, 0);
@@ -996,6 +997,7 @@ window.MC = window.MC || {};
     }
     var o = x && typeof x === 'object' ? x : K.optsDe(reg), ids = idsBase(C, e, reg), memes = o.orga === K.optsDe(reg).orga && o.effectifs === K.optsDe(reg).effectifs;
     var r2 = { format: K.fmt(reg), nb: K.nbOf(reg), style: K.styleDe(o), opts: o, tailles: memes ? reg.tailles || null : null };
+    if (reg.partie === 'matchs') r2.partie = 'matchs';   // (v67, relecture) des matchs : les niveaux se mélangent
     var p = K.proposer(ids, C.F, C.H, r2, L.today());
     var out = regSortie(reg, o);
     if (o.effectifs !== 'niveaux' && r2.tailles && !ecartTailles(ids, C.F, r2)) out.tailles = K.tailles(ids, C.F, r2);   // (v49) seulement des tailles réglées
@@ -1101,7 +1103,7 @@ window.MC = window.MC || {};
   function team(C, t, v, d, moved, ed) {
     // (v57) les absents (Spond, retirés) restent affichés mais ne tiennent pas de place : places tenues, postes à couvrir, plaquage moyen
     var tc = sansHorsJeu(t, d), nAbs = t.joueurs.length - tc.joueurs.length;
-    var st = K.stats(tc, C.F, d.reglages.format), fmt10 = d.reglages.format === 10;
+    var st = K.stats(tc, C.F, d.reglages.format, K.niveauxMatch(d)), fmt10 = d.reglages.format === 10;
     var absTxt = nAbs ? ' · <b class="cabsn">' + nAbs + ' absent' + (nAbs > 1 ? 's' : '') + '</b>' : '';
     // (v35) un match d'entraînement à moins de 10 : chacun a son poste, mais pas de « 5/5 » en rouge ni de places vides partout
     var petit = fmt10 && d.reglages.partie === 'matchs' && st.n < 10, places = !petit || st.n >= 8;
@@ -1163,7 +1165,8 @@ window.MC = window.MC || {};
     var f = C.F[j.id] || { prenom: '?', copains: [] }, ids = t ? sansHorsJeu(t, d).joueurs.map(function (x) { return x.id; }) : [];   // (v57) un copain absent ne compte pas
     var cps = (f.copains || []).filter(function (x) { return ids.indexOf(x) >= 0; });
     var heart = !(f.copains || []).length || sansCop(d) ? '' : cps.length ? '<span class="cfl cop-ok" title="Avec un copain">' + icon('heart', 12) + '</span>' : '<span class="cfl cop-no" title="Sans copain">' + icon('heart', 12) + '</span>';
-    var lv = t && t.niveau && f.niveau && f.niveau !== t.niveau ? '<span class="cfl cpas" style="color:' + K.COUL_NIV[f.niveau] + '" title="Joue hors de son niveau (' + f.niveau + ')">' + (K.NIV.indexOf(t.niveau) < K.NIV.indexOf(f.niveau) ? '↑' : '↓') + f.niveau + '</span>' : '';
+    var nvm = K.niveauxMatch(d);   // (v67, relecture) des matchs : pas « hors niveau » quand son niveau n'a pas d'équipe
+    var lv = t && t.niveau && f.niveau && f.niveau !== t.niveau && (!nvm || nvm.indexOf(f.niveau) >= 0) ? '<span class="cfl cpas" style="color:' + K.COUL_NIV[f.niveau] + '" title="Joue hors de son niveau (' + f.niveau + ')">' + (K.NIV.indexOf(t.niveau) < K.NIV.indexOf(f.niveau) ? '↑' : '↓') + f.niveau + '</span>' : '';
     // (v54, demande de Nicolas) plus de barre orange : le plaquage sous le repère de l'équipe se voit sur le bouclier, en rouge rosé ;
     // pas aux entraînements ; un enfant sans niveau garde son « ? ». (v56) quel que soit son niveau : en « A forte », un Débutant à 0 dans une équipe B est en rouge
     var sousRep = !!t && !d.reglages.partie && f.plaquage !== null && f.plaquage !== undefined && f.plaquage !== '' && f.plaquage < (K.SEUIL[t.niveau] || 0);
@@ -1958,7 +1961,7 @@ window.MC = window.MC || {};
         host.addEventListener('click', function (ev) {
           var f = ev.target.closest('[data-rf]'), n = ev.target.closest('[data-rn]'), ro = ev.target.closest('[data-ro]'), rt = ev.target.closest('[data-rt]'), rte = ev.target.closest('[data-rte]'), rb = ev.target.closest('[data-rb]');
           if (rb) { if (rb.getAttribute('data-rb') === 'tous') reg.base = 'tous'; else delete reg.base; reg.tailles = null; if (CC) IDS = idsBase(CC, EE, reg); }
-          else if (f) reg.format = Number(f.getAttribute('data-rf'));
+          else if (f) { reg.format = Number(f.getAttribute('data-rf')); if (CC) IDS = idsBase(CC, EE, reg); }   // (v67, relecture) « tout le groupe » ne vaut qu'au jeu à 10
           else if (n) { var k = n.getAttribute('data-rn'); reg.nb[k] = Math.max(0, Math.min(6, reg.nb[k] + Number(n.getAttribute('data-d')))); reg.tailles = null; }
           else if (ro) optChange(reg, ro.getAttribute('data-ro'), ro.getAttribute('data-v'));
           else if (rt) tailleUn(reg, IDS, FF, rt.getAttribute('data-rt'), Number(rt.getAttribute('data-d')));

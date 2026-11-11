@@ -1997,5 +1997,5 @@ textarea.txt{min-height:84px;padding:10px 12px;resize:vertical;font:500 16px/1.4
 .ceff{gap:6px}
 @media (max-width:560px){.btn2.sm.ceff{width:44px;min-width:44px;padding:0;justify-content:center}.ceff .ceff-t{display:none}}
 /* la répartition des postes, plus serrée : les lignes se touchent, chacune reste facile à toucher */
-.rpost .pbars{gap:0}
+.rpost .pbars:not(.serre){gap:0}
 .rpost .pbarw summary{min-height:34px}
