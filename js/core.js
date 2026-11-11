@@ -984,10 +984,8 @@ var Core = (function () {
           ctx.nNotes = (ctx.nNotes || 0) + 1; if (ex2) ctx.nAttente = (ctx.nAttente || 0) + 1;
         }
       }
-      // la date vaut pour tout le bilan : les tests déjà envoyés de ce bilan prennent la nouvelle date
-      if (bilan !== 'defi' && req.date) {
-        mine.forEach(function (r) { if (r.bilan === bilan && r.date !== date) ctx.db.update('records', r.id, { date: date }); });
-      }
+      // (v83) la date choisie ne vaut que pour les résultats envoyés : depuis la v75, un bilan se remplit en plusieurs fois, et
+      // les épreuves déjà envoyées gardent le jour où elles ont été faites (avant, tout le bilan prenait la nouvelle date)
       return { records: saved, me: req.avecDossier ? dossier(ctx, find(ctx.db.rows('joueurs'), ctx.auth.id), true) : null };
     }
   };
