@@ -126,11 +126,17 @@ let pe = N.events('f', { family: fam });
 const pid = {}; pe.forEach(e => { pid[e.id] = e; });
 assert.ok(pid['s:ps1'] && pid['s:ps1'].href === '#/parent?k=k1&c=s-ps1', '(v37) la séance, avec l\'enfant à regarder et la séance à ouvrir');
 assert.ok(pid['b:k1:1'] && /À confirmer/.test(pid['b:k1:1'].txt), 'le bilan à confirmer');
+assert.strictEqual(pid['b:k1:1'].href, '#/parent?k=k1&c=confirmer', '(v70) un résultat en attente : « à confirmer »');
 assert.ok(pid['m:pm1:poste'] && !pid['m:pm1:copains'], 'V1 : la mission du poste, pas celle des copains');
 assert.ok(!pid['n:pn1'] && pid['n:pn2'], 'niveaux : ceux des éducs (pas les nôtres)');
 assert.ok(!pid['e:pe1'] && !pid['x:px1'] && !pid['dm:q1'], 'V1 : ni étoiles, ni mots, ni missions des éducs');
 fam.enfants[0].records[0].statut = 'ok';
 assert.ok(!/À confirmer/.test(N.events('f', { family: fam }).filter(e => e.id === 'b:k1:1')[0].txt), 'confirmé : plus « à confirmer », même ligne');
+// (v70) confiance par défaut : sans exploit, la ligne mène à ses derniers scores (qu'on peut corriger) ; un exploit confirmé garde « confirmer »
+assert.strictEqual(N.events('f', { family: fam }).filter(e => e.id === 'b:k1:1')[0].href, '#/parent?k=k1&c=scores');
+fam.enfants[0].records[0].exploit = 'bond';
+assert.strictEqual(N.events('f', { family: fam }).filter(e => e.id === 'b:k1:1')[0].href, '#/parent?k=k1&c=confirmer', 'le même lien que l\'alerte de l\'exploit');
+delete fam.enfants[0].records[0].exploit;
 
 // ---------- ENFANT ----------
 const me = { joueur: { id: 'k1', prenom: 'Tom' }, seances: [], journal: [{ id: 'kn1', type: 'niveau_adulte', data: { changes: { pompes: { de: 1, a: 2 } }, par: 'Parent' }, cree: iso(NOW - H) }],
@@ -159,7 +165,13 @@ me.records[1].statut = 'refuse'; me.records[1].parQui = 'Éduc Cyril';
 E = N.etat('k', 'k1', N.events('k', { me }), NOW + 6 * 60000, st);
 assert.strictEqual(E.n, 1, 'le 2e résultat (refusé) : la ligne du bilan est remplacée par une nouvelle');
 assert.strictEqual(E.list.filter(e => e.cat === 'resultat').length, 1, 'une seule ligne par bilan');
-assert.ok(E.list.some(e => /1 résultat confirmé, 1 refusé par Cyril/.test(e.txt)));
+assert.ok(E.list.some(e => /1 résultat confirmé, 1 pas retenu par Cyril/.test(e.txt)));
+// (v70) un score qui compte tout de suite (personne dans parQui) n'est pas une réponse d'un adulte
+const me2 = { joueur: { id: 'k3', prenom: 'Zia' }, seances: [], journal: [], records: [{ id: 'z1', bilan: 'defi', test: 'saut', statut: 'ok', parQui: '', cree: iso(NOW - H) }, { id: 'z2', bilan: '1', test: 'saut', statut: 'ok', parQui: '', cree: iso(NOW - H) }],
+  missions: [], defmissions: [], etoiles: [], encouragements: [], demandes: [] };
+assert.ok(!N.events('k', { me: me2 }).some(e => e.cat === 'resultat'), 'un score qui compte tout de suite : pas de « confirmé »');
+me2.records[0].parQui = 'Parent';
+assert.ok(N.events('k', { me: me2 }).some(e => e.cat === 'resultat' && /Ton défi <b>.*<\/b> est confirmé par ta famille/.test(e.txt)), 'un exploit confirmé : prévenu');
 
 // ---------- pas d'avalanche : réglages avant la 1re cloche, sorte qui apparaît, stockage borné ----------
 st = stock();

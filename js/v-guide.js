@@ -30,7 +30,7 @@
   function xpTable() {
     var X = C.XP;
     var rows = [['Séance à la maison (lundi → jeudi)', X.seance], ['Club du mercredi ou du samedi', X.club], ['Récup du dimanche', X.recup], ['Semaine parfaite (les 6 étoiles)', X.bonus],
-      ['Badge gagné, ou palier bronze / argent / or', X.badge], ['Record battu (confirmé par un adulte)', X.record], ['Niveau monté (la 1re fois)', X.niveau], ['Premiers pas réussis (une fois)', X.premiersPas], ['Mission spéciale accomplie', X.mission]];
+      ['Badge gagné, ou palier bronze / argent / or', X.badge], ['Record battu', X.record], ['Niveau monté (la 1re fois)', X.niveau], ['Premiers pas réussis (une fois)', X.premiersPas], ['Mission spéciale accomplie', X.mission]];
     if (MC.ouvert('skills')) rows.push(['Étoile Skills validée par un éduc', X.etoile], ['Étoile Skills qui brille (vue au plateau)', X.brille]);
     return '<div class="gxp">' + rows.map(function (r) { return '<span>' + esc(r[0]) + '</span><span>+' + r[1] + ' XP</span>'; }).join('') + '</div>';
   }
@@ -106,7 +106,7 @@
           '<b>Pas d\'adulte dispo ?</b> Tu peux t\'entraîner sans bilan : tes exercices sont au niveau 1, et le bilan les réglera ensuite.',
           'Progrès › Records › <b>Saisir mon bilan</b> › <b>Lancer le bilan guidé</b> : échauffement, puis chaque test avec la démo, le chrono et le compteur, 2 min de repos entre deux tests. Tu peux aussi tout noter dans le formulaire.',
           'Le bilan <b>règle tes niveaux</b> tout seul et donne tes <b>records</b>.',
-          'Un parent ou ton éduc <b>confirme</b> tes résultats. Sans confirmation, ils ne comptent pas au classement.'
+          'Tes résultats comptent <b>tout de suite</b>. Un <b>exploit</b> (un très gros progrès, ou une place sur le podium) attend qu\'un parent ou ton éduc le confirme.'
         ])) +
       card('xp', 'trophy', '#FFC23D', 'XP et grades', 'Ta carrière, de Recrue à Légende',
         xpTable() + '<p style="margin:4px 0 0">Avec tes XP, tu montes de grade. <b>Ton grade ne redescend jamais.</b></p>' + grades()) +
@@ -147,14 +147,14 @@
         ul([
           'Moi › <b>Trophées</b> › touche un badge d\'exploit pas encore gagné.',
           'Fais le défi <b>devant un adulte</b> qui compte, puis note ton résultat.',
-          'Le parent ou l\'éduc confirme dans son espace : le badge s\'allume. Et si c\'est ton meilleur résultat, ça devient ton record.'
+          'Le badge s\'allume tout de suite, et si c\'est ton meilleur résultat, ça devient ton record. Un exploit attend qu\'un parent ou ton éduc le confirme.'
         ])) +
       card('classement', 'podium', '#4D9BFF', 'Le classement et les ligues', 'Tu te compares aux joueurs de ton niveau',
         ul([
           '<b>Équipe</b> › <b>Les podiums</b> : il y a un podium <b>par test du bilan</b> (planche, navette, pompes…), tous affichés d\'un coup ; ouvre la ligne des filtres, puis touche les épreuves que tu veux garder, « Toutes » pour tout revoir. Seule la prépa physique compte : ' + (SKON ? 'tes missions et tes Skills ne sont jamais classés.' : 'tes missions ne sont jamais classées.') + '',
           'Tu es dans la <b>ligue</b> des joueurs qui ont <b>le même niveau</b> que toi sur ce test. S\'il y a moins de ' + MC.CONFIG.LIGUE_MIN + ' joueurs, la ligue s\'ouvre aux niveaux voisins.',
           '2 façons de classer : <b>meilleur score</b>, ou <b>plus gros progrès</b> depuis ton premier bilan. Même si tu n\'es pas le plus fort, tu peux être celui qui progresse le plus !',
-          'Seuls les résultats <b>confirmés par un adulte</b> comptent. On n\'y voit que les prénoms. Tes parents peuvent choisir de ne pas t\'afficher.'
+          'Tes résultats y comptent tout de suite (un exploit, une fois confirmé). On n\'y voit que les prénoms. Tes parents peuvent choisir de ne pas t\'afficher.'
         ])) +
       card('code', 'key', '#7CFF6B', 'Ton code secret', '4 chiffres, rien qu\'à toi',
         ul([
@@ -176,11 +176,11 @@
   // ---------- onglet parents ----------
   function parents() {
     flags();
-    return '<p class="lead">Votre enfant suit sur ce site le programme de préparation physique des M12 (le « carnet de champion »). Votre rôle : l\'encourager, être là pour les tests, et confirmer ses résultats.</p>' +
+    return '<p class="lead">Votre enfant suit sur ce site le programme de préparation physique des M12 (le « carnet de champion »). Votre rôle : l\'encourager, être là pour les tests, et confirmer ses exploits.</p>' +
       card('p-connexion', 'lock', '#38E8FF', 'Se connecter', 'Un code par famille',
         ul([
           'Bouton <b>Adultes</b> (en haut de l\'écran d\'accueil) › <b>Je suis parent</b> › le <b>prénom de votre enfant</b> › votre <b>code famille</b> à 4 chiffres. La 1re fois, c\'est le code provisoire donné par l\'éducateur : vous choisissez ensuite le vôtre.',
-          'Votre espace a ' + (SKON ? 4 : 3) + ' onglets en bas : <b>Prépa</b> (les résultats à confirmer en premier, sa semaine et ses séances, ses <b>Bilans</b> et son <b>Classement</b>), ' + (SKON ? '<b>Missions</b> (ce que demandent les éducs, ses +1 et leurs mots), <b>Skills</b> (son carnet de compétences)' : '<b>Missions</b> (ce que demandent les éducs, comme choisir son poste pour le jeu à 10)') + ' et <b>Plus</b> (codes, appareil, aide). Plusieurs enfants ? Touchez son prénom en haut à gauche : vous restez sur le même onglet.',
+          'Votre espace a ' + (SKON ? 4 : 3) + ' onglets en bas : <b>Prépa</b> (les exploits à confirmer en premier, sa semaine et ses séances, ses <b>Bilans</b> et son <b>Classement</b>), ' + (SKON ? '<b>Missions</b> (ce que demandent les éducs, ses +1 et leurs mots), <b>Skills</b> (son carnet de compétences)' : '<b>Missions</b> (ce que demandent les éducs, comme choisir son poste pour le jeu à 10)') + ' et <b>Plus</b> (codes, appareil, aide). Plusieurs enfants ? Touchez son prénom en haut à gauche : vous restez sur le même onglet.',
           'La <b>flèche en haut à gauche</b>, sur tous les écrans, ramène à l\'écran d\'avant, là où vous étiez. Tout en haut d\'un écran, <b>tirez vers le bas</b> puis relâchez pour l\'actualiser. Quand une nouvelle version de l\'appli sort, elle se met à jour toute seule, à l\'ouverture ou en y revenant.',
           'Un seul code pour la famille : les deux parents peuvent l\'utiliser, et il donne accès à tous vos enfants inscrits.',
           'Vous restez connecté sur l\'appareil. Pour changer de code : Plus › Changer mon code parent. Code perdu : l\'éducateur vous en crée un provisoire. Après 5 codes faux, l\'accès se bloque 10 minutes.'
@@ -191,18 +191,18 @@
           'Sa semaine : les étoiles gagnées et les séances faites. <b>Touchez une séance</b> pour le détail : exercices, niveau, séries, ressenti.',
           '👏 Les <b>bravos des éducs</b> : quand un éduc félicite votre enfant pour une séance, c\'est écrit sous la séance (avec son mot, s\'il en a laissé un), et la cloche vous prévient.',
           '<b>Sa progression aux bilans</b> : ses résultats à chaque bilan et ce qu\'il a gagné depuis le précédent.',
-          'Son grade, ses niveaux exercice par exercice, ses records confirmés.',
-          'Les résultats de bilan ou de défi <b>en attente de confirmation</b>.',
+          'Son grade, ses niveaux exercice par exercice, ses records.',
+          'Ses <b>exploits à confirmer</b>, et ses derniers scores, que vous pouvez corriger.',
           SKON && MEON ? '<b>Missions</b> : sa <b>mission principale</b> (1 à 3 étoiles Skills à décrocher, jusqu\'à une date), les <b>encouragements</b> et les mots des éducs (qui, quand, à quelle occasion), et les missions de l\'équipe (vidéo, QCM, choix de poste), faites ou pas. Vous suivez : les encouragements ne se donnent que par les éducs.'
             : '<b>Missions</b> : les missions de l\'équipe, comme « Choisis ton poste » pour le jeu à 10 : faites ou pas, et les postes qu\'il a choisis.',
           !SKON ? '' : '<b>Skills</b> : ses 8 cartes (Plaquage, Ruck, Maul, Défense, Porteur, Passe, Jeu au pied, Soutien), les étoiles validées par les éducs, celles qui <b>brillent</b> (vues au plateau), ses demandes et comment il peut s\'entraîner pour les autres. Vous suivez : seul votre enfant peut demander une étoile.'
         ].filter(Boolean))) +
-      card('p-confirmer', 'check', '#FFC23D', 'Confirmer les résultats', 'Le geste le plus important',
+      card('p-confirmer', 'check', '#FFC23D', 'Ses résultats et ses exploits', 'Ça compte tout de suite',
         ul([
-          'Après un bilan ou un défi, les résultats arrivent dans votre espace. Pour chacun, touchez <b>Confirmer</b> ou <b>Refuser</b> : le bouton s\'allume, vous pouvez changer d\'avis. Rien n\'est envoyé tant que vous n\'avez pas touché <b>Enregistrer mes choix</b>, juste sous la liste.',
-          'Confirmez si vous avez vu le test (ou si le chiffre vous paraît juste). Un éduc peut aussi confirmer.',
-          'Refusé par erreur ? Ouvrez « résultats refusés » et touchez <b>Rétablir</b>, puis Enregistrer mes choix.',
-          'Seuls les résultats confirmés comptent pour le classement, les badges et les records.'
+          'Un résultat de bilan ou de défi <b>compte tout de suite</b> (classement, badges, records). Une erreur ? Dans « scores notés ces 14 jours », touchez <b>Ce n\'est pas ça</b> : il ne compte plus.',
+          'Seul un <b>exploit</b> attend votre confirmation : plus de 25 % de mieux que son record d\'un coup, ou une entrée sur le podium de sa ligue. Touchez <b>Confirmer</b> ou <b>Ce n\'est pas ça</b>, puis <b>Enregistrer mes choix</b>, juste sous la liste. Un éduc parent de l\'enfant peut aussi confirmer.',
+          'Retiré par erreur ? Ouvrez « résultats pas retenus » et touchez <b>Rétablir</b>, puis Enregistrer mes choix.',
+          'Un exploit compte pour le classement, les badges et les records une fois confirmé.'
         ])) +
       card('p-bilan', 'sheet', '#4D9BFF', 'Le bilan', 'Les 12 tests, sans date imposée',
         ul([
@@ -222,7 +222,7 @@
           '<b>Lui passer le téléphone</b> : touchez <b>▶ son prénom</b>, en haut à droite de votre espace. Son espace s\'ouvre directement, sans son code (vous êtes déjà entré avec le code de la famille). Pour revenir dans votre espace : « Rendre le téléphone », puis votre code.',
           '<b>Le récupérer</b> : le bouton <b>🔒 Parent</b>, en haut à droite de son côté (à la place du ▶), ou « J\'ai fini : je rends le téléphone » à la fin de sa séance. Vous tapez votre code et vous voilà dans votre espace.',
           'Frères et sœurs sur le même téléphone : chacun a son profil. « Pas Tom ? Changer de joueur » en haut de la semaine, ou « J\'ai fini » à la fin de la séance. S\'il n\'a pas servi depuis 30 min, le site demande « C\'est bien toi ? » avant de commencer.',
-          'Votre espace parent est protégé : sur un appareil partagé, votre code est redemandé dès qu\'on revient de l\'espace joueur (en rouvrant l\'appli, vous retrouvez votre espace sans code). Votre enfant ne peut donc pas confirmer lui-même ses résultats. Réglage « Appareil partagé avec un enfant » dans l\'onglet <b>Plus</b>.',
+          'Votre espace parent est protégé : sur un appareil partagé, votre code est redemandé dès qu\'on revient de l\'espace joueur (en rouvrant l\'appli, vous retrouvez votre espace sans code). Votre enfant ne peut donc pas confirmer lui-même ses exploits. Réglage « Appareil partagé avec un enfant » dans l\'onglet <b>Plus</b>.',
           'Une séance commencée est gardée sur le téléphone : si vous en avez besoin au milieu, votre enfant la reprendra là où il en était.'
         ])) +
       card('p-code', 'key', '#7CFF6B', 'Code oublié', 'Votre enfant ne se souvient plus de son code',
@@ -247,7 +247,7 @@
 
   // ---------- onglet éducs ----------
   function educs() {
-    return '<p class="lead">L\'espace éduc sert à suivre le groupe, confirmer les résultats et gérer les joueurs, les familles et les codes.</p>' +
+    return '<p class="lead">L\'espace éduc sert à suivre le groupe et gérer les joueurs, les familles et les codes.</p>' +
       card('e-connexion', 'lock', '#38E8FF', 'Se connecter', 'Un code personnel par éduc',
         ul([
           '<b>Adultes</b> › <b>Je suis éduc</b> › votre nom › votre code à 4 chiffres. La 1re fois, c\'est un code provisoire donné par l\'admin : vous choisissez ensuite le vôtre.',
@@ -264,14 +264,14 @@
           '<b>Enfants</b> : la fiche terrain du groupe, une ligne par enfant (plusieurs s\'il a plus de trois postes), avec ses postes abrégés dans une colonne à part, juste avant le niveau, alignés (Pil, Tal, 3eL, 9, 10, Ctr, Ail, toutes de la même largeur ; le préféré en pastille pleine et en premier, puis l\'ordre des postes ; deux enfants au même prénom : « Baptiste Lem. » sur téléphone), son niveau, ses passerelles (une ou deux) et son plaquage (le bouclier, de 0 à 3 ; vide = pas encore évalué). Toucher la ligne ouvre sa fiche, où tout se règle. Filtres : par niveau (en bas, ceux qui ont une passerelle vers ce niveau), puis par poste (ceux qui l\'ont en préféré, puis ceux qui peuvent aussi le jouer). Toucher un prénom ouvre sa fiche, partout dans l\'appli.',
           'La <b>flèche en haut à gauche</b>, sur tous les écrans, ramène à l\'écran d\'avant, là où vous étiez. Tout en haut d\'un écran, <b>tirez vers le bas</b> puis relâchez pour l\'actualiser (résultats, présents, compos). Quand une nouvelle version de l\'appli sort, elle se met à jour toute seule, à l\'ouverture ou en y revenant (ou en tirant pour actualiser) ; le numéro de version est en bas des réglages.',
           'L\'<b>engrenage</b>, en haut à droite : mon enfant, mon code, les éducs (admin), les familles et leurs codes, Spond (admin), cet appareil, l\'aide et les nouveautés.',
-          '<b>Mon enfant</b> : vous êtes aussi parent d\'un joueur ? Choisissez-le dans l\'engrenage : ses résultats à confirmer arrivent dans Progrès › Prépa physique.',
+          '<b>Mon enfant</b> : vous êtes aussi parent d\'un joueur ? Choisissez-le dans l\'engrenage : ses exploits à confirmer arrivent dans Progrès › Prépa physique.',
           'Progrès › Prépa physique › <b>Le classement</b> : tout le groupe ou une ligue à la fois, avec la liste des joueurs pas encore classés. <b>Progrès aux bilans</b> : test par test, les joueurs classés selon leur progrès depuis le bilan d\'avant.',
-          '<b>À confirmer</b> (Progrès › Prépa physique) : les bilans et défis de <b>votre enfant</b> (relié à votre profil dans l\'engrenage › Mon enfant). Confirmer / Refuser (ou Tout confirmer) s\'allument, puis <b>Enregistrer mes choix</b> envoie le tout. Les résultats des autres enfants sont confirmés par leur famille : vous ne voyez que ceux qui sont confirmés. Un résultat refusé par erreur se rétablit depuis la fiche.'
+          '<b>À confirmer</b> (Progrès › Prépa physique) : les exploits de <b>votre enfant</b> (relié à votre profil dans l\'engrenage › Mon enfant) ; les autres résultats comptent tout de suite. Confirmer / Ce n\'est pas ça s\'allument, puis <b>Enregistrer mes choix</b>. Les exploits des autres enfants sont confirmés par leur famille.'
         ])) +
       card('e-fiche', 'user', '#FFC23D', 'La fiche d\'un enfant', 'Touchez un prénom',
         ul([
           'En haut : son niveau, ses postes préférés, ses passerelles. Puis 6 onglets : <b>Terrain</b> (niveau, passerelle, plaquage, postes préférés ★ — un ou plusieurs — et ceux qu\'il peut aussi jouer, enregistrés dès qu\'on touche ; postes souhaités, copains), <b>Skills</b> (valider ou retirer une étoile), <b>Missions</b> (sa mission perso et ses +1, les missions du groupe, ses mots), <b>Prépa</b>, <b>Historique</b> (plateaux et entraînements) et <b>Réglages</b> (famille, codes, classement, désactiver, et en bas son lien avec Spond). Elle s\'ouvre toujours sur Terrain (un lien précis, comme une alerte, ouvre le bon onglet ; la flèche Retour ramène là où vous étiez).',
-          'Prépa : ses séances (touchez-en une pour le détail ; « 👏 Bravo » à droite pour le féliciter), sa <b>progression d\'un bilan à l\'autre</b>, ses records confirmés, ses niveaux.',
+          'Prépa : ses séances (touchez-en une pour le détail ; « 👏 Bravo » à droite pour le féliciter), sa <b>progression d\'un bilan à l\'autre</b>, ses records, ses niveaux.',
           '<b>Modifier les niveaux</b> (N1 à N4) si le bilan ne reflète pas ce que vous voyez sur le terrain : bouton Modifier, puis Enregistrer. Les parents peuvent aussi les ajuster.',
           '<b>Nouveau code provisoire</b> si l\'enfant a oublié le sien.',
           '<b>Masquer du classement</b>, ou <b>désactiver</b> un joueur qui a quitté le groupe (ses données sont gardées).'

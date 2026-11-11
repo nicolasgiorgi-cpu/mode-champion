@@ -83,11 +83,11 @@ assert.strictEqual(envois.length, 0, 'la 2e séance dans les 10 min : pas de 2e 
 assert.strictEqual(jetonsAcces.length, 1, 'le jeton d\'accès est réutilisé (cache)');
 Object.keys(g._cache).filter(k => k.indexOf('fcm:v:') === 0).forEach(k => delete g._cache[k]);   // 10 min plus tard
 
-// ---------- un bilan : la famille « à confirmer », les éducs « bilan » ; jamais les valeurs ----------
+// ---------- un bilan : la famille (v70 : ça compte déjà, elle peut corriger), les éducs « bilan » ; jamais les valeurs ----------
 r = g.call({ action: 'submitRecords', token: kt, bilan: '1', valeurs: [{ test: 'saut', valeur: 187 }, { test: 'flamant', valeur: 25 }] });
 assert.ok(r.ok);
 let p = envois.find(e => e.token === T.parent), a = envois.find(e => e.token === T.admin);
-assert.strictEqual(p.data.texte, 'Tom a noté son Bilan 1 (2 résultats). À confirmer.');
+assert.strictEqual(p.data.texte, 'Tom a noté son Bilan 1 (2 résultats). Ça compte déjà ; un souci ? Vous pouvez corriger.');
 assert.strictEqual(a.data.texte, 'Tom a noté son Bilan 1 (2 résultats).');
 assert.ok(!envois.some(e => e.token === T.cyril), 'Cyril n\'a pas pris les bilans');
 assert.ok(!envois.some(e => /187|25/.test(e.data.texte)), 'aucun résultat chiffré sur l\'écran verrouillé');
@@ -96,7 +96,13 @@ envois.length = 0;
 const ids = r.records.map(x => x.id);
 r = g.call({ action: 'confirm', token: ft, decisions: [{ id: ids[0], statut: 'ok' }, { id: ids[1], statut: 'refuse' }] });
 assert.ok(r.ok);
-assert.deepStrictEqual(envois.map(e => [e.token, e.data.texte]), [[T.tom, 'Tes résultats : 1 résultat confirmé, 1 refusé par ta famille.']]);
+assert.deepStrictEqual(envois.map(e => [e.token, e.data.texte]), [[T.tom, 'Tes résultats : 1 résultat confirmé, 1 pas retenu par ta famille.']]);
+// (v70) un exploit (plus de 25 % de mieux que son record) : la famille doit le confirmer
+envois.length = 0; Object.keys(g._cache).filter(k => k.indexOf('fcm:v:') === 0).forEach(k => delete g._cache[k]);
+r = g.call({ action: 'submitRecords', token: kt, bilan: 'defi', valeurs: [{ test: 'saut', valeur: 240 }] });
+assert.ok(r.ok && r.records[0].statut === 'attente' && r.records[0].exploit === 'bond', JSON.stringify(r.records));
+assert.strictEqual(envois.find(e => e.token === T.parent).data.texte, 'Tom a relevé un défi. Un exploit à confirmer.');
+assert.ok(!envois.some(e => /240/.test(e.data.texte)), 'aucun résultat chiffré');
 
 // ---------- mission : prénom, jamais le mot de l'enfant ni ses copains ----------
 envois.length = 0;

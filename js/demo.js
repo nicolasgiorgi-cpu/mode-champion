@@ -110,7 +110,10 @@ MC.demo = (function () {
       }
       if (k[0] === 'Tom') {
         var dd = L.addDays(today, -1);
-        db.insert('records', { id: id(), joueurId: pid, bilan: 'defi', test: 'planche', valeur: 104, extra: null, statut: 'attente', parQui: '', date: dd, cree: dd + 'T19:00:00.000Z' });
+        // (v70, confiance par défaut) un exploit à confirmer, et un score de la veille qui compte déjà (la famille peut le corriger)
+        db.insert('records', { id: id(), joueurId: pid, bilan: 'defi', test: 'planche', valeur: 104, extra: null, statut: 'attente', parQui: '', date: dd, cree: dd + 'T19:00:00.000Z', exploit: 'bond' });
+        var sq = vals.filter(function (v) { return v.test === 'squats'; })[0].valeur;
+        db.insert('records', { id: id(), joueurId: pid, bilan: 'defi', test: 'squats', valeur: sq + 2, extra: null, statut: 'ok', parQui: '', date: dd, cree: dd + 'T18:30:00.000Z', exploit: '' });
       }
     });
     // mission « Prépare le jeu à 10 » : quelques enfants l'ont déjà faite ou commencée (Tom, le joueur de démo, pas encore)

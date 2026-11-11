@@ -107,7 +107,9 @@ var Core = (function () {
     educs: [['id', 's'], ['nom', 's'], ['codeHash', 's'], ['codeV', 'n'], ['admin', 'b'], ['actif', 'b'], ['cree', 's'], ['enfants', 'j'], ['pinHash', 's'], ['tempHash', 's'], ['tempExp', 'n'], ['mustChange', 'b'], ['fails', 'n'], ['lockUntil', 'n']],
     seances: [['id', 's'], ['joueurId', 's'], ['date', 's'], ['type', 's'], ['mode', 's'], ['ressenti', 's'], ['details', 'j'], ['cree', 's']],
     records: [['id', 's'], ['joueurId', 's'], ['bilan', 's'], ['test', 's'], ['valeur', 'n'], ['extra', 'j'], ['statut', 's'],
-      ['parQui', 's'], ['date', 's'], ['cree', 's']],
+      ['parQui', 's'], ['date', 's'], ['cree', 's'],
+      // (v70) un exploit attend son témoin : 'bond' (plus de 25 % de mieux d'un coup) ou 'podium' (entrée sur le podium de sa ligue)
+      ['exploit', 's']],
     journal: [['id', 's'], ['joueurId', 's'], ['type', 's'], ['data', 'j'], ['date', 's'], ['cree', 's']],
     // missions ponctuelles (ex. « Prépare le jeu à 10 ») : une ligne par joueur et par mission
     missions: [['id', 's'], ['joueurId', 's'], ['mission', 's'], ['reponses', 'j'], ['faite', 'b'], ['date', 's'], ['source', 's'], ['cree', 's'], ['maj', 's']],
@@ -302,7 +304,7 @@ var Core = (function () {
     return o;
   }
   function pubRecord(r) {
-    return { id: r.id, joueurId: r.joueurId, bilan: r.bilan, test: r.test, valeur: r.valeur, extra: r.extra || null, statut: r.statut, parQui: r.parQui, date: r.date, cree: r.cree };
+    return { id: r.id, joueurId: r.joueurId, bilan: r.bilan, test: r.test, valeur: r.valeur, extra: r.extra || null, statut: r.statut, parQui: r.parQui, date: r.date, cree: r.cree, exploit: r.exploit || '' };
   }
   function pubJournal(j) { return { id: j.id, joueurId: j.joueurId, type: j.type, data: j.data || null, date: j.date, cree: j.cree }; }
   // Les copains choisis restent secrets : seuls l'enfant lui-même et les éducs les voient (jamais les parents).
@@ -877,6 +879,47 @@ var Core = (function () {
     }
   };
 
+  // (v70, lot E2 « confiance par défaut », décision de Nicolas du 11/11 : « 25 % plus podium »)
+  // Un score compte tout de suite (statut 'ok', personne dans parQui) ; la famille peut le corriger (« Ce n'est pas ça » = 'refuse').
+  // Seuls les exploits attendent un témoin (statut 'attente', comme avant) :
+  //  - bond : plus de 25 % de mieux que son meilleur score qui compte sur l'épreuve (même matériel) ;
+  //  - podium : il entre sur le podium de sa ligue (même niveau, élargie aux niveaux voisins sous 5 joueurs, comme js/logic.js league)
+  //    en passant devant quelqu'un (au moins 3 autres joueurs classés). Un 1er résultat n'est couvert que par le podium.
+  // Les épreuves : la clé du niveau et le sens (1 = moins c'est mieux), recopiés de js/content.js (tests/test_confiance.js vérifie qu'ils restent égaux).
+  var EPREUVES = { flamant: ['flamant'], saut: ['corde'], navette: ['navette', 1], susp: ['susp'], tract: ['tract'], pompes: ['pompes'], planche: ['planche'],
+    squats: ['squats'], chaise: ['chaise'], corde: ['corde'], corde1: ['corde1'], burpees: ['burpees'], squats_affilee: [''] };
+  var EXPLOIT_BOND = 0.25, LIGUE_MIN = 5;
+  // sauf : la ligne remplacée (un bilan corrigé ne se compare pas à lui-même)
+  function exploitDe(ctx, j, test, n, extra, sauf) {
+    var ep = EPREUVES[test];
+    if (!ep || !j) return '';
+    var cle = ep[0], moins = !!ep[1], sm = !!(extra && extra.sm);
+    function mieux(a, b) { return moins ? a < b : a > b; }
+    function lv(p) { return (cle && p.niveaux && p.niveaux[cle]) || 1; }
+    var gens = {}, best = {};
+    ctx.db.rows('joueurs').forEach(function (p) { if (p.id === j.id || (p.actif && p.visible)) gens[p.id] = p; });
+    ctx.db.rows('records').forEach(function (r) {
+      if (r.test !== test || r.statut !== 'ok' || r.id === sauf || !gens[r.joueurId] || !!(r.extra && r.extra.sm) !== sm) return;
+      var v = Number(r.valeur);
+      if (!isFinite(v)) return;
+      if (best[r.joueurId] === undefined || mieux(v, best[r.joueurId])) best[r.joueurId] = v;
+    });
+    var avant = best[j.id];
+    if (avant !== undefined && !mieux(n, avant)) return '';
+    if (avant !== undefined && (moins ? n < avant * (1 - EXPLOIT_BOND) : n > avant * (1 + EXPLOIT_BOND))) return 'bond';
+    // la ligue telle qu'elle s'affichera avec ce score (lui compris)
+    var autres = Object.keys(best).filter(function (id) { return id !== j.id; });
+    var myLv = lv(gens[j.id] || j), lo = myLv, hi = myLv, guard = 0;
+    function dans(id) { var l = lv(gens[id]); return l >= lo && l <= hi; }
+    function nb() { return autres.filter(dans).length + 1; }
+    while (nb() < LIGUE_MIN && (lo > 1 || hi < 4) && guard++ < 6) {
+      if (lo > 1 && (guard % 2 === 1 || hi >= 4)) lo--; else if (hi < 4) hi++; else lo--;
+    }
+    var ligue = autres.filter(dans);
+    if (ligue.length < 3) return '';
+    function rang(v) { return 1 + ligue.filter(function (id) { return mieux(best[id], v); }).length; }
+    return rang(n) <= 3 && (avant === undefined || rang(avant) > 3) ? 'podium' : '';
+  }
   A.submitRecords = {
     auth: ['p'],
     run: function (req, ctx) {
@@ -909,14 +952,17 @@ var Core = (function () {
             saved.push(pubRecord(find(ctx.db.rows('records'), existing.id)));
             continue;
           }
-          ctx.db.update('records', existing.id, { valeur: n, extra: extra, statut: 'attente', parQui: '', date: date });
+          var ex1 = exploitDe(ctx, ctx.auth.row, String(v.test), n, extra, existing.id);
+          ctx.db.update('records', existing.id, { valeur: n, extra: extra, statut: ex1 ? 'attente' : 'ok', parQui: '', date: date, exploit: ex1 });
           saved.push(pubRecord(find(ctx.db.rows('records'), existing.id)));
-          ctx.nAttente = (ctx.nAttente || 0) + 1;   // (v34) un résultat nouveau à confirmer : il mérite une alerte
+          // (v34) un résultat nouveau ou changé mérite une alerte ; (v70) un exploit est à confirmer
+          ctx.nNotes = (ctx.nNotes || 0) + 1; if (ex1) ctx.nAttente = (ctx.nAttente || 0) + 1;
         } else {
-          var row = { id: genId(ctx.env), joueurId: ctx.auth.id, bilan: bilan, test: String(v.test), valeur: n, extra: extra, statut: 'attente', parQui: '', date: date, cree: isoNow(ctx.now) };
+          var ex2 = exploitDe(ctx, ctx.auth.row, String(v.test), n, extra, '');
+          var row = { id: genId(ctx.env), joueurId: ctx.auth.id, bilan: bilan, test: String(v.test), valeur: n, extra: extra, statut: ex2 ? 'attente' : 'ok', parQui: '', date: date, cree: isoNow(ctx.now), exploit: ex2 };
           ctx.db.insert('records', row);
           saved.push(pubRecord(row));
-          ctx.nAttente = (ctx.nAttente || 0) + 1;
+          ctx.nNotes = (ctx.nNotes || 0) + 1; if (ex2) ctx.nAttente = (ctx.nAttente || 0) + 1;
         }
       }
       // la date vaut pour tout le bilan : les tests déjà envoyés de ce bilan prennent la nouvelle date
@@ -2411,10 +2457,12 @@ var Core = (function () {
       }
     },
     submitRecords: function (req, ctx, res) {
-      var j = ctx.auth.row, n = ctx.nAttente || 0;   // seulement les résultats nouveaux ou changés (pas un bilan renvoyé tel quel)
+      var j = ctx.auth.row, n = ctx.nNotes || 0, ex = ctx.nAttente || 0;   // seulement les résultats nouveaux ou changés (pas un bilan renvoyé tel quel)
       if (!n) return;
       var b = String(req.bilan), t = b === 'defi' ? j.prenom + ' a relevé un défi.' : j.prenom + ' a noté son Bilan ' + b + ' (' + n + ' résultat' + (n > 1 ? 's' : '') + ').';
-      alerter(ctx, { r: 'f', qui: j.familleId, sujet: j.id, lien: parentL(j.id, 'confirmer') }, 'confirmer', t + ' À confirmer.');
+      // (v70) ça compte tout de suite : la famille peut corriger ; seul un exploit est à confirmer (jamais de chiffre sur l'écran verrouillé)
+      alerter(ctx, { r: 'f', qui: j.familleId, sujet: j.id, lien: parentL(j.id, ex ? 'confirmer' : 'scores') }, 'confirmer',
+        t + (ex ? (ex > 1 ? ' ' + ex + ' exploits à confirmer.' : ' Un exploit à confirmer.') : ' Ça compte déjà ; un souci ? Vous pouvez corriger.'));
       alerter(ctx, { r: 'e', sujet: j.id, lien: ficheE(j.id, 'bilans') }, 'bilan', t);
     },
     mission: function (req, ctx) {
@@ -2444,7 +2492,7 @@ var Core = (function () {
       var par = {}, qui = ctx.auth.r === 'e' ? ctx.auth.row.nom : 'ta famille';
       (res.records || []).forEach(function (r) { var o = par[r.joueurId] = par[r.joueurId] || { ok: 0, no: 0 }; if (r.statut === 'ok') o.ok++; else o.no++; });
       Object.keys(par).forEach(function (id) {
-        var o = par[id], t = (o.ok ? o.ok + ' résultat' + (o.ok > 1 ? 's' : '') + ' confirmé' + (o.ok > 1 ? 's' : '') : '') + (o.ok && o.no ? ', ' : '') + (o.no ? o.no + ' refusé' + (o.no > 1 ? 's' : '') : '');
+        var o = par[id], t = (o.ok ? o.ok + ' résultat' + (o.ok > 1 ? 's' : '') + ' confirmé' + (o.ok > 1 ? 's' : '') : '') + (o.ok && o.no ? ', ' : '') + (o.no ? o.no + ' pas retenu' + (o.no > 1 ? 's' : '') : '');
         alerter(ctx, { r: 'p', qui: id, lien: '#/bilans' }, 'resultat', 'Tes résultats : ' + t + ' par ' + qui + '.');
       });
     },
@@ -2588,7 +2636,7 @@ var Core = (function () {
     _prenomsVoisins: prenomsVoisins, _ressemble: ressemble, _nomsConnexion: nomsConnexion,
     importPostesDepuis: function (db, env, rows) { return importPostes({ db: db, env: env, now: env.now() }, rows); },
     syncSpondDepuis: function (db, env, data) { return syncSpond({ db: db, env: env, now: env.now() }, data || {}); },
-    _diffCompo: diffCompo
+    _diffCompo: diffCompo, _epreuves: EPREUVES, _exploitBond: EXPLOIT_BOND, _ligueMin: LIGUE_MIN
   };
 })();
 

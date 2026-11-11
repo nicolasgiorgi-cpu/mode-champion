@@ -184,7 +184,9 @@
     var noBilan = !(me.records || []).some(function (r) { return r.bilan !== 'defi'; });
     var bilanNote = noBilan && !(MC.accueil && MC.accueil.kidChecklistShown(me)) ? '<div class="note gold">' + icon('trophy', 22) + '<div style="flex:1"><b>Pas encore de bilan ? Pas grave.</b><div class="small" style="color:var(--soft);margin-top:3px">Tu t\'entraînes déjà, au niveau 1. Ton bilan (12 tests avec un adulte) réglera ensuite chaque exercice pile pour toi.</div></div><a class="btn2 sm gold" href="#/bilan">Le bilan</a></div>' : '';
     var pend = (me.records || []).filter(function (r) { return r.statut === 'attente'; }).length;
-    var pendNote = pend ? '<div class="note">' + icon('clock', 20) + '<span>' + pend + ' record' + (pend > 1 ? 's' : '') + ' en attente : un parent ou ton éduc doit confirmer.</span></div>' : '';
+    // (v70) confiance par défaut : seuls les exploits (et les anciens résultats) attendent un adulte
+    var pendEx = (me.records || []).filter(function (r) { return r.statut === 'attente' && r.exploit; }).length;
+    var pendNote = pend ? '<div class="note">' + icon('clock', 20) + '<span>' + (pendEx === pend ? (pend > 1 ? pend + ' exploits attendent' : 'Un exploit attend') : pend + ' résultat' + (pend > 1 ? 's' : '') + ' en attente') + ' : un parent ou ton éduc doit confirmer.</span></div>' : '';
 
     // (v64, décision de Nicolas du 10/11) plus de date ni de compte à rebours : le bilan se lance quand on veut, avec un adulte
     var be = MC.bilanEtat ? MC.bilanEtat(me) : { etat: 'vide' };

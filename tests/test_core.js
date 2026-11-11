@@ -62,18 +62,26 @@ assert.ok(r.ok); assert.deepStrictEqual(r.joueur.niveaux, { pompes: 3 }); assert
 // records
 r = g.call({ action: 'submitRecords', token: pt, bilan: '0', valeurs: [{ test: 'planche', valeur: 80 }, { test: 'pompes', valeur: 12 }, { test: 'flamant', valeur: 22, extra: { g: 30, d: 22 } }] });
 assert.ok(r.ok && r.records.length === 3);
+// (v70) confiance par défaut : un score compte tout de suite, personne ne l'a encore vu
+assert.ok(r.records.every(x => x.statut === 'ok' && x.parQui === '' && x.exploit === ''), JSON.stringify(r.records));
 r = g.call({ action: 'submitRecords', token: pt, bilan: '0', valeurs: [{ test: 'planche', valeur: 85 }] }); assert.strictEqual(r.records[0].valeur, 85);
+assert.strictEqual(r.records[0].statut, 'ok', 'un bilan corrigé ne se compare pas à lui-même');
 r = g.call({ action: 'me', token: pt }); assert.strictEqual(r.records.length, 3);
+// un exploit (plus de 25 % de mieux d'un coup) attend son témoin
+r = g.call({ action: 'submitRecords', token: pt, bilan: 'defi', valeurs: [{ test: 'planche', valeur: 110 }, { test: 'pompes', valeur: 16 }, { test: 'flamant', valeur: 30 }] });
+assert.ok(r.ok && r.records.every(x => x.statut === 'attente' && x.exploit === 'bond'), JSON.stringify(r.records));
+const attIds = r.records.map(x => x.id);
+r = g.call({ action: 'me', token: pt }); assert.strictEqual(r.records.length, 6);
 // un éduc ne voit pas les résultats en attente des autres enfants et ne peut pas les confirmer ; ceux de son enfant, si
 r = g.call({ action: 'group', token: et });
 let tg = r.joueurs.find(p => p.joueur.id === tom.id);
-assert.strictEqual(tg.records.length, 0, 'résultats en attente cachés'); assert.strictEqual(tg.enAttente, 3);
-r = g.call({ action: 'kid', token: et, joueurId: tom.id }); assert.strictEqual(r.records.length, 0); assert.strictEqual(r.enAttente, 3);
-r = g.call({ action: 'confirm', token: et, ids: [g.call({ action: 'me', token: pt }).records[0].id] }); assert.strictEqual(r.error, 'interdit');
+assert.strictEqual(tg.records.length, 3, 'résultats en attente cachés'); assert.ok(tg.records.every(x => x.statut === 'ok')); assert.strictEqual(tg.enAttente, 3);
+r = g.call({ action: 'kid', token: et, joueurId: tom.id }); assert.strictEqual(r.records.length, 3); assert.strictEqual(r.enAttente, 3);
+r = g.call({ action: 'confirm', token: et, ids: [attIds[0]] }); assert.strictEqual(r.error, 'interdit');
 r = g.call({ action: 'mesEnfants', token: et, ids: [tom.id] }); assert.ok(r.ok);
 r = g.call({ action: 'group', token: et });
 tg = r.joueurs.find(p => p.joueur.id === tom.id);
-assert.strictEqual(tg.records.length, 3, 'son enfant : il voit tout'); assert.strictEqual(tg.enAttente, 0);
+assert.strictEqual(tg.records.length, 6, 'son enfant : il voit tout'); assert.strictEqual(tg.enAttente, 0);
 r = g.call({ action: 'confirm', token: et, decisions: [{ id: tg.records[0].id, statut: 'ok' }] }); assert.ok(r.ok && r.faits === 1, JSON.stringify(r));
 r = g.call({ action: 'confirm', token: et, decisions: [{ id: tg.records[0].id, statut: 'attente' }] });
 g.call({ action: 'mesEnfants', token: et, ids: [] });
@@ -81,12 +89,12 @@ g.call({ action: 'mesEnfants', token: et, ids: [] });
 r = g.call({ action: 'adultLogin', code: famCode }); assert.ok(r.ok && r.role === 'f'); const ft = r.token;
 r = g.call({ action: 'family', token: ft }); assert.strictEqual(r.enfants.length, 2);
 const recIds = r.enfants.find(e => e.joueur.id === tom.id).records.map(x => x.id);
-r = g.call({ action: 'confirm', token: ft, ids: recIds }); assert.strictEqual(r.faits, 3);
+r = g.call({ action: 'confirm', token: ft, ids: recIds }); assert.strictEqual(r.faits, 6);
 r = g.call({ action: 'resetKidPin', token: ft, joueurId: hugo.id }); assert.strictEqual(r.error, 'interdit');
 r = g.call({ action: 'setVisible', token: ft, joueurId: lea.id, visible: false }); assert.ok(r.ok);
 // league for Hugo
 r = g.call({ action: 'login', joueurId: hugo.id, pin: hugoTemp }); const ht = r.token;
-r = g.call({ action: 'league', token: ht }); assert.ok(r.ok); assert.deepStrictEqual(r.joueurs.map(j => j.prenom).sort(), ['Hugo', 'Tom']); assert.strictEqual(r.records.filter(x => x.statut === 'ok').length, 3);
+r = g.call({ action: 'league', token: ht }); assert.ok(r.ok); assert.deepStrictEqual(r.joueurs.map(j => j.prenom).sort(), ['Hugo', 'Tom']); assert.strictEqual(r.records.filter(x => x.statut === 'ok').length, 6);
 r = g.call({ action: 'family', token: ht }); assert.strictEqual(r.error, 'interdit');
 // reset pin by parent
 r = g.call({ action: 'resetKidPin', token: ft, joueurId: tom.id }); assert.ok(r.ok && /^\d{4}$/.test(r.code)); const newTemp = r.code;
@@ -147,9 +155,10 @@ console.log('ALL TESTS OK');
   const d1 = new Date(Date.now() - 1 * 86400000).toISOString().slice(0, 10);
   x = g2.call({ action: 'submitRecords', token: zt2, bilan: '0', date: d1, valeurs: [{ test: 'planche', valeur: 75 }, { test: 'pompes', valeur: 8 }], avecDossier: true });
   assert.ok(x.me.records.every(r => r.date === d1 && r.statut === 'ok'), JSON.stringify(x.me.records));
-  // un résultat modifié repasse « à confirmer »
+  // (v70) un résultat modifié compte tout de suite, sans garder le témoin de l'ancien (avant : il repassait « à confirmer »)
   x = g2.call({ action: 'submitRecords', token: zt2, bilan: '0', date: d1, valeurs: [{ test: 'pompes', valeur: 9 }], avecDossier: true });
-  assert.strictEqual(x.me.records.find(r => r.test === 'pompes').statut, 'attente'); assert.strictEqual(x.me.records.find(r => r.test === 'planche').statut, 'ok');
+  const rpo2 = x.me.records.find(r => r.test === 'pompes');
+  assert.ok(rpo2.statut === 'ok' && rpo2.parQui === '', JSON.stringify(rpo2)); assert.strictEqual(x.me.records.find(r => r.test === 'planche').statut, 'ok');
   // cache perdu (éviction) : on relit la feuille, mêmes données
   Object.keys(g2._cache).forEach(k => delete g2._cache[k]);
   x = g2.call({ action: 'me', token: zt2 }); assert.strictEqual(x.records.length, 2); assert.strictEqual(x.seances.length, 1);

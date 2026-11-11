@@ -21,7 +21,7 @@ MC.accueil = (function () {
       ['group', '#FF7FBC', 'Équipe', 'les podiums, avec les joueurs de ton niveau'],
       ['trend', '#FFC23D', 'Progrès', 'tes records et tes niveaux'],
       ['user', '#3DFFB0', 'Moi', 'ton grade, tes badges et tes trophées']],
-    f: [['bolt', '#38E8FF', 'Prépa', 'ses séances à la maison, et ses résultats à confirmer'],
+    f: [['bolt', '#38E8FF', 'Prépa', 'ses séances à la maison, et ses résultats (un exploit est à confirmer)'],
       ['target', '#FF7FBC', 'Missions', 'les défis et les encouragements de ses éducs'],
       ['star', '#FFC23D', 'Skills', 'ses étoiles rugby, validées par les éducs au terrain'],
       ['menu', '#C9AEFF', 'Plus', 'votre code, l\'aide et les réglages']],
@@ -360,7 +360,7 @@ MC.accueil = (function () {
     ui.modal({
       title: 'Le bilan 0',
       body: '<p class="lead">12 petits tests (sauts, gainage, navette…) pour régler les niveaux de votre enfant. Il le lance depuis <b>Progrès › Records</b> : le bilan guidé enchaîne les tests avec la démo et le chrono. Comptez 45 minutes, avec vous à côté pour regarder et compter.</p>' +
-        '<p class="small">Ensuite, ses résultats arrivent en haut de l\'onglet <b>Prépa</b> : touchez Confirmer (ou Refuser) pour chacun, puis « Enregistrer mes choix ». Pas de bilan encore ? Il peut s\'entraîner au niveau 1 en attendant.</p>',
+        '<p class="small">Ensuite, ses résultats comptent tout de suite ; un exploit arrive en haut de l\'onglet <b>Prépa</b> : touchez Confirmer (ou Ce n\'est pas ça), puis « Enregistrer mes choix ». Pas de bilan encore ? Il peut s\'entraîner au niveau 1 en attendant.</p>',
       actions: [{ label: 'Compris', value: null, cls: 'btn' }]
     });
   };

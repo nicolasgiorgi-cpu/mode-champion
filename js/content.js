@@ -405,7 +405,7 @@ window.MC = window.MC || {};
     recup: 30,        // récup du dimanche
     bonus: 200,       // les 6 étoiles de la semaine
     badge: 100,       // badge gagné
-    record: 50,       // record battu (confirmé par un adulte)
+    record: 50,       // record battu (v70 : compte tout de suite ; un exploit, une fois confirmé)
     niveau: 100,      // montée de niveau (une fois par niveau atteint)
     premiersPas: 100, // les 4 « premiers pas » du nouveau joueur (une fois)
     mission: 200,     // une mission spéciale accomplie (en plus de son badge)

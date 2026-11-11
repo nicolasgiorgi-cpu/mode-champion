@@ -30,12 +30,17 @@
     if (!t) return r.test;
     return (r.extra && r.extra.sm && t.sm ? t.sm.nom : t.nom);
   }
-  function recLine(r, prenom, withActions) {
+  function recVal(r) {
     var t = L.testDef(r.test) || { unite: '' };
     var val = ui.fmtVal(r.valeur, t.unite, t.decimales);
     if (r.extra && r.extra.g !== undefined) val = 'G ' + r.extra.g + ' s · D ' + r.extra.d + ' s';
     if (r.extra && r.extra.elastique) val += ' (élastique ' + ({ fin: '10 kg', moyen: '20 kg', fort: '30 kg', '10': '10 kg', '20': '20 kg', '30': '30 kg' }[r.extra.elastique] || r.extra.elastique) + ' : ' + (r.extra.nbElastique || 0) + ')';
-    return '<li class="li" style="flex-wrap:wrap"><span class="grow"><span class="t1">' + (prenom ? esc(prenom.toUpperCase()) + ' · ' : '') + esc(testName(r)) + '</span><span class="t2">' + (r.bilan === 'defi' ? 'Défi' : 'Bilan ' + esc(r.bilan)) + ' · ' + ui.fmtDate(r.date) + (r.statut === 'refuse' ? ' · <b style="color:var(--red)">refusé</b>' + (r.parQui ? ' par ' + esc(r.parQui) : '') : '') + '</span></span>' +
+    return val;
+  }
+  function recLine(r, prenom, withActions) {
+    var val = recVal(r);
+    return '<li class="li" style="flex-wrap:wrap"><span class="grow"><span class="t1">' + (prenom ? esc(prenom.toUpperCase()) + ' · ' : '') + esc(testName(r)) + '</span><span class="t2">' + (r.bilan === 'defi' ? 'Défi' : 'Bilan ' + esc(r.bilan)) + ' · ' + ui.fmtDate(r.date) + (r.statut === 'refuse' ? ' · <b style="color:var(--red)">pas retenu</b>' + (r.parQui ? ' par ' + esc(r.parQui) : '') : '') + '</span></span>' +
+      (r.statut === 'attente' && r.exploit ? '<span class="pill rexp" style="--pc:var(--gold)">Exploit</span>' : '') +
       '<span style="font:700 16px/1 var(--f-hud);color:' + (r.statut === 'refuse' ? 'var(--dim)' : 'var(--gold)') + '">' + esc(val) + '</span>' +
       (withActions ? decBtns(r) : '') + '</li>';
   }
@@ -47,7 +52,7 @@
     var d = dec[r.id] || '', refused = r.statut === 'refuse';
     return '<span class="decis" data-rid="' + esc(r.id) + '">' +
       '<button type="button" class="dbtn dok' + (d === 'ok' ? ' on' : '') + '" aria-pressed="' + (d === 'ok') + '" aria-label="' + (refused ? 'Rétablir (confirmer)' : 'Confirmer') + ' : ' + esc(testName(r)) + '" data-act="decide" data-v="ok" data-id="' + esc(r.id) + '">' + icon('check', 16) + (refused ? ' Rétablir (confirmer)' : ' Confirmer') + '</button>' +
-      (refused ? '' : '<button type="button" class="dbtn dno' + (d === 'refuse' ? ' on' : '') + '" aria-pressed="' + (d === 'refuse') + '" aria-label="Refuser : ' + esc(testName(r)) + '" data-act="decide" data-v="refuse" data-id="' + esc(r.id) + '">' + icon('x', 16) + ' Refuser</button>') + '</span>';
+      (refused ? '' : '<button type="button" class="dbtn dno' + (d === 'refuse' ? ' on' : '') + '" aria-pressed="' + (d === 'refuse') + '" aria-label="Ce n\'est pas ça : ' + esc(testName(r)) + '" data-act="decide" data-v="refuse" data-id="' + esc(r.id) + '">' + icon('x', 16) + ' Ce n\'est pas ça</button>') + '</span>';
   }
   // juste sous la liste des résultats à confirmer (et sous « Tout confirmer »)
   function decBar() {
@@ -59,7 +64,7 @@
     var ok = 0, no = 0;
     Object.keys(dec).forEach(function (k) { if (dec[k] === 'ok') ok++; else no++; });
     // (retouche UI-04) la différence entre choisir et enregistrer : « Choix non enregistré » tant qu'on n'a pas touché Enregistrer
-    var t = [ok ? ok + ' à confirmer' : '', no ? no + ' à refuser' : ''].filter(Boolean).join(' · ');
+    var t = [ok ? ok + ' à confirmer' : '', no ? no + ' pas ça' : ''].filter(Boolean).join(' · ');
     return t ? 'Choix non enregistré · ' + t : '';
   }
   function updDec() {
@@ -109,11 +114,21 @@
       patchRecords(r.records || []);
       dec = {};
       document.body.classList.remove('dec-open');
-      ui.toast((list.length > 1 ? list.length + ' choix enregistrés' : '1 choix enregistré') + ' : ' + ([r.confirmes ? r.confirmes + ' confirmé' + (r.confirmes > 1 ? 's' : '') : '', r.refuses ? r.refuses + ' refusé' + (r.refuses > 1 ? 's' : '') : ''].filter(Boolean).join(' · ') || 'c\'est noté'));
+      ui.toast((list.length > 1 ? list.length + ' choix enregistrés' : '1 choix enregistré') + ' : ' + ([r.confirmes ? r.confirmes + ' confirmé' + (r.confirmes > 1 ? 's' : '') : '', r.refuses ? r.refuses + ' pas retenu' + (r.refuses > 1 ? 's' : '') : ''].filter(Boolean).join(' · ') || 'c\'est noté'));
       app.rerender();
     }).catch(function (e) { b.disabled = false; ui.toast(e.message, true); });
   };
   document.addEventListener('hashchange', function () { if (!/^#\/(parent|educ)/.test(location.hash)) { dec = {}; document.body.classList.remove('dec-open'); } });
+  // (v70, confiance par défaut) un score compte tout de suite ; la famille (ou l'éduc parent) le retire d'un toucher, après confirmation
+  MC.act.pasCa = function (b) {
+    var id = b.getAttribute('data-id');
+    ui.modal({ title: 'Ce n\'est pas ça ?', body: '<p class="lead">' + esc(b.getAttribute('data-t')) + ' ne comptera plus. Vous pourrez le rétablir.</p>', actions: [{ label: 'Retirer ce score', value: true, cls: 'btn pink' }, { label: 'Annuler', value: false, cls: 'btn2 grey' }] }).then(function (ok) {
+      if (!ok) return;
+      app.adultCall('confirm', { decisions: [{ id: id, statut: 'refuse' }] }).then(function (r) {
+        patchRecords(r.records || []); ui.toast('Score retiré'); app.rerender();
+      }).catch(function (e) { ui.toast(e.message, true); });
+    });
+  };
 
   // ---------- résumé d'un enfant (parent et éduc) ----------
   function kidSummary(d, opts) {
@@ -139,11 +154,21 @@
     }).join('') + '</ul>' : '<div class="empty">Aucune séance notée pour l\'instant.</div>';
     var pending = (d.records || []).filter(function (r) { return r.statut === 'attente'; });
     var refused = (d.records || []).filter(function (r) { return r.statut === 'refuse'; }).sort(function (a, b) { return a.date < b.date ? 1 : -1; }).slice(0, 12);
-    var attFam = d.enAttente ? '<div class="note">' + icon('info', 18, 'style="color:var(--cyan);flex:none"') + '<span class="small">' + d.enAttente + ' résultat' + (d.enAttente > 1 ? 's attendent' : ' attend') + ' la confirmation de sa famille.</span></div>' : '';
-    var pendHtml = attFam + (pending.length ? '<section class="note pink" data-cible="confirmer" style="flex-direction:column;gap:10px"><div><div class="hud" style="color:var(--pink)">' + pending.length + ' résultat' + (pending.length > 1 ? 's' : '') + ' à confirmer</div><div class="small" style="color:var(--soft);margin-top:4px">' + esc(k.prenom) + ' les a notés. Vous étiez là ? Choisissez <b>Confirmer</b> ou <b>Refuser</b> pour chacun (vous pouvez changer d\'avis), puis touchez <b>Enregistrer</b> juste en dessous : tant que ce n\'est pas fait, c\'est « Choix non enregistré ».</div></div>' +
+    // (v70, confiance par défaut) les scores qui comptent déjà, notés ces 14 derniers jours : « Ce n'est pas ça » d'un toucher
+    var depuis = L.addDays(t, -14), corr = opts.corriger !== false;
+    var recents = corr ? (d.records || []).filter(function (r) { return r.statut === 'ok' && !r.parQui && String(r.cree || r.date).slice(0, 10) >= depuis; })
+      .sort(function (a, b) { return (a.cree || a.date) < (b.cree || b.date) ? 1 : -1; }).slice(0, 12) : [];
+    var attFam = d.enAttente ? '<div class="note">' + icon('info', 18, 'style="color:var(--cyan);flex:none"') + '<span class="small">' + d.enAttente + ' exploit' + (d.enAttente > 1 ? 's attendent' : ' attend') + ' la confirmation de sa famille.</span></div>' : '';
+    var nEx = pending.filter(function (r) { return r.exploit; }).length, nP = pending.length;
+    var titreP = nEx === nP ? nP + ' exploit' + (nP > 1 ? 's' : '') + ' à confirmer' : nP + ' résultat' + (nP > 1 ? 's' : '') + ' à confirmer';
+    var pendHtml = attFam + (pending.length ? '<section class="note pink" data-cible="confirmer" style="flex-direction:column;gap:10px"><div><div class="hud" style="color:var(--pink)">' + titreP + '</div><div class="small" style="color:var(--soft);margin-top:4px">' + (nEx ? 'Un gros progrès ou une entrée sur le podium : ' : '') + esc(k.prenom) + ' compte sur vous. Vous étiez là ? <b>Confirmer</b> ou <b>Ce n\'est pas ça</b>, puis <b>Enregistrer</b> juste en dessous.</div></div>' +
       '<ul class="list" style="width:100%">' + pending.map(function (r) { return recLine(r, '', true); }).join('') + '</ul>' +
       (pending.length > 1 ? '<button type="button" class="btn2 pink" data-act="decAll" data-ids="' + esc(pending.map(function (r) { return r.id; }).join(',')) + '">' + icon('check', 16) + ' Tout confirmer</button>' : '') + decBar() + '</section>' : '');
-    if (refused.length) pendHtml += '<details class="note" style="flex-direction:column;gap:8px;display:block"><summary style="cursor:pointer;min-height:32px"><span class="hud" style="color:var(--muted)">' + refused.length + ' résultat' + (refused.length > 1 ? 's' : '') + ' refusé' + (refused.length > 1 ? 's' : '') + '</span> <span class="small">· refusé par erreur ? Rétablissez-le.</span></summary>' +
+    if (recents.length) pendHtml += '<details class="note scores" data-cible="scores" style="flex-direction:column;gap:8px;display:block"><summary style="cursor:pointer;min-height:32px"><span class="hud" style="color:var(--cyan)">' + recents.length + ' score' + (recents.length > 1 ? 's' : '') + ' noté' + (recents.length > 1 ? 's' : '') + ' ces 14 jours</span> <span class="small">· ils comptent déjà ; une erreur ? « Ce n\'est pas ça »</span></summary>' +
+      '<ul class="list" style="width:100%;margin-top:8px">' + recents.map(function (r) {
+        return recLine(r, '', false).replace(/<\/li>$/, '<span class="decis"><button type="button" class="dbtn dno" data-act="pasCa" data-id="' + esc(r.id) + '" data-t="' + esc(testName(r) + ' · ' + recVal(r)) + '" aria-label="Ce n\'est pas ça : ' + esc(testName(r)) + '">' + icon('x', 16) + ' Ce n\'est pas ça</button></span></li>');
+      }).join('') + '</ul></details>';
+    if (refused.length && corr) pendHtml += '<details class="note" style="flex-direction:column;gap:8px;display:block"><summary style="cursor:pointer;min-height:32px"><span class="hud" style="color:var(--muted)">' + refused.length + ' résultat' + (refused.length > 1 ? 's' : '') + ' pas retenu' + (refused.length > 1 ? 's' : '') + '</span> <span class="small">· retiré par erreur ? Rétablissez-le.</span></summary>' +
       '<ul class="list" style="width:100%;margin-top:8px">' + refused.map(function (r) { return recLine(r, '', true); }).join('') + '</ul>' + (pending.length ? '' : decBar()) + '</details>';
     var niv = k.niveaux || {};
     var editing = !!(opts.editLevels && lvDraft && lvDraft.id === k.id);
@@ -333,7 +358,7 @@
       var others = fam.enfants.filter(function (x) { return x.joueur.id !== k.id && (x.records || []).some(function (r) { return r.statut === 'attente'; }); });
       var otherNote = others.map(function (x) {
         var n = x.records.filter(function (r) { return r.statut === 'attente'; }).length;
-        return '<button type="button" class="note pink" data-act="parentSee" data-id="' + esc(x.joueur.id) + '" style="cursor:pointer;text-align:left">' + icon('check', 20) + '<span>' + esc(x.joueur.prenom) + ' a aussi ' + n + ' résultat' + (n > 1 ? 's' : '') + ' à confirmer. <b>Voir</b></span></button>';
+        return '<button type="button" class="note pink" data-act="parentSee" data-id="' + esc(x.joueur.id) + '" style="cursor:pointer;text-align:left">' + icon('check', 20) + '<span>' + esc(x.joueur.prenom) + ' a aussi ' + n + (x.records.every(function (r) { return r.statut !== 'attente' || r.exploit; }) ? ' exploit' : ' résultat') + (n > 1 ? 's' : '') + ' à confirmer. <b>Voir</b></span></button>';
       }).join('');
       // un +1 ou un mot d'éduc pas encore vu : une ligne verte, discrète, qui mène à Missions
       var nv = MC.missions ? MC.missions.nouveaux('f', d) : { enc: [] }, last = nv.enc[0], sk = MC.SK;
@@ -366,7 +391,7 @@
       return '<main class="screen">' + parentBar(fam, d, 'Prépa') + parentPrepaTabs('bilans') +
         '<div class="head"><span class="kicker" style="color:var(--cyan)">Bilans, records et niveaux</span><h1 class="big md">Les progrès<br>de ' + esc(k.prenom) + '</h1></div>' +
         '<div class="cols2"><div class="sec" style="gap:20px"><section class="sec"><h2 class="h2">D\'un bilan à l\'autre</h2>' + S.prog + '</section>' +
-        '<section class="sec"><h2 class="h2">Ses records confirmés</h2>' + S.recs + '</section></div>' +
+        '<section class="sec"><h2 class="h2">Ses records</h2>' + S.recs + '</section></div>' +
         '<section class="sec" data-cible="niveaux"><h2 class="h2">Ses niveaux</h2><p class="small" style="margin:0">Ils viennent du bilan. ' + esc(k.prenom) + ' peut monter d\'un niveau après une séance « facile » (ou redescendre après une séance « dure »). Vous pouvez aussi les ajuster ici.</p>' + S.levels + '</section></div>' +
         '</main>';
     });
@@ -461,10 +486,10 @@
   function aConfirmer(g, pending, pend) {
     var mine = (g.moi.enfants || []).map(function (id) { return g.joueurs.filter(function (p) { return p.joueur.id === id; })[0]; }).filter(Boolean);
     var noms = mine.map(function (p) { return p.joueur.prenom; }).join(', ');
-    if (!mine.length) return '<h2 class="h2">Résultats à confirmer</h2><div class="note">' + icon('info', 20, 'style="color:var(--cyan);flex:none"') + '<span class="small">Ce sont les familles qui confirment les résultats de leur enfant (bilans et défis). Votre enfant est dans le groupe ? Reliez-le à votre profil : vous confirmerez les siens ici.</span></div>' +
+    if (!mine.length) return '<h2 class="h2">Exploits à confirmer</h2><div class="note">' + icon('info', 20, 'style="color:var(--cyan);flex:none"') + '<span class="small">Chaque famille confirme les exploits de son enfant. Le vôtre est dans le groupe ? Reliez-le à votre profil.</span></div>' +
       '<button type="button" class="btn2 grey" data-act="myKids">' + icon('user', 16) + ' Choisir mon enfant</button>';
     return '<div class="between"><h2 class="h2">À confirmer · ' + esc(noms) + '</h2><span class="hud" style="color:var(--pink)">' + pending.length + '</span></div>' +
-      (pending.length ? '<p class="small" style="margin:0">Confirmer ou Refuser, puis <b>Enregistrer</b>.</p><ul class="list">' + pend + '</ul>' +
+      (pending.length ? '<p class="small" style="margin:0">Confirmer ou Ce n\'est pas ça, puis <b>Enregistrer</b>.</p><ul class="list">' + pend + '</ul>' +
         (pending.length > 1 ? '<button type="button" class="btn2 pink" data-act="decAll" data-ids="' + esc(pending.map(function (x) { return x.r.id; }).join(',')) + '">' + icon('check', 16) + ' Tout confirmer (' + pending.length + ')</button>' : '') + decBar() : '<div class="empty">Rien à confirmer pour ' + esc(noms) + '.</div>');
   }
   function paintVestiaire(g) {
@@ -592,7 +617,7 @@
   }
   function areneRows(rows, t, mineIds, showLv) {
     var medal = ['#FFC23D', '#C7CEDF', '#E39A5B'];
-    if (!rows.length) return '<div class="empty">' + (arene.mode === 'prog' ? 'Pas encore de progrès à comparer : il faut au moins 2 résultats confirmés.' : 'Personne n\'a encore de résultat confirmé sur cette épreuve ici.') + '</div>';
+    if (!rows.length) return '<div class="empty">' + (arene.mode === 'prog' ? 'Pas encore de progrès à comparer : il faut au moins 2 résultats.' : 'Personne n\'a encore de résultat sur cette épreuve ici.') + '</div>';
     return '<ol class="list">' + rows.map(function (r) {
       var mine = mineIds.indexOf(r.p.id) >= 0;
       var v = arene.mode === 'prog' ? (r.prog > 0 ? '+' : '') + ui.fmtVal(r.prog, t.unite, t.decimales) : ui.fmtVal(r.best, t.unite, t.decimales);
@@ -614,10 +639,10 @@
         '<section class="rkset"><p class="small" style="margin:0;color:var(--soft)">Sur chaque épreuve, ' + esc(k.prenom) + ' se mesure aux joueurs de son niveau (sa ligue).' + (k.visible ? '' : ' Il est masqué : les autres ne le voient pas.') + '</p>' +
         '<div class="sec" style="gap:8px"><span class="lab">Épreuves' + (pRank.sel.length ? ' · ' + pRank.sel.length + ' choisie' + (pRank.sel.length > 1 ? 's' : '') : ' · toutes') + '</span>' + MC.rankChips(pRank.sel, 'prTest') + '</div>' +
         '<div class="sec" style="gap:8px"><span class="lab">Classer par</span>' + MC.rankModeBtns(pRank.mode, 'prMode') + '</div></section>' +
-        (!R.seen ? '<div class="note">' + icon('info', 20) + '<span>' + esc(k.prenom) + ' n\'apparaît pas encore : il faut un résultat de bilan ou de défi confirmé.</span></div>' : '') +
+        (!R.seen ? '<div class="note">' + icon('info', 20) + '<span>' + esc(k.prenom) + ' n\'apparaît pas encore : il faut un résultat de bilan ou de défi.</span></div>' : '') +
         R.html +
         '<button type="button" class="switch" role="switch" aria-checked="' + !!k.visible + '" data-act="kidVisible" data-id="' + esc(k.id) + '"><span><span class="t1" style="display:block">' + esc(k.prenom) + ' apparaît dans le classement des autres</span><span class="t2" style="display:block">' + (k.visible ? 'Son prénom apparaît dans sa ligue' : 'Il voit son rang, les autres ne le voient pas') + '</span></span><span class="k"></span></button>' +
-        '<p class="small" style="margin:0">Seule la prépa physique compte ici (bilans et défis confirmés). Les missions et les Skills ne sont jamais classés.</p></main>';
+        '<p class="small" style="margin:0">Seule la prépa physique compte ici (bilans et défis). Les missions et les Skills ne sont jamais classés.</p></main>';
     });
   }, { adult: 'f', nav: 'p:prepa', bg: '#2A1640' });
   MC.act.prTest = function (b) { pRank.sel = MC.rankToggle(pRank.sel, b.getAttribute('data-v')); app.rerender(); };
@@ -638,7 +663,7 @@
         areneRows(rk.rows, t, (g.moi.enfants || []), true) + (function () {
           var inRk = {}; rk.rows.forEach(function (r) { inRk[r.p.id] = 1; });
           var cle = t.cle, rest = Lg.joueurs.filter(function (p) { return !inRk[p.id] && (!arene.lv || ((p.niveaux && p.niveaux[cle]) || 1) === arene.lv); });
-          return rest.length ? '<p class="small" style="margin:0"><b>Pas encore classés</b> (pas de résultat confirmé' + (arene.mode === 'prog' ? ', ou un seul' : '') + ') : ' + esc(rest.map(function (p) { return p.prenom; }).sort(function (a, b) { return a.localeCompare(b, 'fr'); }).join(', ')) + '.</p>' : '';
+          return rest.length ? '<p class="small" style="margin:0"><b>Pas encore classés</b> (pas encore de résultat' + (arene.mode === 'prog' ? ', ou un seul' : '') + ') : ' + esc(rest.map(function (p) { return p.prenom; }).sort(function (a, b) { return a.localeCompare(b, 'fr'); }).join(', ')) + '.</p>' : '';
         })() +
         (t.sm ? '<p class="small" style="margin:0">Les résultats « mini matériel » (SM) ont leur propre classement chez les enfants concernés.</p>' : '') + '</main>';
     });
@@ -725,14 +750,15 @@
     else if (tab === 'missions') body = MC.ficheMissions ? MC.ficheMissions(d, g) : '';
     else if (tab === 'hist') body = MC.terrainKid ? MC.terrainKid(d, g, 'hist') : '';
     else if (tab === 'prepa') {
-      var S = kidSummary(d, { editLevels: true });
+      // (v70) « Ce n'est pas ça » : seulement pour son enfant (les autres, c'est leur famille)
+      var S = kidSummary(d, { editLevels: true, corriger: (g.moi.enfants || []).indexOf(k.id) >= 0 });
       // (v37) un bilan ou un défi noté : les résultats à confirmer (ou « N attendent sa famille ») d'abord (c=bilans)
       body = (S.pending ? '<div class="sec" data-cible="bilans">' + S.pending + '</div>' : '') + S.tiles +
         '<div class="cols2"><div class="sec" style="gap:20px"><section class="sec"><div class="between"><h2 class="h2">Cette semaine</h2><span class="hud" style="color:var(--gold)">' + S.st.week.stars + ' / 6</span></div>' + S.week + '</section>' +
         '<section class="sec"><h2 class="h2">Séances</h2>' + (d.seances && d.seances.length && !d.seances.some(function (x) { return x.details; }) ? '<p class="small" style="margin:0">Chargement du détail…</p>' : '') +
         (MC.bravo ? MC.suivi.seances(d.seances, MC.bravo.opts(g, k.id)) : S.hist) + '</section></div>' +
         '<div class="sec" style="gap:20px"><section class="sec" data-cible="bilans"><h2 class="h2">Progression aux bilans</h2>' + S.prog + '</section>' +
-        '<section class="sec"><h2 class="h2">Records confirmés</h2>' + S.recs + '</section>' +
+        '<section class="sec"><h2 class="h2">Records</h2>' + S.recs + '</section>' +
         '<section class="sec" data-cible="niveaux"><h2 class="h2">Niveaux</h2>' + S.levels + '</section></div></div>';
     } else if (tab === 'famille') {
       body = '<section class="sec"><h2 class="h2">Famille</h2><p class="small" style="margin:0">' + esc(fam ? fam.nom : 'Sans famille') + '. Le code parent se refait dans Réglages › Familles et codes.</p>' +

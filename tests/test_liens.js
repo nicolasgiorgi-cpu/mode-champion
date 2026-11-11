@@ -43,9 +43,14 @@ assert.strictEqual(L.seanceE, '#/educ/joueur/' + tom + '?t=prepa&c=s-' + s1, 's�
 assert.strictEqual(L.seanceF, '#/parent?k=' + tom + '&c=s-' + s1, 'séance (famille) : son suivi, la séance ouverte');
 vider();
 g.call({ action: 'submitRecords', token: kt, bilan: '1', valeurs: [{ test: 'saut', valeur: 187 }] });
-L.confirmerF = liens(J.parent)[0]; L.bilanE = liens(J.admin)[0];
-assert.strictEqual(L.confirmerF, '#/parent?k=' + tom + '&c=confirmer', 'bilan (famille) : « à confirmer »');
+L.scoresF = liens(J.parent)[0]; L.bilanE = liens(J.admin)[0];
+assert.strictEqual(L.scoresF, '#/parent?k=' + tom + '&c=scores', 'bilan (famille, v70) : ses derniers scores, qu\'on peut corriger');
 assert.strictEqual(L.bilanE, '#/educ/joueur/' + tom + '?t=prepa&c=bilans', 'bilan (éduc) : sa progression aux bilans');
+vider();
+// (v70) un exploit (plus de 25 % de mieux) : « à confirmer »
+g.call({ action: 'submitRecords', token: kt, bilan: 'defi', valeurs: [{ test: 'saut', valeur: 240 }] });
+L.confirmerF = liens(J.parent)[0];
+assert.strictEqual(L.confirmerF, '#/parent?k=' + tom + '&c=confirmer', 'exploit (famille) : « à confirmer »');
 vider();
 g.call({ action: 'mission', token: kt, mission: 'jeu10', postes: ['centre'] });
 L.posteE = liens(J.admin)[0]; L.posteF = liens(J.parent)[0];
@@ -94,7 +99,7 @@ const ge = N.events('e', { group: g.call({ action: 'group', token: et }), compos
 const fe = N.events('f', { family: g.call({ action: 'family', token: ft }) });
 const ke = N.events('k', { me: g.call({ action: 'me', token: kt }) });
 const href = l => l.map(e => e.href);
-[['seanceE', ge], ['bilanE', ge], ['copainsE', ge], ['etoileE', ge], ['niveauE', ge], ['seanceF', fe], ['confirmerF', fe], ['posteF', fe], ['niveauF', fe], ['bravoF', fe], ['resultatK', ke], ['niveauK', ke], ['bravoK', ke]].forEach(([k, evs]) => {
+[['seanceE', ge], ['bilanE', ge], ['copainsE', ge], ['etoileE', ge], ['niveauE', ge], ['seanceF', fe], ['scoresF', fe], ['confirmerF', fe], ['posteF', fe], ['niveauF', fe], ['bravoF', fe], ['resultatK', ke], ['niveauK', ke], ['bravoK', ke]].forEach(([k, evs]) => {
   assert.ok(href(evs).indexOf(L[k]) >= 0, 'la cloche a une ligne avec le même lien que l\'alerte « ' + k + ' » : ' + L[k] + ' — liens de la cloche : ' + JSON.stringify(href(evs)));
 });
 

@@ -96,7 +96,7 @@
     var recs = (me.records || []).filter(function (r) { return r.statut !== 'refuse'; });
     var rows = C.TESTS.map(function (t) {
       var sm = t.sm && k.materiel === 'mini', key = t.id + (sm ? ':sm' : '');
-      // (retouche UI-08) le record = un résultat confirmé ; un résultat pas encore confirmé s'affiche à part
+      // (retouche UI-08) le record = un résultat qui compte ; (v70) un exploit pas encore confirmé s'affiche à part
       var b = (st.bestsOk || st.bests)[key];
       var mineAll = recs.filter(function (r) { return r.test === t.id && (!!(r.extra && r.extra.sm) === !!sm); }).sort(function (a, c) { return (a.date + a.cree) < (c.date + c.cree) ? -1 : 1; });
       var mine = mineAll.filter(function (r) { return r.statut !== 'attente'; }), att = mineAll.filter(function (r) { return r.statut === 'attente'; }).pop();
@@ -107,8 +107,8 @@
         gain += ' depuis ' + (first.bilan === 'defi' ? 'ton 1er défi' : 'le bilan ' + first.bilan);
       }
       var lv = C.CLES[t.cle] ? (niv[t.cle] || 1) : null;
-      var attTxt = att ? '<span class="t2 recatt">' + icon('clock', 12) + ' Résultat proposé : <b>' + ui.fmtVal(att.valeur, t.unite, t.decimales) + '</b> · en attente d\'un adulte</span>' : '';
-      return '<li class="li"><span class="grow"><span class="t1">' + esc(sm ? t.sm.nom : t.court) + '</span><span class="t2">' + (gain ? '<b style="color:var(--green)">' + esc(gain) + '</b>' : b ? 'ton record' : att ? 'pas encore de record confirmé' : 'pas encore de résultat') + '</span>' + attTxt + '</span>' +
+      var attTxt = att ? '<span class="t2 recatt">' + icon('clock', 12) + (att.exploit ? ' Exploit : <b>' : ' Résultat proposé : <b>') + ui.fmtVal(att.valeur, t.unite, t.decimales) + '</b> · un adulte doit le confirmer</span>' : '';
+      return '<li class="li"><span class="grow"><span class="t1">' + esc(sm ? t.sm.nom : t.court) + '</span><span class="t2">' + (gain ? '<b style="color:var(--green)">' + esc(gain) + '</b>' : b ? 'ton record' : att ? 'pas encore de record' : 'pas encore de résultat') + '</span>' + attTxt + '</span>' +
         (lv ? ui.lvl(lv) : '') + '<span style="font:700 17px/1 var(--f-hud);min-width:64px;text-align:right;color:' + (b ? 'var(--gold)' : 'var(--dim)') + '">' + (b ? ui.valHtml(b.valeur, t.unite, t.decimales) : '—') + '</span></li>';
     }).join('');
     return '<main class="screen">' + MC.kidBar(me, st) + MC.kidProgresTabs('records') +
@@ -116,7 +116,7 @@
       '<ol class="list">' + rows + '</ol>' +
       bilanBtn(me, bl) +
       '<a class="btn2" href="#/progression">' + icon('up', 16) + ' Ma progression d\'un bilan à l\'autre</a>' +
-      (MC.bilanEtat(me).etat !== 'fait' ? '<div class="note gold">' + icon('trophy', 20) + '<span><b>Ton bilan, quand tu veux.</b> Tu le passes avec un adulte. Il confirme tes résultats, puis ils arrivent ici.</span></div>' : '') +   // (v64) plus de date
+      (MC.bilanEtat(me).etat !== 'fait' ? '<div class="note gold">' + icon('trophy', 20) + '<span><b>Ton bilan, quand tu veux.</b> Tu le passes avec un adulte : tes résultats arrivent ici tout de suite.</span></div>' : '') +   // (v64) plus de date
       '</main>';
   }
 
@@ -131,7 +131,8 @@
     var att = Object.keys(faits).filter(function (k) { return faits[k].statut === 'attente'; }).length, nom = esc(bl.nom.toLowerCase());
     if (!n) return '<a class="btn" href="#/bilan">' + icon('plus', 18) + ' Saisir mon ' + nom + '</a>';   // (v64) sans date
     if (n < tot) return '<a class="btn" href="#/bilan">' + icon('plus', 18) + ' Compléter mon ' + nom + ' · ' + n + ' / ' + tot + ' tests</a>';
-    if (att) return '<a class="btn2" href="#/bilan">' + icon('clock', 16) + ' ' + esc(bl.nom) + ' envoyé · ' + att + ' en attente d\'un adulte</a>';
+    var ex = Object.keys(faits).filter(function (k) { return faits[k].statut === 'attente' && faits[k].exploit; }).length;
+    if (att) return '<a class="btn2" href="#/bilan">' + icon('clock', 16) + ' ' + esc(bl.nom) + ' envoyé · ' + (ex === att ? att + ' exploit' + (att > 1 ? 's' : '') + ' à confirmer' : att + ' en attente d\'un adulte') + '</a>';
     return '<a class="btn2" href="#/bilan">' + icon('check', 16) + ' ' + esc(bl.nom) + ' fait ✓ · revoir</a>';
   }
 
@@ -242,7 +243,7 @@
       return '<main class="screen">' + MC.kidSubBar('#/trophees', 'Mes trophées', 'Défi ' + b.nom) +
         '<div class="row" style="gap:16px">' + MC.badgeIcon(b, true, 84) + '<div class="head"><span class="kicker" style="color:' + b.color + '">Défi badge</span><h1 class="big sm">' + esc(b.nom) + '</h1></div></div>' +
         '<div class="box"><div class="hud" style="color:' + b.color + '">Le défi</div><p class="lead" style="margin-top:6px;color:var(--ink)">' + esc(b.cond) + '</p>' + (t.comment ? '<p class="small" style="margin:8px 0 0">' + esc(sm ? t.sm.comment : t.comment) + '</p>' : '') + '</div>' +
-        prev + '<div class="note yellow">' + icon('group', 20) + '<span>Un adulte doit être là pour compter. Ensuite, un parent ou ton éduc confirme dans son espace et le badge s\'allume.</span></div>' +
+        prev + '<div class="note yellow">' + icon('group', 20) + '<span>Un adulte doit être là pour compter. Ton résultat compte tout de suite ; un exploit attend qu\'un parent ou ton éduc le confirme.</span></div>' +
         '<div class="sec">' + input + '</div><button type="button" class="btn xl" data-act="sendDefi" data-b="' + b.id + '" data-sm="' + (sm ? 1 : 0) + '">' + icon('send', 20) + ' Envoyer mon résultat</button></main>';
     });
   }, { kid: true, nav: 'moi' });
@@ -270,12 +271,14 @@
       if (val === null) return ui.toast('Note ton résultat.', true);
     }
     btn.disabled = true;
+    var exploit = false;
     app.kidCall('submitRecords', { bilan: 'defi', valeurs: [{ test: b.test, valeur: val, extra: extra }], avecDossier: true }).then(function (r) {
-      defi = {};
+      defi = {}; exploit = (r.records || []).some(function (x) { return x.statut === 'attente'; });
       if (r.me) { app.setMe(r.me); return r.me; }
       return app.loadMe(true);
     }).then(function () {
-      ui.toast('Envoyé ! Un adulte doit confirmer.');
+      // (v70) confiance par défaut : seul un exploit attend un adulte
+      ui.toast(exploit ? 'Exploit ! Un parent ou ton éduc doit le confirmer.' : 'C\'est noté : ton résultat compte déjà !');
       app.go('#/trophees', true);   // le formulaire envoyé est remplacé : Retour ne le rouvre pas
     }).catch(function (e) { btn.disabled = false; ui.toast(e.message, true); });
   };
@@ -338,9 +341,9 @@
       var place = mine ? (who.toi ? 'Toi : ' : esc(who.prenom) + ' : ') + mine.rank + (mine.rank === 1 ? 'er' : 'e') + ' / ' + lg.rows.length : lg.rows.length + ' joueur' + (lg.rows.length > 1 ? 's' : '');
       return '<section class="rkcard" style="--lc:' + lc + '"><div class="rkcard-h"><h2 class="h2">' + esc(t.nom) + '</h2><span class="rkcard-p' + (mine ? ' me' : '') + '">' + place + '</span></div>' +
         '<span class="rkcard-l">' + esc(lname) + (lg.sm ? ' · mini matériel' : '') + '</span>' +
-        (rows ? '<ol class="list">' + rows + '</ol>' + more : '<div class="empty">' + (mode === 'prog' ? 'Pas encore de progrès à comparer : il faut au moins 2 résultats confirmés.' : 'Personne n\'a encore de résultat confirmé sur cette épreuve dans ' + (who.toi ? 'ta' : 'sa') + ' ligue.') + '</div>') + '</section>';
+        (rows ? '<ol class="list">' + rows + '</ol>' + more : '<div class="empty">' + (mode === 'prog' ? 'Pas encore de progrès à comparer : il faut au moins 2 résultats.' : 'Personne n\'a encore de résultat sur cette épreuve dans ' + (who.toi ? 'ta' : 'sa') + ' ligue.') + '</div>') + '</section>';
     }).join('');
-    return { html: (cards ? '<div class="rkcards">' + cards + '</div>' : '') + (vides.length ? '<p class="small rkvides"><b>Pas encore de ' + (mode === 'prog' ? 'progrès' : 'résultat') + ' confirmé' + (who.toi ? ' dans ta ligue' : '') + ' :</b> ' + esc(vides.join(', ')) + '.</p>' : ''), seen: seen };
+    return { html: (cards ? '<div class="rkcards">' + cards + '</div>' : '') + (vides.length ? '<p class="small rkvides"><b>Pas encore de ' + (mode === 'prog' ? 'progrès' : 'résultat') + (who.toi ? ' dans ta ligue' : '') + ' :</b> ' + esc(vides.join(', ')) + '.</p>' : ''), seen: seen };
   }
   MC.rankCards = rankCards;
   function modeBtns(mode, act) {
@@ -358,7 +361,7 @@
 
   function paintRank(me, Lg) {
     var R = rankCards(Lg, { id: me.joueur.id, prenom: me.joueur.prenom, toi: true }, rank.sel, rank.mode);
-    var meNote = !R.seen ? '<div class="note">' + icon('info', 20) + '<span>Tu n\'apparais pas encore : saisis ton bilan (ou un défi) et fais-le confirmer par un adulte.</span></div>' : '';
+    var meNote = !R.seen ? '<div class="note">' + icon('info', 20) + '<span>Tu n\'apparais pas encore : note ton bilan (ou un défi).</span></div>' : '';
     // (v68) l'onglet Équipe : les podiums de ta ligue ; pas de grand titre, les filtres repliés sous une ligne
     return '<main class="screen">' + MC.kidBar(me, app.S.stats) + '<div class="head acc-h"><h1 class="acc-t">Les podiums</h1>' +
       '<p class="small" style="margin:0">Sur chaque épreuve, avec les joueurs de ton niveau (ta ligue).</p></div>' +
@@ -366,7 +369,7 @@
       '<div class="sec" style="gap:8px"><span class="lab">Épreuves' + (rank.sel.length ? ' · ' + rank.sel.length + ' choisie' + (rank.sel.length > 1 ? 's' : '') : ' · toutes') + '</span>' + rankChips(rank.sel, 'rkTest') + '</div>' +
       '<div class="sec" style="gap:8px"><span class="lab">Classer par</span>' + modeBtns(rank.mode, 'rkMode') + '</div></details>' +
       meNote + R.html +
-      '<p class="small" style="text-align:center;margin:0">' + (rank.mode === 'prog' ? 'Progrès depuis ton 1er résultat : tout le monde peut être 1er.' : 'Records des bilans et des défis, confirmés par un adulte.') + '</p></main>';
+      '<p class="small" style="text-align:center;margin:0">' + (rank.mode === 'prog' ? 'Progrès depuis ton 1er résultat : tout le monde peut être 1er.' : 'Records des bilans et des défis.') + '</p></main>';
   }
   document.addEventListener('toggle', function (ev) { var t = ev.target; if (t && t.classList && t.classList.contains('rkf')) rank.ouvert = t.open; }, true);   // (v68) les filtres restent ouverts d'un toucher à l'autre
   // (v68, relecture) venir d'ailleurs = les filtres repliés (règle v44) ; l'événement arrive sur window, pas sur document
@@ -509,7 +512,7 @@
       '<li><span class="num" style="--sc:var(--cyan)">1</span><span class="tx"><b>12 petits tests</b> (sauts, gainage, navette…) pour voir où tu en es. Quand tu veux, avec un adulte.</span></li>' +
       '<li><span class="num" style="--sc:var(--cyan)">2</span><span class="tx"><b>Avec un adulte</b> à côté qui regarde, compte et chronomètre. Environ 45 min, 2 min de repos entre deux tests.</span></li>' +
       '<li><span class="num" style="--sc:var(--cyan)">3</span><span class="tx">Il <b>règle tes niveaux</b> exercice par exercice, et tes résultats deviennent tes <b>records</b>.</span></li>' +
-      '<li><span class="num" style="--sc:var(--cyan)">4</span><span class="tx">Un parent ou ton éduc les <b>confirme</b> : ils comptent alors pour les podiums.</span></li></ol>' +
+      '<li><span class="num" style="--sc:var(--cyan)">4</span><span class="tx">Tes résultats comptent <b>tout de suite</b> pour les podiums. Un exploit attend qu\'un adulte le confirme.</span></li></ol>' +
       (first ? '<p class="small" style="margin:0;color:var(--soft)">' + icon('info', 14) + ' Pas d\'adulte dispo aujourd\'hui ? Pas de souci : <b>tu peux t\'entraîner dès maintenant</b>, tes exos sont au niveau 1. Tu feras ton bilan quand un adulte sera là.</p>' : '') + '</section>';
   }
   function guidedCta() {
@@ -571,13 +574,17 @@
     var old = me.joueur.niveaux || {};
     var journal = [{ type: 'bilan_niveaux', data: { bilan: B.n, niveaux: newLv } }];
     // un seul appel : résultats datés + niveaux + profil à jour en retour
+    var nEx = 0;
     return app.kidCall('submitRecords', { bilan: String(B.n), valeurs: vals, date: bil.date || L.today(), niveaux: newLv, journal: journal, avecDossier: true }).then(function (r) {
+      nEx = (r.records || []).filter(function (x) { return x.statut === 'attente'; }).length;
       if (r.me) return r.me;
       return app.kidCall('updateMe', { niveaux: newLv, journal: journal }); // serveur pas encore à jour
     }).then(function (res) {
       app.setMe(res);
       var changes = Object.keys(newLv).filter(function (k) { return (old[k] || 1) !== newLv[k]; });
-      var body = '<p class="lead">' + vals.length + ' test' + (vals.length > 1 ? 's' : '') + ' envoyé' + (vals.length > 1 ? 's' : '') + '. Un parent ou ton éduc doit les confirmer.</p>' +
+      // (v70) confiance par défaut : les résultats comptent déjà ; seuls les exploits attendent un adulte
+      var body = '<p class="lead">' + vals.length + ' test' + (vals.length > 1 ? 's' : '') + ' envoyé' + (vals.length > 1 ? 's' : '') + ' : ' + (nEx < vals.length ? 'tes résultats comptent déjà !' : 'bravo !') + '</p>' +
+        (nEx ? '<div class="note gold">' + icon('trophy', 20) + '<span>' + (nEx > 1 ? nEx + ' exploits ! Un parent ou ton éduc doit les confirmer.' : 'Un exploit ! Un parent ou ton éduc doit le confirmer.') + '</span></div>' : '') +
         (changes.length ? '<ul class="list">' + changes.map(function (k) { return '<li class="li"><span class="grow t1">' + esc(C.CLES[k].nom) + '</span>' + ui.lvl(old[k] || 1) + icon('right', 16) + ui.lvl(newLv[k]) + '</li>'; }).join('') + '</ul>' : '<p class="small">Tes niveaux ne changent pas.</p>');
       return ui.modal({ title: 'Bilan envoyé !', body: body, actions: [{ label: 'Voir mes bilans', value: 1, cls: 'btn' }] });
     }).then(function () { bil = null; saveBil(); app.go('#/bilans', true); return true; })
