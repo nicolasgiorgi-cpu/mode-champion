@@ -27,7 +27,7 @@ MC.notifs = (function () {
   var CATS = {
     e: [
       ['seance', 'Séances des enfants', 'Un enfant a fait une séance de prépa.', 'pulse', '#38E8FF'],
-      ['bilan', 'Bilans et défis', 'Un enfant a noté son bilan ou un défi.', 'trend', '#3DFFB0'],
+      ['bilan', 'Bilans et records', 'Un enfant a noté son bilan ou tenté un record.', 'trend', '#3DFFB0'],
       ['mission', 'Réponses aux missions', 'Choisis ton poste, copains, vidéo, QCM, et le mot pour les éducs.', 'target', '#FF7FBC'],
       ['etoile', 'Demandes d\'étoiles', 'Un enfant demande une étoile Skills.', 'star', '#FFC23D'],
       ['niveau', 'Niveaux', 'Un niveau changé par l\'enfant, un parent ou un autre éduc.', 'up', '#C9AEFF'],
@@ -36,7 +36,7 @@ MC.notifs = (function () {
     f: [
       ['seance', 'Séances', 'Votre enfant a fait une séance de prépa.', 'pulse', '#38E8FF'],
       ['bravo', 'Les bravos', 'Un éduc ou un joueur de l\'équipe a félicité votre enfant pour sa séance.', 'heart', '#FFC23D'],
-      ['confirmer', 'Bilans et défis', 'Votre enfant a noté son bilan ou un défi (seuls les exploits sont à confirmer).', 'check', '#FF4FA3'],
+      ['confirmer', 'Bilans et records', 'Votre enfant a noté son bilan ou tenté un record (seuls les exploits sont à confirmer).', 'check', '#FF4FA3'],
       ['mission', 'Missions faites', 'Votre enfant a fait une mission.', 'target', '#FF7FBC'],
       ['niveau', 'Niveaux', 'Un niveau de votre enfant a changé.', 'up', '#C9AEFF'],
       ['skills', 'Étoiles Skills', 'Un éduc a validé une étoile de votre enfant.', 'star', '#FFC23D', ['skills']],
@@ -230,7 +230,7 @@ MC.notifs = (function () {
       groupes(d.records).forEach(function (x) {
         // (v70) confiance par défaut : « À confirmer » pour un exploit (le même lien que son alerte) ; sinon, ses derniers scores (qu'on peut corriger)
         var att = x.attente ? ' <span class="nt-att">À confirmer</span>' : '', c = x.attente || x.recs.some(function (r) { return r.exploit; }) ? '&c=confirmer' : '&c=scores';
-        if (x.defi) { var r = x.recs[0]; out.push({ id: 'r:' + r.id, cat: 'confirmer', t: x.t, txt: who + ' a relevé un défi : ' + esc(nomTest(r.test)) + '.' + att, href: '#/parent' + k + c }); return; }
+        if (x.defi) { var r = x.recs[0]; out.push({ id: 'r:' + r.id, cat: 'confirmer', t: x.t, txt: who + ' a tenté un record : ' + esc(nomTest(r.test)) + '.' + att, href: '#/parent' + k + c }); return; }
         out.push({ id: 'b:' + j.id + ':' + x.bilan, cat: 'confirmer', t: x.t, txt: who + ' a noté son ' + esc(nomBilan(x.bilan)) + ' (' + pl(x.recs.length, 'résultat') + ').' + att, href: '#/parent' + k + c });
       });
       (d.missions || []).forEach(function (m) {
@@ -283,7 +283,7 @@ MC.notifs = (function () {
       var ok = faits.filter(function (r) { return r.statut === 'ok'; }).length, no = faits.length - ok, q = par(faits[faits.length - 1].parQui, true);
       if (x.defi) {
         var r = x.recs[0];
-        out.push({ id: 'rs:' + r.id + ':' + r.statut, cat: 'resultat', t: 0, t0: x.t, txt: 'Ton défi ' + b(nomTest(r.test)) + (r.statut === 'ok' ? ' est confirmé' : ' n\'est pas retenu') + esc(q) + '.', href: '#/bilans' });
+        out.push({ id: 'rs:' + r.id + ':' + r.statut, cat: 'resultat', t: 0, t0: x.t, txt: 'Ton résultat ' + b(nomTest(r.test)) + (r.statut === 'ok' ? ' est confirmé' : ' n\'est pas retenu') + esc(q) + '.', href: '#/bilans' });
         return;
       }
       out.push({ id: 'rs:' + x.bilan + ':' + ok + ':' + no, cat: 'resultat', t: 0, t0: x.t,

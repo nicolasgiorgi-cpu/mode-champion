@@ -39,7 +39,7 @@
   }
   function recLine(r, prenom, withActions) {
     var val = recVal(r);
-    return '<li class="li" style="flex-wrap:wrap"><span class="grow"><span class="t1">' + (prenom ? esc(prenom.toUpperCase()) + ' · ' : '') + esc(testName(r)) + '</span><span class="t2">' + (r.bilan === 'defi' ? 'Défi' : 'Bilan ' + esc(r.bilan)) + ' · ' + ui.fmtDate(r.date) + (r.statut === 'refuse' ? ' · <b style="color:var(--red)">pas retenu</b>' + (r.parQui ? ' par ' + esc(r.parQui) : '') : '') + '</span></span>' +
+    return '<li class="li" style="flex-wrap:wrap"><span class="grow"><span class="t1">' + (prenom ? esc(prenom.toUpperCase()) + ' · ' : '') + esc(testName(r)) + '</span><span class="t2">' + (r.bilan === 'defi' ? 'Tentative' : 'Bilan ' + esc(r.bilan)) + ' · ' + ui.fmtDate(r.date) + (r.statut === 'refuse' ? ' · <b style="color:var(--red)">pas retenu</b>' + (r.parQui ? ' par ' + esc(r.parQui) : '') : '') + '</span></span>' +
       (r.statut === 'attente' && r.exploit ? '<span class="pill rexp" style="--pc:var(--gold)">Exploit</span>' : '') +
       '<span style="font:700 16px/1 var(--f-hud);color:' + (r.statut === 'refuse' ? 'var(--dim)' : 'var(--gold)') + '">' + esc(val) + '</span>' +
       (withActions ? decBtns(r) : '') + '</li>';
@@ -505,7 +505,7 @@
     G.players.forEach(function (p) {
       p.seances.forEach(function (s) { ev.push({ s: s, bravos: p.bravos || [], at: s.cree || s.date, id: p.joueur.id, p: p.joueur, t1: (C.JOURS[s.type] || {}).nomSeance || s.type, t2: ui.fmtDate(s.date) + ' · ' + (s.mode === 'guidee' ? 'séance guidée' : 'notée') + (s.ressenti ? ' · ' + ({ facile: 'facile', bien: 'pile bien', dur: 'dur' }[s.ressenti] || '') : ''), c: (C.JOURS[s.type] || {}).color || '#888' }); });
       var byB = {};
-      p.records.forEach(function (r) { if (r.bilan === 'defi') { ev.push({ at: r.cree || r.date, id: p.joueur.id, p: p.joueur, t1: 'Défi · ' + testName(r), t2: ui.fmtDate(r.date), c: '#FFC23D' }); return; } var key = r.bilan + r.date; (byB[key] = byB[key] || []).push(r); });
+      p.records.forEach(function (r) { if (r.bilan === 'defi') { ev.push({ at: r.cree || r.date, id: p.joueur.id, p: p.joueur, t1: 'Tentative · ' + testName(r), t2: ui.fmtDate(r.date), c: '#FFC23D' }); return; } var key = r.bilan + r.date; (byB[key] = byB[key] || []).push(r); });
       Object.keys(byB).forEach(function (key) { var l = byB[key]; ev.push({ at: l[0].cree || l[0].date, id: p.joueur.id, p: p.joueur, t1: 'Bilan ' + l[0].bilan + ' · ' + l.length + ' test' + (l.length > 1 ? 's' : ''), t2: ui.fmtDate(l[0].date), c: '#38E8FF' }); });
     });
     ev.sort(function (a, b) { return a.at < b.at ? 1 : -1; });
@@ -644,10 +644,10 @@
         '<section class="rkset"><p class="small" style="margin:0;color:var(--soft)">Sur chaque épreuve, ' + esc(k.prenom) + ' se mesure aux joueurs de son niveau (sa ligue).' + (k.visible ? '' : ' Il est masqué : les autres ne le voient pas.') + '</p>' +
         '<div class="sec" style="gap:8px"><span class="lab">Épreuves' + (pRank.sel.length ? ' · ' + pRank.sel.length + ' choisie' + (pRank.sel.length > 1 ? 's' : '') : ' · toutes') + '</span>' + MC.rankChips(pRank.sel, 'prTest') + '</div>' +
         '<div class="sec" style="gap:8px"><span class="lab">Classer par</span>' + MC.rankModeBtns(pRank.mode, 'prMode') + '</div></section>' +
-        (!R.seen ? '<div class="note">' + icon('info', 20) + '<span>' + esc(k.prenom) + ' n\'apparaît pas encore : il faut un résultat de bilan ou de défi.</span></div>' : '') +
+        (!R.seen ? '<div class="note">' + icon('info', 20) + '<span>' + esc(k.prenom) + ' n\'apparaît pas encore : il faut un résultat de bilan ou un record tenté.</span></div>' : '') +
         R.html +
         '<button type="button" class="switch" role="switch" aria-checked="' + !!k.visible + '" data-act="kidVisible" data-id="' + esc(k.id) + '"><span><span class="t1" style="display:block">' + esc(k.prenom) + ' apparaît dans l\'équipe</span><span class="t2" style="display:block">' + (k.visible ? 'Les autres voient son prénom aux podiums, ses séances et ses records battus' : 'Il voit l\'équipe ; les autres ne le voient pas') + '</span></span><span class="k"></span></button>' +
-        '<p class="small" style="margin:0">Seule la prépa physique compte ici (bilans et défis). Les missions et les Skills ne sont jamais classés.</p></main>';
+        '<p class="small" style="margin:0">Seule la prépa physique compte ici (bilans et records). Les missions et les Skills ne sont jamais classés.</p></main>';
     });
   }, { adult: 'f', nav: 'p:prepa', bg: '#2A1640' });
   MC.act.prTest = function (b) { pRank.sel = MC.rankToggle(pRank.sel, b.getAttribute('data-v')); app.rerender(); };

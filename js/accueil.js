@@ -22,7 +22,7 @@ MC.accueil = (function () {
       ['trend', '#FFC23D', 'Progrès', 'tes records et tes niveaux'],
       ['user', '#3DFFB0', 'Moi', 'ton grade, tes badges et tes trophées']],
     f: [['bolt', '#38E8FF', 'Prépa', 'ses séances à la maison, et ses résultats (seuls les exploits sont à confirmer)'],
-      ['target', '#FF7FBC', 'Missions', 'les défis et les encouragements de ses éducs'],
+      ['target', '#FF7FBC', 'Missions', 'ce que lui proposent ses éducs, et leurs encouragements'],
       ['star', '#FFC23D', 'Skills', 'ses étoiles rugby, validées par les éducs au terrain'],
       ['menu', '#C9AEFF', 'Plus', 'votre code, l\'aide et les réglages']],
     e: [['calendar', '#38E8FF', 'Entraîn.', 'les entraînements : qui est là, les groupes'],
@@ -138,7 +138,7 @@ MC.accueil = (function () {
     var last = '<button type="button" class="btn green" data-act="obDoneKid">' + icon('play', 18) + ' Je commence' + (noBilan ? ' au niveau 1' : '') + ' !</button>' +
       (noBilan ? '<a class="btn2 gold" href="#/bilan" data-act="obBilan">' + icon('trophy', 16) + ' D\'abord mon bilan, avec un adulte</a>' : '');
     return frame('k', n, i, '<div class="obgrades">' + C.GRADES.slice(0, 4).reverse().map(function (g, j) { return '<span class="' + (j === 3 ? 'me' : '') + '"><b>' + esc(g.nom) + '</b><small>' + ui.fmtNum(g.xp) + ' XP</small></span>'; }).join('') + '</div>', 'monte en grade',
-      'Deviens une légende', '<p class="lead">Chaque séance rapporte des <b>XP</b> : tu montes de grade, tu débloques des <b>badges</b> et tu montes sur les <b>podiums</b> face aux joueurs de ton niveau. ' + (MC.ouvert('skills') ? 'Et dans <b>tes missions</b> et tes <b>Skills</b>, tes éducs te lancent des défis rugby et valident tes étoiles.' : 'Et dans <b>tes missions</b>, tes éducs te lancent des défis, comme choisir ton poste pour le jeu à 10.') + '</p>' +
+      'Deviens une légende', '<p class="lead">Chaque séance rapporte des <b>XP</b> : tu montes de grade, tu débloques des <b>badges</b> et tu montes sur les <b>podiums</b> face aux joueurs de ton niveau. ' + (MC.ouvert('skills') ? 'Et dans <b>tes missions</b> et tes <b>Skills</b>, tes éducs te lancent des missions rugby et valident tes étoiles.' : 'Et dans <b>tes missions</b>, tes éducs te demandent par exemple de choisir ton poste pour le jeu à 10.') + '</p>' +
       '<div class="note cyan">' + icon('star', 20) + '<span>Pour bien démarrer : <b>tes premiers pas</b>, 4 petites étapes sur l\'Accueil, <b>+' + C.XP.premiersPas + ' XP</b> à la fin.</span></div>', last, { kc: 'var(--violet)' });
   }
   MC.act.obDoneKid = function () { finish('k'); };
@@ -160,7 +160,7 @@ MC.accueil = (function () {
     if (i === 1) return frame('f', n, i, '', 'votre rôle · 2 minutes par semaine', 'Vous gardez la main',
       '<div class="sec">' +
       '<div class="note">' + icon('pulse', 24, 'style="color:var(--cyan)"') + '<span><b>Suivre</b> : chaque séance et la progression d\'un bilan à l\'autre (onglet Prépa), ' + (MC.ouvert('skills') ? 'ses missions et les encouragements de ses éducs, ses étoiles Skills.' : 'et ses missions, comme le choix de son poste pour le jeu à 10.') + '</span></div>' +
-      '<div class="note pink">' + icon('check', 24) + '<span><b>Confirmer ses résultats</b> : bilans et défis. Votre OK les fait entrer dans son classement. Une pastille rose vous prévient.</span></div>' +
+      '<div class="note pink">' + icon('check', 24) + '<span><b>Ses résultats</b> comptent tout de suite ; seul un exploit attend votre OK, et « Ce n\'est pas ça » retire une erreur. Une pastille rose vous prévient.</span></div>' +
       '<div class="note gold">' + icon('up', 24) + '<span><b>Ajuster ses niveaux</b> : trop facile, trop dur ? Vous pouvez changer le niveau de chaque exercice.</span></div></div>', nextBtn, { kc: 'var(--green)' });
     var shared = app.sharedDevice();
     return frame('f', n, i, '', 'une question pour bien régler l\'appli', esc(one ? one.prenom : 'Vos enfants') + ' s\'entraîne' + (one ? '' : 'nt') + ' sur quel appareil ?',

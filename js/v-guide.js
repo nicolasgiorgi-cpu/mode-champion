@@ -115,7 +115,7 @@
           'Il est proposé sur l\'<b>Accueil</b> et dans ta <b>séance</b>, juste après l\'échauffement (tu es chaud : c\'est le bon moment). « Pas aujourd\'hui » pour passer.',
           'Progrès › <b>Records</b> : tes 12 épreuves en cartes. Touche une épreuve : ton record, ta <b>courbe</b>, le niveau que ton record vaut, et <b>Je tente</b>.',
           '<b>Je tente</b> : l\'écran du bilan guidé (démo, chrono, compteur), puis ton résultat part tout seul. Pas chaud ? L\'échauffement de 4 min d\'abord.',
-          '<b>Une tentative par épreuve et par jour, deux épreuves par jour au plus</b> (les défis des badges comptent aussi). Record battu : la fête et +' + C.XP.record + ' XP. Pas battu : +' + C.XP.tentative + ' XP (une fois par jour), et tu le battras une prochaine fois.',
+          '<b>Une tentative par épreuve et par jour, deux épreuves par jour au plus</b> (les badges tentés comptent aussi). Record battu : la fête et +' + C.XP.record + ' XP. Pas battu : +' + C.XP.tentative + ' XP (une fois par jour), et tu le battras une prochaine fois.',
           'Navette et saut se font à deux (quelqu\'un au chrono, un mètre pour mesurer) ; suspension et tractions demandent une barre.'
         ])) +
       card('xp', 'trophy', '#FFC23D', 'XP et grades', 'Ta carrière, de Recrue à Légende',
@@ -148,15 +148,15 @@
           'Touche une carte : ses étoiles, qui les a validées, et comment t\'entraîner pour les autres. Les Skills ne sont jamais classés : chacun avance à son rythme.'
         ]))) +
       card('badges', 'shield', '#FF4FA3', 'Les badges', C.BADGES.length + ' badges en ' + C.FAMILLES_BADGES.length + ' familles',
-        '<p style="margin:0"><b>Exploit</b> : les défis du tableau du mur, gagnés au bilan ou en défi devant un adulte. Plus <b>Champion</b> : réussir un exercice en N4.</p>' + badgeRow('exploit') +
+        '<p style="margin:0"><b>Exploit</b> : les exploits du tableau du mur, gagnés au bilan ou en les tentant devant un adulte. Plus <b>Champion</b> : réussir un exercice en N4.</p>' + badgeRow('exploit') +
         '<p style="margin:0"><b>Séances</b> : 10, 25 puis 40 séances du même jour = <b>bronze</b>, <b>argent</b>, <b>or</b>.</p>' + badgeRow('seances') +
         '<p style="margin:0"><b>Régularité</b> : ils viennent tout seuls si tu t\'entraînes souvent.</p>' + badgeRow('regularite') +
         '<p style="margin:0"><b>Missions</b> : une mission spéciale accomplie.</p>' + badgeRow('missions') +
         '<p style="margin:0">Chaque badge et chaque palier : <b>+' + C.XP.badge + ' XP</b>. Tout est dans Moi › Trophées.</p>') +
-      card('defi', 'gift', '#FF8A3D', 'Les défis', 'Tenter un badge un jour où tu te sens fort',
+      card('defi', 'gift', '#FF8A3D', 'Tenter un badge', 'Un jour où tu te sens fort',
         ul([
           'Moi › <b>Trophées</b> › touche un badge d\'exploit pas encore gagné.',
-          'Fais le défi <b>devant un adulte</b> qui compte, puis note ton résultat.',
+          'Fais l\'épreuve <b>devant un adulte</b> qui compte, puis note ton résultat.',
           'Le badge s\'allume tout de suite, et si c\'est ton meilleur résultat, ça devient ton record. Un exploit attend qu\'un parent ou ton éduc le confirme.'
         ])) +
       card('classement', 'podium', '#4D9BFF', 'Le classement et les ligues', 'Tu te compares aux joueurs de ton niveau',
@@ -210,8 +210,8 @@
         ].filter(Boolean))) +
       card('p-confirmer', 'check', '#FFC23D', 'Ses résultats et ses exploits', 'Ça compte tout de suite',
         ul([
-          'Un résultat de bilan ou de défi <b>compte tout de suite</b> (classement, badges, records). Une erreur ? Dans « scores notés ces 14 jours », touchez <b>Ce n\'est pas ça</b> : il ne compte plus.',
-          '<b>Le record du jour</b> (du lundi au jeudi) : votre enfant peut tenter de battre un record, une épreuve à la fois (une tentative par épreuve et par jour, deux épreuves par jour au plus). Vous recevez une alerte « a tenté un record » ; le score compte tout de suite, comme un défi.',
+          'Un résultat de bilan ou un record tenté <b>compte tout de suite</b> (classement, badges, records). Une erreur ? Dans « scores notés ces 14 jours », touchez <b>Ce n\'est pas ça</b> : il ne compte plus.',
+          '<b>Le record du jour</b> (du lundi au jeudi) : votre enfant peut tenter de battre un record, une épreuve à la fois (une tentative par épreuve et par jour, deux épreuves par jour au plus). Vous recevez une alerte « a tenté un record » ; le score compte tout de suite, comme au bilan.',
           'Seul un <b>exploit</b> attend votre confirmation : plus de 25 % de mieux que son record d\'un coup, ou une entrée sur le podium de sa ligue. Touchez <b>Confirmer</b> ou <b>Ce n\'est pas ça</b>, puis <b>Enregistrer mes choix</b>, juste sous la liste. Un éduc parent de l\'enfant peut aussi confirmer.',
           'Retiré par erreur ? Ouvrez « résultats pas retenus » et touchez <b>Rétablir</b>, puis Enregistrer mes choix.',
           'Un exploit compte pour le classement, les badges et les records une fois confirmé.'
@@ -329,7 +329,7 @@
           'Engrenage › <b>Familles et codes</b> : un nouveau code provisoire pour une famille qui a perdu le sien.'
         ])) +
       card('e-regles', 'star', '#FF4FA3', 'Les règles du jeu', 'Ce que voient les enfants',
-        '<p style="margin:0">Étoiles, séries, XP et grades, niveaux N1-N4, jauge du cycle, badges, défis, ligues, missions et Skills : tout est expliqué dans l\'onglet <b>Joueur</b>, pour pouvoir en parler avec eux à l\'entraînement.</p>' +
+        '<p style="margin:0">Étoiles, séries, XP et grades, niveaux N1-N4, jauge du cycle, badges, records, défi d\'équipe, ligues, missions et Skills : tout est expliqué dans l\'onglet <b>Joueur</b>, pour pouvoir en parler avec eux à l\'entraînement.</p>' +
         '<button type="button" class="btn2 sm" data-act="guideTab" data-v="joueur">' + icon('right', 16) + ' Voir l\'onglet Joueur</button>');
   }
 

@@ -84,7 +84,7 @@ with sync_playwright() as p:
     check('parent : le défi de Tom allume la cloche', nb(pg) == '1', nb(pg))
     pg.goto(BASE + '#/parent/notifs'); pg.wait_for_timeout(1300)
     t = pg.inner_text('.ntl') if pg.query_selector('.ntl') else ''
-    check('parent : « Tom a relevé un défi : Saut » à confirmer', 'défi' in t and 'Saut' in t and 'confirmer' in t.lower(), t[:120])
+    check('parent : « Tom a tenté un record : Saut » à confirmer', 'a tenté un record' in t and 'Saut' in t and 'confirmer' in t.lower(), t[:120])
     check('liste parent : pas de défilement de côté', sans_debord(pg))
     rid = pg.evaluate("MC.app.S.cache.family.enfants[0].records.filter(r => r.statut === 'attente').map(r => r.id)")
     # le temps passe (plus de 3 min depuis la 1re cloche de Tom sur cet appareil : ce qui arrive ensuite est « nouveau »)
@@ -97,7 +97,7 @@ with sync_playwright() as p:
     check('enfant : ses défis confirmés allument sa cloche', nb(pg) == str(n_att), (nb(pg), n_att))
     pg.click('.topbar [data-cloche]'); pg.wait_for_timeout(1300)
     t = ' | '.join(pg.eval_on_selector_all('.ntl .nt.new', 'l => l.map(x => x.innerText)'))
-    check('enfant : « Ton défi Saut est confirmé par ta famille »', 'Saut' in t and 'confirmé' in t and 'famille' in t, t)
+    check('enfant : « Ton résultat Saut est confirmé par ta famille »', 'Saut' in t and 'confirmé' in t and 'famille' in t, t)
     check('liste enfant : pas de défilement de côté', sans_debord(pg))
     pg.goto(BASE + '#/reglages'); pg.wait_for_timeout(900)
     check('Réglages enfant : « Mes notifications »', pg.query_selector('a[href="#/notifs/reglages"]') is not None)

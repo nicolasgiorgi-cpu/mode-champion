@@ -101,7 +101,7 @@ assert.deepStrictEqual(envois.map(e => [e.token, e.data.texte]), [[T.tom, 'Tes r
 envois.length = 0; Object.keys(g._cache).filter(k => k.indexOf('fcm:v:') === 0).forEach(k => delete g._cache[k]);
 r = g.call({ action: 'submitRecords', token: kt, bilan: 'defi', valeurs: [{ test: 'saut', valeur: 240 }] });
 assert.ok(r.ok && r.records[0].statut === 'attente' && r.records[0].exploit === 'bond', JSON.stringify(r.records));
-assert.strictEqual(envois.find(e => e.token === T.parent).data.texte, 'Tom a relevé un défi. Un exploit à confirmer.');
+assert.strictEqual(envois.find(e => e.token === T.parent).data.texte, 'Tom a tenté un record. Un exploit à confirmer.');
 assert.ok(!envois.some(e => /240/.test(e.data.texte)), 'aucun résultat chiffré');
 
 // ---------- mission : prénom, jamais le mot de l'enfant ni ses copains ----------

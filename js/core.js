@@ -2664,7 +2664,7 @@ var Core = (function () {
     submitRecords: function (req, ctx, res) {
       var j = ctx.auth.row, n = ctx.nNotes || 0, ex = ctx.nAttente || 0;   // seulement les résultats nouveaux ou changés (pas un bilan renvoyé tel quel)
       if (!n) return;
-      var b = String(req.bilan), t = b === 'defi' ? j.prenom + ' a relevé un défi.' : j.prenom + ' a noté son Bilan ' + b + ' (' + n + ' résultat' + (n > 1 ? 's' : '') + ').';   // (v74) un record du jour aussi, comme dans la cloche
+      var b = String(req.bilan), t = b === 'defi' ? j.prenom + ' a tenté un record.' : j.prenom + ' a noté son Bilan ' + b + ' (' + n + ' résultat' + (n > 1 ? 's' : '') + ').';   // (v74) un record du jour aussi, comme dans la cloche
       // (v70) ça compte tout de suite : la famille peut corriger ; seul un exploit est à confirmer (jamais de chiffre sur l'écran verrouillé)
       alerter(ctx, { r: 'f', qui: j.familleId, sujet: j.id, lien: parentL(j.id, ex ? 'confirmer' : 'scores') }, 'confirmer',
         t + (ex ? (ex > 1 ? ' ' + ex + ' exploits à confirmer.' : ' Un exploit à confirmer.') : ' Ça compte déjà ; un souci ? Vous pouvez corriger.'));

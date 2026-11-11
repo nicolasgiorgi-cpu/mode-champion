@@ -1,7 +1,7 @@
 // (v74, lot E3) Le record du jour : une épreuve par jour de séance à la maison (lundi le haut du corps, mardi l'explosivité,
 // mercredi le cardio, jeudi les jambes), les 12 épreuves en 4 semaines ; une tentative par épreuve et par jour, deux épreuves
 // par jour au plus (sur l'appareil et au serveur) ; +10 XP une fois par jour pour une tentative qui ne bat pas le record ;
-// l'alerte « a relevé un défi » à la famille, rien aux éducs ; dans la cloche des éducs, seulement les records battus.
+// l'alerte « a tenté un record » (v77) à la famille, rien aux éducs ; dans la cloche des éducs, seulement les records battus.
 // Lancer : sh outils/fabriquer-serveur.sh && node tests/test_record_jour.js
 const fs = require('fs'), vm = require('vm'), assert = require('assert'), crypto = require('crypto');
 const ctx = { window: {}, console, Date, Math, JSON }; ctx.window = ctx; vm.createContext(ctx);
@@ -89,7 +89,7 @@ const pid = g.call({ action: 'me', token: kt }).records.find(x => x.bilan === 'd
 assert.ok(g.call({ action: 'confirm', token: ft, decisions: [{ id: pid, statut: 'refuse' }] }).ok);
 assert.ok(tente('pompes', 12).ok, 'retirée par la famille : il peut retenter');
 
-// l'alerte : « a relevé un défi » à la famille (jamais le chiffre), rien aux éducs pour un record du jour ; un défi de badge garde son alerte
+// l'alerte : « a tenté un record » à la famille (jamais le chiffre), rien aux éducs pour un record du jour ; un défi de badge garde son alerte
 g._props.FCM_CLE = JSON.stringify({ type: 'service_account', project_id: 'proj-test', client_email: 'envoi@proj-test.iam.gserviceaccount.com', private_key: PEM });
 const T = { f: 'jeton-famille-' + 'f'.repeat(30), e: 'jeton-educ-' + 'e'.repeat(30) };
 assert.ok(g.call({ action: 'pushAbonner', token: ft, jeton: T.f, cats: ['confirmer', 'bilan'] }).ok);
@@ -102,12 +102,12 @@ assert.ok(g.call({ action: 'pushAbonner', token: nft, jeton: T.f + 'n', cats: ['
 envois.length = 0;
 r = g.call({ action: 'submitRecords', token: nt, bilan: 'defi', tentative: true, valeurs: [{ test: 'pompes', valeur: 7 }] });
 assert.ok(r.ok);
-assert.ok(envois.some(m => m.token === T.f + 'n' && /Noé a relevé un défi\./.test(m.data.texte) && !/\b7\b/.test(m.data.texte)), JSON.stringify(envois.map(m => [m.token.slice(0, 12), m.data.texte])));   // le même mot que dans sa cloche
+assert.ok(envois.some(m => m.token === T.f + 'n' && /Noé a tenté un record\./.test(m.data.texte) && !/\b7\b/.test(m.data.texte)), JSON.stringify(envois.map(m => [m.token.slice(0, 12), m.data.texte])));   // le même mot que dans sa cloche
 assert.ok(!envois.some(m => m.token === T.e), 'pas d\'alerte aux éducs pour une tentative');
 envois.length = 0;
 Object.keys(g._cache).filter(k => k.indexOf('fcm:v:') === 0).forEach(k => delete g._cache[k]);
 r = g.call({ action: 'submitRecords', token: nt, bilan: 'defi', valeurs: [{ test: 'susp', valeur: 20 }] });
-assert.ok(r.ok && envois.some(m => m.token === T.e && /a relevé un défi/.test(m.data.texte)), 'un défi de badge : les éducs ont toujours leur alerte');
+assert.ok(r.ok && envois.some(m => m.token === T.e && /a tenté un record/.test(m.data.texte)), 'un badge tenté : les éducs ont toujours leur alerte');
 
 // ---------- la cloche des éducs : seulement les records battus ----------
 {
