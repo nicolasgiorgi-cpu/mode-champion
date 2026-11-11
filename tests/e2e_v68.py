@@ -55,11 +55,15 @@ with sync_playwright() as p:
     check('Équipe : « Les podiums », onglet Équipe allumé', on_tab() == 'ÉQUIPE' and 'LES PODIUMS' in pg.inner_text('main h1.acc-t').upper(), on_tab())
     check('Équipe : les filtres repliés sous une ligne', pg.query_selector('details.rkf:not([open])') is not None)
     # (v69, Nicolas 11/11) « Toi » à droite du prénom : les prénoms commencent tous au même endroit
-    r = ev("""(() => { const l = [...document.querySelectorAll('.rkcards .li .t1')].filter(t => t.offsetParent); if (!l.length) return null;
-      const g = t => { const n = t.firstChild, rg = document.createRange(); rg.selectNodeContents(n); return Math.round(rg.getBoundingClientRect().left); };
-      const toi = document.querySelector('.rkcards .li.me .rk-toi');
-      return { lefts: [...new Set(l.slice(0, 8).map(g))], apres: toi ? !!toi.previousSibling && toi.previousSibling.nodeType === 3 && toi.getBoundingClientRect().left > g(toi.parentNode) : null }; })()""")
-    check('Équipe : « Toi » à droite du prénom, les prénoms alignés', r and r['apres'] is True and len(r['lefts']) == 1, r)
+    # carte par carte (sur iPad paysage, les cartes sont sur 2 colonnes), dont la carte où se trouve l'enfant
+    r = ev("""(() => { const g = t => { const n = t.firstChild, rg = document.createRange(); rg.selectNodeContents(n); return Math.round(rg.getBoundingClientRect().left); };
+      const cartes = [...document.querySelectorAll('.rkcards .rkcard')].filter(c => c.offsetParent);
+      const ecarts = cartes.map(c => new Set([...c.querySelectorAll('.li .t1')].map(g)).size).filter(n => n > 1).length;
+      const me = document.querySelector('.rkcards .li.me'), toi = me && me.querySelector('.rk-toi');
+      const autre = me && [...me.closest('ol').querySelectorAll('.li:not(.me) .t1')][0];
+      return { cartes: cartes.length, ecarts: ecarts, memeDepart: !!(me && autre) && g(me.querySelector('.t1')) === g(autre),
+        apres: toi ? !!toi.previousSibling && toi.previousSibling.nodeType === 3 && toi.getBoundingClientRect().left > g(toi.parentNode) : null }; })()""")
+    check('Équipe : « Toi » à droite du prénom, les prénoms alignés', r and r['cartes'] > 0 and r['apres'] is True and r['ecarts'] == 0 and r['memeDepart'], r)
     pg.click('details.rkf > summary'); pg.wait_for_timeout(300)
     check('Équipe : les filtres se déplient', ev("document.querySelector('details.rkf').open"))
     check('Équipe : pas de défilement de côté', noscroll())
