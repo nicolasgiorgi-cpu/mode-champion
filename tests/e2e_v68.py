@@ -96,7 +96,7 @@ with sync_playwright() as p:
     pg.goto(BASE + '#/semaine'); pg.reload(); pg.wait_for_timeout(1400)
     while pg.query_selector('.modal button'): pg.click('.modal button >> nth=0'); pg.wait_for_timeout(300)
     t = pg.inner_text('main')
-    check('jour de repos : « Aujourd\'hui » et « Repos aujourd\'hui »', 'AUJOURD\'HUI' in pg.inner_text('main h1.acc-t').upper() and 'Repos aujourd\'hui' in t, t[:300])
+    check('jour de repos : « Aujourd\'hui » et « Repos aujourd\'hui »', 'AUJOURD\'HUI' in pg.inner_text('main h1.acc-t').upper() and 'REPOS AUJOURD\'HUI' in t.upper(), t[:300])   # (le titre de la carte est en capitales)
     check('jour de repos : pas de bouton « Lancer la séance »', 'Lancer la séance' not in t)
     check('jour de repos : pas de défilement de côté', noscroll())
     b.close()
