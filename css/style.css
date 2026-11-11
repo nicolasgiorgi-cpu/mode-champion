@@ -2027,3 +2027,18 @@ textarea.txt{min-height:84px;padding:10px 12px;resize:vertical;font:500 16px/1.4
 .bvc-plus>summary::-webkit-details-marker{display:none}
 .bvc-plus[open] .bvc-pi{transform:rotate(180deg)}
 .bvc-plus .bvc-l{margin-top:10px}
+/* (v71) les bravos en série (éducs) : un enfant par ligne, 3 mots proposés, le crayon ; « Bravo à tous » */
+.bvgo{border-color:rgba(255,194,61,.5);background:rgba(255,194,61,.08)}
+.bvgo .bv-i{font-size:20px;line-height:1;flex:none}
+.bvl{gap:8px}
+.bvk{display:flex;flex-direction:column;gap:8px;padding:10px 12px;background:var(--panel2);border:1px solid var(--line)}
+.bvk.ok{border-color:rgba(61,255,176,.45)}
+.bvk-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.bvk-h .t1{font:700 14px/1.15 var(--f-hud);letter-spacing:.04em;text-transform:uppercase}
+.bvk-h .t2{font-size:13px;color:var(--soft)}
+.bvmots{display:flex;flex-wrap:wrap;gap:6px}
+.bvmots button{min-height:44px;padding:6px 10px;border:1px solid var(--line2);background:transparent;color:var(--ink);font:600 13px/1.2 var(--f-body);cursor:pointer;text-align:left}
+.bvmots button.on{border-color:var(--green);color:var(--green)}
+.bvmots button[data-wait]{opacity:.7;pointer-events:none}
+.bvmots .bvecr{min-width:44px;display:inline-flex;align-items:center;justify-content:center;color:var(--soft)}
+.bvfait{display:flex;align-items:center;justify-content:space-between;gap:10px;color:var(--green);font-size:14px}

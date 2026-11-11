@@ -492,6 +492,11 @@
       (pending.length ? '<p class="small" style="margin:0">Confirmer ou Ce n\'est pas ça, puis <b>Enregistrer</b>.</p><ul class="list">' + pend + '</ul>' +
         (pending.length > 1 ? '<button type="button" class="btn2 pink" data-act="decAll" data-ids="' + esc(pending.map(function (x) { return x.r.id; }).join(',')) + '">' + icon('check', 16) + ' Tout confirmer (' + pending.length + ')</button>' : '') + decBar() : '<div class="empty">Rien à confirmer pour ' + esc(noms) + '.</div>');
   }
+  // (v71) les bravos en série : une ligne vers l'écran « Bravos » quand des enfants ont fait une séance depuis mon dernier bravo
+  function bravosLigne(g) {
+    var n = MC.bravo && MC.bravo.nb ? MC.bravo.nb(g) : 0;
+    return n ? '<a class="li bvgo" href="#/educ/bravos"><span class="bv-i" aria-hidden="true">👏</span><span class="grow"><span class="t1">Bravos à donner</span><span class="t2">' + n + ' enfant' + (n > 1 ? 's ont' : ' a') + ' fait une séance</span></span>' + icon('right', 16) + '</a>' : '';
+  }
   function paintVestiaire(g) {
     var G = groupStats(g), mineIds = g.moi.enfants || [], pending = G.pending.filter(function (x) { return mineIds.indexOf(x.p.joueur.id) >= 0; });
     var pend = pending.slice(0, 30).map(function (x) { return recLine(x.r, x.p.joueur.prenom, true); }).join('');
@@ -524,7 +529,7 @@
       (G.late.length ? '<button type="button" class="tile" data-act="relancerOuvrir" style="border-color:rgba(255,138,61,.5);background:rgba(255,138,61,.08);color:inherit;text-align:left;font:inherit"><span class="v" style="color:var(--orange)">' + G.late.length + '</span><span class="l" style="text-transform:none;font-family:var(--f-body);letter-spacing:0;font-size:12px;color:var(--soft)">à relancer ' + icon('down', 11) + '</span></button>'
         : '<div class="tile"><span class="v" style="color:var(--dim)">0</span><span class="l" style="text-transform:none;font-family:var(--f-body);letter-spacing:0;font-size:12px">à relancer</span></div>') + '</div>' +
       '<div class="cols2"><section class="sec">' + aConfirmer(g, pending, pend) + '</section>' +
-      '<section class="sec"><div class="between"><h2 class="h2">Ça bouge</h2><a class="lnk" href="#/educ/joueurs">Les enfants</a></div>' + (feed || '<div class="empty">Pas encore de séance notée.</div>') + '</section></div>' +
+      '<section class="sec"><div class="between"><h2 class="h2">Ça bouge</h2><a class="lnk" href="#/educ/joueurs">Les enfants</a></div>' + bravosLigne(g) + (feed || '<div class="empty">Pas encore de séance notée.</div>') + '</section></div>' +
       relancer(G) +
       '<div class="grid2"><a class="li" href="#/educ/classement">' + icon('podium', 20, 'style="color:var(--pink);flex:none"') + '<span class="grow"><span class="t1">Le classement</span><span class="t2">L\'arène, par ligue</span></span>' + icon('right', 16) + '</a>' +
       '<a class="li" href="#/educ/progres/bilans">' + icon('up', 20, 'style="color:var(--green);flex:none"') + '<span class="grow"><span class="t1">Progrès aux bilans</span><span class="t2">Test par test</span></span>' + icon('right', 16) + '</a></div>' +

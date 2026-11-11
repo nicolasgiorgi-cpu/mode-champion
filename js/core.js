@@ -1419,6 +1419,28 @@ var Core = (function () {
       return { bravo: pubBravo(row, true), nouveau: true };
     }
   };
+  // (v71) les bravos en série (écran « Bravos » des éducs, demande de Nicolas du 11/11) : une liste { seanceId, mot },
+  // chaque séance comme A.bravo (un bravo par éduc et par séance ; un mot donné remplace l'ancien). 40 au plus d'un coup ;
+  // une séance introuvable ou d'un enfant parti est sautée, sans faire échouer les autres.
+  var BRAVOS_MAX = 40;
+  A.bravos = {
+    auth: ['e'],
+    run: function (req, ctx) {
+      var l = Array.isArray(req.liste) ? req.liste.slice(0, BRAVOS_MAX) : [], vus = {}, out = [], faits = [];
+      l.forEach(function (x) {
+        var sid = x && String(x.seanceId || '');
+        if (!sid || vus[sid]) return;
+        vus[sid] = 1;
+        ctx.bravoMot = false;
+        try {
+          var r = A.bravo.run({ seanceId: sid, mot: x.mot === undefined ? undefined : x.mot }, ctx);
+          out.push(r.bravo); faits.push({ id: r.bravo.id, nouveau: r.nouveau, mot: !!ctx.bravoMot });
+        } catch (e) { if (!(e instanceof Err)) throw e; }
+      });
+      ctx.bravosFaits = faits; ctx.bravoMot = false;
+      return { bravos: out, nouveaux: faits.filter(function (f) { return f.nouveau; }).length };
+    }
+  };
   // retirer un bravo donné par erreur : son auteur, ou l'admin
   A.retirerBravo = {
     auth: ['e'],
@@ -2456,6 +2478,17 @@ var Core = (function () {
         // le mot ajouté juste après le bravo : sa propre étiquette (sinon la pause des 10 minutes du bravo le retiendrait)
         alerter(ctx, { r: 'p', qui: j.id, sujet: j.id + '-mot', lien: '#/semaine?c=bravos' }, 'bravo', '💬 ' + nom + ' t\'a laissé un mot ' + pourSeance(s, true) + '.');
       }
+    },
+    // (v71) les bravos en série : les mêmes alertes qu'un bravo, une par enfant (la pause de 10 minutes par enfant reste)
+    bravos: function (req, ctx, res) {
+      (ctx.bravosFaits || []).forEach(function (f) {
+        var b = null;
+        (res.bravos || []).forEach(function (x) { if (x.id === f.id) b = x; });
+        if (!b) return;
+        ctx.bravoMot = f.mot;
+        ALERTES.bravo(req, ctx, { bravo: b, nouveau: f.nouveau });
+      });
+      ctx.bravoMot = false;
     },
     submitRecords: function (req, ctx, res) {
       var j = ctx.auth.row, n = ctx.nNotes || 0, ex = ctx.nAttente || 0;   // seulement les résultats nouveaux ou changés (pas un bilan renvoyé tel quel)
