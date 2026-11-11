@@ -2,7 +2,7 @@
 # ajoute un mot ou retire le bravo en retouchant « Envoyé » ; l'enfant le voit (Ma semaine, sous la séance, la cloche),
 # la famille aussi (sous la séance, la cloche) ; jamais de bouton Bravo côté parent ou enfant ; pas de débordement.
 # Site de démo (sh tests/mkdemo.sh), puis : python3 tests/e2e_bravos.py [largeur hauteur]
-import sys
+import sys, re
 from playwright.sync_api import sync_playwright
 BASE = 'http://localhost:8899/index.html'
 W, H = (int(sys.argv[1]), int(sys.argv[2])) if len(sys.argv) > 2 else (390, 844)
@@ -125,6 +125,11 @@ with sync_playwright() as p:
     card = pg.query_selector('.bvcard')
     txt = card.inner_text() if card else ''
     check('Ma semaine : la carte des bravos', card is not None and 'te dit bravo pour ta récup' in txt, txt)
+    # (v68) le dernier bravo en entier, les autres repliés sous « + N autre(s) bravo(s) » (le bouton de la séance reste au premier écran)
+    if 'Super régularité' not in txt and pg.query_selector('.bvcard details.bvc-plus'):
+        sm = pg.inner_text('.bvcard details.bvc-plus > summary')
+        check('… les autres bravos repliés sous « + N autre(s) bravo(s) »', re.search(r'\+ \d+ autres? bravos?', sm.lower()) is not None, sm)
+        pg.click('.bvcard details.bvc-plus > summary'); pg.wait_for_timeout(300); txt = pg.inner_text('.bvcard')
     check('… avec le bravo de Coach Cyril et son mot (démo)', 'Super régularité' in txt, txt)
     check('enfant : jamais de bouton Bravo', pg.query_selector('.bvb') is None)
     check('Ma semaine : pas de défilement de côté', sans_debord(pg))
