@@ -13,24 +13,42 @@
   var app = MC.app, ui = MC.ui, L = MC.logic, esc = ui.esc, RECENT = 14;
   var PHRASES = ['Bravo, continue comme ça !', 'Super séance !', 'Quelle régularité !', 'Tu progresses, bravo !'];
   // (v71, demande de Nicolas du 11/11) un grand choix de mots, pour ne pas se répéter (sans accord masculin / féminin)
-  var MOTS = PHRASES.concat(['Énorme boulot !', 'Tu lâches rien, bravo !', 'Ça, c\'est du sérieux !', 'Belle séance !', 'Quelle fierté !',
+  var MOTS = PHRASES.concat(['Énorme boulot !', 'Tu ne lâches rien, bravo !', 'Ça, c\'est du sérieux !', 'Belle séance !', 'Quelle fierté !',
     'Tu montres l\'exemple !', 'Quelle motivation !', 'On voit tes efforts, top !', 'Bien joué !', 'Chapeau !', 'Ça paie, continue !',
-    'Encore un pas vers tes objectifs !', 'Solide comme un pilier !', 'Rapide comme un ailier !', 'Malin comme un demi de mêlée !',
-    'Tu tiens le rythme, bravo !', 'Séance validée, chapeau !', 'Quelle énergie !', 'Rien ne t\'arrête !', 'Tu es sur la bonne voie !',
+    'Encore un pas vers tes objectifs !', 'Solide comme un pilier !', 'Rapide comme un ailier !', 'Le flair d\'un demi de mêlée !',
+    'Tu tiens le rythme, bravo !', 'Séance bouclée, chapeau !', 'Quelle énergie !', 'Rien ne t\'arrête !', 'Tu es sur la bonne voie !',
     'Les efforts d\'aujourd\'hui, les essais de demain !', 'Ton équipe peut compter sur toi !', 'Grosse séance, respect !',
-    'Tu as tout donné, bravo !', 'Régulier comme une horloge !', 'Bravo pour ta persévérance !', 'On sent la progression !',
+    'Tu as tout donné, bravo !', 'La régularité d\'une horloge !', 'Bravo pour ta persévérance !', 'On sent la progression !',
     'Tu fais plaisir à voir !', 'Magnifique, continue !', 'Toujours au rendez-vous, bravo !', 'Ça, c\'est l\'esprit rugby !',
     'Jusqu\'au bout, bravo !', 'Impressionnant !', 'Une séance de pro !', 'Bravo, quelle volonté !', 'Tu gagnes en force !',
     'Tu gagnes en vitesse !', 'Bel effort !', 'Mental d\'acier !', 'Tu assures !', 'Continue, tu es au top !', 'Merci pour ton sérieux !',
-    'Le travail paie, bravo !', 'Des progrès de géant !', 'Quelle constance !', 'Le match n\'a qu\'à bien se tenir !', 'Une vraie machine !',
-    'Tout le groupe peut s\'inspirer de toi !', 'Superbe semaine !', 'Tu fais les choses bien, bravo !']);
+    'Le travail paie, bravo !', 'Des progrès de géant !', 'Quelle constance !', 'Tes adversaires n\'ont qu\'à bien se tenir !', 'Une vraie machine !',
+    'Tout le groupe peut s\'inspirer de toi !', 'Du grand travail !', 'Tu fais bien les choses, bravo !']);
   // n mots pour un enfant : pas ceux qu'il a reçus dernièrement, ni ceux déjà proposés sur l'écran (pris) ; l'ordre change d'un jour et d'un enfant à l'autre
   function hache(t) { var h = 7; for (var i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) % 1000003; return h; }
-  function motsPour(p, n, pris) {
+  function ordreMots(p) {
     var recus = {}, l;
     ((p && p.bravos) || []).slice().sort(function (a, b) { return (a.maj || a.cree) < (b.maj || b.cree) ? 1 : -1; }).slice(0, 12).forEach(function (x) { if (x.mot) recus[x.mot] = 1; });
     var depart = hache(L.today() + ((p && p.joueur && p.joueur.id) || '')) % MOTS.length;
     l = MOTS.slice(depart).concat(MOTS.slice(0, depart));
+    return { l: l, recus: recus };
+  }
+  // (relecture v71) pour tout l'écran : le 1er mot de chacun d'abord (tous différents jusqu'à 54 enfants), puis le 2e, puis le 3e
+  function repartir(ps, n) {
+    var pris = {}, out = {}, O = {};
+    ps.forEach(function (p) { O[p.joueur.id] = ordreMots(p); out[p.joueur.id] = []; });
+    for (var k = 0; k < n; k++) {
+      ps.forEach(function (p) {
+        var id = p.joueur.id, o = O[id], deja = out[id];
+        var m = o.l.filter(function (x) { return !o.recus[x] && !pris[x] && deja.indexOf(x) < 0; })[0] ||
+          o.l.filter(function (x) { return !pris[x] && deja.indexOf(x) < 0; })[0] || o.l.filter(function (x) { return deja.indexOf(x) < 0; })[0];
+        if (m) { deja.push(m); pris[m] = 1; }
+      });
+    }
+    return out;
+  }
+  function motsPour(p, n, pris) {
+    var o = ordreMots(p), recus = o.recus, l = o.l;
     var ok = l.filter(function (m) { return !recus[m] && !(pris && pris[m]); });
     if (ok.length < n) ok = ok.concat(l.filter(function (m) { return ok.indexOf(m) < 0 && !(pris && pris[m]); }));
     if (ok.length < n) ok = ok.concat(l.filter(function (m) { return ok.indexOf(m) < 0; }));
@@ -128,13 +146,15 @@
       if (!v) return;
       if (v === 'retirer') {
         return app.adultCall('retirerBravo', { id: m.id }).then(function () {
-          garder(jid, m, true); ui.toast('Bravo retiré.'); surPlace(sid, jid);
+          garder(jid, m, true); ui.toast('Bravo retiré.');
+          if (location.hash.indexOf('#/educ/bravos') === 0) { delete BV.faits[jid]; app.rerender(); } else surPlace(sid, jid);
         }, function (e) { ui.toast(e.message, true); });
       }
       var mot = String(v.mot || '').replace(/\s+/g, ' ').trim();
       if (mot === (m.mot || '')) { ui.toast(mot ? 'C\'est déjà ce mot-là.' : 'Pas de mot : le bravo reste envoyé.'); return; }
       return app.adultCall('bravo', { seanceId: sid, mot: mot }).then(function (r) {
-        garder(jid, r.bravo); ui.toast(mot ? 'Mot envoyé à ' + nom + '.' : 'Mot retiré.'); surPlace(sid, jid);
+        garder(jid, r.bravo); ui.toast(mot ? 'Mot envoyé à ' + nom + '.' : 'Mot retiré.');
+        if (location.hash.indexOf('#/educ/bravos') === 0) app.rerender(); else surPlace(sid, jid);
       }, function (e) { ui.toast(e.message, true); });
     });
   };
@@ -150,7 +170,8 @@
     (g.joueurs || []).forEach(function (p) {
       if (!p.joueur.actif) return;
       var miens = (p.bravos || []).filter(function (b) { return b.parQui === g.moi.id; }), dernier = '';
-      miens.forEach(function (b) { if ((b.cree || '') > dernier) dernier = b.cree || ''; });
+      // (relecture v71) le repère : la séance la plus récente que j'ai félicitée (un bravo donné jeudi sur la séance de lundi ne cache pas celle de mercredi)
+      miens.forEach(function (b) { var s = seance(p, b.seanceId), t = s ? (s.cree || s.date) : (b.cree || ''); if (t > dernier) dernier = t; });
       var l = (p.seances || []).filter(function (s) { return s.date >= depuis && (s.cree || s.date) > dernier && !mien(g, p, s.id); })
         .sort(function (a, b) { return (a.cree || a.date) < (b.cree || b.date) ? 1 : -1; });
       if (l.length) out.push({ p: p, s: l[0], n: l.length });
@@ -171,8 +192,8 @@
   app.route('/educ/bravos', function () {
     return MC.loadGroup().then(function (g) {
       app.refreshNav();
-      var cle = g.moi.id + '|' + L.today();
-      if (BV.cle !== cle) BV = { cle: cle, mots: {}, faits: {}, ordre: [] };
+      var cle = g.moi.id;
+      if (BV.cle !== cle) BV = { cle: cle, mots: {}, faits: {}, ordre: [] };   // remis à zéro en quittant l'écran (plus bas)
       // les enfants déjà félicités pendant cette visite restent à leur place (avec leur mot) ; un nouveau arrive en bas
       var a = aFeliciter(g), par = {}, l = [];
       a.forEach(function (x) { par[x.p.joueur.id] = x; });
@@ -182,14 +203,13 @@
         if (p && s) l.push({ p: p, s: s, n: 1 });
       });
       a.forEach(function (x) { if (par[x.p.joueur.id]) { l.push(x); BV.ordre.push(x.p.joueur.id); } });
-      var pris = {};
-      Object.keys(BV.mots).forEach(function (k) { BV.mots[k].forEach(function (m) { pris[m] = 1; }); });
-      l.forEach(function (x) { if (!BV.mots[x.p.joueur.id]) BV.mots[x.p.joueur.id] = motsPour(x.p, 3, pris); });
+      var neufs = l.filter(function (x) { return !BV.mots[x.p.joueur.id]; }).map(function (x) { return x.p; });
+      if (neufs.length) { var R = repartir(neufs, 3); Object.keys(R).forEach(function (id) { BV.mots[id] = R[id]; }); }
       var reste = l.filter(function (x) { return !BV.faits[x.p.joueur.id]; });
       var tous = reste.length > 1 ? '<button type="button" class="btn gold" data-act="bvTous">👏 Bravo à tous (' + reste.length + ')</button>' : '';
       return '<main class="screen">' + MC.educBar(g, 'Bravos', '#/educ/progres', 'Prépa physique') +
         '<p class="small" style="margin:0">Leurs séances depuis votre dernier bravo. Un mot touché = envoyé.</p>' + tous +
-        (l.length ? '<ul class="list bvl">' + l.map(function (x) { return ligne(g, x); }).join('') + '</ul>' : '<div class="empty">Personne à féliciter pour l\'instant : tous les enfants ont eu votre bravo.</div>') +
+        (l.length ? '<ul class="list bvlist">' + l.map(function (x) { return ligne(g, x); }).join('') + '</ul>' : '<div class="empty">Personne à féliciter pour l\'instant.</div>') +
         '</main>';
     });
   }, { adult: 'e', nav: 'e:progres' });
@@ -201,14 +221,16 @@
   }
   MC.act.bvMot = function (b) {
     var jid = b.getAttribute('data-j'), sid = b.getAttribute('data-bv'), mot = b.getAttribute('data-mot'), g = G(), p = joueur(g, jid);
-    if (!p || b.getAttribute('data-wait')) return;
-    b.setAttribute('data-wait', '1'); b.classList.add('on');
+    var li = b.closest('.bvk');
+    if (!p || (li && li.classList.contains('wait'))) return;
+    if (li) li.classList.add('wait');   // (relecture v71) toute la ligne attend la réponse : pas de 2e mot pendant l'envoi
+    b.classList.add('on');
     envoyer([{ seanceId: sid, mot: mot }]).then(function () { ui.toast('👏 Bravo envoyé à ' + p.joueur.prenom); app.rerender(); })
-      .catch(function (e) { b.removeAttribute('data-wait'); b.classList.remove('on'); ui.toast(e.message || 'Le bravo n\'est pas parti.', true); });
+      .catch(function (e) { if (li) li.classList.remove('wait'); b.classList.remove('on'); ui.toast(e.message || 'Le bravo n\'est pas parti.', true); });
   };
   MC.act.bvEcrire = function (b) {
-    var jid = b.getAttribute('data-j'), sid = b.getAttribute('data-bv'), g = G(), p = joueur(g, jid);
-    if (!p) return;
+    var jid = b.getAttribute('data-j'), sid = b.getAttribute('data-bv'), g = G(), p = joueur(g, jid), li = b.closest('.bvk');
+    if (!p || (li && li.classList.contains('wait'))) return;
     ui.modal({ title: '👏 Bravo à ' + esc(p.joueur.prenom), body: '<label class="lab" for="bvmot2">Votre mot</label><textarea id="bvmot2" class="txt" rows="2" maxlength="140" placeholder="Ex. : Super séance de gainage !"></textarea>',
       actions: [{ label: 'Envoyer', cls: 'btn', onClick: function (host, close) { close({ mot: host.querySelector('#bvmot2').value }); } }, { label: 'Annuler', value: false, cls: 'btn2 grey' }]
     }).then(function (v) {
@@ -222,7 +244,7 @@
     if (!g) return;
     var l = aFeliciter(g).filter(function (x) { return !BV.faits[x.p.joueur.id] && BV.mots[x.p.joueur.id]; });
     if (!l.length) return;
-    ui.modal({ title: '👏 Bravo à tous ?', body: '<p class="lead">' + l.length + ' enfants reçoivent un bravo, chacun avec un mot différent.</p>',
+    ui.modal({ title: '👏 Bravo à tous ?', body: '<p class="lead">' + l.length + ' enfants reçoivent un bravo' + (l.length <= MOTS.length ? ', chacun avec un mot différent' : '') + '.</p>',
       actions: [{ label: 'Envoyer les ' + l.length + ' bravos', value: true, cls: 'btn gold' }, { label: 'Annuler', value: false, cls: 'btn2 grey' }]
     }).then(function (ok) {
       if (!ok) return;
@@ -233,5 +255,8 @@
     });
   };
 
-  MC.bravo = { btn: btn, opts: opts, quoi: quoi, PHRASES: PHRASES, MOTS: MOTS, motsPour: motsPour, aFeliciter: aFeliciter, nb: nb };
+  // en quittant l'écran : la visite est finie (les lignes « envoyé » partent, de nouveaux mots la prochaine fois)
+  window.addEventListener('hashchange', function () { if (location.hash.indexOf('#/educ/bravos') !== 0) BV = { cle: '', mots: {}, faits: {}, ordre: [] }; });
+
+  MC.bravo = { btn: btn, opts: opts, quoi: quoi, PHRASES: PHRASES, MOTS: MOTS, motsPour: motsPour, repartir: repartir, aFeliciter: aFeliciter, nb: nb };
 })();

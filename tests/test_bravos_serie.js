@@ -43,9 +43,17 @@ assert.ok(r.ok && r.nouveaux === 1 && r.bravos.length === 2, 'Tom avait déjà s
 const tomB = g.call({ action: 'me', token: tom.kt }).bravos;
 assert.ok(tomB.length === 1 && tomB[0].mot === 'Chapeau !', JSON.stringify(tomB));
 assert.strictEqual(g.call({ action: 'bravos', token: et, liste: [] }).bravos.length, 0, 'liste vide : rien');
-// 40 au plus
-r = g.call({ action: 'bravos', token: et, liste: Array.from({ length: 60 }, (_, i) => ({ seanceId: 'x' + i })) });
-assert.ok(r.ok && r.bravos.length === 0, 'au plus 40, toutes introuvables ici');
+// 40 au plus (de vraies séances : 45 ici)
+const TYPES = ['cros', 'capuozzo', 'dupont', 'meafou', 'recup'], vraies = [];
+for (let i = 0; i < 9; i++) {
+  let x = g.call({ action: 'addPlayer', token: et, prenom: 'Ami' + i, familleNom: 'Famille A' + i });
+  x = g.call({ action: 'login', joueurId: x.joueur.id, pin: x.code }); x = g.call({ action: 'setPin', token: x.token, pin: '1357' });
+  TYPES.forEach(t => vraies.push(g.call({ action: 'logSession', token: x.token, type: t, date: auj, mode: 'rapide' }).seance.id));
+}
+assert.strictEqual(vraies.length, 45);
+r = g.call({ action: 'bravos', token: et, liste: vraies.map(id => ({ seanceId: id, mot: 'Bien joué !' })) });
+assert.ok(r.ok && r.bravos.length === 40 && r.nouveaux === 40, 'au plus 40 d\'un coup : ' + r.bravos.length);
+assert.ok(g.call({ action: 'bravos', token: et, liste: [{ seanceId: 'x1' }, { seanceId: 'x2' }] }).bravos.length === 0, 'introuvables : sautées');
 // le mot nettoyé et limité comme un bravo seul
 const s4 = g.call({ action: 'logSession', token: lea.kt, type: 'meafou', date: auj, mode: 'rapide' }).seance.id;
 r = g.call({ action: 'bravos', token: et, liste: [{ seanceId: s4, mot: '<b>Top</b> ' + 'x'.repeat(300) }] });
@@ -63,25 +71,56 @@ r = g.call({ action: 'bravos', token: et, liste: [{ seanceId: s5, mot: 'Mot trè
 assert.ok(r.ok && r.nouveaux === 2);
 assert.deepStrictEqual(envois.map(m => m.token).sort(), [T.noe, T.tom].sort(), 'une alerte par enfant');
 assert.ok(envois.every(m => /te dit bravo/.test(m.data.texte) && !/personnel|Autre mot/.test(m.data.texte)), JSON.stringify(envois.map(m => m.data.texte)));
+// (relecture) deux séances du même enfant dans une liste : une seule alerte pour lui
+const s7 = g.call({ action: 'logSession', token: tom.kt, type: 'cros', date: auj, mode: 'guidee' }).seance.id;
+const s8 = g.call({ action: 'logSession', token: tom.kt, type: 'recup', date: auj, mode: 'rapide' }).seance.id;
+Object.keys(g._cache).filter(k => k.indexOf('fcm:v:') === 0).forEach(k => delete g._cache[k]);
+envois.length = 0;
+r = g.call({ action: 'bravos', token: et, liste: [{ seanceId: s7, mot: 'Chapeau !' }, { seanceId: s8, mot: 'Top' }] });
+assert.ok(r.ok && r.nouveaux === 2);
+assert.strictEqual(envois.filter(m => m.token === T.tom).length, 1, 'une alerte pour Tom, pas deux');
 
 // ---------- l'écran : le grand choix de mots ----------
 {
-  const ctx = { window: {}, console, Date, Math, JSON, document: { addEventListener() {}, querySelectorAll() { return []; } }, location: { hash: '' } };
+  const ctx = { window: {}, console, Date, Math, JSON, document: { addEventListener() {}, querySelectorAll() { return []; } }, location: { hash: '' }, addEventListener() {} };
   ctx.window = ctx; vm.createContext(ctx);
   vm.runInContext('window.MC = { act: {}, app: { route() {}, S: { cache: {} } }, ui: { esc: s => String(s) } };', ctx);
   for (const f of ['config', 'content', 'logic']) vm.runInContext(fs.readFileSync(__dirname + '/../js/' + f + '.js', 'utf8'), ctx, { filename: f });
   vm.runInContext(fs.readFileSync(__dirname + '/../js/bravos.js', 'utf8'), ctx, { filename: 'bravos.js' });
-  const B = ctx.MC.bravo, M = B.MOTS;
+  const B = ctx.MC.bravo, M = B.MOTS, L = ctx.MC.logic;
   assert.ok(M.length >= 50, 'au moins 50 mots : ' + M.length);
   assert.strictEqual(new Set(M).size, M.length, 'pas deux fois le même mot');
   assert.ok(M.every(m => m.length <= 60), 'des mots courts');
   // pas d'accord masculin / féminin (le groupe est mixte)
-  assert.ok(!M.some(m => /\b(champion|fier|prêt|costaud|guerrier|surpassé|allé)\b/i.test(m)), M.filter(m => /\b(champion|fier|prêt|costaud|guerrier|surpassé|allé)\b/i.test(m)));
-  const pris = {}, enfants = Array.from({ length: 15 }, (_, i) => ({ joueur: { id: 'j' + i }, bravos: [] }));
-  const l = enfants.map(p => B.motsPour(p, 3, pris));
-  assert.ok(l.every(x => x.length === 3), '3 mots par enfant');
-  assert.strictEqual(new Set([].concat(...l)).size, 45, '15 enfants : 45 mots, tous différents sur l\'écran');
-  const recu = { joueur: { id: 'jx' }, bravos: [{ mot: M[0], cree: '2026-11-10' }, { mot: M[1], cree: '2026-11-09' }] };
-  for (let i = 0; i < 20; i++) { const x = B.motsPour(recu, 3); assert.ok(x.indexOf(M[0]) < 0 && x.indexOf(M[1]) < 0, 'pas un mot qu\'il a déjà reçu'); }
+  const genre = /\b(champion|championne|fier|fière|prêt|prête|costaud|guerrier|surpassé|allé|malin|maligne|régulier|régulière|futé|réglé|fort|forte)\b/i;
+  assert.ok(!M.some(m => genre.test(m)), M.filter(m => genre.test(m)));
+  // l'écran : le 1er mot de chacun d'abord, tous différents même pour un groupe de 34
+  for (const n of [15, 18, 34, 54]) {
+    const enfants = Array.from({ length: n }, (_, i) => ({ joueur: { id: 'j' + n + '-' + i }, bravos: [] }));
+    const R = B.repartir(enfants, 3), l = enfants.map(p => R[p.joueur.id]);
+    assert.ok(l.every(x => x.length === 3 && new Set(x).size === 3), n + ' enfants : 3 mots différents chacun');
+    assert.strictEqual(new Set(l.map(x => x[0])).size, n, n + ' enfants : les 1ers mots (ceux de « Bravo à tous ») tous différents');
+    if (n * 3 <= M.length) assert.strictEqual(new Set([].concat(...l)).size, n * 3, n + ' enfants : tous les mots de l\'écran différents');
+  }
+  // pas un mot qu'il vient de recevoir (les 3 proposés, marqués reçus, ne reviennent pas)
+  const p0 = { joueur: { id: 'jx' }, bravos: [] }, avant = B.motsPour(p0, 3);
+  p0.bravos = avant.map((m, i) => ({ mot: m, cree: '2026-11-1' + i }));
+  const apres = B.motsPour(p0, 3), R2 = B.repartir([p0], 3)[p0.joueur.id];
+  assert.ok(apres.every(m => avant.indexOf(m) < 0) && R2.every(m => avant.indexOf(m) < 0), JSON.stringify([avant, apres, R2]));
+  // à qui dire bravo : les séances depuis la plus récente que j'ai félicitée (14 jours au plus), enfants actifs
+  const J = n => L.addDays(L.today(), -n), seance = (id, d, h) => ({ id, date: J(d), cree: J(d) + 'T1' + h + ':00:00.000Z', type: 'cros' });
+  const grp = { moi: { id: 'e1' }, joueurs: [
+    { joueur: { id: 'a', actif: true }, seances: [seance('a1', 3, 0), seance('a2', 1, 0)], bravos: [{ seanceId: 'a1', parQui: 'e1', cree: J(0) + 'T09:00:00.000Z' }] },
+    { joueur: { id: 'b', actif: true }, seances: [seance('b1', 2, 0)], bravos: [{ seanceId: 'b1', parQui: 'e1', cree: J(1) + 'T09:00:00.000Z' }] },
+    { joueur: { id: 'c', actif: true }, seances: [seance('c1', 20, 0), seance('c2', 2, 0), seance('c3', 1, 1)], bravos: [{ seanceId: 'c2', parQui: 'e2', cree: J(1) + 'T09:00:00.000Z' }] },
+    { joueur: { id: 'd', actif: false }, seances: [seance('d1', 1, 0)], bravos: [] }
+  ] };
+  const A = B.aFeliciter(grp), par = {};
+  A.forEach(x => { par[x.p.joueur.id] = x; });
+  assert.ok(par.a && par.a.s.id === 'a2' && par.a.n === 1, 'un bravo donné aujourd\'hui sur la séance d\'avant-hier ne cache pas celle d\'hier');
+  assert.ok(!par.b, 'b : sa seule séance a déjà mon bravo');
+  assert.ok(par.c && par.c.s.id === 'c3' && par.c.n === 2, 'c : le bravo d\'un autre éduc ne compte pas ; pas la séance de plus de 14 jours');
+  assert.ok(!par.d, 'enfant désactivé : pas de ligne');
+  assert.strictEqual(B.nb(grp), 2);
 }
 console.log('test_bravos_serie : OK');

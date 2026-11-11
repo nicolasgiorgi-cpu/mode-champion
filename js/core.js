@@ -2481,10 +2481,12 @@ var Core = (function () {
     },
     // (v71) les bravos en série : les mêmes alertes qu'un bravo, une par enfant (la pause de 10 minutes par enfant reste)
     bravos: function (req, ctx, res) {
+      var vus = {};   // (relecture v71) une alerte par enfant, même si la liste a deux de ses séances
       (ctx.bravosFaits || []).forEach(function (f) {
         var b = null;
         (res.bravos || []).forEach(function (x) { if (x.id === f.id) b = x; });
-        if (!b) return;
+        if (!b || vus[b.joueurId]) return;
+        vus[b.joueurId] = 1;
         ctx.bravoMot = f.mot;
         ALERTES.bravo(req, ctx, { bravo: b, nouveau: f.nouveau });
       });

@@ -2030,7 +2030,8 @@ textarea.txt{min-height:84px;padding:10px 12px;resize:vertical;font:500 16px/1.4
 /* (v71) les bravos en série (éducs) : un enfant par ligne, 3 mots proposés, le crayon ; « Bravo à tous » */
 .bvgo{border-color:rgba(255,194,61,.5);background:rgba(255,194,61,.08)}
 .bvgo .bv-i{font-size:20px;line-height:1;flex:none}
-.bvl{gap:8px}
+.bvlist{gap:8px}
+.bvk.wait{opacity:.75;pointer-events:none}
 .bvk{display:flex;flex-direction:column;gap:8px;padding:10px 12px;background:var(--panel2);border:1px solid var(--line)}
 .bvk.ok{border-color:rgba(61,255,176,.45)}
 .bvk-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}

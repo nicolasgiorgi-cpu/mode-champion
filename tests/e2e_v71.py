@@ -78,9 +78,19 @@ with sync_playwright() as p:
     check('Prépa physique : plus de « Bravos à donner »', pg.query_selector('a.bvgo') is None)
     BV = ev("(MC.bravo.nb(MC.app.S.cache.group))")
     check('« à donner » retombe à 0', BV == 0, BV)
-    # la fenêtre d'un bravo déjà donné : 4 mots du grand choix
+    # en revenant sur l'écran : une nouvelle visite, plus personne à féliciter
     pg.goto(BASE + '#/educ/bravos'); pg.wait_for_timeout(900)
-    check('écran vide : « Personne à féliciter »', 'Personne à féliciter' in pg.inner_text('main') or pg.query_selector('.bvk') is not None)
+    check('écran vide : « Personne à féliciter pour l\'instant. »', pg.query_selector('.bvk') is None and 'Personne à féliciter pour l\'instant.' in pg.inner_text('main'), pg.inner_text('main')[:200])
+    # la fenêtre d'un bravo déjà donné (Ça bouge) : 4 mots du grand choix
+    pg.goto(BASE + '#/educ/progres'); pg.wait_for_timeout(900)
+    on = pg.query_selector('.bvrow .bvb.on')
+    if on:
+        on.click(); pg.wait_for_timeout(400)
+        ph = pg.eval_on_selector_all('.modal [data-bvph]', 'l => l.map(x => x.dataset.bvph)')
+        tous = ev('MC.bravo.MOTS')
+        check('la fenêtre « Envoyé » : 4 mots du grand choix', len(ph) == 4 and all(m in tous for m in ph), ph)
+    else:
+        check('la fenêtre « Envoyé » : un bravo donné visible dans Ça bouge', False)
     b.close()
 ok = sum(1 for _, c in res if c)
 print('%d/%d · erreurs JS : %s' % (ok, len(res), errs))
