@@ -1503,7 +1503,7 @@ var Core = (function () {
     run: function (req, ctx) {
       var me = ctx.auth.row, s = find(ctx.db.rows('seances'), String(req.seanceId || ''));
       if (!s) fail('introuvable', 'Séance introuvable.');
-      if (s.joueurId === me.id) fail('interdit', 'Un bravo, c\'est pour les copains !');
+      if (s.joueurId === me.id) fail('interdit', 'Un bravo, c\'est pour les autres !');
       var j = equipeVisible(ctx, me)[s.joueurId];
       if (!j) fail('introuvable', 'Séance introuvable.');
       if (!(s.date >= isoDate(ctx.now - FIL_JOURS * DAY))) fail('invalide', 'Cette séance date d\'il y a plus d\'une semaine.');

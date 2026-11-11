@@ -69,7 +69,8 @@ with sync_playwright() as p:
     check('Équipe : les filtres se déplient', ev("document.querySelector('details.rkf').open"))
     check('Équipe : pas de défilement de côté', noscroll())
     # (relecture) venir d'un autre onglet : les filtres repliés de nouveau
-    pg.click('#nav a[href="#/profil"]'); pg.wait_for_timeout(700); pg.click('#nav a[href="#/classement"]'); pg.wait_for_timeout(900)
+    pg.click('#nav a[href="#/profil"]'); pg.wait_for_timeout(700); pg.click('#nav a[href="#/equipe"]'); pg.wait_for_timeout(900)
+    pg.click('.stabs a[href="#/classement"]'); pg.wait_for_timeout(900)
     check('Équipe : revenue d\'un autre onglet, les filtres repliés', pg.query_selector('details.rkf:not([open])') is not None)
 
     # ----- Progrès : Records · Niveaux (les Skills sont fermés aux enfants en V1) -----

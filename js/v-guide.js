@@ -72,7 +72,7 @@
       card('onglets', 'menu', '#38E8FF', 'L\'appli en 4 onglets', 'Accueil · Équipe · Progrès · Moi',
         ul([
           '<b>Accueil</b> : je fais quoi aujourd\'hui ? La séance du jour (le bouton pour la lancer), <b>mes missions</b> (ce que demandent tes éducs, comme choisir ton poste ; « Toutes » ouvre la liste), et ta semaine en une ligne (tes étoiles, la <b>semaine parfaite</b>). Une pastille rose = une mission à faire.',
-          '<b>Équipe</b> : <b>Ça bouge</b>, les séances et les records battus des copains cette semaine (un 👏 pour les encourager : tu choisis un mot tout prêt), et les <b>podiums</b> de chaque épreuve, avec les joueurs de ton niveau (ta ligue).',
+          '<b>Équipe</b> : <b>Ça bouge</b>, les séances et les records battus de l\'équipe cette semaine (un 👏 pour encourager les autres : tu choisis un mot tout prêt), et les <b>podiums</b> de chaque épreuve, avec les joueurs de ton niveau (ta ligue).',
           '<b>Progrès</b> : tes <b>records</b> (tes meilleurs résultats, ton bilan), tes <b>niveaux</b>' + (SKON ? ' et tes <b>Skills</b> (ton carnet de compétences rugby, 8 cartes d\'étoiles validées par tes éducs)' : '') + '.',
           '<b>Moi</b> : ton grade, tes XP, ' + (COPON ? 'tes postes et tes copains' : 'tes postes') + ', tes trophées, l\'aide et les réglages.',
           'La <b>flèche en haut à gauche</b> te ramène à l\'écran d\'avant, là où tu étais. Tout en haut d\'un écran, <b>tire vers le bas</b> puis lâche pour l\'actualiser. Quand l\'appli a une nouvelle version, elle se met à jour toute seule.'

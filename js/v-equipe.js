@@ -56,7 +56,7 @@
       EQ.data = d;
       var l = fil(me, d);
       return '<main class="screen">' + MC.kidBar(me, app.S.stats) + tabs('fil') +
-        '<p class="small" style="margin:0">Les séances et les records de l\'équipe, ces 7 derniers jours. Un 👏 pour encourager un copain !</p>' +
+        '<p class="small" style="margin:0">Les séances et les records de l\'équipe, ces 7 derniers jours. Un 👏 pour encourager les autres !</p>' +
         (l ? '<ul class="list eqfil">' + l + '</ul>' : '<div class="empty">Pas encore de séance cette semaine dans l\'équipe. Lance la tienne !</div>') +
         '</main>';
     });
