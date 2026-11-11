@@ -58,8 +58,9 @@
     if (!d || !d.joueurs) return '';
     var noms = {}, ev = [];
     d.joueurs.forEach(function (j) { noms[j.id] = j; });
-    (d.seances || []).forEach(function (s) { if (s.joueurId !== me.joueur.id) ev.push({ t: s.cree || s.date, s: s }); });
-    (d.progres || []).forEach(function (r) { if (r.joueurId !== me.joueur.id) ev.push({ t: r.cree || r.date, r: r }); });
+    var depuis = L.addDays(L.today(), -7);   // comme le fil : rien de plus vieux qu'une semaine (appli pas ouverte depuis longtemps)
+    (d.seances || []).forEach(function (s) { if (s.joueurId !== me.joueur.id && s.date >= depuis) ev.push({ t: s.cree || s.date, s: s }); });
+    (d.progres || []).forEach(function (r) { if (r.joueurId !== me.joueur.id && r.date >= depuis) ev.push({ t: r.cree || r.date, r: r }); });
     if (!ev.length) return '';
     ev.sort(function (a, b) { return a.t < b.t ? 1 : -1; });
     var e = ev[0], x = e.s || e.r, j = noms[x.joueurId];
@@ -71,14 +72,19 @@
     } else txt = '<b>' + esc(j.prenom) + '</b> a fait ' + esc(nomSeance(x));
     return '<a class="li acc-eq" href="#/equipe"><span class="eqdot" style="--c:' + esc(j.couleur || '#38E8FF') + '"></span><span class="grow"><span class="t1">' + txt + '</span><span class="t2">L\'équipe · ' + esc(quand(x.cree, x.date)) + '</span></span>' + icon('right', 16) + '</a>';
   }
+  // (relecture) en fond : sans indicateur d'activité, un seul appel à la fois, et seulement pour l'enfant toujours connecté
+  var enCours = false;
   function rafraichir(me) {
-    var c = app.lsGet(cleEq(me));
-    if (c && Date.now() - c.t < 600000) return;
-    app.kidCall('equipe').then(function (d) {
+    var c = app.lsGet(cleEq(me)), id = me.joueur.id, kid = app.S.kid;
+    if (enCours || !kid || kid.joueur.id !== id || (c && Date.now() - c.t < 600000)) return;
+    enCours = true;
+    MC.api.call('equipe', { token: kid.token }, { silent: true }).then(function (d) {
+      enCours = false;
+      if (!app.S.kid || app.S.kid.joueur.id !== id) return;
       garder(me, d);
       var el = document.querySelector('.acc-eq-slot');
-      if (el && location.hash.indexOf('#/semaine') === 0) el.innerHTML = derniere(me);
-    }).catch(function () { });
+      if (el && location.hash.indexOf('#/semaine') === 0 && app.S.me && app.S.me.joueur.id === id) el.innerHTML = derniere(me);
+    }).catch(function () { enCours = false; });
   }
   MC.equipe = { derniere: derniere, rafraichir: rafraichir };
 

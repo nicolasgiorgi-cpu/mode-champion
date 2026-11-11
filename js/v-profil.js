@@ -327,8 +327,8 @@
       // beaucoup d'épreuves à l'écran : le podium et la place de l'enfant (avec celui juste devant) ; « Voir les N » déplie
       var mi = mine ? lg.rows.indexOf(mine) : -1, keep = {};
       // (v73, E5) l'enfant : toujours le podium puis « toi et tes voisins », jamais le bas du tableau ; les parents peuvent tout déplier
-      var compact = who.toi ? lg.rows.length > 5 : lg.rows.length > 5 && ids.length > 2 && !rankFull[tid];
-      if (who.toi) keep = L.podiumVoisins(lg.rows.length, mi);
+      var compact = who.toi || (lg.rows.length > 5 && ids.length > 2 && !rankFull[tid]);
+      if (who.toi) keep = L.podiumVoisins(lg.rows, mi);
       else [0, 1, 2, mi - 1, mi].forEach(function (k) { if (k >= 0) keep[k] = 1; });
       var rows = lg.rows.map(function (r, k) {
         var me = r.p.id === who.id, hide = compact && !keep[k];
@@ -365,7 +365,7 @@
   function equipeCard(titre, rows, me, val, vide, cle) {
     var mi = -1;
     rows.forEach(function (r, i) { if (r.p.id === me.joueur.id) mi = i; });
-    var keep = L.podiumVoisins(rows.length, mi), medal = ['#FFC23D', '#C7CEDF', '#E39A5B'], out = '';
+    var keep = L.podiumVoisins(rows, mi), medal = ['#FFC23D', '#C7CEDF', '#E39A5B'], out = '';
     rows.forEach(function (r, k) {
       if (!keep[k]) return;
       if (k > 0 && !keep[k - 1]) out += '<li class="rkgap" aria-hidden="true">⋯</li>';
@@ -384,7 +384,7 @@
     var vues = ui.seg([['prog', 'Progrès'], ['reg', 'Régularité'], ['rec', 'Records']], rank.vue, 'rkVue'), corps = '';
     if (rank.vue === 'prog') {
       corps = '<p class="small" style="margin:0">Les records battus ces 30 derniers jours, dans toute l\'équipe : tout le monde peut gagner !</p>' +
-        equipeCard('Progrès du mois', L.progresMois(Lg), me, function (r) { return r.n + ' record' + (r.n > 1 ? 's' : ''); }, 'Personne n\'a encore battu de record ces 30 derniers jours. À toi de commencer !', 'prog');
+        equipeCard('Progrès du mois', L.progresMois(Lg), me, function (r) { return r.n + ' record' + (r.n > 1 ? 's' : '') + '<small class="rk-pct"> · +' + r.pct + ' %</small>'; }, 'Personne n\'a encore battu de record ces 30 derniers jours. À toi de commencer !', 'prog');
     } else if (rank.vue === 'reg') {
       corps = '<p class="small" style="margin:0">Les étoiles des 4 dernières semaines, dans toute l\'équipe.</p>' +
         equipeCard('Régularité', L.regularite(Lg), me, function (r) { return r.etoiles + ' ★'; }, 'Pas encore d\'étoile ces 4 dernières semaines.', 'reg');

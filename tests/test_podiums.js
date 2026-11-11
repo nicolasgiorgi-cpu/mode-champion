@@ -29,10 +29,17 @@ Lg.records.push(R('d', 'burpees', 8, '2026-10-20'), R('d', 'burpees', 10, '2026-
 P = L.progresMois(Lg);
 eq(P.map(r => [r.p.id, r.n, r.pct]), [['a', 2, 46], ['b', 1, 100], ['d', 1, 25]]);
 Lg.records = Lg.records.filter(r => r.test !== 'burpees');
-// égalité : même nombre et même % = même rang
+// à nombre égal, le plus gros progrès en % passe devant
 Lg.records.push(R('c', 'pompes', 5, '2026-09-01'), R('c', 'corde', 10, '2026-09-01'), R('c', 'corde', 13, '2026-11-02'));   // c : pompes 5 → 10 (+100 %), corde +30 % → 2 records, 130 %
 P = L.progresMois(Lg);
 eq(P.map(r => [r.p.id, r.n, r.rank]), [['c', 2, 1], ['a', 2, 2], ['b', 1, 3]]);
+// une vraie égalité : même nombre et même % (arrondi) = même rang, et le suivant prend le rang d'après (1, 1, 3)
+Lg.records.push(R('d', 'squats', 20, '2026-09-01'), R('d', 'squats', 40, '2026-11-03'), R('d', 'corde', 10, '2026-09-01'), R('d', 'corde', 13, '2026-11-03'));   // d : +100 % et +30 % → 2 records, 130 %
+P = L.progresMois(Lg);
+eq(P.map(r => [r.p.id, r.n, r.pct, r.rank]), [['c', 2, 130, 1], ['d', 2, 130, 1], ['a', 2, 46, 3], ['b', 1, 100, 4]]);
+// chaque record battu compte, comme dans « Ça bouge » : 10 → 11 → 12 sur les pompes = 2 records (+20 %)
+Lg = { joueurs: ['e'].map(J), records: [R('e', 'pompes', 10, '2026-09-01'), R('e', 'pompes', 11, '2026-11-01'), R('e', 'pompes', 9, '2026-11-02'), R('e', 'pompes', 12, '2026-11-03')] };
+eq(L.progresMois(Lg).map(r => [r.p.id, r.n, r.pct]), [['e', 2, 20]], 'deux records battus sur la même épreuve');
 // ---------- Régularité : les étoiles (créneaux de la semaine + bonus de la semaine parfaite) ----------
 const S = (joueurId, type, date) => ({ joueurId, type, date });
 Lg = { joueurs: ['a', 'b', 'c'].map(J), seances: [
@@ -46,12 +53,18 @@ L._setToday('2026-11-15');
 const G = L.regularite(Lg);
 eq(G.map(r => [r.p.id, r.etoiles, r.rank]), [['a', 9, 1], ['b', 1, 2]], JSON.stringify(G.map(r => [r.p.id, r.etoiles])));
 // ---------- le podium, puis toi et tes voisins ----------
-const K = (n, mi) => Object.keys(L.podiumVoisins(n, mi)).map(Number).sort((x, y) => x - y);
-eq(K(10, 6), [0, 1, 2, 5, 6, 7], 'le podium, celui devant, toi, celui derrière');
-eq(K(10, 9), [0, 1, 2, 8, 9], 'dernier : pas de voisin derrière');
-eq(K(10, 1), [0, 1, 2], 'sur le podium');
-eq(K(10, -1), [0, 1, 2], 'pas classé : le podium seulement, jamais le bas du tableau');
-eq(K(2, 0), [0, 1]);
+const rangsDe = l => l.map(rank => ({ rank }));
+const K = (rangs, mi) => Object.keys(L.podiumVoisins(rangsDe(rangs), mi)).map(Number).sort((x, y) => x - y);
+const suite = n => Array.from({ length: n }, (_, i) => i + 1);
+eq(K(suite(10), 6), [0, 1, 2, 5, 6, 7], 'le podium, celui devant, toi, celui derrière');
+eq(K(suite(10), 9), [0, 1, 2, 8, 9], 'dernier : pas de voisin derrière');
+eq(K(suite(10), 1), [0, 1, 2], 'sur le podium');
+eq(K(suite(10), -1), [0, 1, 2], 'pas classé : le podium seulement, jamais le bas du tableau');
+eq(K(suite(2), 0), [0, 1]);
+eq(K(suite(5), 0), [0, 1, 2], 'petite ligue (5) : le podium et toi, pas les 4e et 5e');
+// (relecture) les ex aequo du podium y sont tous : 1, 2, 2, 2, 2, 2, 2 → tout le monde est 2e
+eq(K([1, 2, 2, 2, 2, 2, 2], -1), [0, 1, 2, 3, 4, 5, 6], 'les 2es ex aequo sont tous sur le podium');
+eq(K([1, 2, 3, 3, 5, 6, 7, 8], 7), [0, 1, 2, 3, 6, 7], 'les 3es ex aequo, puis toi et celui devant');
 
 // ---------- le serveur : les séances des 4 dernières semaines avec la ligue ----------
 const { makeEnv } = require('./gas_mock.js');
@@ -71,4 +84,7 @@ const Lsv = g.call({ action: 'league', token: tom.tok });
 assert.ok(Lsv.ok && Array.isArray(Lsv.seances));
 eq(Lsv.seances.map(s => s.joueurId), [ana.id], 'Ana (pas sa séance d\'il y a 60 jours), pas Eva cachée');
 eq(Object.keys(Lsv.seances[0]).sort(), ['date', 'joueurId', 'type'], 'le type et le jour, rien d\'autre (ni ressenti, ni détail)');
+// (relecture) les parents et les éducs n'ont pas les séances des autres (leur écran ne s'en sert pas)
+eq(g.call({ action: 'league', token: fam.token }).seances, [], 'parent : pas de séances');
+eq(g.call({ action: 'league', token: et }).seances, [], 'éduc : pas de séances');
 console.log('test_podiums : OK');

@@ -2057,3 +2057,4 @@ textarea.txt{min-height:84px;padding:10px 12px;resize:vertical;font:500 16px/1.4
 .acc-eq .t1{font:600 14px/1.25 var(--f-body);letter-spacing:0;text-transform:none}
 .acc-eq .t1 b{font-weight:700}
 .acc-eq-slot:empty{display:none}
+.rkv small.rk-pct{font:600 12px/1 var(--f-body);color:var(--dim);letter-spacing:0}

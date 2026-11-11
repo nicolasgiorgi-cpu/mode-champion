@@ -463,8 +463,9 @@ MC.logic = (function () {
     rows.forEach(function (r, i) { var v = cle(r); if (v !== prev) rank = i + 1; prev = v; r.rank = rank; });
     return rows;
   }
-  // Progrès du mois : les épreuves dont il a battu son record ces 30 derniers jours (résultats qui comptent) ;
-  // à égalité, le plus gros progrès en pourcentage. Un 1er résultat n'est pas un progrès.
+  // Progrès du mois : le nombre de fois où il a battu son record ces 30 derniers jours (résultats qui comptent,
+  // comme « Ça bouge ») ; à égalité, le plus gros progrès en pourcentage (sur chaque épreuve, du repère à son
+  // meilleur du mois, additionnés). Un 1er résultat n'est pas un progrès.
   function progresMois(L, jour) {
     var depuis = addDays(jour || today(), -30), par = {};
     (L.records || []).forEach(function (r) {
@@ -477,16 +478,19 @@ MC.logic = (function () {
     Object.keys(par).forEach(function (k) {
       var l = par[k], t = testDef(l[0].test), avant = null, mois = null, g = gens[l[0].joueurId];
       if (!g) return;
-      // dans l'ordre : le meilleur d'avant le mois sert de repère ; s'il n'y en a pas, le 1er résultat du mois
+      // dans l'ordre : le meilleur d'avant le mois sert de repère ; s'il n'y en a pas, le 1er résultat du mois ;
+      // chaque résultat du mois qui bat le meilleur jusque-là est un record battu
       l.sort(function (a, b) { return (a.date + (a.cree || '')) < (b.date + (b.cree || '')) ? -1 : 1; });
+      var n = 0;
       l.forEach(function (r) {
         var v = Number(r.valeur);
         if (!isFinite(v)) return;
-        if (r.date < depuis || avant === null) { if (avant === null || better(t, v, avant)) avant = v; }
-        else if (mois === null || better(t, v, mois)) mois = v;
+        if (r.date < depuis || avant === null) { if (avant === null || better(t, v, avant)) avant = v; return; }
+        if (better(t, v, mois === null ? avant : better(t, mois, avant) ? mois : avant)) n++;
+        if (mois === null || better(t, v, mois)) mois = v;
       });
-      if (avant === null || mois === null || !better(t, mois, avant)) return;
-      g.n++;
+      if (!n) return;
+      g.n += n;
       g.pct += avant ? Math.abs(mois - avant) / Math.abs(avant) : 1;
     });
     var rows = Object.keys(gens).map(function (id) { return gens[id]; }).filter(function (g) { return g.n > 0; });
@@ -506,10 +510,12 @@ MC.logic = (function () {
     rows.sort(function (a, b) { return b.etoiles - a.etoiles; });
     return rangs(rows, function (r) { return r.etoiles; });
   }
-  // le podium, puis « toi et tes voisins » (celui devant, toi, celui derrière) : jamais le bas du tableau
-  function podiumVoisins(n, mi) {
-    var keep = {};
-    [0, 1, 2, mi - 1, mi, mi + 1].forEach(function (k) { if (k >= 0 && k < n && (k < 3 || mi >= 0)) keep[k] = 1; });
+  // le podium (les rangs 1 à 3, ex aequo compris), puis « toi et tes voisins » (celui devant, toi, celui derrière) :
+  // jamais le bas du tableau. rows : les lignes classées, avec leur rang (rank) ; mi : la place de l'enfant (-1 : pas classé)
+  function podiumVoisins(rows, mi) {
+    var keep = {}, n = rows.length;
+    rows.forEach(function (r, k) { if (r.rank <= 3) keep[k] = 1; });
+    if (mi >= 0) [mi - 1, mi, mi + 1].forEach(function (k) { if (k >= 0 && k < n) keep[k] = 1; });
     return keep;
   }
 

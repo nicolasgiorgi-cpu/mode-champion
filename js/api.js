@@ -87,7 +87,7 @@ MC.api = (function () {
   // Délais d'attente : sans réponse, on n'attend pas indéfiniment (un iPhone qui sort de veille,
   // un Wi-Fi qui ne laisse rien passer…). Les lectures et les connexions sont relancées une fois
   // toutes seules ; les enregistrements, non (pour ne pas noter deux fois la même séance).
-  var RETRY = { ping: 1, roster: 1, login: 1, adultLogin: 1, me: 1, league: 1, family: 1, kid: 1, group: 1, mesEnfants: 1, listEducs: 1, compos: 1, educsListe: 1 };
+  var RETRY = { ping: 1, roster: 1, login: 1, adultLogin: 1, me: 1, league: 1, equipe: 1, family: 1, kid: 1, group: 1, mesEnfants: 1, listEducs: 1, compos: 1, educsListe: 1 };
   var T = MC.CONFIG.TIMEOUTS || { read: 15000, retry: 20000, write: 40000 };
   function raw(action, params) {
     var req = {};

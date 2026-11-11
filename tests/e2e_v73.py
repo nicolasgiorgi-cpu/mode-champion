@@ -48,8 +48,11 @@ with sync_playwright() as p:
             li.querySelector('.rank').textContent + ' ' + li.querySelector('.t1').textContent + ' ' + li.querySelector('.rkv').textContent)""", sel)
     def attendu(fn):
         return ev("""fn => { const L = MC.logic, me = MC.app.S.me.joueur.id, rows = L[fn](MC.app.S.league);
-            const mi = rows.findIndex(r => r.p.id === me), keep = L.podiumVoisins(rows.length, mi);
-            return { n: rows.length, mi, garde: Object.keys(keep).map(Number).sort((a, b) => a - b), ids: rows.map(r => r.p.id) }; }""", fn)
+            const mi = rows.findIndex(r => r.p.id === me), keep = L.podiumVoisins(rows, mi);
+            const garde = Object.keys(keep).map(Number).sort((a, b) => a - b);
+            return { n: rows.length, mi, garde, noms: garde.map(k => rows[k].p.prenom.toUpperCase()), ids: rows.map(r => r.p.id) }; }""", fn)
+    # les prénoms affichés, dans l'ordre (sans la pastille « Toi »)
+    noms = lambda sel: ev("s => [...document.querySelectorAll(s + ' li.rkl .t1')].map(t => t.firstChild.textContent.trim())", sel)
     A = attendu('progresMois')
     L1 = lignes('[data-podium="prog"]')
     check('Progrès : des enfants classés dans la démo', A['n'] >= 6, A)
@@ -58,7 +61,9 @@ with sync_playwright() as p:
     check('Progrès : le podium en haut', [x.split(' ')[0] for x in vus[:3]] == ['1', '2', '3'] or len(vus) < 3, vus)
     if A['mi'] >= 0:
         check('Progrès : « Toi » sur sa ligne, à droite du prénom', any('TOI' in x.upper() and x.split(' ')[1].upper().startswith('TOM') for x in vus), vus)
+    check('Progrès : à l\'écran, exactement le podium (ex aequo compris) puis toi et tes voisins', noms('[data-podium="prog"]') == A['noms'], (noms('[data-podium="prog"]'), A['noms']))
     check('Progrès : jamais le bas du tableau', A['n'] - 1 in A['garde'] if A['mi'] >= A['n'] - 2 else (A['n'] - 1) not in A['garde'], A)
+    check('Progrès : le % de progrès à côté du nombre (il départage)', all('%' in x for x in vus), vus)
     check('Progrès : « N record(s) » à droite', all(('record' in x) for x in vus), vus)
     check('pas de « Voir les N joueurs » pour l\'enfant', pg.query_selector('.rkmore') is None)
     check('Progrès : pas de défilement de côté', noscroll())
@@ -80,8 +85,15 @@ with sync_playwright() as p:
     check('Records : les filtres repliés', pg.query_selector('details.rkf') is not None and not ev("document.querySelector('details.rkf').open"))
     cartes = pg.query_selector_all('.rkcards .rkcard')
     check('Records : une carte par épreuve', len(cartes) >= 5, len(cartes))
-    trop = ev("""() => [...document.querySelectorAll('.rkcards .rkcard')].map(c => c.querySelectorAll('li.rkl').length).filter(n => n > 6)""")
-    check('Records : au plus le podium et toi avec tes voisins (6 lignes)', trop == [], trop)
+    # chaque carte : exactement le podium (ex aequo compris) puis toi et tes voisins, même dans une petite ligue (5 joueurs ou moins)
+    ecarts = ev("""() => { const L = MC.logic, me = MC.app.S.me.joueur.id, cartes = [...document.querySelectorAll('.rkcards .rkcard')], out = [];
+        const ids = MC.CONTENT.TESTS.map(t => t.id).filter(id => L.league(MC.app.S.league, me, id, 'best').rows.length);
+        if (ids.length !== cartes.length) return ['cartes ' + ids.length + ' / ' + cartes.length];
+        ids.forEach((id, i) => { const rows = L.league(MC.app.S.league, me, id, 'best').rows, mi = rows.findIndex(r => r.p.id === me), keep = L.podiumVoisins(rows, mi);
+          const att = rows.filter((r, k) => keep[k]).map(r => r.p.prenom.toUpperCase()), vu = [...cartes[i].querySelectorAll('li.rkl .t1')].map(t => t.firstChild.textContent.trim());
+          if (JSON.stringify(att) !== JSON.stringify(vu)) out.push(id + ' ' + vu.join(',') + ' / ' + att.join(',')); });
+        return out; }""")
+    check('Records : chaque carte = le podium, puis toi et tes voisins (jamais le bas, même en petite ligue)', ecarts == [], ecarts)
     check('Records : pas de « Voir les N joueurs »', pg.query_selector('.rkmore') is None)
     check('Records : pas de défilement de côté', noscroll())
 

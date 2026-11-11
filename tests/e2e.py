@@ -38,6 +38,7 @@ with sync_playwright() as p:
     pg.goto(BASE+'#/trophees'); pg.wait_for_timeout(900); shot(pg,'10-trophees')
     pg.goto(BASE+'#/defi/roc'); pg.wait_for_timeout(900); shot(pg,'11-defi')
     pg.goto(BASE+'#/classement'); pg.wait_for_timeout(900); shot(pg,'12-classement')
+    pg.click('.seg3 button[data-v="rec"]'); pg.wait_for_timeout(300); pg.click('details.rkf > summary'); pg.wait_for_timeout(200)   # (v73) Records, filtres dépliés
     pg.click('[data-act="rkMode"][data-v="prog"]'); pg.wait_for_timeout(300); shot(pg,'12b-classement-prog')
     pg.goto(BASE+'#/bilan'); pg.wait_for_timeout(900); shot(pg,'13-bilan')
     pg.goto(BASE+'#/reglages'); pg.wait_for_timeout(900); shot(pg,'14-reglages')
