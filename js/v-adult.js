@@ -130,6 +130,34 @@
     });
   };
 
+  // (v81) « C'est bon » : les scores affichés sont vus (sur cet appareil) ; ils quittent le bloc, et leurs lignes de la cloche
+  // sont lues. Rien ne part au serveur : un score compte déjà (confiance par défaut). Un score est retenu par sa signature
+  // (id, valeur, date) : un score noté ensuite, ou un résultat de bilan refait (même ligne, autre valeur et autre date), revient.
+  var SCORES_VUS = 'mc-scores-vus:', VUS_MAX = 120;
+  function signature(r) { return r.id + '|' + r.valeur + '|' + (r.date || ''); }
+  function scoresVus(kid) {
+    var l = app.lsGet(SCORES_VUS + kid), o = {};
+    (Array.isArray(l) ? l : []).forEach(function (x) { o[x] = 1; });
+    return o;
+  }
+  function boutonScoresOk(kid, recents) {
+    var sigs = [], ids = [];
+    recents.forEach(function (r) {
+      sigs.push(signature(r));
+      ids.push(r.bilan === 'defi' ? 'r:' + r.id : 'b:' + kid + ':' + r.bilan);
+    });
+    return '<div class="row" style="justify-content:flex-end;margin-top:8px"><button type="button" class="btn2 sm" data-act="scoresOk" data-kid="' + esc(kid) + '" data-sigs="' + esc(sigs.join(',')) + '" data-ids="' + esc(ids.join(',')) + '">' + icon('check', 16) + ' C\'est bon</button></div>';
+  }
+  MC.act.scoresOk = function (b) {
+    var kid = b.getAttribute('data-kid'), sigs = (b.getAttribute('data-sigs') || '').split(',').filter(Boolean), ids = (b.getAttribute('data-ids') || '').split(',').filter(Boolean);
+    if (!kid || !sigs.length) return;
+    var l = app.lsGet(SCORES_VUS + kid);
+    l = (Array.isArray(l) ? l : []).filter(function (x) { return sigs.indexOf(x) < 0; }).concat(sigs);
+    app.lsSet(SCORES_VUS + kid, l.slice(-VUS_MAX));
+    if (MC.clocheLireIds) MC.clocheLireIds(ids);
+    ui.toast('C\'est noté : tout est bon');
+    app.rerender();
+  };
   // ---------- résumé d'un enfant (parent et éduc) ----------
   function kidSummary(d, opts) {
     opts = opts || {};
@@ -155,8 +183,8 @@
     var pending = (d.records || []).filter(function (r) { return r.statut === 'attente'; });
     var refused = (d.records || []).filter(function (r) { return r.statut === 'refuse'; }).sort(function (a, b) { return a.date < b.date ? 1 : -1; }).slice(0, 12);
     // (v70, confiance par défaut) les scores qui comptent déjà, notés ces 14 derniers jours : « Ce n'est pas ça » d'un toucher
-    var depuis = L.addDays(t, -14), corr = opts.corriger !== false;
-    var recents = corr ? (d.records || []).filter(function (r) { return r.statut === 'ok' && !r.parQui && String(r.cree || r.date).slice(0, 10) >= depuis; })
+    var depuis = L.addDays(t, -14), corr = opts.corriger !== false, vus = scoresVus(k.id);   // (v81) « C'est bon »
+    var recents = corr ? (d.records || []).filter(function (r) { return r.statut === 'ok' && !r.parQui && String(r.cree || r.date).slice(0, 10) >= depuis && !vus[signature(r)]; })
       .sort(function (a, b) { return (a.cree || a.date) < (b.cree || b.date) ? 1 : -1; }).slice(0, 12) : [];
     var attFam = d.enAttente ? '<div class="note">' + icon('info', 18, 'style="color:var(--cyan);flex:none"') + '<span class="small">' + d.enAttente + ' exploit' + (d.enAttente > 1 ? 's attendent' : ' attend') + ' la confirmation de sa famille.</span></div>' : '';
     var nEx = pending.filter(function (r) { return r.exploit; }).length, nP = pending.length;
@@ -164,10 +192,10 @@
     var pendHtml = attFam + (pending.length ? '<section class="note pink" data-cible="confirmer" style="flex-direction:column;gap:10px"><div><div class="hud" style="color:var(--pink)">' + titreP + '</div><div class="small" style="color:var(--soft);margin-top:4px">' + (nEx ? 'Un gros progrès ou une entrée sur le podium : ' : '') + esc(k.prenom) + ' compte sur vous. Vous étiez là ? <b>Confirmer</b> ou <b>Ce n\'est pas ça</b>, puis <b>Enregistrer</b> juste en dessous.</div></div>' +
       '<ul class="list" style="width:100%">' + pending.map(function (r) { return recLine(r, '', true); }).join('') + '</ul>' +
       (pending.length > 1 ? '<button type="button" class="btn2 pink" data-act="decAll" data-ids="' + esc(pending.map(function (r) { return r.id; }).join(',')) + '">' + icon('check', 16) + ' Tout confirmer</button>' : '') + decBar() + '</section>' : '');
-    if (recents.length) pendHtml += '<details class="note scores" data-cible="scores" style="flex-direction:column;gap:8px;display:block"><summary style="cursor:pointer;min-height:32px"><span class="hud" style="color:var(--cyan)">' + recents.length + ' score' + (recents.length > 1 ? 's' : '') + ' noté' + (recents.length > 1 ? 's' : '') + ' ces 14 jours</span> <span class="small">· ils comptent déjà ; une erreur ? « Ce n\'est pas ça »</span></summary>' +
+    if (recents.length) pendHtml += '<details class="note scores" data-cible="scores" style="flex-direction:column;gap:8px;display:block"><summary style="cursor:pointer;min-height:32px"><span class="hud" style="color:var(--cyan)">' + recents.length + ' score' + (recents.length > 1 ? 's' : '') + ' noté' + (recents.length > 1 ? 's' : '') + ' ces 14 jours</span> <span class="small">· ils comptent déjà : « C\'est bon », ou « Ce n\'est pas ça » pour une erreur</span></summary>' +
       '<ul class="list" style="width:100%;margin-top:8px">' + recents.map(function (r) {
         return recLine(r, '', false).replace(/<\/li>$/, '<span class="decis"><button type="button" class="dbtn dno" data-act="pasCa" data-id="' + esc(r.id) + '" data-t="' + esc(testName(r) + ' · ' + recVal(r)) + '" aria-label="Ce n\'est pas ça : ' + esc(testName(r)) + '">' + icon('x', 16) + ' Ce n\'est pas ça</button></span></li>');
-      }).join('') + '</ul></details>';
+      }).join('') + '</ul>' + boutonScoresOk(k.id, recents) + '</details>';
     if (refused.length && corr) pendHtml += '<details class="note refus" style="flex-direction:column;gap:8px;display:block"><summary style="cursor:pointer;min-height:32px"><span class="hud" style="color:var(--muted)">' + refused.length + ' résultat' + (refused.length > 1 ? 's' : '') + ' pas retenu' + (refused.length > 1 ? 's' : '') + '</span> <span class="small">· retiré par erreur ? Rétablissez-le.</span></summary>' +
       '<ul class="list" style="width:100%;margin-top:8px">' + refused.map(function (r) { return recLine(r, '', true); }).join('') + '</ul>' + (pending.length ? '' : decBar()) + '</details>';
     var niv = k.niveaux || {};
