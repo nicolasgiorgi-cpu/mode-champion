@@ -68,8 +68,11 @@ r = g.call({ action: 'submitRecords', token: pt, bilan: '0', valeurs: [{ test: '
 assert.strictEqual(r.records[0].statut, 'ok', 'un bilan corrigé ne se compare pas à lui-même');
 r = g.call({ action: 'me', token: pt }); assert.strictEqual(r.records.length, 3);
 // un exploit (plus de 25 % de mieux d'un coup) attend son témoin
-r = g.call({ action: 'submitRecords', token: pt, bilan: 'defi', valeurs: [{ test: 'planche', valeur: 110 }, { test: 'pompes', valeur: 16 }, { test: 'flamant', valeur: 30 }] });
-assert.ok(r.ok && r.records.every(x => x.statut === 'attente' && x.exploit === 'bond'), JSON.stringify(r.records));
+// (v74) deux épreuves par jour au plus : la 3e un autre jour
+r = g.call({ action: 'submitRecords', token: pt, bilan: 'defi', valeurs: [{ test: 'planche', valeur: 110 }, { test: 'pompes', valeur: 16 }] });
+const r3 = g.call({ action: 'submitRecords', token: pt, bilan: 'defi', date: new Date(Date.now() - 86400000).toISOString().slice(0, 10), valeurs: [{ test: 'flamant', valeur: 30 }] });
+assert.ok(r.ok && r3.ok, JSON.stringify([r, r3])); r.records = r.records.concat(r3.records);
+assert.ok(r.ok && r.records.length === 3 && r.records.every(x => x.statut === 'attente' && x.exploit === 'bond'), JSON.stringify(r.records));
 const attIds = r.records.map(x => x.id);
 r = g.call({ action: 'me', token: pt }); assert.strictEqual(r.records.length, 6);
 // un éduc ne voit pas les résultats en attente des autres enfants et ne peut pas les confirmer ; ceux de son enfant, si

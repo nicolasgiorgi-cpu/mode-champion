@@ -67,7 +67,7 @@ with sync_playwright() as p:
     T = pg.evaluate("(() => { const J = MC.CONTENT.JOURS, k = Object.keys(J); return { maison: k.filter(x => J[x].maison), autre: k.filter(x => !J[x].maison), exo: Object.keys(MC.CONTENT.EXOS)[0], defi: (MC.CONTENT.DEFI_TESTS || [])[0] }; })()")
     defi = T['defi'] if isinstance(T['defi'], str) else (T['defi'] or {}).get('id', 'x')
     audit(pg, ['#/semaine', '#/bilans', '#/profil', '#/classement', '#/equipe', '#/progression', '#/niveaux', '#/trophees', '#/bilan', '#/reglages', '#/aide', '#/missions', '#/missions/perso', '#/missions/mots', '#/skills', '#/skills/passe', '#/mission', '#/mission/postes', '#/mission/copains', '#/nouveautes', '#/echauffement',
-               '#/calme', '#/jour/' + T['maison'][0], '#/jour/' + T['autre'][0], '#/exo/' + T['exo'], '#/noter?type=club', '#/mission/poste/pilier', '#/mission/quiz', '#/defi/' + defi, '#/guide', '#/bienvenue'])
+               '#/calme', '#/jour/' + T['maison'][0], '#/jour/' + T['autre'][0], '#/exo/' + T['exo'], '#/noter?type=club', '#/mission/poste/pilier', '#/mission/quiz', '#/defi/' + defi, '#/guide', '#/bienvenue', '#/epreuve/pompes'])
     # la séance guidée elle-même (plein écran) : un moyen d'en sortir en haut
     pg.goto(BASE + '#/go/' + T['maison'][0]); pg.wait_for_timeout(1200)
     if pg.query_selector('.modal'): pg.keyboard.press('Escape'); pg.wait_for_timeout(200)

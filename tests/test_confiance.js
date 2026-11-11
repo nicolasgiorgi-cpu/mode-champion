@@ -35,8 +35,11 @@ function enfant(prenom, niveaux) {
   if (niveaux) assert.ok(g.call({ action: 'updateMe', token: tok, niveaux }).ok);
   return { id: j.id, tok, fcode };
 }
+// (v74) une tentative par épreuve et par jour, deux épreuves par jour : chaque défi a son jour (dans l'ordre, il y a 140 jours et après)
+let jourDefi = 140;
+const ilJ = n => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
 function note(k, test, valeur, extra, bilan) {
-  const r = g.call({ action: 'submitRecords', token: k.tok, bilan: bilan || 'defi', valeurs: [{ test, valeur, extra: extra || null }] });
+  const r = g.call({ action: 'submitRecords', token: k.tok, bilan: bilan || 'defi', date: bilan ? undefined : ilJ(jourDefi--), valeurs: [{ test, valeur, extra: extra || null }] });
   assert.ok(r.ok && r.records.length === 1, JSON.stringify(r));
   return r.records[0];
 }

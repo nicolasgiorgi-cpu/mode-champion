@@ -381,12 +381,15 @@ MC.logic = (function () {
     }
     // records battus (confirmés)
     var recOk = (data.records || []).filter(function (r) { return r.statut === 'ok'; }).sort(function (a, b) { return (a.date + a.cree) < (b.date + b.cree) ? -1 : 1; });
-    var best = {}, recordsBattus = 0;
+    var best = {}, recordsBattus = 0, jourTente = {};
     recOk.forEach(function (r) {
       var k = r.test + (isSm(r) ? ':sm' : ''), t = testDef(r.test);
-      if (best[k] !== undefined && better(t, r.valeur, best[k])) { xp += X.record; recordsBattus++; }
+      var bat = best[k] !== undefined && better(t, r.valeur, best[k]);
+      if (bat) { xp += X.record; recordsBattus++; }
+      else if (r.bilan === 'defi') jourTente[r.date] = 1;   // (v74, E3) une tentative qui ne bat pas le record : +10 XP, une fois par jour
       if (best[k] === undefined || better(t, r.valeur, best[k])) best[k] = r.valeur;
     });
+    xp += Object.keys(jourTente).length * (X.tentative || 0);
     var sk = streaks(W, seances);
     var st = { totalStars: totalStars, perfectWeeks: perfectWeeks, maison: maison, bestStreak: sk.best, firstDate: firstDate, firstPerfect: firstPerfect };
     var badges = badgesOf(data, W, st);
@@ -519,6 +522,31 @@ MC.logic = (function () {
     return keep;
   }
 
+  // ---------- (v74, lot E3) le record du jour ----------
+  // Une épreuve par jour de séance à la maison, liée au thème du jour (lundi le haut du corps, mardi l'explosivité,
+  // mercredi le cardio, jeudi les jambes) ; les 12 épreuves tournent en 4 semaines. Décisions de Nicolas (10/11) :
+  // une tentative par épreuve et par jour, deux épreuves par jour au plus (le serveur le vérifie aussi, js/core.js).
+  var DU_JOUR = { cros: ['susp', 'tract', 'pompes', 'planche'], capuozzo: ['saut', 'navette', 'corde'], dupont: ['corde1', 'burpees'], meafou: ['squats', 'chaise', 'flamant'] };
+  var TENTATIVES_JOUR = 2;
+  // les épreuves tentées ce jour-là (défis et records du jour, sauf ceux que la famille a retirés)
+  function tentativesDu(records, jour) {
+    var out = [];
+    (records || []).forEach(function (r) { if (r.bilan === 'defi' && r.date === jour && r.statut !== 'refuse' && out.indexOf(r.test) < 0) out.push(r.test); });
+    return out;
+  }
+  // '' = il peut tenter l'épreuve aujourd'hui ; 'fait' = déjà tentée ; 'plein' = deux épreuves déjà tentées
+  function peutTenter(records, testId, jour) {
+    var faites = tentativesDu(records, jour || today());
+    return faites.indexOf(testId) >= 0 ? 'fait' : faites.length >= TENTATIVES_JOUR ? 'plein' : '';
+  }
+  // l'épreuve du jour : { test, type, etat } (etat : '' | 'fait' | 'plein') ; null le vendredi et le week-end
+  function recordDuJour(records, jour) {
+    var d = jour || today(), type = C.SEMAINE[dow(d)], l = DU_JOUR[type];
+    if (!l) return null;
+    var k = Math.floor(daysBetween('2026-01-05', monday(d)) / 7), id = l[((k % l.length) + l.length) % l.length];
+    return { test: id, type: type, etat: peutTenter(records, id, d) };
+  }
+
   // Classement de tout le groupe sur une épreuve (vue des éducs), filtré sur un niveau (0 = tous)
   function ranking(L, testId, mode, lvFilter, sm) {
     var t = testDef(testId), cle = t.cle, vals = {}, rows = [];
@@ -549,6 +577,7 @@ MC.logic = (function () {
     testDef: testDef, isSm: isSm, better: better, bests: bests, bilanRecords: bilanRecords, currentBilan: currentBilan, nextBilan: nextBilan,
     levelFromTest: levelFromTest, levelsFromBilan: levelsFromBilan, proposals: proposals, compute: compute, gradeOf: gradeOf,
     niveau: niveau, dayLevel: dayLevel, league: league, progresMois: progresMois, regularite: regularite, podiumVoisins: podiumVoisins,
+    recordDuJour: recordDuJour, peutTenter: peutTenter, tentativesDu: tentativesDu, DU_JOUR: DU_JOUR, TENTATIVES_JOUR: TENTATIVES_JOUR,
     _setToday: function (d) { fakeToday = d; }
   };
 })();

@@ -13,9 +13,13 @@
     var opts = saved ? saved.opts : { mini: mini, leger: type === 'meafou' && !!pr.leger, lourdes: type === 'meafou' && !!pr.lourdes };
     var items = MC.plan(type, me.joueur.niveaux || {}, opts);
     var steps = [{ kind: 'warmup' }];
+    // (v74, lot E3) le record du jour, juste après l'échauffement (on est chaud), si c'est la séance du jour ;
+    // une séance reprise garde ses étapes telles qu'elles étaient (saved.rdj)
+    var dj = L.recordDuJour(me.records), rdj = saved ? saved.rdj || '' : dj && dj.type === type && !dj.etat ? dj.test : '';   // déjà tenté ou 2 épreuves : pas d'étape
+    if (rdj) steps.push({ kind: 'record', test: rdj });
     items.forEach(function (it) { steps.push({ kind: 'exo', it: it }); });
     steps.push({ kind: 'calme' });
-    var r = { type: type, date: L.today(), opts: opts, steps: steps, i: 0, set: 0, phase: 'start', vals: {}, feels: {}, cur: null, round: 0, startedAt: Date.now(), t: null };
+    var r = { type: type, date: L.today(), opts: opts, rdj: rdj, steps: steps, i: 0, set: 0, phase: 'start', vals: {}, feels: {}, cur: null, round: 0, startedAt: Date.now(), t: null };
     if (saved) {
       r.i = Math.min(saved.i, steps.length - 1); r.set = saved.set || 0; r.vals = saved.vals || {}; r.feels = saved.feels || {}; r.startedAt = saved.startedAt || Date.now();
       r.phase = saved.phase === 'feel' ? 'feel' : 'start';
@@ -26,7 +30,7 @@
   }
   function persist() {
     if (!R) { app.lsSet(KEY, null); return; }
-    app.lsSet(KEY, { type: R.type, date: R.date, opts: R.opts, i: R.i, set: R.set, phase: R.phase, vals: R.vals, feels: R.feels, startedAt: R.startedAt, kid: app.S.kid && app.S.kid.joueur.id });
+    app.lsSet(KEY, { type: R.type, date: R.date, opts: R.opts, rdj: R.rdj || '', i: R.i, set: R.set, phase: R.phase, vals: R.vals, feels: R.feels, startedAt: R.startedAt, kid: app.S.kid && app.S.kid.joueur.id });
   }
   function restore(type) {
     var s = app.lsGet(KEY);
@@ -223,6 +227,8 @@
     goNextStep();
   };
   MC.act.runNextStep = function () { R.t = null; goNextStep(); };
+  // (v74) la tentative remplace la séance dans l'historique (et « Continuer ma séance » la remet) : une seule entrée
+  MC.act.runTente = function (b) { if (R && R.rt) MC.routine.pause(R.rt, true); app.go(b.getAttribute('data-h'), true); };
   // (v62) « Terminer la séance » avant la fin du retour au calme : on demande d'abord (le bouton a été touché sans le vouloir)
   MC.act.runEndAsk = function () {
     var rtWas = R.rt && R.rt.t && !R.rt.t.paused;
@@ -341,7 +347,8 @@
       var w = i < R.i ? 100 : (i === R.i && s.kind === 'exo' ? Math.round(R.set / nSets(s.it) * 100) : 0);
       return '<i><b style="width:' + w + '%"></b></i>';
     }).join('');
-    var s = step(), label = s.kind === 'warmup' ? 'ÉCHAUFFEMENT' : s.kind === 'calme' ? 'RETOUR AU CALME' : 'EXO ' + R.i + '/' + exoSteps;
+    var nExo = R.steps.slice(0, R.i + 1).filter(function (x) { return x.kind === 'exo'; }).length;
+    var s = step(), label = s.kind === 'warmup' ? 'ÉCHAUFFEMENT' : s.kind === 'calme' ? 'RETOUR AU CALME' : s.kind === 'record' ? 'RECORD DU JOUR' : 'EXO ' + nExo + '/' + exoSteps;
     return '<div class="top"><button type="button" class="cbtn grey" data-act="runQuit" aria-label="Quitter la séance">' + icon('x', 20) + '</button>' +
       (H.length ? '<button type="button" class="cbtn wide" data-act="runBack" aria-label="Revenir en arrière (annuler le dernier clic)">' + icon('undo', 18) + '<span>Retour</span></button>' : '') +
       '<div class="prog" style="--n:' + R.steps.length + '">' + segs + '</div><span class="hud" style="color:var(--rc)">' + label + '</span>' +
@@ -378,6 +385,7 @@
     var html = '<main class="run" style="--rc:' + col + '">' + topBar();
     if (R.sendErr) html += sendErrView();
     else if (s.kind === 'warmup' || s.kind === 'calme') html += routineStep(s);
+    else if (s.kind === 'record') html += recordStep(s);
     else html += exoStep(s.it);
     return html + '</main>';
   }
@@ -393,8 +401,24 @@
     return MC.routine.html(R.rt, {
       kicker: last ? C.CALME.nom : C.REVEIL.nom, color: color(),
       doneAct: 'runNextStep', doneLabel: last ? 'Terminer la séance' : 'Échauffement fait', doneAsk: last ? 'runEndAsk' : '',
-      after: last ? '' : 'Ensuite : ' + (nx && nx.it ? nx.it.nom.toLowerCase() : 'les exercices')
+      after: last ? '' : 'Ensuite : ' + (nx && nx.kind === 'record' ? 'le record du jour' : nx && nx.it ? nx.it.nom.toLowerCase() : 'les exercices')
     });
+  }
+  // (v74, lot E3) le record du jour dans la séance : « Je tente » (l'écran du bilan guidé, sans échauffement), ou on passe
+  function recordStep(s) {
+    var t = L.testDef(s.test), sm = !!(t.sm && R.opts.mini), nom = sm ? t.sm.nom : t.nom, st = app.S.stats;
+    var b = st && st.bestsOk ? st.bestsOk[t.id + (sm ? ':sm' : '')] : null, etat = L.peutTenter(app.S.me && app.S.me.records, t.id), nx = R.steps[R.i + 1];
+    var ad = !sm && C.A_DEUX ? C.A_DEUX[t.id] : '';
+    var suite = '<button type="button" class="btn xl green" data-act="runNextStep">Continuer la séance ' + icon('right', 20) + '</button>';
+    var right = etat === 'fait' ? '<div class="note green">' + icon('check', 22) + '<span>Record du jour tenté : bravo !</span></div>' + suite
+      : etat === 'plein' ? '<div class="note">' + icon('info', 20) + '<span>' + esc(MC.tenteMsg ? MC.tenteMsg.plein : '') + '</span></div>' + suite
+      : '<p class="lead" style="margin:0;color:var(--ink)">Tu es chaud : c\'est le bon moment pour battre ton record !</p>' +
+        (ad ? '<div class="note yellow">' + icon('group', 20) + '<span>' + esc(ad) + '</span></div>' : '') +
+        '<button type="button" class="btn xl gold" data-act="runTente" data-h="#/tente/' + esc(t.id) + '?chaud=1&retour=go/' + esc(R.type) + '">' + icon('trophy', 20) + ' Je tente</button>' +
+        '<button type="button" class="btn2 grey" data-act="runNextStep">Pas aujourd\'hui ' + icon('right', 16) + '</button>';
+    return '<div class="main single rdj-step"><div class="hd"><span class="kicker" style="color:var(--gold)">Record du jour</span><h1>' + esc(nom) + '</h1>' +
+      '<span class="hud" style="color:var(--ink)">' + (b ? 'Ton record : ' + esc(ui.fmtVal(b.valeur, t.unite, t.decimales)) : 'Ton 1er résultat sera ton record') + '</span></div>' +
+      '<div class="right">' + right + '<p class="next">Ensuite : ' + esc(nx && nx.it ? nx.it.nom.toLowerCase() : 'les exercices') + '</p></div></div>';
   }
 
   function exoStep(it) {

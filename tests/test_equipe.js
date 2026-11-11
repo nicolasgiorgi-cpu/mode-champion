@@ -33,7 +33,7 @@ const sVieille = g.call({ action: 'logSession', token: leo.tok, type: 'dupont', 
 const sTom = g.call({ action: 'logSession', token: tom.tok, type: 'meafou', date: auj, mode: 'rapide' }).seance.id;
 const sInes = g.call({ action: 'logSession', token: ines.tok, type: 'capuozzo', date: auj, mode: 'rapide' }).seance.id;
 // Nina bat son record de pompes : 10 puis 12 (+2) ; Léo note un 1er résultat (pas un progrès)
-g.call({ action: 'submitRecords', token: nina.tok, bilan: 'defi', valeurs: [{ test: 'pompes', valeur: 10 }] });
+g.call({ action: 'submitRecords', token: nina.tok, bilan: 'defi', date: il(1), valeurs: [{ test: 'pompes', valeur: 10 }] });   // (v74) une tentative par épreuve et par jour
 g.call({ action: 'submitRecords', token: nina.tok, bilan: 'defi', valeurs: [{ test: 'pompes', valeur: 12 }] });
 g.call({ action: 'submitRecords', token: leo.tok, bilan: 'defi', valeurs: [{ test: 'planche', valeur: 60 }] });
 // Inès est cachée par sa famille
@@ -54,7 +54,7 @@ assert.deepStrictEqual([F.progres[0].joueurId, F.progres[0].test, F.progres[0].g
 assert.ok(!('valeur' in F.progres[0]) && !JSON.stringify(F.progres).includes('"12"') && !/valeur/.test(JSON.stringify(F)), 'le progrès, jamais le score');
 assert.ok(Array.isArray(F.mots) && F.mots.length >= 20, 'les mots tout prêts');
 // un score qui attend un témoin (exploit) n'y est pas
-g.call({ action: 'submitRecords', token: nina.tok, bilan: 'defi', valeurs: [{ test: 'pompes', valeur: 30 }] });
+g.call({ action: 'submitRecords', token: nina.tok, bilan: 'defi', date: il(2), valeurs: [{ test: 'pompes', valeur: 30 }] });
 assert.strictEqual(g.call({ action: 'equipe', token: tom.tok }).progres.length, 1, 'l\'exploit en attente n\'est pas dans le fil');
 
 // ---------- le progrès : le sens, le petit matériel, l'égalité, la fenêtre de 7 jours, un résultat refusé ----------
@@ -63,15 +63,15 @@ assert.strictEqual(g.call({ action: 'equipe', token: tom.tok }).progres.length, 
   const note = (test, valeur, extra, date) => g.call({ action: 'submitRecords', token: P.tok, bilan: 'defi', date: date || auj, valeurs: [{ test, valeur, extra: extra || null }] });
   note('navette', 15.0, null, il(3)); note('navette', 14.2, null, il(2)); note('navette', 14.5, null, il(1)); note('navette', 14.2);
   note('susp', 30, null, il(2)); note('susp', 20, { sm: true }, il(1)); note('susp', 24, { sm: true });
-  note('planche', 40, null, il(20)); note('planche', 48, null, il(10)); note('planche', 55);
-  note('chaise', 50, null, il(2)); const faux = note('chaise', 60).records[0];
+  note('planche', 40, null, il(20)); note('planche', 48, null, il(10)); note('planche', 55, null, il(4));   // (v74) deux épreuves par jour au plus
+  note('chaise', 50, null, il(5)); const faux = note('chaise', 60, null, il(4)).records[0];
   fam = g.call({ action: 'adultLogin', code: P.fcode });
   assert.ok(g.call({ action: 'confirm', token: fam.token, decisions: [{ id: faux.id, statut: 'refuse' }] }).ok);
   const pr = g.call({ action: 'equipe', token: tom.tok }).progres.filter(x => x.joueurId === P.id), par = {};
   pr.forEach(x => { (par[x.test + (x.sm ? ':sm' : '')] = par[x.test + (x.sm ? ':sm' : '')] || []).push(x.gain); });
   assert.deepStrictEqual(par.navette, [0.8], 'navette : moins = mieux, une égalité n\'est pas un progrès');
   assert.ok(!par.susp && JSON.stringify(par['susp:sm']) === '[4]', 'le petit matériel à part (son 1er résultat n\'est pas un progrès) : ' + JSON.stringify(par));
-  assert.deepStrictEqual(par.planche, [7], 'planche : 48 il y a 10 jours (hors des 7 jours) puis 55 : +7');
+  assert.deepStrictEqual(par.planche, [7], 'planche : 48 il y a 10 jours (hors des 7 jours) puis 55 il y a 4 jours : +7');
   assert.ok(!par.chaise, 'un résultat retiré par la famille ne compte pas');
 }
 

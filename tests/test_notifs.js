@@ -23,8 +23,9 @@ function joueur(id, prenom, extra) { return Object.assign({ joueur: { id, prenom
 const g = { moi, defmissions: [{ id: 'q1', sorte: 'qcm', titre: 'Le hors-jeu', statut: 'active', cree: iso(NOW - 50 * H) }], joueurs: [
   joueur('j1', 'Léo', {
     seances: [{ id: 's1', type: 'cros', date: '2026-10-31', cree: iso(NOW - 2 * H) }],
-    records: [{ id: 'r1', bilan: '1', test: 'saut', statut: 'ok', cree: iso(NOW - 3 * H) }, { id: 'r2', bilan: '1', test: 'flamant', statut: 'ok', cree: iso(NOW - 3 * H + 5000) },
-      { id: 'r3', bilan: 'defi', test: 'saut', statut: 'ok', cree: iso(NOW - 4 * H) }],
+    // (v74) dans la cloche des éducs, un défi n'apparaît que s'il bat le record : r3 (160 cm, le lendemain) bat r1 (150 cm)
+    records: [{ id: 'r1', bilan: '1', test: 'saut', valeur: 150, date: iso(NOW - 30 * H).slice(0, 10), statut: 'ok', cree: iso(NOW - 3 * H) }, { id: 'r2', bilan: '1', test: 'flamant', valeur: 20, date: iso(NOW - 30 * H).slice(0, 10), statut: 'ok', cree: iso(NOW - 3 * H + 5000) },
+      { id: 'r3', bilan: 'defi', test: 'saut', valeur: 160, date: iso(NOW - 4 * H).slice(0, 10), statut: 'ok', cree: iso(NOW - 4 * H) }],
     missions: [{ id: 'm1', mission: 'jeu10', reponses: { postes: ['centre'], copainsFait: true, message: 'Je veux <b>jouer</b> & gagner' }, maj: iso(NOW - 5 * H) },
       { id: 'm2', mission: 'q1', faite: true, reponses: { ans: [0, 1], score: 1, total: 2 }, maj: iso(NOW - 6 * H) }],
     demandes: [{ id: 'd1', domaine: 'plaquage', etoile: 'epaule', sorte: 'gagner', statut: 'attente', cree: iso(NOW - 7 * H) }],
@@ -51,7 +52,7 @@ const byId = {}; ev.forEach(e => { byId[e.id] = e; });
 assert.ok(byId['s:s1'] && byId['s:s1'].cat === 'seance' && /Léo<\/b> a fait la séance de Cros/.test(byId['s:s1'].txt), 'la séance de Léo');
 assert.ok(!byId['s:s9'], 'pas les enfants désactivés');
 assert.ok(byId['b:j1:1'] && /Bilan 1 \(2 résultats\)/.test(byId['b:j1:1'].txt), 'un bilan = une ligne (toujours la même), avec le nombre de résultats');
-assert.ok(byId['r:r3'] && /défi : Saut/.test(byId['r:r3'].txt), 'un défi = une ligne');
+assert.ok(byId['r:r3'] && /bat son record : Saut/.test(byId['r:r3'].txt), 'un défi qui bat le record = une ligne');
 const m1 = ev.filter(e => e.id.indexOf('m:m1:') === 0)[0];
 assert.ok(m1 && /Choisis ton poste » et « Avec qui tu aimes jouer/.test(m1.txt), 'poste et copains');
 assert.ok(m1.txt.indexOf('<b>jouer</b>') < 0 && m1.txt.indexOf('&lt;b&gt;jouer&lt;/b&gt; &amp; gagner') > 0, 'le mot pour les éducs est échappé (pas de HTML d\'un enfant)');
@@ -89,7 +90,7 @@ N.marquerLu('e', 'ed1', NOW + H + 180000, st);
 E = N.etat('e', 'ed1', ev, NOW + H + 240000, st);
 assert.strictEqual(E.n, 0, 'cloche ouverte : tout est lu');
 // un résultat qui apparaît tard (confirmé par la famille) avec une vieille heure : nouveau quand même
-g.joueurs[0].records.push({ id: 'r4', bilan: 'defi', test: 'flamant', statut: 'ok', cree: iso(NOW - 20 * 24 * H) });
+g.joueurs[0].records.push({ id: 'r4', bilan: 'defi', test: 'flamant', valeur: 25, date: iso(NOW).slice(0, 10), statut: 'ok', cree: iso(NOW - 20 * 24 * H) });   // (v74) il bat le record (20) : il est dans la cloche des éducs
 ev = N.events('e', { group: g, compos: cd });
 E = N.etat('e', 'ed1', ev, NOW + 2 * H, st);
 assert.strictEqual(E.n, 1, 'arrivé après coup : compté comme nouveau');

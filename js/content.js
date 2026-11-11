@@ -399,6 +399,9 @@ window.MC = window.MC || {};
     { nom: 'International', xp: 14000 },
     { nom: 'Légende', xp: 22000 }
   ];
+  // (v74, lot E3) les épreuves qu'on ne tente pas seul (sauf en « mini matériel » pour la barre)
+  var A_DEUX = { navette: 'À deux : quelqu\'un au chrono, et 10 m pour courir.', saut: 'À deux : quelqu\'un pour mesurer, avec un mètre.', susp: 'Il te faut une barre.', tract: 'Il te faut une barre.' };
+
   var XP = {
     seance: 150,      // séance à la maison (lundi → jeudi)
     club: 50,         // club du mercredi soir ou du samedi
@@ -406,6 +409,7 @@ window.MC = window.MC || {};
     bonus: 200,       // les 6 étoiles de la semaine
     badge: 100,       // badge gagné
     record: 50,       // record battu (v70 : compte tout de suite ; un exploit, une fois confirmé)
+    tentative: 10,    // (v74) une tentative de record qui ne le bat pas : une fois par jour
     niveau: 100,      // montée de niveau (une fois par niveau atteint)
     premiersPas: 100, // les 4 « premiers pas » du nouveau joueur (une fois)
     mission: 200,     // une mission spéciale accomplie (en plus de son badge)
@@ -416,7 +420,7 @@ window.MC = window.MC || {};
   MC.CONTENT = {
     NIVEAUX: NIVEAUX, CLES: CLES, FAMILLES: FAMILLES, EXOS: EXOS, REVEIL: REVEIL, CALME: CALME,
     JOURS: JOURS, SEMAINE: SEMAINE, SLOTS: SLOTS, TESTS: TESTS, BADGES: BADGES, FAMILLES_BADGES: FAMILLES_BADGES, PALIERS: PALIERS, DEFI_TESTS: DEFI_TESTS,
-    GRADES: GRADES, XP: XP,
+    GRADES: GRADES, XP: XP, A_DEUX: A_DEUX,
     COULEURS: ['#38E8FF', '#FF4FA3', '#3DFFB0', '#FFC23D', '#B48CFF', '#FF8A3D', '#4D9BFF', '#FF4F6D', '#7CFF6B', '#F5F7FF']
   };
 })();

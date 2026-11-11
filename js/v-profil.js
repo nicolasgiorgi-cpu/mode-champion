@@ -92,9 +92,10 @@
     return app.loadMe().then(function (me) { return paintBilans(me, app.S.stats); });
   }, { kid: true, nav: 'progres', live: true });
   function paintBilans(me, st) {
-    var k = me.joueur, niv = k.niveaux || {}, bl = L.currentBilan();
+    var k = me.joueur, niv = k.niveaux || {}, bl = L.currentBilan(), dj = L.recordDuJour(me.records), faites = L.tentativesDu(me.records, L.today());
     var recs = (me.records || []).filter(function (r) { return r.statut !== 'refuse'; });
-    var rows = C.TESTS.map(function (t) {
+    // (v74, lot E3) les 12 épreuves en cartes : le record, ce qu'il a gagné, le record du jour ; une carte ouvre la fiche de l'épreuve
+    var cartes = C.TESTS.map(function (t) {
       var sm = t.sm && k.materiel === 'mini', key = t.id + (sm ? ':sm' : '');
       // (retouche UI-08) le record = un résultat qui compte ; (v70) un exploit pas encore confirmé s'affiche à part
       var b = (st.bestsOk || st.bests)[key];
@@ -104,19 +105,76 @@
       if (b && first && first.id !== b.id && L.better(t, b.valeur, first.valeur)) {
         var d = Math.abs(b.valeur - first.valeur);
         gain = t.moinsMieux ? ui.fmtVal(d, t.unite, t.decimales) + ' plus rapide' : '+' + ui.fmtVal(d, t.unite, t.decimales);
-        gain += ' depuis ' + (first.bilan === 'defi' ? 'ton 1er défi' : 'le bilan ' + first.bilan);
       }
-      var lv = C.CLES[t.cle] ? (niv[t.cle] || 1) : null;
-      var attTxt = att ? '<span class="t2 recatt">' + icon('clock', 12) + (att.exploit ? ' Exploit : <b>' : ' Résultat proposé : <b>') + ui.fmtVal(att.valeur, t.unite, t.decimales) + '</b> · un adulte doit le confirmer</span>' : '';
-      return '<li class="li"><span class="grow"><span class="t1">' + esc(sm ? t.sm.nom : t.court) + '</span><span class="t2">' + (gain ? '<b style="color:var(--green)">' + esc(gain) + '</b>' : b ? 'ton record' : att ? 'pas encore de record' : 'pas encore de résultat') + '</span>' + attTxt + '</span>' +
-        (lv ? ui.lvl(lv) : '') + '<span style="font:700 17px/1 var(--f-hud);min-width:64px;text-align:right;color:' + (b ? 'var(--gold)' : 'var(--dim)') + '">' + (b ? ui.valHtml(b.valeur, t.unite, t.decimales) : '—') + '</span></li>';
+      var lv = C.CLES[t.cle] ? (niv[t.cle] || 1) : null, duJour = dj && dj.test === t.id, tente = faites.indexOf(t.id) >= 0;
+      var tag = tente ? '<span class="epc-tag ok">' + icon('check', 12) + ' Tenté aujourd\'hui</span>' : duJour && dj.etat !== 'plein' ? '<span class="epc-tag dj">' + icon('trophy', 12) + ' Record du jour</span>' : '';
+      var attTxt = att ? '<span class="epc-att">' + icon('clock', 12) + (att.exploit ? ' Exploit : <b>' : ' Résultat proposé : <b>') + ui.fmtVal(att.valeur, t.unite, t.decimales) + '</b> · un adulte doit le confirmer</span>' : '';
+      return '<a class="epc' + (duJour ? ' dj' : '') + '" href="#/epreuve/' + t.id + '" data-test="' + t.id + '"><span class="epc-h"><span class="epc-n">' + esc(sm ? t.sm.nom : t.court) + '</span>' + (lv ? ui.lvl(lv) : '') + '</span>' +
+        '<span class="epc-v' + (b ? '' : ' vide') + '">' + (b ? ui.valHtml(b.valeur, t.unite, t.decimales) : '—') + '</span>' +
+        '<span class="epc-t">' + (gain ? '<b style="color:var(--green)">' + esc(gain) + '</b>' : b ? 'ton record' : att ? 'pas encore de record' : 'pas encore de résultat') + '</span>' + attTxt + tag + '</a>';
     }).join('');
     return '<main class="screen">' + MC.kidBar(me, st) + MC.kidProgresTabs('records') +
-      '<p class="small" style="margin:0">Tes records : tes meilleurs résultats, et ce que tu as gagné depuis le premier.</p>' +
-      '<ol class="list">' + rows + '</ol>' +
+      '<p class="small" style="margin:0">Tes records sur les 12 épreuves. Touche une épreuve pour voir ta courbe et tenter de battre ton record.</p>' +
+      '<div class="epcs">' + cartes + '</div>' +
       bilanBtn(me, bl) +
       '<a class="btn2" href="#/progression">' + icon('up', 16) + ' Ma progression d\'un bilan à l\'autre</a>' +
       (MC.bilanEtat(me).etat !== 'fait' ? '<div class="note gold">' + icon('trophy', 20) + '<span><b>Ton bilan, quand tu veux.</b> Tu le passes avec un adulte : tes résultats arrivent ici tout de suite.</span></div>' : '') +   // (v64) plus de date
+      '</main>';
+  }
+
+  // ---------- (v74, lot E3) LA FICHE D'UNE ÉPREUVE : le record, la courbe, le niveau, « Je tente » ----------
+  app.route('/epreuve/:id', function (p) {
+    var t = C.TESTS.filter(function (x) { return x.id === p.id; })[0];   // les 12 épreuves du bilan seulement
+    if (!t) return app.go('#/bilans', true);
+    return app.loadMe().then(function (me) { return paintEpreuve(me, app.S.stats, t); });
+  }, { kid: true, nav: 'progres', live: true });
+  // la courbe : les résultats qui comptent, dans l'ordre ; vers le haut = mieux (pour la navette aussi)
+  function courbe(t, pts) {
+    var W = 320, H = 130, px = 22, py = 22, vals = pts.map(function (r) { return Number(r.valeur); });
+    var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals), span = hi - lo || 1, n = pts.length, bi = 0;
+    pts.forEach(function (r, i) { if (L.better(t, vals[i], vals[bi])) bi = i; });
+    function X(i) { return px + (n === 1 ? (W - 2 * px) / 2 : i * (W - 2 * px) / (n - 1)); }
+    function Y(v) { var f = (v - lo) / span; if (t.moinsMieux) f = 1 - f; return H - py - f * (H - 2 * py); }
+    var line = pts.map(function (r, i) { return X(i).toFixed(1) + ',' + Y(vals[i]).toFixed(1); }).join(' ');
+    var dots = pts.map(function (r, i) {
+      var best = i === bi, lab = i === 0 || i === n - 1 || best;
+      return '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(vals[i]).toFixed(1) + '" r="' + (best ? 6 : 4) + '" fill="' + (best ? '#FFC23D' : '#38E8FF') + '"/>' +
+        (lab ? '<text x="' + X(i).toFixed(1) + '" y="' + (Y(vals[i]) - 10).toFixed(1) + '" text-anchor="middle" class="cb-l' + (best ? ' best' : '') + '">' + esc(ui.fmtVal(vals[i], t.unite, t.decimales)) + '</text>' : '');
+    }).join('');
+    return '<svg class="courbe" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc('Ta courbe : ' + n + ' résultats, ton record ' + ui.fmtVal(vals[bi], t.unite, t.decimales)) + '">' +
+      '<line x1="' + px + '" x2="' + (W - px) + '" y1="' + (H - py + 8) + '" y2="' + (H - py + 8) + '" class="cb-ax"/>' +
+      (n > 1 ? '<polyline points="' + line + '" fill="none" stroke="#38E8FF" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>' : '') + dots +
+      '<text x="' + px + '" y="' + (H - 2) + '" class="cb-d">' + esc(ui.fmtDate(pts[0].date)) + '</text>' +
+      (n > 1 ? '<text x="' + (W - px) + '" y="' + (H - 2) + '" text-anchor="end" class="cb-d">' + esc(ui.fmtDate(pts[n - 1].date)) + '</text>' : '') + '</svg>';
+  }
+  function paintEpreuve(me, st, t) {
+    var k = me.joueur, sm = !!(t.sm && k.materiel === 'mini'), nom = sm ? t.sm.nom : t.nom, key = t.id + (sm ? ':sm' : '');
+    var b = (st.bestsOk || {})[key], dj = L.recordDuJour(me.records), duJour = !!(dj && dj.test === t.id), etat = L.peutTenter(me.records, t.id);
+    var mine = (me.records || []).filter(function (r) { return r.test === t.id && (!!(r.extra && r.extra.sm) === sm) && r.statut !== 'refuse'; })
+      .sort(function (a, c) { return (a.date + a.cree) < (c.date + c.cree) ? -1 : 1; });
+    var ok = mine.filter(function (r) { return r.statut === 'ok'; }), att = mine.filter(function (r) { return r.statut === 'attente'; }).pop();
+    // le niveau : le record le propose, il ne l'impose pas (on change ses niveaux dans Progrès › Niveaux)
+    var niv = '', cur = C.CLES[t.cle] ? ((k.niveaux || {})[t.cle] || 1) : null, prop = b && cur ? L.levelFromTest(t.id, b.valeur, b.extra) : null;
+    if (prop && cur) niv = prop > cur && cur < 4 ? '<div class="note pink">' + icon('up', 20) + '<span class="grow">Ton record vaut le <b>N' + prop + '</b> : tu peux passer au N' + prop + '.</span><a class="btn2 sm pink" href="#/niveaux">Mes niveaux</a></div>'
+      : '<p class="small" style="margin:0">Ton niveau sur cette épreuve : <b>N' + cur + '</b>.</p>';
+    var ad = !sm && C.A_DEUX ? C.A_DEUX[t.id] : '';
+    var action = etat === 'fait' ? '<div class="note green">' + icon('check', 20) + '<span>' + esc(MC.tenteMsg.fait) + '</span></div>'
+      : etat === 'plein' ? '<div class="note">' + icon('info', 20) + '<span>' + esc(MC.tenteMsg.plein) + '</span></div>'
+      : '<a class="btn xl gold" href="#/tente/' + t.id + '">' + icon('trophy', 20) + ' Je tente' + (duJour ? ' le record du jour' : '') + '</a>' +
+        (ad ? '<p class="small" style="margin:0;text-align:center">' + esc(ad) + '</p>' : '') + '<p class="small" style="margin:0;text-align:center">Une tentative par épreuve et par jour, deux épreuves par jour.</p>';
+    var hist = mine.slice(-6).reverse().map(function (r) {
+      return '<li class="li"><span class="grow"><span class="t1">' + esc(ui.fmtVal(r.valeur, t.unite, t.decimales)) + '</span><span class="t2">' + esc(ui.fmtDate(r.date)) + ' · ' + (r.bilan === 'defi' ? 'tentative' : 'bilan ' + esc(r.bilan)) + '</span></span>' +
+        (r.statut === 'attente' ? '<span class="hud" style="color:var(--yellow)">À confirmer</span>' : b && r.id === b.id ? '<span class="hud" style="color:var(--gold)">Record</span>' : '') + '</li>';
+    }).join('');
+    return '<main class="screen">' + MC.kidSubBar('#/bilans', 'Progrès', t.court) +
+      '<section class="sec ep-h"><div class="between"><span class="kicker" style="color:var(--gold)">' + (duJour ? 'Record du jour' : 'Épreuve ' + t.n) + '</span>' + ui.infoBtn(MC.fiche.key.test(t.id, sm), nom, sm ? t.sm.comment : t.comment) + '</div>' +
+      '<h2 class="h2">' + esc(nom) + '</h2><p class="small" style="margin:0">' + esc(sm ? t.sm.comment : t.comment) + '</p></section>' +
+      '<section class="sec ep-rec"><span class="hud" style="color:var(--dim)">Ton record</span><div class="ep-v' + (b ? '' : ' vide') + '">' + (b ? ui.valHtml(b.valeur, t.unite, t.decimales) : '—') + '</div>' +
+      (b ? '<span class="small">' + esc(ui.fmtDate(b.date)) + '</span>' : '<span class="small">Pas encore de résultat : ta 1re tentative sera ton record.</span>') +
+      (att ? '<span class="small" style="color:var(--yellow)">' + icon('clock', 12) + (att.exploit ? ' Exploit : ' : ' Résultat proposé : ') + esc(ui.fmtVal(att.valeur, t.unite, t.decimales)) + ' · un adulte doit le confirmer</span>' : '') + niv + '</section>' +
+      action +
+      (ok.length ? '<section class="sec"><h2 class="h2">Ta courbe</h2>' + (ok.length > 1 ? courbe(t, ok) : '<p class="small" style="margin:0">Ta courbe se dessine dès ton 2e résultat.</p>') + '</section>' : '') +
+      (hist ? '<section class="sec"><h2 class="h2">Tes derniers résultats</h2><ul class="list">' + hist + '</ul></section>' : '') +
       '</main>';
   }
 
@@ -209,7 +267,7 @@
       return '<main class="screen">' + MC.kidSubBar('#/profil', 'Moi', 'Mes trophées') +
         '<div class="head"><span class="kicker" style="color:var(--gold)">Salle des trophées</span><h1 class="big md">Grades<br>et badges</h1></div>' +
         '<div class="cols2"><section class="sec"><div class="between"><h2 class="h2">Ma carrière</h2><span class="small">1 séance = ' + C.XP.seance + ' XP</span></div><ol class="grades">' + grades + '</ol>' +
-        '<div class="box small" style="line-height:1.5">Séance à la maison +' + C.XP.seance + ' · club +' + C.XP.club + ' · récup +' + C.XP.recup + ' · semaine parfaite +' + C.XP.bonus + ' · badge ou palier +' + C.XP.badge + ' · record battu +' + C.XP.record + ' · niveau monté +' + C.XP.niveau + ' · mission spéciale +' + C.XP.mission + '</div></section>' +
+        '<div class="box small" style="line-height:1.5">Séance à la maison +' + C.XP.seance + ' · club +' + C.XP.club + ' · récup +' + C.XP.recup + ' · semaine parfaite +' + C.XP.bonus + ' · badge ou palier +' + C.XP.badge + ' · record battu +' + C.XP.record + ' · record tenté (une fois par jour) +' + C.XP.tentative + ' · niveau monté +' + C.XP.niveau + ' · mission spéciale +' + C.XP.mission + '</div></section>' +
         '<div class="sec" style="gap:20px">' + familles + '</div></div></main>';
     });
   }, { kid: true, nav: 'moi', bg: '#2E2612', live: true });
@@ -244,7 +302,9 @@
         '<div class="row" style="gap:16px">' + MC.badgeIcon(b, true, 84) + '<div class="head"><span class="kicker" style="color:' + b.color + '">Défi badge</span><h1 class="big sm">' + esc(b.nom) + '</h1></div></div>' +
         '<div class="box"><div class="hud" style="color:' + b.color + '">Le défi</div><p class="lead" style="margin-top:6px;color:var(--ink)">' + esc(b.cond) + '</p>' + (t.comment ? '<p class="small" style="margin:8px 0 0">' + esc(sm ? t.sm.comment : t.comment) + '</p>' : '') + '</div>' +
         prev + '<div class="note yellow">' + icon('group', 20) + '<span>Un adulte doit être là pour compter. Ton résultat compte tout de suite ; un exploit attend qu\'un parent ou ton éduc le confirme.</span></div>' +
-        '<div class="sec">' + input + '</div><button type="button" class="btn xl" data-act="sendDefi" data-b="' + b.id + '" data-sm="' + (sm ? 1 : 0) + '">' + icon('send', 20) + ' Envoyer mon résultat</button></main>';
+        // (v74) un défi compte comme une tentative : une par épreuve et par jour, deux épreuves par jour
+        (L.peutTenter(me.records, b.test) ? '<div class="note">' + icon('info', 20) + '<span>' + esc(MC.tenteMsg[L.peutTenter(me.records, b.test)]) + '</span></div></main>' :
+        '<div class="sec">' + input + '</div><button type="button" class="btn xl" data-act="sendDefi" data-b="' + b.id + '" data-sm="' + (sm ? 1 : 0) + '">' + icon('send', 20) + ' Envoyer mon résultat</button></main>');
     });
   }, { kid: true, nav: 'moi' });
   document.addEventListener('input', function (e) {

@@ -2058,3 +2058,39 @@ textarea.txt{min-height:84px;padding:10px 12px;resize:vertical;font:500 16px/1.4
 .acc-eq .t1 b{font-weight:700}
 .acc-eq-slot:empty{display:none}
 .rkv small.rk-pct{font:600 12px/1 var(--f-body);color:var(--dim);letter-spacing:0}
+/* (v74, lot E3) le record du jour : les 12 épreuves en cartes, la fiche d'une épreuve, la courbe, l'Accueil, la fête */
+.epcs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+@media (min-width:700px){.epcs{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (min-width:1000px){.epcs{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.epc{display:flex;flex-direction:column;gap:6px;padding:12px;min-height:118px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);text-decoration:none;min-width:0}
+.epc.dj{border-color:rgba(255,194,61,.6)}
+.epc-h{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.epc-n{font:700 13px/1.15 var(--f-hud);letter-spacing:.04em;text-transform:uppercase;min-width:0;overflow-wrap:anywhere}
+.epc-v{font:700 24px/1 var(--f-hud);color:var(--gold)}
+.epc-v.vide{color:var(--dim)}
+.epc-v small{font-size:12px}
+.epc-t{font:500 13px/1.25 var(--f-body);color:var(--muted)}
+.epc-att{font:500 12px/1.3 var(--f-body);color:var(--yellow)}
+.epc-tag{margin-top:auto;align-self:flex-start;display:inline-flex;align-items:center;gap:4px;padding:3px 6px;font:700 10px/1 var(--f-hud);letter-spacing:.06em;text-transform:uppercase;border:1px solid currentColor}
+.epc-tag.dj{color:var(--gold)}
+.epc-tag.ok{color:var(--green)}
+.ep-rec{align-items:flex-start;gap:6px}
+.ep-v{font:700 40px/1 var(--f-hud);color:var(--gold)}
+.ep-v.vide{color:var(--dim)}
+.ep-v small{font-size:16px}
+.courbe{width:100%;height:auto;max-width:560px;display:block}
+.courbe .cb-ax{stroke:#2A3550;stroke-width:1}
+.courbe .cb-l{font:700 11px var(--f-hud);fill:var(--soft)}
+.courbe .cb-l.best{fill:var(--gold)}
+.courbe .cb-d{font:600 10px var(--f-body);fill:var(--dim)}
+section.rdj{display:flex;flex-direction:column;gap:4px;padding:8px 12px 12px;margin-top:10px;border:1px solid rgba(255,194,61,.5);background:rgba(255,194,61,.06)}
+section.rdj .lnk{min-height:44px}
+.rdj-b{display:flex;align-items:center;gap:12px}
+.rdj-b .t1{display:block;font:700 16px/1.2 var(--f-body);color:var(--ink)}
+.rdj-b .t2{display:block;font:500 13px/1.3 var(--f-body);color:var(--muted)}
+.li.rdj.fait{margin-top:10px}
+.tn-fete{gap:14px}
+.tn-fete .burst{overflow:hidden}
+.tn-tro{position:relative;color:var(--gold);display:flex;animation:pop .6s cubic-bezier(.2,1.6,.4,1) both}
+.tn-val{text-align:center;font:700 44px/1 var(--f-hud);color:var(--gold)}
+.tn-val small{font-size:18px}

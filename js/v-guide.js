@@ -30,7 +30,7 @@
   function xpTable() {
     var X = C.XP;
     var rows = [['Séance à la maison (lundi → jeudi)', X.seance], ['Club du mercredi ou du samedi', X.club], ['Récup du dimanche', X.recup], ['Semaine parfaite (les 6 étoiles)', X.bonus],
-      ['Badge gagné, ou palier bronze / argent / or', X.badge], ['Record battu', X.record], ['Niveau monté (la 1re fois)', X.niveau], ['Premiers pas réussis (une fois)', X.premiersPas], ['Mission spéciale accomplie', X.mission]];
+      ['Badge gagné, ou palier bronze / argent / or', X.badge], ['Record battu', X.record], ['Record tenté, pas battu (une fois par jour)', X.tentative], ['Niveau monté (la 1re fois)', X.niveau], ['Premiers pas réussis (une fois)', X.premiersPas], ['Mission spéciale accomplie', X.mission]];
     if (MC.ouvert('skills')) rows.push(['Étoile Skills validée par un éduc', X.etoile], ['Étoile Skills qui brille (vue au plateau)', X.brille]);
     return '<div class="gxp">' + rows.map(function (r) { return '<span>' + esc(r[0]) + '</span><span>+' + r[1] + ' XP</span>'; }).join('') + '</div>';
   }
@@ -107,6 +107,15 @@
           'Progrès › Records › <b>Saisir mon bilan</b> › <b>Lancer le bilan guidé</b> : échauffement, puis chaque test avec la démo, le chrono et le compteur, 2 min de repos entre deux tests. Tu peux aussi tout noter dans le formulaire.',
           'Le bilan <b>règle tes niveaux</b> tout seul et donne tes <b>records</b>.',
           'Tes résultats comptent <b>tout de suite</b>. Un <b>exploit</b> (un très gros progrès, ou une place sur le podium) attend qu\'un parent ou ton éduc le confirme.'
+        ])) +
+      card('record', 'trophy', '#FFC23D', 'Le record du jour', 'Bats tes records, une épreuve à la fois',
+        ul([
+          'Du lundi au jeudi, une épreuve du bilan est le <b>record du jour</b> (liée au thème de la séance : le haut du corps le lundi, l\'explosivité le mardi, le cardio le mercredi, les jambes le jeudi). Les 12 épreuves tournent en 4 semaines.',
+          'Il est proposé sur l\'<b>Accueil</b> et dans ta <b>séance</b>, juste après l\'échauffement (tu es chaud : c\'est le bon moment). « Pas aujourd\'hui » pour passer.',
+          'Progrès › <b>Records</b> : tes 12 épreuves en cartes. Touche une épreuve : ton record, ta <b>courbe</b>, le niveau que ton record vaut, et <b>Je tente</b>.',
+          '<b>Je tente</b> : l\'écran du bilan guidé (démo, chrono, compteur), puis ton résultat part tout seul. Pas chaud ? L\'échauffement de 4 min d\'abord.',
+          '<b>Une tentative par épreuve et par jour, deux épreuves par jour au plus</b> (les défis des badges comptent aussi). Record battu : la fête et +' + C.XP.record + ' XP. Pas battu : +' + C.XP.tentative + ' XP (une fois par jour), et tu le battras une prochaine fois.',
+          'Navette et saut se font à deux (quelqu\'un au chrono, un mètre pour mesurer) ; suspension et tractions demandent une barre.'
         ])) +
       card('xp', 'trophy', '#FFC23D', 'XP et grades', 'Ta carrière, de Recrue à Légende',
         xpTable() + '<p style="margin:4px 0 0">Avec tes XP, tu montes de grade. <b>Ton grade ne redescend jamais.</b></p>' + grades()) +
@@ -201,6 +210,7 @@
       card('p-confirmer', 'check', '#FFC23D', 'Ses résultats et ses exploits', 'Ça compte tout de suite',
         ul([
           'Un résultat de bilan ou de défi <b>compte tout de suite</b> (classement, badges, records). Une erreur ? Dans « scores notés ces 14 jours », touchez <b>Ce n\'est pas ça</b> : il ne compte plus.',
+          '<b>Le record du jour</b> (du lundi au jeudi) : votre enfant peut tenter de battre un record, une épreuve à la fois (une tentative par épreuve et par jour, deux épreuves par jour au plus). Vous recevez une alerte « a tenté un record » ; le score compte tout de suite, comme un défi.',
           'Seul un <b>exploit</b> attend votre confirmation : plus de 25 % de mieux que son record d\'un coup, ou une entrée sur le podium de sa ligue. Touchez <b>Confirmer</b> ou <b>Ce n\'est pas ça</b>, puis <b>Enregistrer mes choix</b>, juste sous la liste. Un éduc parent de l\'enfant peut aussi confirmer.',
           'Retiré par erreur ? Ouvrez « résultats pas retenus » et touchez <b>Rétablir</b>, puis Enregistrer mes choix.',
           'Un exploit compte pour le classement, les badges et les records une fois confirmé.'
