@@ -39,6 +39,39 @@
 
   function me() { return app.S.me; }
   function isSm(t) { return !!(t.sm && me().joueur.materiel === 'mini'); }
+  // (v82) le mode mini matériel bien visible : sur un test qui a une version mini (barre ou corde), une ligne dit laquelle est
+  // proposée et change de mode d'un toucher, avant le test (pendant le repos qui le précède aussi), jamais une fois commencé
+  function quoiManque(t) { return /^corde/.test(t.id) ? 'corde' : 'barre'; }
+  function commence(t) {
+    if (G.phase !== 'ready' && G.phase !== 'rest') return true;
+    if (G.e > 0 || (G.tr[t.id] || []).length) return true;
+    var f = G.f || {};
+    return Object.keys(f).some(function (k) { return f[k] && f[k] !== '0'; });   // (relecture) un compteur déjà lancé
+  }
+  function cacherMatos() { var n = document.querySelector('.note.matos'); if (n && n.parentNode) n.parentNode.removeChild(n); }
+  function matosLigne(t, choix) {
+    if (!t.sm || (!choix && commence(t))) return '';
+    var q = quoiManque(t);
+    return isSm(t)
+      ? '<div class="note matos"><span class="small grow"><b>Mode mini matériel</b> : la version sans ' + q + '.</span><button type="button" class="btn2 sm" data-act="brMatos" data-m="complet">J\'ai une ' + q + '</button></div>'
+      : '<div class="note matos"><span class="small grow">Pas de ' + q + ' ?</span><button type="button" class="btn2 sm grey" data-act="brMatos" data-m="mini">Version mini</button></div>';
+  }
+  // (relecture) le changement se voit tout de suite (pas d'attente du serveur pendant laquelle « GO » partirait dans l'ancienne
+  // version) ; s'il n'est pas enregistré, on revient au mode d'avant, sauf si le test a déjà commencé dans le nouveau
+  MC.act.brMatos = function (b) {
+    var m = b.getAttribute('data-m') === 'mini' ? 'mini' : 'complet', avant = me().joueur.materiel === 'mini' ? 'mini' : 'complet';
+    if (G.i > 0 && commence(test())) { cacherMatos(); ui.toast('Le test a commencé : finis-le d\'abord.', true); return; }
+    if (m === avant) return;
+    me().joueur.materiel = m;
+    repaint();
+    ui.toast(m === 'mini' ? 'Mode mini matériel' : 'Matériel complet');
+    app.kidCall('updateMe', { materiel: m }).then(function (res) {
+      if (me().joueur.materiel === m) app.setMe(res);   // un autre changement entre-temps : c'est lui qui compte
+    }).catch(function (e) {
+      if (me().joueur.materiel === m && !(G.i > 0 && commence(test()))) { me().joueur.materiel = avant; repaint(); }
+      ui.toast(e.message, true);
+    });
+  };
   function nomT(t) { return isSm(t) ? t.sm.nom : t.nom; }
   function commentT(t) { return isSm(t) ? t.sm.comment : t.comment; }
   function videoFor(a) { for (var k in C.EXOS) { var e = C.EXOS[k]; if (e.anim === a && e.video) return e.video; } return ''; }
@@ -213,6 +246,7 @@
     if (inp) { inp.value = G.f.v; inp.classList.add('has'); }
     if (cnt) cnt.textContent = G.f.v;
     if (!inp && !cnt) repaint();
+    if (G.f.v !== '0') cacherMatos();   // (v82) le test a commencé
     persist();
   }
 
@@ -313,6 +347,7 @@
     e.target.classList.toggle('has', !!clean);
     var cnt = document.querySelector('[data-cnt]');
     if (k === 'v' && cnt) cnt.textContent = clean || '0';
+    if (clean && clean !== '0') cacherMatos();   // (v82) le test a commencé
     persist();
   });
 
@@ -386,8 +421,9 @@
     var B = L.currentBilan();
     if (!G.rt) G.rt = MC.routine.create('warmup', me(), me().joueur.materiel === 'mini', repaint);
     if (G.solo) return MC.routine.html(G.rt, { kicker: C.REVEIL.nom, color: COL, doneAct: 'brWarmDone', doneLabel: 'Échauffement fait', after: 'Ensuite : ' + nomT(test()).toLowerCase() });
+    var mini = me().joueur.materiel === 'mini';
     return MC.routine.html(G.rt, {
-      kicker: B.nom + ' · ' + C.REVEIL.nom, color: COL,
+      kicker: B.nom + ' · ' + C.REVEIL.nom + (mini ? ' · mini matériel' : ''), color: COL,
       doneAct: 'brWarmDone', doneLabel: 'Échauffement fait',
       after: G.reste ? 'Ensuite : ' + nomT(C.TESTS[(G.reste[0] || 1) - 1]).toLowerCase() + ' (' + G.reste.length + ' test' + (G.reste.length > 1 ? 's' : '') + ' à faire, 2 min de repos entre deux)'
         : 'Ensuite : test 1, ' + nomT(C.TESTS[0]).toLowerCase() + ' (puis les 12 tests, 2 min de repos entre deux)'
@@ -396,12 +432,12 @@
 
   function restView(t) {
     var prev = C.TESTS[(G.prevI || G.i - 1) - 1], val = prev ? valText(prev) : '';
-    var rem = G.t ? remaining() : REPOS;
-    return '<div class="main single"><div class="hd"><span class="kicker" style="color:var(--rc)">Repos</span><h1>Récupère</h1><p class="lead" style="margin:0">Respire, bois un peu, marche.</p>' +
+    var rem = G.t ? remaining() : REPOS, ml = matosLigne(t);
+    return '<div class="main single' + (ml ? ' avecmatos' : '') + '"><div class="hd"><span class="kicker" style="color:var(--rc)">Repos</span><h1>Récupère</h1><p class="lead" style="margin:0">Respire, bois un peu, marche.</p>' +
       (val ? '<div class="note gold">' + icon('check', 20) + '<span>' + esc(nomT(prev)) + ' : <b>' + esc(val) + '</b></span></div>' : '') + '</div>' +
       '<div class="right">' + ringHtml(clock(rem), 'Repos', 'rest', rem / REPOS, 'clock') +
       '<div class="grid2">' + pauseBtn() + '<button type="button" class="btn2" data-act="brRestSkip">Je suis prêt ' + icon('right', 16) + '</button></div>' +
-      '<p class="next">Prochain test : ' + (G.reste ? '' : t.n + '. ') + esc(nomT(t)) + '</p></div></div>';
+      '<p class="next">Prochain test : ' + (G.reste ? '' : t.n + '. ') + esc(nomT(t)) + '</p>' + ml + '</div></div>';
   }
 
   function testView() {
@@ -410,10 +446,10 @@
     var an = (isSm(t) && ANIM_SM[t.id]) || ANIM[t.id];
     var focus = ph === 'count3' || ph === 'run';
     var essai = ph !== 'elas' && c.essais[G.e] ? c.essais[G.e] : '';
-    var hd = '<div class="hd"><span class="kicker" style="color:var(--rc)">' + (G.solo ? (G.duJour ? 'Record du jour' : 'Je tente mon record') : 'Test ' + rang(t.n) + ' / ' + nbTests()) + (isSm(t) ? ' · version SM' : '') + '</span><h1>' + esc(nomT(t)) + '</h1>' +
+    var hd = '<div class="hd"><span class="kicker" style="color:var(--rc)">' + (G.solo ? (G.duJour ? 'Record du jour' : 'Je tente mon record') : 'Test ' + rang(t.n) + ' / ' + nbTests()) + (isSm(t) ? ' · mini matériel' : '') + '</span><h1>' + esc(nomT(t)) + '</h1>' +
       (essai ? '<span class="hud" style="color:var(--ink)">' + esc(essai) + '</span>' : '') +
       (G.solo && !focus && recordDe(t) ? '<span class="hud" style="color:var(--gold)">Ton record : ' + esc(fmt(t, recordDe(t).valeur)) + '</span>' : '') + (focus ? '' : ui.infoBtn(MC.fiche.key.test(t.id, isSm(t)), nomT(t), commentT(t))) + '</div>';
-    var left = focus ? '' : ui.demoHtml({ anim: an, video: videoFor(an), color: COL, label: nomT(t) }) + '<p class="small" style="margin:0">' + esc(commentT(t)) + '</p>';
+    var left = focus ? '' : matosLigne(t) + ui.demoHtml({ anim: an, video: videoFor(an), color: COL, label: nomT(t) }) + '<p class="small" style="margin:0">' + esc(commentT(t)) + '</p>';
     var right = '', stopQ = (isSm(t) && STOP_QUAND_SM[t.id]) || STOP_QUAND[t.id] || '';
 
     if (ph === 'elas') {
@@ -496,7 +532,7 @@
     return '<div class="main"><div class="hd"><span class="kicker" style="color:var(--rc)">' + (G.duJour ? 'Record du jour' : 'Je tente mon record') + '</span><h1>' + esc(nomT(t)) + '</h1>' +
       '<span class="hud" style="color:var(--ink)">' + (rec ? 'Ton record : ' + esc(fmt(t, rec.valeur)) : 'Ton 1er résultat sera ton record') + '</span>' + ui.infoBtn(MC.fiche.key.test(t.id, isSm(t)), nomT(t), commentT(t)) + '</div>' +
       '<div class="left">' + ui.demoHtml({ anim: an, video: videoFor(an), color: COL, label: nomT(t) }) + '<p class="small" style="margin:0">' + esc(commentT(t)) + '</p></div>' +
-      '<div class="right"><p class="lead" style="margin:0;color:var(--ink)">Pour battre ton record, il faut être chaud.</p>' +
+      '<div class="right">' + matosLigne(t, true) + '<p class="lead" style="margin:0;color:var(--ink)">Pour battre ton record, il faut être chaud.</p>' +
       (ad ? '<div class="note yellow">' + icon('group', 20) + '<span>' + esc(ad) + '</span></div>' : '') +
       '<button type="button" class="btn xl gold" data-act="tnWarm">' + icon('play', 20) + ' Je m\'échauffe (4 min)</button>' +
       '<button type="button" class="btn2" data-act="tnChaud">Je suis déjà chaud ' + icon('right', 16) + '</button></div></div>';
