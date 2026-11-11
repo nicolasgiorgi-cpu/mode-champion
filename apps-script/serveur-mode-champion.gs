@@ -2748,6 +2748,22 @@ var Core = (function () {
     var morts = ctx.env.envoyerPush(msgs) || [];
     pushMorts(ctx.db, morts);
   }
+  // (v80) la veille du serveur (outils/code-google.gs, veilleServeur) : un blocage prévient les éducs administrateurs.
+  // Lecture seule (la veille ne prend pas le verrou) : les appareils morts ne sont pas désabonnés ici.
+  function veilleAlerte(db, env, texte) {
+    var ctx = { db: db, env: env, now: env.now() };
+    var admins = db.rows('educs').filter(function (x) { return x.actif && x.admin; });
+    admins.forEach(function (a) { alerter(ctx, { r: 'e', qui: a.id, soi: true, lien: '#/educ' }, '_serveur', texte); });
+    if (!ctx.alertes || !ctx.alertes.length || !env.envoyerPush) return 0;
+    var memo = {}, n = 0;
+    var rows = db.rows('push').filter(function (x) { return x.actif && x.jeton && x.role === 'e' && profilOk(ctx, x.role, x.qui, x.v, memo); });
+    var msgs = [];
+    ctx.alertes.forEach(function (a) {
+      rows.forEach(function (x) { if (x.qui === a.qui) msgs.push({ id: x.id, jeton: x.jeton, cat: a.cat, tag: 'e-serveur', titre: 'Mode champion', texte: a.texte, lien: a.lien }); });
+    });
+    if (msgs.length) { env.envoyerPush(msgs); n = msgs.length; }
+    return n;
+  }
   // les appareils qui n'existent plus (Firebase l'a dit) : désabonnés
   function pushMorts(db, ids) {
     (ids || []).forEach(function (id) { try { db.update('push', id, { actif: false }); } catch (e) { /* tant pis */ } });
@@ -2844,7 +2860,7 @@ var Core = (function () {
     _prenomsVoisins: prenomsVoisins, _ressemble: ressemble, _nomsConnexion: nomsConnexion,
     importPostesDepuis: function (db, env, rows) { return importPostes({ db: db, env: env, now: env.now() }, rows); },
     syncSpondDepuis: function (db, env, data) { return syncSpond({ db: db, env: env, now: env.now() }, data || {}); },
-    _diffCompo: diffCompo, _motsEnfants: MOTS_ENFANTS, _epreuves: EPREUVES, _exploitBond: EXPLOIT_BOND, _ligueMin: LIGUE_MIN, _defisEquipe: DEFIS_EQUIPE
+    veilleAlerte: veilleAlerte, _diffCompo: diffCompo, _motsEnfants: MOTS_ENFANTS, _epreuves: EPREUVES, _exploitBond: EXPLOIT_BOND, _ligueMin: LIGUE_MIN, _defisEquipe: DEFIS_EQUIPE
   };
 })();
 
@@ -3213,30 +3229,116 @@ function json_(o) {
 
 /** Le site envoie toutes ses demandes ici (POST, texte JSON). */
 function doPost(e) {
-  var req;
+  var t0 = Date.now(), req;
   try {
     req = JSON.parse(e && e.postData && e.postData.contents ? e.postData.contents : '{}');
   } catch (err) {
     return json_({ ok: false, error: 'invalide', message: 'Requête illisible.' });
   }
+  var action = actionSure_(req && req.action);
   var lock = LockService.getScriptLock();
   try {
     lock.waitLock(25000);
   } catch (err) {
-    return json_({ ok: false, error: 'occupe', message: 'Le serveur est occupé, réessaie dans un instant.' });
+    journal_(action, t0, 'occupe');
+    return json_({ ok: false, error: 'occupe', message: OCCUPE_ });
   }
+  var tVerrou = Date.now();
+  marquerEnCours_(action);   // (v80) la veille voit qui garde le verrou, et depuis quand
   // (v46) aucune demande n'est traitée avant que la migration ait réussi (sinon un 0 choisi pourrait être effacé ensuite)
-  try { plaquageVideV46_(); } catch (err) { lock.releaseLock(); return json_({ ok: false, error: 'occupe', message: 'Le serveur est occupé, réessaie dans un instant.' }); }
+  try { plaquageVideV46_(); } catch (err) { effacerEnCours_(); lock.releaseLock(); return json_({ ok: false, error: 'occupe', message: OCCUPE_ }); }
   var db = new SheetDB_(), out;
   PUSH_FILE_ = [];
   try {
     out = Core.handle(req, db, env_());
   } finally {
     try { db.flush_(); } catch (err) { /* le cache sera relu depuis la feuille */ }
+    effacerEnCours_();
     lock.releaseLock();
   }
+  journal_(action, t0, out && out.ok === false ? String(out.error || 'erreur') : 'ok', tVerrou);
   if (PUSH_FILE_.length) envoyerFile_();
   return json_(out);
+}
+var OCCUPE_ = 'Le serveur est occupé. S\'il est bloqué, il repart tout seul en quelques minutes : réessaie un peu plus tard.';
+
+/*
+ * (v80) Journal et veille du serveur. Une demande garde le verrou du script pendant tout son traitement : si l'une d'elles
+ * se bloque (un service Google qui ne répond plus), toutes les autres attendent 25 s puis abandonnent, jusqu'à ce que Google
+ * coupe la demande bloquée (6 minutes au plus ; aucune fonction d'Apps Script ne permet de la couper plus tôt).
+ *  - journal : chaque demande écrit son type et sa durée (jamais son contenu : ni code, ni nom) dans les journaux
+ *    d'exécution ; une demande de plus de 20 s est notée dans la propriété « veilleIncidents » (les 20 dernières) ;
+ *  - veille : la fonction veilleServeur, lancée toutes les minutes (déclencheur créé par installerVeille), regarde si une
+ *    demande garde le verrou depuis plus d'une minute : elle note l'incident et prévient les éducs administrateurs sur
+ *    leur téléphone, une fois par blocage.
+ */
+var VEILLE_CLE_ = 'veille:enCours', VEILLE_SEUIL_ = 60000, VEILLE_LONGUE_ = 20000, VEILLE_MAX_ = 20;
+var ACTIONS_NOMS_ = { adultLogin: 'connexion d\'un adulte', login: 'connexion d\'un enfant', me: 'le profil d\'un enfant', family: 'l\'espace parent',
+  group: 'l\'espace éduc', submitRecords: 'envoi de résultats', logSession: 'une séance notée', syncSpond: 'la synchro Spond',
+  synchroSpond: 'la synchro Spond', compos: 'les compos', league: 'les podiums', equipe: 'Ça bouge' };
+function actionSure_(a) { a = String(a || ''); return /^[A-Za-z][A-Za-z0-9]{0,39}$/.test(a) ? a : 'inconnue'; }
+function marquerEnCours_(action) {
+  try { CacheService.getScriptCache().put(VEILLE_CLE_, JSON.stringify({ a: action, t: Date.now() }), 900); } catch (e) { /* la veille sera aveugle */ }
+}
+function effacerEnCours_() {
+  try { CacheService.getScriptCache().remove(VEILLE_CLE_); } catch (e) { /* elle expire seule */ }
+}
+// t0 : l'arrivée de la demande ; tVerrou : le verrou obtenu (l'attente avant n'est pas un incident, seul le traitement compte)
+function journal_(action, t0, etat, tVerrou) {
+  var fin = Date.now(), ms = fin - t0, traite = tVerrou ? fin - tVerrou : 0;
+  console.log('[mc] ' + action + ' ' + ms + ' ms ' + etat + (tVerrou ? ' (attente ' + (tVerrou - t0) + ' ms)' : ''));
+  if (tVerrou && traite > VEILLE_LONGUE_) noterIncident_({ quand: new Date(tVerrou).toISOString(), action: action, ms: traite, etat: etat });
+}
+function noterIncident_(o) {
+  try {
+    var p = PropertiesService.getScriptProperties(), l = [];
+    try { l = JSON.parse(p.getProperty('veilleIncidents') || '[]') || []; } catch (e) { l = []; }
+    l.push(o);
+    p.setProperty('veilleIncidents', JSON.stringify(l.slice(-VEILLE_MAX_)));
+  } catch (e) { /* tant pis */ }
+}
+function heureParis_(ms) { var d = new Date(ms); return d.getHours() + ' h ' + (d.getMinutes() < 10 ? '0' : '') + d.getMinutes(); }
+/** Lancée toutes les minutes par le déclencheur (installerVeille) : une demande bloquée depuis plus d'une minute ? */
+function veilleServeur() {
+  try { return veille_(); } catch (e) { console.log('[mc] veille : ' + (e && e.message)); return null; }   // jamais d'échec du déclencheur (courriels)
+}
+function veille_() {
+  var cs = CacheService.getScriptCache(), s = null;
+  try { s = JSON.parse(cs.get(VEILLE_CLE_) || 'null'); } catch (e) { s = null; }
+  if (!s || !s.t || Date.now() - s.t < VEILLE_SEUIL_) return null;
+  var deja = 'veille:signale:' + s.t;
+  if (cs.get(deja)) return null;
+  cs.put(deja, '1', 21600);
+  var quoi = ACTIONS_NOMS_[s.a] || s.a;
+  noterIncident_({ quand: new Date(s.t).toISOString(), action: s.a, etat: 'bloque' });
+  console.log('[mc] veille : ' + s.a + ' garde le verrou depuis ' + Math.round((Date.now() - s.t) / 1000) + ' s');
+  var texte = '⚠️ Serveur bloqué depuis ' + heureParis_(s.t) + ' (' + quoi + ') : il repart tout seul avant ' + heureParis_(s.t + 6 * 60000) + '.';
+  try {
+    PUSH_FILE_ = [];
+    // lecture seule : la veille ne prend jamais le verrou (il est bloqué) ; elle ne remplit pas non plus le cache des tables
+    // (une version lue sans le verrou pourrait y remplacer une plus récente)
+    var db = new SheetDB_();
+    db.cachePut_ = function () {};
+    Core.veilleAlerte(db, env_(), texte);
+    if (PUSH_FILE_.length) envoyerPush_(PUSH_FILE_);
+  } catch (e) { console.log('[mc] veille : alerte impossible (' + (e && e.message) + ')'); }
+  PUSH_FILE_ = [];
+  return texte;
+}
+/** À LANCER UNE FOIS dans l'éditeur : la veille du serveur toutes les minutes (relancer ne crée pas de doublon). */
+function installerVeille() {
+  ScriptApp.getProjectTriggers().forEach(function (t) { if (t.getHandlerFunction() === 'veilleServeur') ScriptApp.deleteTrigger(t); });
+  ScriptApp.newTrigger('veilleServeur').timeBased().everyMinutes(1).create();
+  Logger.log('Veille du serveur installée : toutes les minutes.');
+}
+/** Pour arrêter la veille. */
+function arreterVeille() {
+  ScriptApp.getProjectTriggers().forEach(function (t) { if (t.getHandlerFunction() === 'veilleServeur') ScriptApp.deleteTrigger(t); });
+  Logger.log('Veille du serveur arrêtée.');
+}
+/** Pour lire les incidents notés (les 20 derniers) depuis l'éditeur. */
+function voirIncidents() {
+  Logger.log(PropertiesService.getScriptProperties().getProperty('veilleIncidents') || 'Aucun incident noté.');
 }
 
 /** (v34) Les alertes préparées par Core, envoyées une fois le verrou relâché ; une panne ne touche jamais la réponse. */

@@ -68,13 +68,13 @@ function makeEnv(opts) {
     computeDigest: (alg, v) => signes(crypto.createHash('sha256').update(String(v), 'utf8').digest()),
     DigestAlgorithm: { SHA_256: 'sha256' }, Charset: { UTF_8: 'utf8' }
   };
-  if (opts.spond) {
+  if (opts.spond || opts.declencheurs) {
     // opts.sansDeclencheur : le propriétaire n'a pas encore autorisé les déclencheurs
     const pasAutorise = () => { if (opts.sansDeclencheur) throw new Error('You do not have permission to call ScriptApp.getProjectTriggers'); };
     ctx.ScriptApp = {
       getProjectTriggers: () => { pasAutorise(); return triggers.slice(); },
       deleteTrigger: t => { const i = triggers.indexOf(t); if (i >= 0) triggers.splice(i, 1); },
-      newTrigger: fn => ({ timeBased: () => ({ everyHours: h => ({ create: () => { const t = { fn, h, getHandlerFunction: () => fn }; triggers.push(t); return t; } }) }) })
+      newTrigger: fn => ({ timeBased: () => ({ everyHours: h => ({ create: () => { const t = { fn, h, getHandlerFunction: () => fn }; triggers.push(t); return t; } }), everyMinutes: m => ({ create: () => { const t = { fn, m, getHandlerFunction: () => fn }; triggers.push(t); return t; } }) }) })
     };
   }
   vm.createContext(ctx);

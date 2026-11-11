@@ -208,7 +208,8 @@ function spondDebrancher_() {
 function synchroSpond() {
   var lock = LockService.getScriptLock();
   lock.waitLock(30000);
-  var db = new SheetDB_();
+  if (typeof marquerEnCours_ === 'function') marquerEnCours_('synchroSpond');   // (v80) la veille la surveille aussi
+  var db = new SheetDB_(), t0 = Date.now();
   try {
     var info = Core.syncSpondDepuis(db, env_(), lireSpond_());
     Logger.log('Spond : ' + info.evenements + ' événements, ' + info.membres + ' enfants, ' + info.nouveauxLiens + ' nouveaux liens joueur ↔ Spond' +
@@ -217,7 +218,9 @@ function synchroSpond() {
       (info.aVerifier && info.aVerifier.length ? ' · à vérifier (nom Spond trop différent, pas repris) : ' + info.aVerifier.join(', ') : ''));
   } finally {
     try { db.flush_(); } catch (e) { /* le cache sera relu */ }
+    if (typeof effacerEnCours_ === 'function') effacerEnCours_();
     lock.releaseLock();
+    if (typeof journal_ === 'function') journal_('synchroSpond', t0, 'fin', t0);
   }
 }
 
