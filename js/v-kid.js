@@ -96,6 +96,21 @@
   MC.act.fermeBandeau = function (b) { var me = app.S.me; if (!me) return; app.lsSet('mc-bandeau:' + me.joueur.id, b.getAttribute('data-v')); var el = b.closest('.nbanner'); if (el) el.remove(); };
 
   // ---------- MA SEMAINE ----------
+  // (v74, lot E3) le record du jour sur l'Accueil, sous la séance : « Je tente » (l'écran du bilan guidé), passable d'un toucher
+  function rdjCarte(me, st) {
+    var dj = L.recordDuJour(me.records);
+    if (!dj || dj.etat === 'plein') return '';
+    var t = L.testDef(dj.test), sm = !!(t.sm && me.joueur.materiel === 'mini'), nom = sm ? t.sm.nom : t.nom, b = (st.bestsOk || {})[t.id + (sm ? ':sm' : '')];
+    var rec = b ? 'Ton record : ' + ui.fmtVal(b.valeur, t.unite, t.decimales) : 'Ton 1er résultat sera ton record';
+    if (dj.etat === 'fait') return '<a class="li rdj fait" href="#/epreuve/' + t.id + '">' + icon('check', 20, 'style="color:var(--green);flex:none"') + '<span class="grow"><span class="t1">Record du jour tenté</span><span class="t2">' + esc(nom) + ' · ' + esc(rec) + '</span></span>' + icon('right', 16) + '</a>';
+    if (app.lsGet('mc-rdj:' + me.joueur.id) === L.today()) return '';   // « Pas aujourd'hui »
+    var ad = !sm && C.A_DEUX ? C.A_DEUX[t.id] : '';
+    return '<section class="rdj" data-test="' + t.id + '"><div class="between"><span class="hud" style="color:var(--gold)">' + icon('trophy', 14) + ' Record du jour</span><button type="button" class="lnk" data-act="rdjPas">Pas aujourd\'hui</button></div>' +
+      '<div class="rdj-b"><span class="grow"><span class="t1">' + esc(nom) + '</span><span class="t2">' + esc(rec) + (ad ? ' · ' + esc(ad.replace(/\.$/, '')) : '') + '</span></span>' +
+      '<a class="btn sm gold" href="#/tente/' + t.id + '">Je tente</a></div></section>';
+  }
+  MC.act.rdjPas = function () { if (app.S.me) app.lsSet('mc-rdj:' + app.S.me.joueur.id, L.today()); app.rerender(); };
+
   app.route('/semaine', function (p, q, cur) {
     return app.loadMe().then(function (me) {
       if (MC.accueil && MC.accueil.needTour('k', me.joueur.id)) { setTimeout(function () { app.go('#/bienvenue', true); }, 0); return null; }
@@ -209,7 +224,7 @@
       '<div class="head acc-h"><span class="kicker">' + esc(C.JOURS[type].jour.toUpperCase()) + ' · ' + (cy.semaine > 8 ? 'FIN DU CYCLE' : 'SEMAINE ' + cy.semaine + ' / 8') + '</span>' +
       '<h1 class="acc-t">' + (type === 'repos' ? 'Aujourd\'hui' : 'Séance du jour') + '</h1></div>' +   // (v55) pas « Mission » ; (v68) plus de grand titre
       bravosCarte(me) +
-      '<div class="home"><div>' + mission + '</div><div class="side">' +
+      '<div class="home"><div>' + mission + rdjCarte(me, st) + '</div><div class="side">' +
       (MC.accueil ? MC.accueil.kidChecklist(me, st) : '') +
       missionsAccueil(me) +
       '<section class="sec acc-sem"><div class="between"><h2 class="h2">Ma semaine</h2><span class="hud" style="color:var(--gold)">' + wk.stars + ' / 6 étoiles</span></div>' +

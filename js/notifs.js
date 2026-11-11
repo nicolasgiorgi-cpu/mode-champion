@@ -121,6 +121,20 @@ MC.notifs = (function () {
     return out;
   }
 
+  // les lignes (qui comptent) qui battent le record de l'enfant sur leur épreuve, dans l'ordre ; null sans les règles (MC.logic)
+  function recordsBattus(records) {
+    var Lg = MC.logic;
+    if (!Lg || !Lg.better || !Lg.testDef) return null;
+    var best = {}, out = {};
+    (records || []).filter(function (r) { return r && r.statut === 'ok'; }).sort(function (a, c) { return (a.date + (a.cree || '')) < (c.date + (c.cree || '')) ? -1 : 1; }).forEach(function (r) {
+      var t = Lg.testDef(r.test), k = r.test + (Lg.isSm(r) ? ':sm' : ''), v = Number(r.valeur);
+      if (!t || !isFinite(v)) return;
+      if (best[k] !== undefined && Lg.better(t, v, best[k])) out[r.id] = 1;
+      if (best[k] === undefined || Lg.better(t, v, best[k])) best[k] = v;
+    });
+    return out;
+  }
+
   // ---------- ÉDUC : tout le groupe ----------
   function educ(g, cd) {
     var out = [];
@@ -134,8 +148,14 @@ MC.notifs = (function () {
         // (v36) bv : le bouton « 👏 Bravo » sur la ligne (js/bravos.js)
         out.push({ id: 's:' + s.id, cat: 'seance', t: ms(s.cree), txt: who + ' a fait ' + esc(nomSeance(s)) + '.', href: fiche + '?t=prepa&c=s-' + s.id, bv: { j: j.id, s: s } });
       });
+      var battus = recordsBattus(p.records);
       groupes(p.records).forEach(function (x) {
-        if (x.defi) { var r = x.recs[0]; out.push({ id: 'r:' + r.id, cat: 'bilan', t: x.t, txt: who + ' a relevé un défi : ' + esc(nomTest(r.test)) + '.', href: fiche + '?t=prepa&c=bilans' }); return; }
+        if (x.defi) {
+          // (v74) un défi ou un record du jour (jusqu'à 2 par enfant et par jour) : dans la cloche des éducs, seulement un record battu
+          var r = x.recs[0];
+          if (battus && !battus[r.id]) return;
+          out.push({ id: 'r:' + r.id, cat: 'bilan', t: x.t, txt: who + ' bat son record : ' + esc(nomTest(r.test)) + '.', href: fiche + '?t=prepa&c=bilans' }); return;
+        }
         out.push({ id: 'b:' + j.id + ':' + x.bilan, cat: 'bilan', t: x.t, txt: who + ' a noté son ' + esc(nomBilan(x.bilan)) + ' (' + pl(x.recs.length, 'résultat') + ').', href: fiche + '?t=prepa&c=bilans' });
       });
       (p.missions || []).forEach(function (m) {

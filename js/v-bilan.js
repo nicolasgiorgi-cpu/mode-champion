@@ -2,10 +2,12 @@
    Mode champion · M12 — BILAN GUIDÉ, test par test
    échauffement → 12 tests (démo, chrono, comptage, saisie) → récap → envoi
    Les résultats vont dans le même état que le formulaire du bilan (MC.bilan, v-profil.js).
+   (v74, lot E3) « Je tente » : le même écran pour une seule épreuve (G.solo), gardé à part (mc-tente) ;
+   le résultat part tout de suite comme une tentative (bilan « defi »), puis la fête (record battu ou pas).
    ========================================================= */
 (function () {
   var app = MC.app, ui = MC.ui, L = MC.logic, C = MC.CONTENT, esc = ui.esc, icon = ui.icon;
-  var G = null, timer = null, KEY = 'mc-bilrun', REPOS = 120, COL = '#FFC23D';
+  var G = null, timer = null, KEY = 'mc-bilrun', KEY_SOLO = 'mc-tente', REPOS = 120, COL = '#FFC23D';
   var NB = C.TESTS.length;
   var H = [];   // historique pour le bouton « Retour »
   var ELAS = [['10', '10 kg'], ['20', '20 kg'], ['30', '30 kg']];   // élastiques Decathlon (30 kg = celui qui aide le plus)
@@ -40,7 +42,7 @@
   function nomT(t) { return isSm(t) ? t.sm.nom : t.nom; }
   function commentT(t) { return isSm(t) ? t.sm.comment : t.comment; }
   function videoFor(a) { for (var k in C.EXOS) { var e = C.EXOS[k]; if (e.anim === a && e.video) return e.video; } return ''; }
-  function test() { return C.TESTS[G.i - 1]; }
+  function test() { return G.solo ? L.testDef(G.solo) : C.TESTS[G.i - 1]; }
   function num(s) { var x = parseFloat(String(s === undefined || s === null ? '' : s).replace(',', '.')); return isFinite(x) ? x : null; }
 
   // ---------- état (gardé sur l'appareil : on peut fermer et reprendre) ----------
@@ -50,7 +52,8 @@
     var c = {};
     for (var k in G) if (k !== 't' && k !== 'rt') c[k] = G[k];
     if (c.phase === 'count3' || c.phase === 'run' || c.phase === 'rest') { c.phase = 'ready'; c.f = {}; }
-    app.lsSet(KEY, c);
+    if (c.phase === 'send') c.phase = 'coupe';   // (v74) l'envoi a été coupé : on le dira en revenant
+    app.lsSet(G.solo ? KEY_SOLO : KEY, c);
   }
   function restore(B, kid) {
     var s = app.lsGet(KEY);
@@ -158,11 +161,13 @@
   // ---------- transitions ----------
   function enterTest(i) {
     G.i = i; G.e = 0; G.f = {}; G.phase = 'ready'; G.t = null;
-    if (i >= 1 && i <= NB) G.tr[C.TESTS[i - 1].id] = [];
+    if (G.solo) { if (i === 1) G.tr[G.solo] = []; }
+    else if (i >= 1 && i <= NB) G.tr[C.TESTS[i - 1].id] = [];
   }
   function toFin() { G.t = null; G.i = NB + 1; G.phase = 'fin'; G.back = false; G.f = {}; persist(); repaint(); window.scrollTo(0, 0); }
   function nextEssai() { G.e++; G.f = {}; G.phase = 'ready'; G.t = null; persist(); repaint(); }
   function endTest() {
+    if (G.solo) { soloEnd(); return; }
     var t = test(), b = MC.bilan.ensure(me()), tr = G.tr[t.id] || [];
     if (t.id === 'flamant') {
       var g = best(t, tr.slice(0, 2)), d = best(t, tr.slice(2, 4));
@@ -260,6 +265,7 @@
     if (G.e + 1 < c.essais.length) nextEssai(); else endTest();
   };
   MC.act.brSkip = function () {
+    if (G.solo) { soloQuit(); return; }
     snap();
     G.t = null;
     if (G.back || G.i >= NB) { toFin(); return; }
@@ -272,6 +278,7 @@
     MC.bilan.submit(btn).then(function (ok) { if (ok) { G = null; H = []; persist(); } });
   };
   MC.act.brQuit = function () {
+    if (G && G.solo) { soloAsk(); return; }
     var wasPaused = G.t && G.t.paused, rtWas = G.rt && G.rt.t && !G.rt.t.paused;
     if (G.t && !G.t.paused) togglePause();
     if (rtWas) MC.routine.pause(G.rt, true);
@@ -322,19 +329,21 @@
     ui.mountAnims(host);
   }
   function view() {
-    var html = '<main class="run bilrun" style="--rc:' + COL + '">' + topBar();
-    if (G.i === 0) html += warmView();
+    var html = '<main class="run bilrun' + (G.solo ? ' tente' : '') + '" style="--rc:' + COL + '">' + topBar();
+    if (G.solo) html += soloBody();
+    else if (G.i === 0) html += warmView();
     else if (G.i > NB) html += finView();
     else html += testView();
     return html + '</main>';
   }
   function topBar() {
-    var segs = '';
-    for (var i = 0; i <= NB + 1; i++) segs += '<i><b style="width:' + (i < G.i ? 100 : 0) + '%"></b></i>';
-    var label = G.i === 0 ? 'ÉCHAUFFEMENT' : G.i > NB ? 'RÉCAP' : 'TEST ' + G.i + '/' + NB;
+    var segs = '', nb = G.solo ? 1 : NB;
+    for (var i = 0; i <= nb + 1; i++) segs += '<i><b style="width:' + (i < G.i ? 100 : 0) + '%"></b></i>';
+    var label = G.solo ? (G.i === 0 && G.phase === 'warm' ? 'ÉCHAUFFEMENT' : G.duJour ? 'RECORD DU JOUR' : 'JE TENTE') : G.i === 0 ? 'ÉCHAUFFEMENT' : G.i > NB ? 'RÉCAP' : 'TEST ' + G.i + '/' + NB;
+    if (G.solo && G.i === 2) return '';   // (v74) l'envoi et la fête : sans barre de progression
     return '<div class="top"><button type="button" class="cbtn grey" data-act="brQuit" aria-label="Faire une pause">' + icon('x', 20) + '</button>' +
       (H.length ? '<button type="button" class="cbtn wide" data-act="brBack" aria-label="Revenir en arrière (annuler le dernier clic)">' + icon('undo', 18) + '<span>Retour</span></button>' : '') +
-      '<div class="prog" style="--n:' + (NB + 2) + '">' + segs + '</div><span class="hud" style="color:var(--rc)">' + label + '</span>' +
+      '<div class="prog" style="--n:' + (nb + 2) + '">' + segs + '</div><span class="hud" style="color:var(--rc)">' + label + '</span>' +
       '<button type="button" class="cbtn grey" data-act="brMute" aria-label="' + (ui.isMuted() ? 'Activer le son' : 'Couper le son') + '">' + icon(ui.isMuted() ? 'mute' : 'sound', 20) + '</button></div>';
   }
   function ringHtml(value, label, mode, frac, cls) {
@@ -348,7 +357,7 @@
   function links(c, redo) {
     return '<div class="lnks">' + (redo ? '<button type="button" class="lnk" data-act="brRedo">Refaire l\'essai</button>' : '') +
       (c.opt && c.opt[G.e] ? '<button type="button" class="lnk" data-act="brSkipEssai">Passer cet essai</button>' : '') +
-      '<button type="button" class="lnk" data-act="brSkip">Passer ce test</button></div>';
+      (G.solo ? '' : '<button type="button" class="lnk" data-act="brSkip">Passer ce test</button>') + '</div>';
   }
   function counterHtml(label) {
     return '<div class="counter"><span class="hud" style="color:var(--dim)">' + esc(label) + '</span><div class="row">' +
@@ -364,6 +373,7 @@
   function warmView() {
     var B = L.currentBilan();
     if (!G.rt) G.rt = MC.routine.create('warmup', me(), me().joueur.materiel === 'mini', repaint);
+    if (G.solo) return MC.routine.html(G.rt, { kicker: C.REVEIL.nom, color: COL, doneAct: 'brWarmDone', doneLabel: 'Échauffement fait', after: 'Ensuite : ' + nomT(test()).toLowerCase() });
     return MC.routine.html(G.rt, {
       kicker: B.nom + ' · ' + C.REVEIL.nom, color: COL,
       doneAct: 'brWarmDone', doneLabel: 'Échauffement fait',
@@ -387,8 +397,9 @@
     var an = (isSm(t) && ANIM_SM[t.id]) || ANIM[t.id];
     var focus = ph === 'count3' || ph === 'run';
     var essai = ph !== 'elas' && c.essais[G.e] ? c.essais[G.e] : '';
-    var hd = '<div class="hd"><span class="kicker" style="color:var(--rc)">Test ' + t.n + ' / ' + NB + (isSm(t) ? ' · version SM' : '') + '</span><h1>' + esc(nomT(t)) + '</h1>' +
-      (essai ? '<span class="hud" style="color:var(--ink)">' + esc(essai) + '</span>' : '') + (focus ? '' : ui.infoBtn(MC.fiche.key.test(t.id, isSm(t)), nomT(t), commentT(t))) + '</div>';
+    var hd = '<div class="hd"><span class="kicker" style="color:var(--rc)">' + (G.solo ? (G.duJour ? 'Record du jour' : 'Je tente mon record') : 'Test ' + t.n + ' / ' + NB) + (isSm(t) ? ' · version SM' : '') + '</span><h1>' + esc(nomT(t)) + '</h1>' +
+      (essai ? '<span class="hud" style="color:var(--ink)">' + esc(essai) + '</span>' : '') +
+      (G.solo && !focus && recordDe(t) ? '<span class="hud" style="color:var(--gold)">Ton record : ' + esc(fmt(t, recordDe(t).valeur)) + '</span>' : '') + (focus ? '' : ui.infoBtn(MC.fiche.key.test(t.id, isSm(t)), nomT(t), commentT(t))) + '</div>';
     var left = focus ? '' : ui.demoHtml({ anim: an, video: videoFor(an), color: COL, label: nomT(t) }) + '<p class="small" style="margin:0">' + esc(commentT(t)) + '</p>';
     var right = '', stopQ = (isSm(t) && STOP_QUAND_SM[t.id]) || STOP_QUAND[t.id] || '';
 
@@ -414,7 +425,7 @@
       else if (t.mmss) right = '<span class="hud" style="color:var(--dim)">Ton temps (tu peux corriger)</span><div class="grid2">' + field('br_m', 'm', 'Minutes', { max: 1, auto: true, placeholder: '0' }) + field('br_s', 's', 'Secondes', { max: 2, placeholder: '0' }) + '</div>';
       else if (c.mode === 'course') right = field('br_c', 'v', 'Ton temps en secondes (tu peux corriger)', { kind: 'dec', max: 4 });
       else right = field('br_c', 'v', 'Ton temps en secondes (tu peux corriger)', { max: 3 });
-      right += okBtn(G.e + 1 < c.essais.length ? 'Valider · essai suivant' : 'Valider ce test') + links(c, true);
+      right += okBtn(G.e + 1 < c.essais.length ? 'Valider · essai suivant' : G.solo ? 'Valider mon résultat' : 'Valider ce test') + links(c, true);
     } else {
       // prêt
       if (c.mode === 'hold') {
@@ -432,13 +443,195 @@
       } else if (c.mode === 'dist') {
         right = '<span class="hud" style="color:var(--dim)">Tes 3 sauts en cm : on garde le meilleur</span><div class="grid3">' +
           field('br_a', 'a', 'Saut 1', { max: 3, placeholder: 'cm' }) + field('br_b', 'b', 'Saut 2', { max: 3, placeholder: 'cm' }) + field('br_c3', 'c', 'Saut 3', { max: 3, placeholder: 'cm' }) + '</div>' +
-          okBtn('Valider ce test') + links(c);
+          okBtn(G.solo ? 'Valider mon résultat' : 'Valider ce test') + links(c);
       } else {
         right = counterHtml(t.id === 'corde' ? 'Sauts jusqu\'à la 1re faute' : 'Combien d\'affilée ?') +
-          okBtn(G.e + 1 < c.essais.length ? 'Valider · essai suivant' : 'Valider ce test') + links(c);
+          okBtn(G.e + 1 < c.essais.length ? 'Valider · essai suivant' : G.solo ? 'Valider mon résultat' : 'Valider ce test') + links(c);
       }
     }
     return '<div class="main' + (focus ? ' single' : '') + '">' + hd + (left ? '<div class="left">' + left + '</div>' : '') + '<div class="right">' + right + '</div></div>';
+  }
+
+  // ---------- (v74, lot E3) « Je tente » : une seule épreuve, puis la fête ----------
+  var MSG = { fait: 'Tu as déjà tenté cette épreuve aujourd\'hui. Reviens demain !', plein: 'Deux épreuves par jour, c\'est le maximum. Reviens demain !' };
+  MC.tenteMsg = MSG;
+  function cle(t) { return t.id + (isSm(t) ? ':sm' : ''); }
+  function recordDe(t) { var st = app.S.stats; return st && st.bestsOk ? st.bestsOk[cle(t)] || null : null; }
+  function fmt(t, v) { return ui.fmtVal(v, t.unite, t.decimales); }
+  function aDeux(t) { return isSm(t) ? '' : (C.A_DEUX || {})[t.id] || ''; }
+  function freshSolo(id, kid, q) {
+    var dj = L.recordDuJour(me().records), chaud = q.chaud === '1', tr = {};
+    if (chaud) tr[id] = [];
+    return { solo: id, kid: kid, jour: L.today(), i: chaud ? 1 : 0, e: 0, phase: chaud ? 'ready' : 'choix', tr: tr, f: {}, back: false, startedAt: Date.now(),
+      retour: /^go\/[a-z]+$/.test(q.retour || '') ? '#/' + q.retour : '', duJour: !!(dj && dj.test === id) };
+  }
+  function restoreSolo(id, kid) {
+    var s = app.lsGet(KEY_SOLO);
+    if (!s || s.solo !== id || s.kid !== kid || s.jour !== L.today()) return null;
+    s.f = s.f || {}; s.tr = s.tr || {};
+    return s;
+  }
+  function soloBody() {
+    if (G.i === 0) return G.phase === 'warm' ? warmView() : choixView();
+    if (G.i === 1) return testView();
+    if (G.phase === 'fete') return feteView();
+    if (G.phase === 'err' || G.phase === 'coupe') return errView();
+    return '<div class="main single"><div class="loading" role="status"><i></i><i></i><i></i><span class="sr-only">Envoi</span></div><p class="next">Envoi de ton résultat…</p></div>';
+  }
+  function choixView() {
+    var t = test(), an = (isSm(t) && ANIM_SM[t.id]) || ANIM[t.id], rec = recordDe(t), ad = aDeux(t);
+    return '<div class="main"><div class="hd"><span class="kicker" style="color:var(--rc)">' + (G.duJour ? 'Record du jour' : 'Je tente mon record') + '</span><h1>' + esc(nomT(t)) + '</h1>' +
+      '<span class="hud" style="color:var(--ink)">' + (rec ? 'Ton record : ' + esc(fmt(t, rec.valeur)) : 'Ton 1er résultat sera ton record') + '</span>' + ui.infoBtn(MC.fiche.key.test(t.id, isSm(t)), nomT(t), commentT(t)) + '</div>' +
+      '<div class="left">' + ui.demoHtml({ anim: an, video: videoFor(an), color: COL, label: nomT(t) }) + '<p class="small" style="margin:0">' + esc(commentT(t)) + '</p></div>' +
+      '<div class="right"><p class="lead" style="margin:0;color:var(--ink)">Pour battre ton record, il faut être chaud.</p>' +
+      (ad ? '<div class="note yellow">' + icon('group', 20) + '<span>' + esc(ad) + '</span></div>' : '') +
+      '<button type="button" class="btn xl gold" data-act="tnWarm">' + icon('play', 20) + ' Je m\'échauffe (4 min)</button>' +
+      '<button type="button" class="btn2" data-act="tnChaud">Je suis déjà chaud ' + icon('right', 16) + '</button></div></div>';
+  }
+  MC.act.tnWarm = function () { snap(); G.phase = 'warm'; persist(); repaint(); window.scrollTo(0, 0); };
+  MC.act.tnChaud = function () { snap(); enterTest(1); persist(); repaint(); window.scrollTo(0, 0); };
+  function soloEnd() {
+    var t = test(), tr = G.tr[t.id] || [], v, extra = isSm(t) ? { sm: true } : null;
+    if (t.parPied) {
+      var g = best(t, tr.slice(0, 2)), d = best(t, tr.slice(2, 4));
+      v = g === null || d === null ? null : Math.min(g, d);
+      if (v !== null) extra = { g: g, d: d };
+    } else v = best(t, tr);
+    if (v === null) { ui.toast(t.parPied ? 'Il faut un temps pour chaque pied.' : 'Note ton résultat.', true); enterTest(1); persist(); repaint(); return; }
+    G.res = { valeur: v, extra: extra }; G.i = 2; G.t = null; H = [];
+    soloSend();
+    window.scrollTo(0, 0);
+  }
+  function soloSend() {
+    var t = test(), st0 = app.S.stats, av = recordDe(t), g = G;
+    g.avant = av ? av.valeur : null; g.xp0 = st0 ? st0.xp : 0; g.phase = 'send'; g.err = ''; g.limite = false;
+    persist(); repaint();
+    app.kidCall('submitRecords', { bilan: 'defi', tentative: true, valeurs: [{ test: t.id, valeur: g.res.valeur, extra: g.res.extra }], avecDossier: true }).then(function (r) {
+      var rec = (r.records || [])[0] || {};
+      g.rec = { statut: rec.statut, exploit: rec.exploit || '' };
+      if (r.me) { app.setMe(r.me); return r.me; }
+      return app.loadMe(true);
+    }).then(function () {
+      g.xp = Math.max(0, ((app.S.stats && app.S.stats.xp) || 0) - g.xp0); g.phase = 'fete';
+      if (G === g) { persist(); repaint(); window.scrollTo(0, 0); }
+      return chargerPlace(g);
+    }).catch(function (e) {
+      if (g.phase === 'fete') return;   // le classement n'a pas répondu : la fête reste
+      g.phase = 'err'; g.err = (e && e.message) || 'Le serveur n\'a pas répondu.'; g.limite = !!(e && e.code === 'limite');
+      if (G === g) { persist(); repaint(); }
+      // (relecture) « déjà tenté » après un envoi raté : peut-être le même essai, arrivé sans réponse ; on relit le serveur
+      if (g.limite) app.loadMe(true).then(function (m2) { if (G === g && retrouve(m2)) { persist(); repaint(); chargerPlace(g); } }).catch(function () { });
+    });
+  }
+  // sa place dans sa ligue, après coup (la fête s'affiche d'abord)
+  function chargerPlace(g) {
+    var t = L.testDef(g.solo);
+    return app.kidCall('league').then(function (lg) { app.S.league = lg; g.place = place(lg, t); if (G === g) { persist(); repaint(); } });
+  }
+  MC.act.tnRenvoi = function () { if (G && G.solo && G.res && G.phase !== 'send') soloSend(); };
+  // sa place dans sa ligue après la tentative, et celui qu'il peut rattraper
+  function place(lg, t) {
+    var id = me().joueur.id, P = L.league(lg, id, t.id, 'best'), mine = null, devant = null;
+    P.rows.forEach(function (r) { if (r.p.id === id) mine = r; });
+    if (!mine) return null;
+    for (var k = P.rows.indexOf(mine) - 1; k >= 0; k--) if (P.rows[k].rank < mine.rank) { devant = P.rows[k]; break; }
+    return { rang: mine.rank, n: P.rows.length, devant: devant ? { prenom: devant.p.prenom, ecart: Math.abs(devant.best - mine.best) } : null };
+  }
+  function feteView() {
+    var t = test(), v = G.res.valeur, r = G.rec || {}, av = G.avant, exploit = r.statut === 'attente';
+    var bat = !exploit && av !== null && L.better(t, v, av), premier = !exploit && av === null;
+    var conf = '', cols = ['#FF4FA3', '#38E8FF', '#3DFFB0', '#FFC23D'];
+    if (bat || premier || exploit) for (var i = 0; i < 10; i++) conf += '<span class="confetti" style="left:' + (8 + i * 9) + '%;top:' + (10 + (i * 37) % 60) + '%;background:' + cols[i % 4] + ';animation-delay:' + (i * 0.07) + 's;transform:rotate(' + (i * 30) + 'deg)"></span>';
+    var titre = exploit ? 'Exploit !' : bat ? 'Nouveau<br>record !' : premier ? 'Ton 1er<br>record !' : 'Bien<br>essayé !';
+    var gain = bat ? (t.moinsMieux ? fmt(t, Math.abs(av - v)) + ' plus rapide' : '+' + fmt(t, v - av)) : '';
+    var txt = exploit ? 'Un parent ou ton éduc doit le confirmer : ensuite, c\'est ton nouveau record.'
+      : bat ? 'Ton ancien record : ' + fmt(t, av) + '. ' + gain + ' !'
+      : premier ? 'C\'est ton record. Retente-le un autre jour pour le battre !'
+      : 'Ton record reste ' + fmt(t, av) + '. Tu le battras une prochaine fois !';
+    var pl = G.place && !exploit ? '<p class="lead" style="margin:0;text-align:center">Tu es ' + G.place.rang + (G.place.rang === 1 ? 'er' : 'e') + ' de ta ligue' +
+      (G.place.devant ? '. Encore ' + esc(fmt(t, G.place.devant.ecart)) + (t.moinsMieux ? ' plus vite' : '') + ' et tu rattrapes ' + esc(G.place.devant.prenom) + ' !' : ' !') + '</p>' : '';
+    var fin = G.retour ? '<button type="button" class="btn xl green" data-act="tnFin" data-h="' + esc(G.retour) + '">' + icon('play', 20) + ' Continuer ma séance</button>'
+      : '<button type="button" class="btn" data-act="tnFin" data-h="#/epreuve/' + esc(t.id) + '">Voir mon épreuve</button><button type="button" class="btn2 grey" data-act="tnFin" data-h="#/semaine">Retour à l\'accueil</button>';
+    return '<div class="main single tn-fete">' + (conf || bat || premier || exploit ? '<div class="burst">' + conf + '<span class="tn-tro">' + icon('trophy', 96) + '</span></div>' : '') +
+      '<div class="head" style="text-align:center;align-items:center"><span class="kicker" style="color:var(--gold)">' + esc(nomT(t)) + '</span><h1 class="big md">' + titre + '</h1></div>' +
+      '<div class="tn-val" data-res>' + ui.valHtml(v, t.unite, t.decimales) + '</div>' +
+      '<p class="lead" style="margin:0;text-align:center">' + esc(txt) + '</p>' + pl +
+      (G.xp ? '<div class="reward" style="align-self:center;min-width:140px"><span class="v">+' + G.xp + '</span><span class="l">XP</span></div>' : '') +
+      '<div class="sec">' + fin + '</div></div>';
+  }
+  function errView() {
+    var t = test(), lim = G.limite, msg = G.phase === 'coupe' ? 'L\'envoi a été coupé.' : G.err;
+    return '<div class="main single"><div class="hd"><span class="kicker" style="color:var(--rc)">' + esc(nomT(t)) + '</span><h1>' + (lim ? 'Pas aujourd\'hui' : 'Pas encore envoyé') + '</h1>' +
+      '<p class="lead">' + esc(msg) + (lim ? '' : ' Ton résultat (' + esc(fmt(t, G.res.valeur)) + ') est gardé sur cet appareil : vérifie la connexion.') + '</p></div>' +
+      '<div class="right">' + (lim ? '' : '<button type="button" class="btn xl green" data-act="tnRenvoi">' + icon('send', 20) + ' Réessayer l\'envoi</button>') +
+      '<button type="button" class="btn2 grey" data-act="tnFin" data-h="' + esc(G.retour || '#/epreuve/' + t.id) + '"' + (lim ? '' : ' data-garde="1"') + '>' + (lim ? 'D\'accord' : 'Plus tard') + '</button></div></div>';
+  }
+  // quitter : la fête vue (ou un envoi refusé) efface la tentative ; « Plus tard » garde le résultat à envoyer
+  MC.act.tnFin = function (b) {
+    var h = b.getAttribute('data-h') || '#/semaine';
+    if (!b.hasAttribute('data-garde')) { if (G && G.rt) MC.routine.stop(G.rt); G = null; H = []; app.lsSet(KEY_SOLO, null); }
+    stopTick(); ui.keepAwake(false); app.go(h, true);
+  };
+  function soloQuit() {
+    var h = G.retour || '#/epreuve/' + G.solo;
+    if (G.rt) MC.routine.stop(G.rt);
+    G = null; H = []; app.lsSet(KEY_SOLO, null); stopTick(); ui.keepAwake(false); app.go(h, true);
+  }
+  function soloAsk() {
+    var wasPaused = G.t && G.t.paused, rtWas = G.rt && G.rt.t && !G.rt.t.paused;
+    if (G.t && !G.t.paused) togglePause();
+    if (rtWas) MC.routine.pause(G.rt, true);
+    ui.modal({
+      title: 'Tu arrêtes ?',
+      body: '<p class="lead">Rien n\'est envoyé : tu pourras tenter ' + esc(nomT(test()).toLowerCase()) + ' plus tard.</p>',
+      actions: [{ label: 'Continuer', value: 'go', cls: 'btn gold' }, { label: 'Arrêter', value: 'stop', cls: 'btn2' }],
+      cancelValue: 'go'
+    }).then(function (v) {
+      if (!G || !G.solo) return;
+      if (v === 'stop') soloQuit();
+      else {
+        if (G.t && G.t.paused && !wasPaused) togglePause();
+        if (G.rt && rtWas) MC.routine.pause(G.rt, false);
+      }
+    });
+  }
+  app.route('/tente/:id', function (p, q, cur) {
+    var t = C.TESTS.filter(function (x) { return x.id === p.id; })[0];   // les 12 épreuves du bilan seulement
+    if (!t) return app.go('#/bilans', true);
+    return app.loadMe().then(function (m) {
+      var kid = m.joueur.id;
+      if (!G || G.solo !== p.id || G.kid !== kid) { G = restoreSolo(p.id, kid); H = []; }
+      if (G && G.phase === 'fete') { G = null; app.lsSet(KEY_SOLO, null); }   // la fête est passée
+      if (G) {
+        // (relecture) une tentative reprise suit d'où l'on vient : depuis la séance, retour à la séance, et l'enfant est chaud
+        if (/^go\/[a-z]+$/.test(q.retour || '')) G.retour = '#/' + q.retour;
+        if (q.chaud === '1' && G.i === 0) { if (G.rt) { MC.routine.stop(G.rt); G.rt = null; } enterTest(1); }
+        persist();
+      }
+      if (G && G.phase === 'coupe') {   // l'envoi a été coupé : peut-être qu'il est arrivé (on relit le serveur, pas la copie de l'appareil)
+        return app.loadMe(true).then(function (m2) { if (retrouve(m2)) { persist(); chargerPlace(G).catch(function () { }); } return ecran(cur); }, function () { return ecran(cur); });
+      }
+      if (!G) {
+        var e = L.peutTenter(m.records, p.id);
+        if (e) { ui.toast(MSG[e], true); setTimeout(function () { app.go('#/epreuve/' + p.id, true); }, 0); return null; }
+        G = freshSolo(p.id, kid, q); H = [];
+        persist();
+      }
+      return ecran(cur);
+    });
+  }, { kid: true, busy: true });
+  // l'essai est-il déjà au serveur (réponse perdue) ? alors la fête, sans redemander
+  function retrouve(m) {
+    var r0 = (m && m.records || []).filter(function (r) { return r.bilan === 'defi' && r.test === G.solo && r.date === G.jour && Number(r.valeur) === G.res.valeur && r.statut !== 'refuse'; })[0];
+    if (!r0) return false;
+    G.rec = { statut: r0.statut, exploit: r0.exploit || '' }; G.xp = G.xp0 === undefined ? 0 : Math.max(0, ((app.S.stats && app.S.stats.xp) || 0) - G.xp0); G.phase = 'fete'; G.err = ''; G.limite = false;
+    return true;
+  }
+  function ecran(cur) {
+      ui.keepAwake(true);
+      cur.cleanup = function () { stopTick(); if (G && G.rt) MC.routine.detach(G.rt); setTimeout(function () { if (location.hash.indexOf('#/tente/') !== 0) ui.keepAwake(false); }, 0); };
+      cur.after = function () { startTick(); };
+      return view();
   }
 
   function finView() {

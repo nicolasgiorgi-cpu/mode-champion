@@ -922,6 +922,7 @@ var Core = (function () {
     function rang(v) { return 1 + ligue.filter(function (id) { return mieux(best[id], v); }).length; }
     return rang(n) <= 3 && (avant === undefined || rang(avant) > 3) ? 'podium' : '';
   }
+  var TENTATIVES_JOUR = 2;   // (v74) comme MC.logic.TENTATIVES_JOUR (js/logic.js)
   A.submitRecords = {
     auth: ['p'],
     run: function (req, ctx) {
@@ -936,9 +937,22 @@ var Core = (function () {
         date = String(req.date);
       }
       var vals = Array.isArray(req.valeurs) ? req.valeurs.slice(0, 20) : [];
+      var mine = where(ctx.db.rows('records'), 'joueurId', ctx.auth.id), saved = [];
+      // (v74, lot E3) une tentative (défi, record du jour) par épreuve et par jour, deux épreuves par jour au plus ;
+      // une ligne retirée par la famille (« Ce n'est pas ça ») ne compte pas. Vérifié avant d'écrire quoi que ce soit.
+      if (bilan === 'defi') {
+        var tentes = {};
+        mine.forEach(function (r) { if (r.bilan === 'defi' && r.date === date && r.statut !== 'refuse') tentes[r.test] = 1; });
+        vals.forEach(function (v) {
+          var tid = v && String(v.test);
+          if (!tid) return;
+          if (tentes[tid]) fail('limite', 'Tu as déjà tenté cette épreuve aujourd\'hui. Reviens demain !');
+          if (Object.keys(tentes).length >= TENTATIVES_JOUR) fail('limite', 'Deux épreuves par jour, c\'est le maximum. Reviens demain !');
+          tentes[tid] = 1;
+        });
+      }
       // (v70, relecture) les niveaux du bilan d'abord : l'exploit « podium » se juge dans la ligue où l'enfant s'affichera
       if (req.niveaux || req.journal) majJoueur(req, ctx);
-      var mine = where(ctx.db.rows('records'), 'joueurId', ctx.auth.id), saved = [];
       for (var i = 0; i < vals.length; i++) {
         var v = vals[i];
         if (!v || !/^[a-z0-9_]{1,24}$/.test(String(v.test))) continue;
@@ -2590,11 +2604,11 @@ var Core = (function () {
     submitRecords: function (req, ctx, res) {
       var j = ctx.auth.row, n = ctx.nNotes || 0, ex = ctx.nAttente || 0;   // seulement les résultats nouveaux ou changés (pas un bilan renvoyé tel quel)
       if (!n) return;
-      var b = String(req.bilan), t = b === 'defi' ? j.prenom + ' a relevé un défi.' : j.prenom + ' a noté son Bilan ' + b + ' (' + n + ' résultat' + (n > 1 ? 's' : '') + ').';
+      var b = String(req.bilan), t = b === 'defi' ? j.prenom + ' a relevé un défi.' : j.prenom + ' a noté son Bilan ' + b + ' (' + n + ' résultat' + (n > 1 ? 's' : '') + ').';   // (v74) un record du jour aussi, comme dans la cloche
       // (v70) ça compte tout de suite : la famille peut corriger ; seul un exploit est à confirmer (jamais de chiffre sur l'écran verrouillé)
       alerter(ctx, { r: 'f', qui: j.familleId, sujet: j.id, lien: parentL(j.id, ex ? 'confirmer' : 'scores') }, 'confirmer',
         t + (ex ? (ex > 1 ? ' ' + ex + ' exploits à confirmer.' : ' Un exploit à confirmer.') : ' Ça compte déjà ; un souci ? Vous pouvez corriger.'));
-      alerter(ctx, { r: 'e', sujet: j.id, lien: ficheE(j.id, 'bilans') }, 'bilan', t);
+      if (!req.tentative) alerter(ctx, { r: 'e', sujet: j.id, lien: ficheE(j.id, 'bilans') }, 'bilan', t);   // (v74) une tentative de record : pas d'alerte aux éducs (jusqu'à 2 par enfant et par jour)
     },
     mission: function (req, ctx) {
       var j = ctx.auth.row, t = req.fin ? ' a répondu à « Avec qui tu aimes jouer ».' : req.postes !== undefined ? ' a répondu à « Choisis ton poste ».' : req.message !== undefined ? ' a écrit un mot pour les éducs.' : '';

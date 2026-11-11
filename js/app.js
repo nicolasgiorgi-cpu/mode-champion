@@ -491,7 +491,7 @@ MC.app = (function () {
   // les séances et bilans guidés (rien à perdre en cours de saisie).
   var refreshers = [];
   function onRefresh(fn) { refreshers.push(fn); }
-  var NOPULL = /^\/(connexion|premiere|oubli|qui|adultes|adultes\/code|go\/[^/]+|bilan|bilan\/go|noter|echauffement|calme|guide|aide|reglages|bienvenue|bravo|mission\/bravo|mission\/quiz|mission\/copains|parent\/bienvenue|parent\/plus|notifs\/reglages|parent\/notifs\/reglages|educ\/(notifs\/reglages|bienvenue|evt-nouveau|missions\/nouvelle|encourager\/[^/]+|ajouter|compo\/[^/]+|avis\/[^/]+|terrain|skills\/journee|evt\/[^/]+\/presents|spond|reglages|outils|familles|educs))$/;
+  var NOPULL = /^\/(connexion|premiere|oubli|qui|adultes|adultes\/code|go\/[^/]+|tente\/[^/]+|bilan|bilan\/go|noter|echauffement|calme|guide|aide|reglages|bienvenue|bravo|mission\/bravo|mission\/quiz|mission\/copains|parent\/bienvenue|parent\/plus|notifs\/reglages|parent\/notifs\/reglages|educ\/(notifs\/reglages|bienvenue|evt-nouveau|missions\/nouvelle|encourager\/[^/]+|ajouter|compo\/[^/]+|avis\/[^/]+|terrain|skills\/journee|evt\/[^/]+\/presents|spond|reglages|outils|familles|educs))$/;
   function pullable() {
     if (!current || !current.route || !painted) return false;
     var o = current.route.opts;
