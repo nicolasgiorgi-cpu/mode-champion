@@ -104,10 +104,11 @@ assert.strictEqual(envois.filter(m => m.token === T.tom).length, 1, 'une alerte 
   }
   // un enfant qui arrive pendant la visite : son 1er mot n'est pas déjà à l'écran
   for (let k = 0; k < 30; k++) {
-    const ecran = Array.from({ length: 20 }, (_, i) => ({ joueur: { id: 'v' + k + '-' + i }, bravos: [] })), R0 = B.repartir(ecran, 3), affiches = {};
-    Object.keys(R0).forEach(id => R0[id].forEach(m => { affiches[m] = 1; }));
+    const taille = k % 2 ? 12 : 30, ecran = Array.from({ length: taille }, (_, i) => ({ joueur: { id: 'v' + k + '-' + i }, bravos: [] })), R0 = B.repartir(ecran, 3), affiches = {};
+    Object.keys(R0).forEach(id => R0[id].forEach((m, i) => { if (!i) affiches[m] = 2; else if (!affiches[m]) affiches[m] = 1; }));
     const nouveau = { joueur: { id: 'n' + k }, bravos: [] }, Rn = B.repartir([nouveau], 3, affiches)[nouveau.joueur.id];
-    assert.ok(!affiches[Rn[0]], 'le 1er mot du nouveau n\'est pas déjà affiché');
+    assert.ok(affiches[Rn[0]] !== 2, 'le 1er mot du nouveau n\'est le 1er mot de personne (' + taille + ' enfants)');
+    if (taille * 3 + 3 <= M.length) assert.ok(Rn.every(m => !affiches[m]), 'avec de la place : aucun de ses mots n\'est déjà affiché');
   }
   // pas un mot qu'il vient de recevoir (les 3 proposés, marqués reçus, ne reviennent pas)
   const p0 = { joueur: { id: 'jx' }, bravos: [] }, avant = B.motsPour(p0, 3);

@@ -34,16 +34,17 @@
     return { l: l, recus: recus };
   }
   // (relecture v71) pour tout l'écran : le 1er mot de chacun d'abord (tous différents jusqu'à 54 enfants), puis le 2e, puis le 3e
-  // deja : les mots déjà à l'écran (un enfant qui arrive pendant la visite ne reprend pas le 1er mot d'un autre)
-  function repartir(ps, n, deja0) {
-    var pris = {}, out = {}, O = {};
-    Object.keys(deja0 || {}).forEach(function (m) { pris[m] = 1; });
+  // affiches : les mots déjà à l'écran, { mot: 2 } pour un 1er mot, { mot: 1 } sinon (un enfant qui arrive pendant la visite
+  // ne reprend jamais le 1er mot d'un autre — celui de « Bravo à tous » — et évite les autres tant que c'est possible)
+  function repartir(ps, n, affiches) {
+    var pris = {}, out = {}, O = {}, A = affiches || {};
     ps.forEach(function (p) { O[p.joueur.id] = ordreMots(p); out[p.joueur.id] = []; });
     for (var k = 0; k < n; k++) {
       ps.forEach(function (p) {
         var id = p.joueur.id, o = O[id], deja = out[id];
-        var m = o.l.filter(function (x) { return !o.recus[x] && !pris[x] && deja.indexOf(x) < 0; })[0] ||
-          o.l.filter(function (x) { return !pris[x] && deja.indexOf(x) < 0; })[0] || o.l.filter(function (x) { return deja.indexOf(x) < 0; })[0];
+        function libre(x) { return !pris[x] && deja.indexOf(x) < 0; }
+        var m = o.l.filter(function (x) { return libre(x) && !o.recus[x] && !A[x]; })[0] || o.l.filter(function (x) { return libre(x) && !A[x]; })[0] ||
+          o.l.filter(function (x) { return libre(x) && A[x] !== 2; })[0] || o.l.filter(libre)[0] || o.l.filter(function (x) { return deja.indexOf(x) < 0; })[0];
         if (m) { deja.push(m); pris[m] = 1; }
       });
     }
@@ -208,7 +209,7 @@
       var neufs = l.filter(function (x) { return !BV.mots[x.p.joueur.id]; }).map(function (x) { return x.p; });
       if (neufs.length) {
         var affiches = {};
-        Object.keys(BV.mots).forEach(function (k) { BV.mots[k].forEach(function (m) { affiches[m] = 1; }); });
+        Object.keys(BV.mots).forEach(function (k) { BV.mots[k].forEach(function (m, i) { if (!i) affiches[m] = 2; else if (!affiches[m]) affiches[m] = 1; }); });
         var R = repartir(neufs, 3, affiches); Object.keys(R).forEach(function (id) { BV.mots[id] = R[id]; });
       }
       var reste = l.filter(function (x) { return !BV.faits[x.p.joueur.id]; });
