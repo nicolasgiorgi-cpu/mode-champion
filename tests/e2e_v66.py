@@ -30,7 +30,10 @@ with sync_playwright() as p:
         r = ev("""(() => { const tb = document.querySelector('.topbar'), t = tb.querySelector('.tb-title'), k = tb.querySelector('.tb-k'), ps = tb.querySelector('.tb-pass');
           return { kicker: k ? k.textContent : '', titre: t ? t.textContent : '', coupe: t ? t.scrollWidth > t.clientWidth + 1 : true, pass: ps ? ps.getAttribute('aria-label') : null }; })()""")
         check('%s : plus de « Éduc · … » au-dessus du titre' % url, 'ÉDUC' not in r['kicker'].upper(), r)
-        check('%s : le titre « %s » n\'est pas coupé' % (url, r['titre']), not r['coupe'], r)
+        # (décision de Nicolas du 11/11) « ▶ Tom » garde son prénom : au téléphone, un titre long reste un peu coupé
+        if W >= 700: check('%s : le titre « %s » n\'est pas coupé' % (url, r['titre']), not r['coupe'], r)
+        vis = ev("(() => { const s = document.querySelector('.topbar .tb-pass span'); return s ? getComputedStyle(s).display !== 'none' && s.textContent : null; })()")
+        check('%s : « ▶ prénom » garde son prénom' % url, vis is None or bool(vis), vis)
         check('%s : « Passer le téléphone » garde le prénom pour le lecteur d\'écran' % url, r['pass'] is None or 'Passer le téléphone' in r['pass'], r)
 
     # (relecture) les sous-pages de Réglages (Retour vers les réglages) gardent leur titre en taille normale
