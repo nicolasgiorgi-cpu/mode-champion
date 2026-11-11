@@ -136,7 +136,7 @@
     var st = L.compute(d), k = d.joueur, wk = st.week, t = L.today();
     var tiles = '<div class="grid2">' + [
       [st.maison, 'séances à la maison', 'var(--ink)'], [st.streak + ' j', 'série en cours', 'var(--orange)'],
-      [st.grade.nom, 'grade · ' + ui.fmtNum(st.xp) + ' XP', 'var(--cyan)'], [st.nbBadges + ' / ' + C.BADGES.length, 'badges gagnés', 'var(--gold)']
+      [st.grade.nom, 'grade · ' + ui.fmtNum(st.xp) + ' XP', 'var(--cyan)'], [st.nbBadges + ' / ' + st.nbBadgesTot, 'badges gagnés', 'var(--gold)']
     ].map(function (x) { return '<div class="tile"><span class="v" style="color:' + x[2] + ';font-size:22px">' + esc(x[0]) + '</span><span class="l" style="text-transform:none;letter-spacing:.02em;font-family:var(--f-body);font-size:13px">' + x[1] + '</span></div>'; }).join('') + '</div>';
     var days = C.SEMAINE.map(function (tp, i) {
       var j = C.JOURS[tp], sl = j.slot, done = sl >= 0 && wk.filled[sl], date = L.addDays(wk.mon, i);

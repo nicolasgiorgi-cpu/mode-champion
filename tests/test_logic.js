@@ -70,7 +70,7 @@ assert.strictEqual(st.xp, 100+300, 'xp '+st.xp);
   assert.ok(s2.badges.champion.earned); assert.strictEqual(s2.badges.champion.date,'2026-07-13');
   s2=L.compute({joueur:{niveaux:{}},seances:many.concat([S('2026-07-12','dupont',{details:{niveau:4}})]),records:[],journal:[]});
   assert.ok(s2.badges.champion.earned,'saisie rapide N4');
-  assert.strictEqual(C.BADGES.length,19);
+  assert.strictEqual(C.BADGES.length,20);   // (v76) + « Tous ensemble », le badge du défi d'équipe
   L._setToday('2026-10-11');
 }
 // classement

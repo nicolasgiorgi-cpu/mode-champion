@@ -2101,3 +2101,9 @@ section.rdj .lnk{min-height:44px}
 .bilseg i.on{background:var(--gold)}
 .bilcy-a{gap:14px;flex-wrap:wrap;align-items:center}
 .epc-tag.afaire{color:var(--dim)}
+/* (v76, lot E6) le défi d'équipe (Ça bouge) et les compteurs (Records) */
+.eqdefi{gap:8px;padding:12px;border:1px solid rgba(61,255,176,.4);background:rgba(61,255,176,.05)}
+.eqj{height:12px;background:#1E2740;overflow:hidden}
+.eqj i{display:block;height:100%;background:var(--green)}
+.cpts{display:flex;flex-wrap:wrap;gap:6px 14px;font:500 14px/1.3 var(--f-body);color:var(--soft)}
+.cpts b{font:700 16px/1 var(--f-hud);color:var(--ink)}

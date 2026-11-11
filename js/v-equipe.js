@@ -88,13 +88,25 @@
   }
   MC.equipe = { derniere: derniere, rafraichir: rafraichir };
 
+  // (v76, lot E6) le défi d'équipe : la jauge commune, en haut de Ça bouge ; sa part, jamais celle des autres
+  function jauge(df) {
+    if (!df) return '';
+    var pct = Math.min(100, Math.round(df.total / df.cible * 100)), fini = L.today() > df.fin;
+    var bas = df.plein ? '<b style="color:var(--green)">Jauge pleine : bravo à toute l\'équipe !</b> Le badge « Tous ensemble » est pour tout le monde.'
+      : fini ? 'Le défi est fini : ' + ui.fmtNum(df.total) + ' sur ' + ui.fmtNum(df.cible) + '. Merci à tous !'
+      : 'Ta part : <b>' + ui.fmtNum(df.moi) + '</b>' + (df.moi ? '' : ' · tes ' + esc(df.quoi) + ' des séances guidées comptent') + ' · jusqu\'au ' + esc(ui.fmtDate(df.fin));
+    return '<section class="sec eqdefi"><div class="between"><span class="hud" style="color:var(--green)">' + icon('group', 14) + ' Défi d\'équipe</span><span class="hud" style="color:var(--gold)">' + ui.fmtNum(df.total) + ' / ' + ui.fmtNum(df.cible) + '</span></div>' +
+      '<h2 class="h2">' + esc(df.nom) + '</h2>' +
+      '<div class="eqj" role="progressbar" aria-valuemin="0" aria-valuemax="' + df.cible + '" aria-valuenow="' + df.total + '" aria-label="' + esc(df.nom) + '"><i style="width:' + pct + '%"></i></div>' +
+      '<p class="small" style="margin:0">' + bas + '</p></section>';
+  }
   app.route('/equipe', function () {
     return Promise.all([app.loadMe(), app.kidCall('equipe')]).then(function (res) {
       var me = res[0], d = res[1];
       EQ.data = d;
       garder(me, d);
       var l = fil(me, d), cache = !me.joueur.visible;
-      return '<main class="screen">' + MC.kidBar(me, app.S.stats) + tabs('fil') +
+      return '<main class="screen">' + MC.kidBar(me, app.S.stats) + tabs('fil') + jauge(d.defi) +
         '<p class="small" style="margin:0">Les séances et les records de l\'équipe, ces 7 derniers jours.' + (cache ? '' : ' Un 👏 pour encourager les autres !') + '</p>' +
         (cache ? '<div class="note">' + icon('info', 18, 'style="flex:none"') + '<span class="small">Tes parents ont choisi de ne pas t\'afficher dans l\'équipe : tu vois les autres, mais tu ne peux pas envoyer de bravo.</span></div>' : '') +
         (l ? '<ul class="list eqfil">' + l + '</ul>' : '<div class="empty">Pas encore de séance cette semaine dans l\'équipe. Lance la tienne !</div>') +

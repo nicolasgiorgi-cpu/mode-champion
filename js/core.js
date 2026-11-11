@@ -379,7 +379,8 @@ var Core = (function () {
       encouragements: where(db.rows('encouragements'), 'joueurId', joueur.id).filter(function (x) { return !x.retire; }).map(pubEnc),
       bravos: bravosDe(db, joueur.id, !!(ctx.auth && ctx.auth.r === 'e')),
       defmissions: defsDe(db, joueur.id),
-      demandes: where(db.rows('demandes'), 'joueurId', joueur.id).filter(function (x) { return x.statut !== 'retiree'; }).map(pubDemande)
+      demandes: where(db.rows('demandes'), 'joueurId', joueur.id).filter(function (x) { return x.statut !== 'retiree'; }).map(pubDemande),
+      defisEquipe: defisPleins(ctx)   // (v76) le badge d'équipe : les défis pleins
     };
   }
 
@@ -1155,6 +1156,7 @@ var Core = (function () {
       var etoiles = db.rows('etoiles').filter(function (e) { return !e.retiree; }), encs = db.rows('encouragements').filter(function (x) { return !x.retire; });
       var dems = db.rows('demandes').filter(function (x) { return x.statut !== 'retiree'; });
       var bravos = db.rows('bravos').filter(function (x) { return !x.retire; });
+      var dp = defisPleins(ctx);   // (relecture v76) le badge d'équipe dès le premier affichage d'une fiche
       var joueurs = db.rows('joueurs').map(function (j) {
         return {
           joueur: pubJoueur(j),
@@ -1167,7 +1169,8 @@ var Core = (function () {
           etoiles: where(etoiles, 'joueurId', j.id).map(function (e) { return pubEtoile(e, true); }),
           encouragements: where(encs, 'joueurId', j.id).map(pubEnc),
           bravos: where(bravos, 'joueurId', j.id).map(function (x) { return pubBravo(x, true); }),
-          demandes: where(dems, 'joueurId', j.id).map(pubDemande)
+          demandes: where(dems, 'joueurId', j.id).map(pubDemande),
+          defisEquipe: dp
         };
       });
       var imp = null;
@@ -1468,6 +1471,63 @@ var Core = (function () {
   // (décisions de Nicolas : le progrès, jamais le score ; le drapeau « visible » respecté ; un bravo d'enfant = un mot tout prêt, sans texte libre)
   // ======================================================================
   var FIL_JOURS = 7, BRAVOS_ENFANT_JOUR = 30;
+  // (v76, lot E6) le défi d'équipe : une jauge commune, chacun y contribue à son niveau (les répétitions notées dans les
+  // séances guidées) ; jamais le détail des autres, seulement le total et sa propre part. Jauge pleine : un badge pour tous
+  // (décision de Nicolas, 10/11). Réglages proposés le 11/11, à valider : quoi, combien, jusqu'à quand.
+  var DEFIS_EQUIPE = [
+    { id: 'noel26', nom: '10 000 mouvements de jambes avant Noël', quoi: 'squats, fentes, ponts et mollets', exos: ['squat', 'fentes', 'pont', 'mollets'], cible: 10000, debut: '2026-11-16', fin: '2026-12-20' }
+  ];
+  // (relecture v76) une série de plus de 100 répétitions n'est pas crédible pour un M12 : écartée (même règle que MC.logic.compteurs)
+  var SERIE_MAX = 100;
+  // les répétitions d'un exercice noté dans une séance guidée : une dose « par jambe » (ou « par côté ») compte les deux
+  function repsExo(e) {
+    if (!e || !Array.isArray(e.series)) return 0;
+    var k = /\/ (jambe|côté)$/.test(String(e.dose || '')) ? 2 : 1, n = 0;
+    e.series.forEach(function (v) { v = Number(v); if (isFinite(v) && v > 0 && v <= SERIE_MAX) n += Math.round(v) * k; });
+    return n;
+  }
+  // le total d'un défi (calculé une fois par requête) et la part de chacun ; une séance notée plus d'un jour après la fin ne compte pas
+  function totalDefi(ctx, d) {
+    var cache = ctx._defis = ctx._defis || {};
+    if (cache[d.id]) return cache[d.id];
+    var actifs = {}, par = {}, jours = {}, total = 0, finNote = isoDate(Date.parse(d.fin + 'T12:00:00') + DAY);
+    ctx.db.rows('joueurs').forEach(function (j) { if (j.actif) actifs[j.id] = 1; });
+    ctx.db.rows('seances').forEach(function (s) {
+      if (!actifs[s.joueurId] || !(s.date >= d.debut && s.date <= d.fin) || s.mode !== 'guidee' || !s.details || !Array.isArray(s.details.exos)) return;
+      if (s.cree && isoDate(Date.parse(s.cree)) > finNote) return;
+      s.details.exos.forEach(function (e) {
+        if (!e || d.exos.indexOf(e.id) < 0) return;
+        var n = repsExo(e);
+        if (n) { total += n; par[s.joueurId] = (par[s.joueurId] || 0) + n; jours[s.date] = (jours[s.date] || 0) + n; }
+      });
+    });
+    return (cache[d.id] = { total: total, par: par, jours: jours });
+  }
+  // (relecture v76) la jauge pleine est gardée pour toujours (propriété « defiPlein:<id> », avec le jour où elle s'est remplie) :
+  // un enfant désactivé, une séance supprimée ou un réglage changé ne retirent jamais le badge
+  function pleinLe(ctx, d) {
+    var k = 'defiPlein:' + d.id, v = ctx.db.getProp(k);
+    if (v) return String(v);
+    var T = totalDefi(ctx, d);
+    if (T.total < d.cible) return '';
+    var cum = 0, le = '';
+    Object.keys(T.jours).sort().some(function (j) { cum += T.jours[j]; le = j; return cum >= d.cible; });
+    try { ctx.db.setProp(k, le); } catch (e) { /* gardé à la prochaine requête */ }
+    return le;
+  }
+  // le défi affiché : celui en cours, ou le dernier fini pendant 14 jours encore
+  function defiEquipe(ctx, moiId) {
+    var jour = isoDate(ctx.now), d = null;
+    DEFIS_EQUIPE.forEach(function (x) { if (x.debut <= jour && jour <= isoDate(Date.parse(x.fin + 'T12:00:00') + 14 * DAY)) d = x; });
+    if (!d) return null;
+    var T = totalDefi(ctx, d), le = pleinLe(ctx, d);
+    return { id: d.id, nom: d.nom, quoi: d.quoi, cible: d.cible, debut: d.debut, fin: d.fin, total: le ? Math.max(T.total, d.cible) : T.total, moi: T.par[moiId] || 0, plein: !!le };
+  }
+  // les défis commencés : pleins (et depuis quand) ou pas, finis ou pas (pour le badge de chaque enfant, même après la fin)
+  function defisPleins(ctx) {
+    var jour = isoDate(ctx.now);
+    return DEFIS_EQUIPE.filter(function (d) { return d.debut <= jour; }).map(function (d) { var le = pleinLe(ctx, d); return { id: d.id, plein: !!le, date: le, fini: jour > d.fin }; });
+  }
   var MOTS_ENFANTS = ['Trop balèze !', 'Bien joué !', 'La classe !', 'Respect !', 'Énorme !', 'Continue comme ça !', 'Tu gères !', 'Quelle séance !',
     'Allez, on lâche rien !', 'Trop bien !', 'Impressionnant !', 'Une vraie machine !', 'Top !', 'Chapeau !', 'Waouh !', 'Tu progresses !',
     'Super effort !', 'Tu assures !', 'Grosse séance !', 'Tu nous motives !', 'Quelle régularité !', 'Allez, l\'équipe !', 'Bravo !',
@@ -1481,7 +1541,7 @@ var Core = (function () {
     auth: ['p'],
     run: function (req, ctx) {
       var me = ctx.auth.row, depuis = isoDate(ctx.now - FIL_JOURS * DAY), gens = equipeVisible(ctx, me), vues = {};
-      var out = { joueurs: [], seances: [], progres: [], bravos: [], mots: MOTS_ENFANTS };
+      var out = { joueurs: [], seances: [], progres: [], bravos: [], mots: MOTS_ENFANTS, defi: defiEquipe(ctx, me.id) };
       Object.keys(gens).forEach(function (id) { var j = gens[id]; out.joueurs.push({ id: j.id, prenom: j.prenom, couleur: j.couleur || '' }); });
       ctx.db.rows('seances').forEach(function (s) {
         if (!gens[s.joueurId] || !(s.date >= depuis)) return;
@@ -2781,7 +2841,7 @@ var Core = (function () {
     _prenomsVoisins: prenomsVoisins, _ressemble: ressemble, _nomsConnexion: nomsConnexion,
     importPostesDepuis: function (db, env, rows) { return importPostes({ db: db, env: env, now: env.now() }, rows); },
     syncSpondDepuis: function (db, env, data) { return syncSpond({ db: db, env: env, now: env.now() }, data || {}); },
-    _diffCompo: diffCompo, _motsEnfants: MOTS_ENFANTS, _epreuves: EPREUVES, _exploitBond: EXPLOIT_BOND, _ligueMin: LIGUE_MIN
+    _diffCompo: diffCompo, _motsEnfants: MOTS_ENFANTS, _epreuves: EPREUVES, _exploitBond: EXPLOIT_BOND, _ligueMin: LIGUE_MIN, _defisEquipe: DEFIS_EQUIPE
   };
 })();
 

@@ -18,6 +18,14 @@ MC.demo = (function () {
     var s = 42;
     function rnd() { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; }
     function ri(a, b) { return a + Math.floor(rnd() * (b - a + 1)); }
+    // (relecture v76) les séries d'une séance guidée de la démo, d'après la dose du niveau (sans tirage : le reste de la démo ne change pas)
+    function doseOf(ex, n) { return (ex.doses || [])[n] || (ex.doses || [])[1] || null; }
+    function doseDemo(ex, n) { var d = doseOf(ex, n); return !d ? '' : d.k === 'reps' ? d.s + ' × ' + d.r + (d.cote ? ' / ' + d.cote : '') : d.k === 'time' ? (d.s > 1 ? d.s + ' × ' : '') + d.t + ' s' : ''; }
+    function seriesDemo(ex, n) {
+      var d = doseOf(ex, n), v = !d ? 0 : d.k === 'reps' ? d.r : d.k === 'time' ? d.t : 0, out = [];
+      for (var i = 0; v && i < d.s; i++) out.push(i === d.s - 1 ? Math.max(1, v - 2) : v);
+      return out;
+    }
     function id() { var a = 'abcdefghijkmnpqrstuvwxyz23456789', o = ''; for (var i = 0; i < 10; i++) o += a.charAt(Math.floor(rnd() * a.length)); return o; }
 
     var nico = { id: id(), nom: 'Coach Nico', codeHash: '', codeV: 1, admin: true, actif: true, cree: nowIso };
@@ -98,7 +106,7 @@ MC.demo = (function () {
           var det = null;
           if (info.maison) {
             if (mode === 'guidee') {
-              det = { exos: info.exos.map(function (eid) { var ex = C.EXOS[eid]; return { id: eid, niveau: niveaux[ex.cle] || 1, ressenti: ['facile', 'bien', 'bien', 'dur'][ri(0, 3)], fait: true }; }), duree: ri(14, 22) * 60 };
+              det = { exos: info.exos.map(function (eid) { var ex = C.EXOS[eid]; return { id: eid, niveau: niveaux[ex.cle] || 1, ressenti: ['facile', 'bien', 'bien', 'dur'][ri(0, 3)], fait: true, dose: doseDemo(ex, niveaux[ex.cle] || 1), series: seriesDemo(ex, niveaux[ex.cle] || 1) }; }), duree: ri(14, 22) * 60 };   // (v76) des séries (fixes, pour ne pas changer le reste de la démo) : les compteurs et la jauge d'équipe
             } else det = { niveau: L.dayLevel(niveaux, type) };
           }
           db.insert('seances', { id: id(), joueurId: pid, date: d, type: type, mode: info.maison ? mode : 'rapide', ressenti: info.maison ? ress : '', details: det, cree: d + 'T17:' + (10 + ri(0, 49)) + ':00.000Z' });

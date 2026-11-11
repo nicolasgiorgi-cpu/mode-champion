@@ -50,7 +50,7 @@
   function paintProfil(me, st) {
     var k = me.joueur, niv = k.niveaux || {}, g = st.grade;
     var skills = C.FAMILLES.map(function (f) { var n = famLevel(niv, f); return '<div class="skill"><span class="l">' + esc(f.nom) + '</span><span class="row" style="gap:6px">' + pips(n, f.color) + '<span style="width:24px;text-align:right;font:700 12px/1 var(--f-hud);color:' + f.color + '">N' + n + '</span></span></div>'; }).join('');
-    var card = '<section class="pcard" style="--pc1:' + esc(k.couleur) + '"><div class="in"><div class="art"><span class="club">M12</span><span class="pill" style="--pc:var(--cyan)">' + esc(g.nom) + '</span>' + ui.avatar(k.prenom, k.couleur, 116) + '</div>' +
+    var card = '<section class="pcard" style="--pc1:' + esc(k.couleur) + '"><div class="in"><div class="art"><span class="pill" style="--pc:var(--cyan)">' + esc(g.nom) + '</span>' + ui.avatar(k.prenom, k.couleur, 116) + '</div>' +
       '<div class="bd"><div><div class="nm">' + esc(k.prenom) + '</div><div class="hud" style="color:var(--muted);margin-top:5px;font-size:11px">' + st.maison + ' séances · ' + ui.fmtNum(st.xp) + ' XP</div></div>' + skills + '</div></div></section>';
     var e10 = MC.missions ? MC.missions.etat(me, 'jeu10') : null, p0 = e10 && e10.postes.length ? MC.missions.poste(e10.postes[0]) : null;
     var xp = '<div class="sec" style="gap:6px">' + (p0 ? '<span class="small" style="color:var(--soft)">Mon poste préféré : <b style="color:' + p0.color + '">' + esc(p0.nom.toLowerCase()) + '</b></span>' : '') +
@@ -65,7 +65,7 @@
     var links = '<div class="sec" style="gap:6px">' +
       (e10 && e10.postes.length ? row('#/mission/postes', 'ball', 'var(--cyan)', 'Mes postes', e10.postes.map(function (id) { return MC.missions.poste(id).nom; }).join(' · ')) : '') +
       (e10 && e10.copainsFait && MC.ouvert('copains') ? row('#/mission/copains', 'group', 'var(--green)', 'Mes copains', 'Secret : vus par tes éducs seulement') : '') +
-      row('#/trophees', 'trophy', 'var(--gold)', 'Trophées', st.nbBadges + ' / ' + C.BADGES.length + ' badges · grades et coffres') +
+      row('#/trophees', 'trophy', 'var(--gold)', 'Trophées', st.nbBadges + ' / ' + st.nbBadgesTot + ' badges · grades et coffres') +
       row('#/aide', 'info', 'var(--cyan)', 'Aide et nouveautés', 'Comment ça marche, revoir la visite') +
       row('#/reglages', 'settings', 'var(--soft)', 'Réglages', 'Le son, mon code, changer de joueur') + '</div>';
     var more = '<div class="grid2">' + [[st.bestStreak + ' j', 'Meilleure série', 'var(--orange)'], [st.stars, 'Étoiles de la prépa', 'var(--gold)']].map(function (t) { return '<div class="tile"><span class="v" style="color:' + t[2] + '">' + t[0] + '</span><span class="l">' + t[1] + '</span></div>'; }).join('') + '</div>';
@@ -122,10 +122,15 @@
       (reste ? '<p class="small" style="margin:0">Chaque épreuve faite d\'ici le ' + esc(ui.fmtDate(bc.cycle.fin)) + ' coche sa case : ton record du jour aussi.</p>' +
         '<div class="row bilcy-a"><a class="btn sm gold" href="#/bilan/go?reste=1">' + icon('play', 16) + (bc.faits ? ' Finir mon bilan · ' + reste + ' épreuve' + (reste > 1 ? 's' : '') : ' Lancer mon bilan') + '</a><a class="lnk" href="#/bilan">Tout le bilan</a></div>'
         : '<p class="small" style="margin:0;color:var(--green)"><b>Bilan complet !</b> Les 12 épreuves de ce cycle sont faites. Continue à battre tes records.</p><div class="row bilcy-a"><a class="lnk" href="#/bilan">Tout le bilan</a></div>') + '</section>' : '';
+    // (v76, lot E6) les compteurs : ce qu'il a fait dans ses séances guidées depuis le début de la saison
+    var cp = L.compteurs(me.seances, (MC.CONFIG.CYCLES[0] || {}).debut), cpH = cp.length ? '<section class="sec"><h2 class="h2">Mes compteurs</h2><div class="cpts">' + cp.map(function (c) {
+      return '<span><b>' + (c.temps ? esc(ui.fmtVal(c.n, 's')) : ui.fmtNum(c.n)) + '</b> ' + esc(c.nom) + '</span>';
+    }).join('') + '</div><p class="small" style="margin:0">Depuis septembre, dans tes séances guidées.</p></section>' : '';
     return '<main class="screen">' + MC.kidBar(me, st) + MC.kidProgresTabs('records') + bilH +
       '<p class="small" style="margin:0">Tes records sur les 12 épreuves. Touche une épreuve pour voir ta courbe et tenter de battre ton record.</p>' +
       '<div class="epcs">' + cartes + '</div>' +
       (cyc ? '' : bilanBtn(me, bl)) +
+      cpH +
       '<a class="btn2" href="#/progression">' + icon('up', 16) + ' Ma progression d\'un bilan à l\'autre</a>' +
       (!cyc && MC.bilanEtat(me).etat !== 'fait' ? '<div class="note gold">' + icon('trophy', 20) + '<span><b>Ton bilan, quand tu veux.</b> Tu le passes avec un adulte : tes résultats arrivent ici tout de suite.</span></div>' : '') +   // (v64) avant la grille (cycle 1)
       '</main>';
@@ -268,8 +273,9 @@
         return '<' + tag + ' class="bdg' + (on ? ' on' : '') + '" style="--bc:' + col + '"' + (href ? ' href="' + href + '"' : '') + '>' + MC.badgeIcon({ icon: b.icon, color: col }, on, 56) + '<span class="nm">' + esc(b.nom) + '</span><span class="cd">' + esc(b.paliers ? b.paliers.join(' / ') + ' ' + b.cond : b.cond) + '</span>' + pips + '<span class="st">' + esc(status) + '</span></' + tag + '>';
       }
       var familles = C.FAMILLES_BADGES.map(function (f) {
-        var list = C.BADGES.filter(function (b) { return b.famille === f.id; });
+        var list = C.BADGES.filter(function (b) { return b.famille === f.id && !st.badges[b.id].cache; });
         var n = list.filter(function (b) { return st.badges[b.id].earned; }).length;
+        if (!list.length) return '';
         return '<section class="sec"><div class="between"><h2 class="h2">' + esc(f.nom) + '</h2><span class="hud" style="color:var(--gold)">' + n + ' / ' + list.length + '</span></div>' +
           (f.intro ? '<p class="small" style="margin:0">' + esc(f.intro) + '</p>' : '') + '<div class="badges">' + list.map(badgeCard).join('') + '</div></section>';
       }).join('');
