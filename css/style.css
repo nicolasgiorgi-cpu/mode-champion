@@ -2043,3 +2043,11 @@ textarea.txt{min-height:84px;padding:10px 12px;resize:vertical;font:500 16px/1.4
 .bvmots button[data-wait]{opacity:.7;pointer-events:none}
 .bvmots .bvecr{min-width:44px;display:inline-flex;align-items:center;justify-content:center;color:var(--soft)}
 .bvfait{display:flex;align-items:center;justify-content:space-between;gap:10px;color:var(--green);font-size:14px}
+/* (E5) Équipe › Ça bouge : le fil des copains, le bravo entre enfants (un mot tout prêt) */
+.eqfil{gap:6px}
+.eqli{gap:10px;min-height:52px}
+.eqli .t1{font:700 14px/1.2 var(--f-body);letter-spacing:0}
+.eqli .t2{font-size:13px}
+.eqdot{flex:none;width:10px;height:10px;border-radius:50%;background:var(--c)}
+.eqn{flex:none;font:700 13px/1 var(--f-hud);color:var(--gold)}
+.eqmots button.on{border-color:var(--green);color:var(--green)}

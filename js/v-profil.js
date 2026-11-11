@@ -363,8 +363,9 @@
     var R = rankCards(Lg, { id: me.joueur.id, prenom: me.joueur.prenom, toi: true }, rank.sel, rank.mode);
     var meNote = !R.seen ? '<div class="note">' + icon('info', 20) + '<span>Tu n\'apparais pas encore : note ton bilan (ou un défi).</span></div>' : '';
     // (v68) l'onglet Équipe : les podiums de ta ligue ; pas de grand titre, les filtres repliés sous une ligne
-    return '<main class="screen">' + MC.kidBar(me, app.S.stats) + '<div class="head acc-h"><h1 class="acc-t">Les podiums</h1>' +
-      '<p class="small" style="margin:0">Sur chaque épreuve, avec les joueurs de ton niveau (ta ligue).</p></div>' +
+    // (E5) l'onglet Équipe : « Ça bouge » (le fil des copains, js/v-equipe.js) · « Podiums »
+    return '<main class="screen">' + MC.kidBar(me, app.S.stats) + (MC.equipeTabs ? MC.equipeTabs('podiums') : '') +
+      '<p class="small" style="margin:0">Sur chaque épreuve, avec les joueurs de ton niveau (ta ligue).</p>' +
       '<details class="rkf"' + (rank.ouvert ? ' open' : '') + '><summary>' + icon('menu', 16) + '<span class="grow">' + (rank.mode === 'prog' ? 'Par progrès' : 'Par record') + ' · ' + (rank.sel.length ? rank.sel.length + ' épreuve' + (rank.sel.length > 1 ? 's' : '') : 'toutes les épreuves') + '</span>' + icon('down', 14, 'class="rkf-i"') + '</summary>' +
       '<div class="sec" style="gap:8px"><span class="lab">Épreuves' + (rank.sel.length ? ' · ' + rank.sel.length + ' choisie' + (rank.sel.length > 1 ? 's' : '') : ' · toutes') + '</span>' + rankChips(rank.sel, 'rkTest') + '</div>' +
       '<div class="sec" style="gap:8px"><span class="lab">Classer par</span>' + modeBtns(rank.mode, 'rkMode') + '</div></details>' +

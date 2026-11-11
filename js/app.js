@@ -360,7 +360,7 @@ MC.app = (function () {
   // Chaque onglet a 2 ou 3 sous-onglets ; (v44) l'onglet du bas mène toujours au premier (venir d'ailleurs = le premier onglet).
   var NAVS = {
     // (v68, N5 validée par Nicolas le 09/11) une question par onglet : je fais quoi ? les copains ? je progresse ? ce que j'ai gagné
-    k: [['accueil', '#/semaine', 'home', 'Accueil', '#38E8FF'], ['equipe', '#/classement', 'group', 'Équipe', '#FF7FBC'], ['progres', '#/bilans', 'trend', 'Progrès', '#FFC23D'], ['moi', '#/profil', 'user', 'Moi', '#3DFFB0']],
+    k: [['accueil', '#/semaine', 'home', 'Accueil', '#38E8FF'], ['equipe', '#/equipe', 'group', 'Équipe', '#FF7FBC'], ['progres', '#/bilans', 'trend', 'Progrès', '#FFC23D'], ['moi', '#/profil', 'user', 'Moi', '#3DFFB0']],
     p: [['p:prepa', '#/parent', 'bolt', 'Prépa', '#38E8FF'], ['p:missions', '#/parent/missions', 'target', 'Missions', '#FF7FBC'], ['p:skills', '#/parent/skills', 'star', 'Skills', '#FFC23D'], ['p:plus', '#/parent/plus', 'menu', 'Plus', '#C9AEFF']],
     e: [['e:entrain', '#/educ/entrainements', 'calendar', 'Entraîn.', '#38E8FF'], ['e:plateaux', '#/educ/plateaux', 'flag', 'Plateaux', '#FFC23D'], ['e:progres', '#/educ/missions', 'trend', 'Progrès', '#3DFFB0'], ['e:enfants', '#/educ/joueurs', 'kids', 'Enfants', '#C9AEFF']]
   };
