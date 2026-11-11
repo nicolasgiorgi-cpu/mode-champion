@@ -19,14 +19,14 @@ with sync_playwright() as p:
     if pg.query_selector('.modal button'): pg.click('.modal button >> nth=0'); pg.wait_for_timeout(300)
     pg.goto(BASE + '#/semaine'); pg.wait_for_timeout(800)
     # le titre
-    t = pg.inner_text('main h1.big')
+    t = pg.inner_text('main h1.acc-t')
     check('le titre : « Séance du jour »', t.upper().replace('\n', ' ') == 'SÉANCE DU JOUR', t)
     check('plus de « Mission du jour » nulle part sur l\'accueil', 'MISSION DU JOUR' not in pg.inner_text('main').upper().replace('\n', ' '))
-    check('le titre : pas de retour à la ligne forcé, et il ne peut pas déborder si la police manque', pg.evaluate("(() => { const h = document.querySelector('main h1.big'); return !h.querySelector('br') && getComputedStyle(h).whiteSpace === 'normal' })()"))
+    check('le titre : pas de retour à la ligne forcé, et il ne peut pas déborder si la police manque', pg.evaluate("(() => { const h = document.querySelector('main h1.acc-t'); return !h.querySelector('br') && getComputedStyle(h).whiteSpace === 'normal' })()"))
     # la vraie police n'est pas chargée ici (pas de réseau) : avec une police de secours plus large, le titre se replie, la page ne s'élargit pas
     check('accueil : pas de défilement de côté', pg.evaluate('document.scrollingElement.scrollWidth <= document.documentElement.clientWidth + 1'), pg.evaluate('[document.scrollingElement.scrollWidth, document.documentElement.clientWidth]'))
     # les bravos, en haut de l'accueil
-    pos = pg.evaluate("(() => { const b = document.querySelector('.bvcard'), s = document.querySelector('.mission'), h = document.querySelector('main h1.big'); return b && s ? { avantSeance: b.getBoundingClientRect().bottom <= s.getBoundingClientRect().top, apresTitre: b.getBoundingClientRect().top >= h.getBoundingClientRect().bottom, large: b.getBoundingClientRect().width } : null })()")
+    pos = pg.evaluate("(() => { const b = document.querySelector('.bvcard'), s = document.querySelector('.mission'), h = document.querySelector('main h1.acc-t'); return b && s ? { avantSeance: b.getBoundingClientRect().bottom <= s.getBoundingClientRect().top, apresTitre: b.getBoundingClientRect().top >= h.getBoundingClientRect().bottom, large: b.getBoundingClientRect().width } : null })()")
     check('les bravos : tout de suite sous le titre, avant la séance', pos and pos['avantSeance'] and pos['apresTitre'], pos)
     check('les bravos : un seul bloc sur la page', pg.locator('.bvcard').count() == 1)
     # le rail de l'iPad

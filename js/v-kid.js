@@ -67,11 +67,13 @@
   MC.kidBar = kidBar;
   function subBar(back, backLabel, title) { return ui.topbar({ back: back, backLabel: backLabel, title: title, right: adultBtn(), help: ui.helpLink('joueur') }); }
   MC.kidSubBar = subBar;
-  // les sous-onglets de Prépa : Ma semaine · Bilans · Classement
-  function prepaTabs(on) {
-    return ui.subtabs('prepa', [['semaine', '#/semaine', 'Ma semaine'], ['bilans', '#/bilans', 'Bilans'], ['classement', '#/classement', 'Classement']], on, '#38E8FF', 'Prépa');
+  // (v67) les sous-onglets de Progrès : Records · Niveaux (· Skills une fois ouverts aux enfants)
+  function kidProgresTabs(on) {
+    var l = [['records', '#/bilans', 'Records'], ['niveaux', '#/niveaux', 'Niveaux']];
+    if (MC.ouvert('skills')) l.push(['skills', '#/skills', 'Skills']);
+    return ui.subtabs('progres', l, on, '#FFC23D', 'Progrès');
   }
-  MC.prepaTabs = prepaTabs;
+  MC.kidProgresTabs = kidProgresTabs;   // (le nom MC.progresTabs est celui de l'espace éduc)
   // une seule fois : « Nouveau dans Missions » en haut de Prépa (un +1, un mot, une mission), qu'on ferme d'un toucher
   function bandeauMissions(me) {
     if (!MC.missions) return '';
@@ -86,7 +88,7 @@
     if (mots.length) quoi.push(mots.length > 1 ? mots.length + ' mots de tes éducs' : 'un mot de ' + mots[0].parNom);
     if (nv.missions.length) quoi.push(nv.missions.length > 1 ? nv.missions.length + ' missions' : 'une mission');
     var t = quoi.join(', ').replace(/, ([^,]*)$/, ' et $1');
-    return '<div class="nbanner"><a href="#/missions"><span class="nb-ic">' + (p1.length ? '+1' : icon('target', 18)) + '</span><span class="grow"><span class="nb-k">Nouveau dans Missions</span><span class="nb-t">' + esc(t.charAt(0).toUpperCase() + t.slice(1)) + '</span></span></a>' +
+    return '<div class="nbanner"><a href="#/missions"><span class="nb-ic">' + (p1.length ? '+1' : icon('target', 18)) + '</span><span class="grow"><span class="nb-k">Nouveau dans tes missions</span><span class="nb-t">' + esc(t.charAt(0).toUpperCase() + t.slice(1)) + '</span></span></a>' +
       '<button type="button" class="cbtn grey" data-act="fermeBandeau" data-v="' + esc(dernier) + '" aria-label="Fermer">' + icon('x', 16) + '</button></div>';
   }
   MC.act.fermeBandeau = function (b) { var me = app.S.me; if (!me) return; app.lsSet('mc-bandeau:' + me.joueur.id, b.getAttribute('data-v')); var el = b.closest('.nbanner'); if (el) el.remove(); };
@@ -111,7 +113,7 @@
       };
       return paintSemaine(me, app.S.stats);
     });
-  }, { kid: true, nav: 'prepa', live: true });
+  }, { kid: true, nav: 'accueil', live: true });
 
   // (v36) les bravos de tes éducs pour tes séances des 7 derniers jours (les 3 plus récents)
   function bravosCarte(me) {
@@ -136,23 +138,25 @@
         '<div class="art"><span class="pill" style="--pc:' + j.color + '">' + esc(j.theme) + '</span>' + ui.lvl(lv) +
         '<div class="anim" data-anim="' + esc(items[0] ? items[0].anim : '') + '" data-color="' + j.color + '"></div></div>' +
         '<div class="body"><div><div class="ttl">' + esc(j.nomSeance) + '</div><div class="sub">' + items.length + ' exos · ≈ ' + j.duree + ' min · +' + C.XP.seance + ' XP</div></div>' +
-        '<ul class="exlist">' + items.map(function (it, i) {
-          return '<li><a class="exrow" style="--xc:' + j.color + '" href="#/exo/' + it.id + '?jour=' + type + '"><span class="n">' + (i + 1) + '</span><span class="nm">' + esc(it.nom) + '</span><span class="ds">' + esc(ui.doseLabel(it.dose)) + '</span>' + icon('right', 16) + '</a></li>';
-        }).join('') + '</ul>' +
         (doneToday ? '<div class="note green">' + icon('check', 22) + '<span><b>Séance faite cette semaine !</b> Ton étoile est gagnée. Tu peux la refaire pour le plaisir.</span></div>' : '') +
         (!doneToday && MC.accueil && !(me.seances || []).length ? MC.accueil.tip('k-lancer', me.joueur.id, 'Touche ici : le site t\'explique chaque exercice et lance le chrono pour toi.') : '') +
+        // (v67) le bouton au premier écran ; les exercices repliés dessous
         '<a class="btn' + (doneToday ? '' : ' glow') + '" href="#/jour/' + type + '">' + icon('play', 18) + (doneToday ? ' Revoir la séance' : ' Lancer la séance') + '</a>' +
-        (doneToday ? '' : '<a class="btn2" href="#/noter?type=' + type + '">' + icon('check', 16) + ' J\'ai déjà fait ma séance</a>') +
+        '<details class="exd"><summary>' + icon('list', 16) + '<span class="grow">Les ' + items.length + ' exercices</span>' + icon('down', 14, 'class="exd-i"') + '</summary>' +
+        '<ul class="exlist">' + items.map(function (it, i) {
+          return '<li><a class="exrow" style="--xc:' + j.color + '" href="#/exo/' + it.id + '?jour=' + type + '"><span class="n">' + (i + 1) + '</span><span class="nm">' + esc(it.nom) + '</span><span class="ds">' + esc(ui.doseLabel(it.dose)) + '</span>' + icon('right', 16) + '</a></li>';
+        }).join('') + '</ul></details>' +
+        (doneToday ? '' : '<a class="lnk acc-deja" href="#/noter?type=' + type + '">' + icon('check', 14) + ' J\'ai déjà fait ma séance</a>') +
         '</div></div></section>';
     } else {
       var txt = j.intro, act = '';
       if (type === 'club') act = doneToday ? '<div class="note green">' + icon('check', 22) + '<span>Club noté : étoile gagnée !</span></div>' : '<a class="btn" href="#/noter?type=club">' + icon('ball', 18) + ' J\'ai fait le club</a>';
       if (type === 'recup') act = doneToday ? '<div class="note green">' + icon('check', 22) + '<span>Récup notée : étoile gagnée !</span></div>' : '<a class="btn" href="#/noter?type=recup">' + icon('leaf', 18) + ' Valider ma récup</a>';
-      if (type === 'repos') act = '<div class="note">' + icon('moon', 22) + '<span>Pas de séance, pas d\'étoile à gagner aujourd\'hui : c\'est pendant le repos que les muscles deviennent plus forts.</span></div>';
+      if (type === 'repos') act = '';   // (v67) « Repos aujourd'hui », sans « pas d'étoile » : c'est dit dans la carte
       mission = '<section class="mission" style="' + jourColors(j) + '"><div class="in">' +
         '<div class="art"><span class="pill" style="--pc:' + j.color + '">' + esc(j.theme) + '</span><span class="ico">' + icon(j.icon, 96) + '</span></div>' +
-        '<div class="body"><div><div class="ttl">' + esc(j.nomSeance) + '</div>' + (j.slot >= 0 ? '<div class="sub">+1 étoile · +' + (type === 'club' ? C.XP.club : C.XP.recup) + ' XP</div>' : '') + '</div>' +
-        '<p class="lead" style="color:var(--soft)">' + esc(txt) + '</p>' + act + '</div></div></section>';
+        '<div class="body"><div><div class="ttl">' + (type === 'repos' ? 'Repos aujourd\'hui' : esc(j.nomSeance)) + '</div>' + (j.slot >= 0 ? '<div class="sub">+1 étoile · +' + (type === 'club' ? C.XP.club : C.XP.recup) + ' XP</div>' : '') + '</div>' +
+        '<p class="lead" style="color:var(--soft)">' + (type === 'repos' ? 'C\'est pendant le repos que les muscles deviennent plus forts. À demain !' : esc(txt)) + '</p>' + act + '</div></div></section>';
     }
 
     // la semaine
@@ -192,19 +196,31 @@
       var nbR = [bandeauMissions(me), bilanNote, props, pendNote].filter(Boolean).length;
       aReg = '<details class="areg"' + (vu ? '' : ' open') + ' data-sig="' + esc(sig) + '"><summary><span class="hud">À regarder · ' + nbR + '</span>' + icon('down', 16) + '</summary><div class="areg-in">' + aRegarder + '</div></details>';
     }
-    return '<main class="screen">' + kidBar(me, st) + prepaTabs('semaine') +
-      '<div class="head"><span class="kicker">' + esc(C.JOURS[type].jour.toUpperCase()) + ' · ' + (cy.semaine > 8 ? 'FIN DU CYCLE' : 'SEMAINE ' + cy.semaine + ' / 8') + '</span>' +
-      '<h1 class="big">Séance du jour</h1></div>' +   // (v55) pas « Mission » : ça prêtait à confusion avec les vraies missions
-      bravosCarte(me) +   // (v55) en haut de l'accueil, plus franc qu'en bas de la colonne
+    // (v67) l'accueil : je fais quoi ? La séance (le bouton au premier écran), mes missions, ma semaine en une ligne
+    return '<main class="screen">' + kidBar(me, st) +
+      '<div class="head acc-h"><span class="kicker">' + esc(C.JOURS[type].jour.toUpperCase()) + ' · ' + (cy.semaine > 8 ? 'FIN DU CYCLE' : 'SEMAINE ' + cy.semaine + ' / 8') + '</span>' +
+      '<h1 class="acc-t">' + (type === 'repos' ? 'Aujourd\'hui' : 'Séance du jour') + '</h1></div>' +   // (v55) pas « Mission » ; (v67) plus de grand titre
+      bravosCarte(me) +
       '<div class="home"><div>' + mission + '</div><div class="side">' +
       (MC.accueil ? MC.accueil.kidChecklist(me, st) : '') +
-      '<section class="sec"><div class="between"><h2 class="h2">Ma semaine</h2><span class="hud" style="color:var(--gold)">' + wk.stars + ' / 6 étoiles</span></div>' +
+      missionsAccueil(me) +
+      '<section class="sec acc-sem"><div class="between"><h2 class="h2">Ma semaine</h2><span class="hud" style="color:var(--gold)">' + wk.stars + ' / 6 étoiles</span></div>' +
       '<div class="week">' + days.map(function (d) { return d.strip; }).join('') + '</div>' +
-      '<div class="weeklist">' + days.map(function (d) { return d.list; }).join('') + '</div></section>' + aReg +
-      '<section class="defi">' + icon('gift', 40, 'style="color:var(--gold);flex:none"') + '<div style="flex:1;display:flex;flex-direction:column;gap:6px"><span class="hud" style="color:var(--gold)">Défi de la semaine</span><span style="font-size:14px;line-height:1.3">' + (wk.bonus ? 'Coffre ouvert : +1 étoile bonus et +' + C.XP.bonus + ' XP !' : 'Gagne les 6 étoiles de la semaine et ouvre le coffre : +1 étoile bonus et +' + C.XP.bonus + ' XP.') + '</span><div class="segs" style="--n:6">' + seg + '</div></div></section>' +
-      prochainBilan + '</div></div>' +
+      '<p class="acc-sp">' + icon('gift', 18, 'style="color:var(--gold);flex:none"') + '<span>' + (wk.bonus ? '<b>Semaine parfaite !</b> +1 étoile bonus et +' + C.XP.bonus + ' XP.' : '<b>Semaine parfaite</b> : les 6 étoiles de la semaine = +1 étoile bonus et +' + C.XP.bonus + ' XP.') + '</span></p></section>' +
+      aReg + prochainBilan + '</div></div>' +
       '<div class="row" style="gap:8px;flex-wrap:wrap"><button type="button" class="pastoi" data-act="switchKid">' + icon('user', 14) + ' Pas ' + esc(me.joueur.prenom) + ' ? Changer de joueur</button>' +
       (app.S.adult ? '<a class="pastoi" href="#/adultes" style="text-decoration:none">' + icon('lock', 14) + ' Rendre le téléphone</a>' : '') + '</div></main>';
+  }
+  // (v67) les missions à faire, une carte chacune, sur l'accueil (il n'y a plus d'onglet Missions) ; « Toutes » mène à la liste
+  function missionsAccueil(me) {
+    if (!MC.missions) return '';
+    var M = MC.missions, l = M.aFaire(me);
+    var cartes = l.map(function (m) {
+      var D = m.statique && M.def ? M.def(m.id) : null, href = D && D.lien ? D.lien : m.statique ? '#/missions' : '#/missions/m/' + encodeURIComponent(m.id);
+      return '<li><a class="li acc-mi" href="' + href + '">' + icon((D && D.icon) || 'target', 20, 'style="color:var(--pink);flex:none"') + '<span class="grow"><span class="t1">' + esc(m.titre) + '</span><span class="t2">Mission à faire</span></span>' + icon('right', 16) + '</a></li>';
+    }).join('');
+    return '<section class="sec acc-mis"><div class="between"><h2 class="h2">Mes missions</h2><a class="lnk" href="#/missions">' + (cartes ? 'Toutes' : 'Voir') + '</a></div>' +
+      (cartes ? '<ul class="list">' + cartes + '</ul>' : '<p class="small" style="margin:0">Pas de mission à faire en ce moment.</p>') + '</section>';
   }
 
   // ---------- UNE SÉANCE (programme + lancement) ----------
@@ -212,7 +228,7 @@
     var j = C.JOURS[p.type];
     if (!j) return app.go('#/semaine', true);
     return app.loadMe().then(function (me) { return paintJour(p.type, me); });
-  }, { kid: true, nav: 'prepa' });
+  }, { kid: true, nav: 'accueil' });
 
   function paintJour(type, me) {
     var j = C.JOURS[type], niv = me.joueur.niveaux || {}, pr = prefs();
@@ -288,15 +304,15 @@
         return '<li>' + (it.anim ? '<span class="wuanim" data-anim="' + esc(it.anim) + '" data-color="#3DFFB0"></span>' : '') + '<span class="ds">' + esc(dose) + '</span><span><b>' + esc(it.nom) + '</b><small>' + esc(it.detail) + esc(mini) + '</small>' + ui.infoBtn(it.id, it.nom) + '</span></li>';
       }).join('') + '</ul></main>';
   }
-  app.route('/echauffement', function (p, q) { return app.loadMe().then(function () { return routineView(C.REVEIL, q.jour); }); }, { kid: true, nav: 'prepa' });
-  app.route('/calme', function (p, q) { return app.loadMe().then(function () { return routineView(C.CALME, q.jour); }); }, { kid: true, nav: 'prepa' });
+  app.route('/echauffement', function (p, q) { return app.loadMe().then(function () { return routineView(C.REVEIL, q.jour); }); }, { kid: true, nav: 'accueil' });
+  app.route('/calme', function (p, q) { return app.loadMe().then(function () { return routineView(C.CALME, q.jour); }); }, { kid: true, nav: 'accueil' });
 
   // ---------- FICHE EXO ----------
   app.route('/exo/:id', function (p, q) {
     var ex = C.EXOS[p.id];
     if (!ex) return app.go('#/semaine', true);
     return app.loadMe().then(function (me) { return paintExo(p.id, q.jour, me); });
-  }, { kid: true, nav: 'prepa', bg: '#12352E' });
+  }, { kid: true, nav: 'accueil', bg: '#12352E' });
 
   function paintExo(id, type, me) {
     var ex = C.EXOS[id], niv = me.joueur.niveaux || {}, n = niv[ex.cle] || 1;
@@ -360,7 +376,7 @@
       }
       return paintNoter(me);
     });
-  }, { kid: true, nav: 'prepa' });
+  }, { kid: true, nav: 'accueil' });
 
   function paintNoter(me) {
     var f = form, t = L.today();

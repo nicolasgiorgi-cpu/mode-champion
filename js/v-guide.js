@@ -69,12 +69,11 @@
     flags();
     var J = C.JOURS;
     return '<p class="lead">Mode champion, c\'est ton carnet de prépa physique… en mode jeu vidéo. Tu t\'entraînes à la maison, tu gagnes des <b>étoiles</b> et des <b>XP</b>, tu montes de <b>niveau</b>, tu débloques des <b>badges</b> et tu te compares aux joueurs de ton niveau. ' + (SKON ? 'Et tes éducs te donnent des <b>missions</b> et valident tes <b>Skills</b> de rugby.' : 'Et tes éducs te lancent des <b>missions</b>, comme choisir ton poste pour le jeu à 10.') + '</p>' +
-      card('onglets', 'menu', '#38E8FF', 'L\'appli en ' + (SKON ? 4 : 3) + ' onglets', SKON ? 'Prépa · Missions · Skills · Moi' : 'Prépa · Missions · Moi',
+      card('onglets', 'menu', '#38E8FF', 'L\'appli en 4 onglets', 'Accueil · Équipe · Progrès · Moi',
         ul([
-          '<b>Prépa</b> : ta prépa physique. <b>Ma semaine</b> (la séance du jour et GO, tes étoiles), <b>Bilans</b> (tes records et tes niveaux) et <b>Classement</b> (l\'arène).',
-          SKON && MEON ? '<b>Missions</b> : ce que demandent tes éducs. En haut, ta <b>mission principale</b> et ses encouragements ; puis les missions ponctuelles (choisir ton poste, une vidéo, un QCM), et tous les mots de tes éducs. Une pastille rose = du nouveau.'
-            : '<b>Missions</b> : ce que demandent tes éducs, comme choisir ton poste pour le jeu à 10. Une pastille rose = une mission à faire.',
-          SKON ? '<b>Skills</b> : ton carnet de compétences rugby, 8 cartes d\'étoiles validées par tes éducs.' : '',
+          '<b>Accueil</b> : je fais quoi aujourd\'hui ? La séance du jour (le bouton pour la lancer), <b>mes missions</b> (ce que demandent tes éducs, comme choisir ton poste ; « Toutes » ouvre la liste), et ta semaine en une ligne (tes étoiles, la <b>semaine parfaite</b>). Une pastille rose = une mission à faire.',
+          '<b>Équipe</b> : les <b>podiums</b> de chaque épreuve, avec les joueurs de ton niveau (ta ligue) : toi et tes voisins.',
+          '<b>Progrès</b> : tes <b>records</b> (tes meilleurs résultats, ton bilan), tes <b>niveaux</b>' + (SKON ? ' et tes <b>Skills</b> (ton carnet de compétences rugby, 8 cartes d\'étoiles validées par tes éducs)' : '') + '.',
           '<b>Moi</b> : ton grade, tes XP, ' + (COPON ? 'tes postes et tes copains' : 'tes postes') + ', tes trophées, l\'aide et les réglages.',
           'La <b>flèche en haut à gauche</b> te ramène à l\'écran d\'avant, là où tu étais. Tout en haut d\'un écran, <b>tire vers le bas</b> puis lâche pour l\'actualiser. Quand l\'appli a une nouvelle version, elle se met à jour toute seule.'
         ].filter(Boolean)), true) +

@@ -13,7 +13,11 @@ window.MC = window.MC || {};
   var esc = ui.esc, icon = ui.icon;
 
   // R : qui regarde. Enfant : { k: true, d: me, base: '#/missions', sk: '#/skills' } ; parent : { k: false, d: dossier de l'enfant, fam }
-  function bar(R, title) { return R.k ? MC.kidBar(R.d, app.S.stats) : MC.parentBar(R.fam, R.d, title); }
+  // (v67) enfant : Missions s'ouvre depuis l'accueil (barre avec Retour) ; Skills est un sous-onglet de Progrès
+  function bar(R, title) {
+    if (!R.k) return MC.parentBar(R.fam, R.d, title);
+    return title === 'Skills' ? MC.kidBar(R.d, app.S.stats) + MC.kidProgresTabs('skills') : MC.kidSubBar('#/semaine', 'Accueil', 'Mes missions');
+  }
   function sub(R, back, backLabel, title) { return ui.topbar({ back: back, backLabel: backLabel, title: title, help: ui.helpLink(R.k ? 'joueur' : 'parent') }); }
   function T(R, k, p) { return R.k ? k : p; }        // texte enfant ou parent
   function prenom(R) { return R.d.joueur.prenom; }
@@ -381,16 +385,16 @@ window.MC = window.MC || {};
   }
   app.route('/missions', function (p, q, cur) {
     return app.loadMe().then(function (me) { luEnSortant('k', me, cur); return missionsHome(kidR(me), q.vue === 'faites' ? 'faites' : 'encours'); });
-  }, { kid: true, nav: 'missions', live: true, bg: '#33122A' });
+  }, { kid: true, nav: 'accueil', live: true, bg: '#33122A' });
   app.route('/missions/m/:id', garde('missionsEducs', '#/missions', function (p) {
     return app.loadMe().then(function (me) { return missionGroupe(kidR(me), p.id); });
-  }), { kid: true, nav: 'missions', bg: '#33122A' });
+  }), { kid: true, nav: 'accueil', bg: '#33122A' });
   app.route('/missions/perso', garde('skills', '#/missions', function (p, q, cur) {
     return app.loadMe().then(function (me) { luEnSortant('k', me, cur); return missionPerso(kidR(me)); });
-  }), { kid: true, nav: 'missions', live: true, bg: '#33122A' });
+  }), { kid: true, nav: 'accueil', live: true, bg: '#33122A' });
   app.route('/missions/mots', garde('missionsEducs', '#/missions', function (p, q, cur) {
     return app.loadMe().then(function (me) { luEnSortant('k', me, cur); return mots(kidR(me)); });
-  }), { kid: true, nav: 'missions', live: true, bg: '#12333A' });
+  }), { kid: true, nav: 'accueil', live: true, bg: '#12333A' });
   // (visuels v2) les étoiles arrivées depuis la dernière visite : le booster se joue à l'ouverture de Skills,
   // puis les cartes montrent leurs nouvelles étoiles (elles « tombent » à leur place, étiquette « Nouvelle étoile »)
   var APRES = null;
@@ -417,10 +421,10 @@ window.MC = window.MC || {};
       };
       return skillsHome(kidR(me), o);
     });
-  }), { kid: true, nav: 'skills', live: true, bg: '#2E2612' });
+  }), { kid: true, nav: 'progres', live: true, bg: '#2E2612' });
   app.route('/skills/:dom', garde('skills', '#/semaine', function (p, q, cur) {
     return app.loadMe().then(function (me) { cur.after = bindCards; cur.cleanup = unbindCards; return skillsCarte(kidR(me), p.dom); });
-  }), { kid: true, nav: 'skills', live: true, bg: '#2E2612' });
+  }), { kid: true, nav: 'progres', live: true, bg: '#2E2612' });
 
   // ======================================================================
   // Routes parent (l'enfant suivi se choisit en haut)

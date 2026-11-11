@@ -128,7 +128,7 @@
   // ----- ancienne adresse de la mission : la prochaine mission à faire, sinon l'onglet Missions -----
   app.route('/mission', function () {
     return app.loadMe().then(function (me) { var D = prochaine(me); setTimeout(function () { app.go(D ? D.lien : '#/missions', true); }, 0); return null; });
-  }, { kid: true, nav: 'missions' });
+  }, { kid: true, nav: 'accueil' });
 
   // en tête des 2 missions : récompense, et une note si la mission est déjà faite
   function enTete(me, id, titreHtml, lead) {
@@ -160,7 +160,7 @@
       cur.after = function (root) { bindTilt(root); };
       return paintPostes(me);
     });
-  }, { kid: true, nav: 'missions', bg: '#1B2552' });
+  }, { kid: true, nav: 'accueil', bg: '#1B2552' });
   function paintPostes(me) {
     var d = brouillon(me), qr = quizFini(d) ? M.quizResults(d.quiz.ans) : null;
     var quiz = '<div class="cp-tilt cp-wide" style="--c:#38E8FF;--d:#FF4FA3;--glow2:rgba(56,232,255,.22)"><a class="cp-card cp-q" href="#/mission/quiz"><span class="cp-in">' +
@@ -208,7 +208,7 @@
   app.route('/mission/poste/:id', function (p, q, cur) {
     cur.after = function (root) { bindEmblem(root); };
     return app.loadMe().then(function (me) { return paintPoste(me, p.id); });
-  }, { kid: true, nav: 'missions', bg: '#1B2552' });
+  }, { kid: true, nav: 'accueil', bg: '#1B2552' });
   // l'emblème de la fiche : il tourne en 3D sous le doigt (ou la souris) et brille
   function bindEmblem(root) {
     var zone = root.querySelector('.cp-dart'), em = root.querySelector('#cp-dem');
@@ -295,7 +295,7 @@
   // ----- le test « Aide-moi à choisir » -----
   app.route('/mission/quiz', function () {
     return app.loadMe().then(function (me) { return paintQuiz(me); });
-  }, { kid: true, nav: 'missions', bg: '#1B2552' });
+  }, { kid: true, nav: 'accueil', bg: '#1B2552' });
   function paintQuiz(me) {
     var d = brouillon(me), k = Math.min(d.quiz.step || 0, M.QUIZ.length), bar = MC.kidSubBar('#/mission/postes', 'Les postes', 'Aide-moi à choisir');
     if (k >= M.QUIZ.length && quizFini(d)) {
@@ -358,7 +358,7 @@
     // V1 (28/10) : la mission des copains n'est pas ouverte aux enfants (MC.CONFIG.ENFANTS)
     if (!MC.ouvert('copains')) { setTimeout(function () { app.go('#/missions', true); }, 0); return null; }
     return app.loadMe().then(function (me) { return roster().then(function (list) { return paintCopains(me, list); }); });
-  }, { kid: true, nav: 'missions', bg: '#12333A' });
+  }, { kid: true, nav: 'accueil', bg: '#12333A' });
   function copainsDispo(me, list) {
     return (list || []).filter(function (k) { return k.id !== me.joueur.id && !/^test$/i.test(k.prenom); });
   }

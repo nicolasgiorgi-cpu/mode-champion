@@ -90,7 +90,7 @@
   // ---------- PRÉPA › BILANS : mes records, mes niveaux ----------
   app.route('/bilans', function () {
     return app.loadMe().then(function (me) { return paintBilans(me, app.S.stats); });
-  }, { kid: true, nav: 'prepa', live: true });
+  }, { kid: true, nav: 'progres', live: true });
   function paintBilans(me, st) {
     var k = me.joueur, niv = k.niveaux || {}, bl = L.currentBilan();
     var recs = (me.records || []).filter(function (r) { return r.statut !== 'refuse'; });
@@ -111,9 +111,8 @@
       return '<li class="li"><span class="grow"><span class="t1">' + esc(sm ? t.sm.nom : t.court) + '</span><span class="t2">' + (gain ? '<b style="color:var(--green)">' + esc(gain) + '</b>' : b ? 'ton record' : att ? 'pas encore de record confirmé' : 'pas encore de résultat') + '</span>' + attTxt + '</span>' +
         (lv ? ui.lvl(lv) : '') + '<span style="font:700 17px/1 var(--f-hud);min-width:64px;text-align:right;color:' + (b ? 'var(--gold)' : 'var(--dim)') + '">' + (b ? ui.valHtml(b.valeur, t.unite, t.decimales) : '—') + '</span></li>';
     }).join('');
-    return '<main class="screen">' + MC.kidBar(me, st) + MC.prepaTabs('bilans') +
-      ui.seg([['records', 'Mes records', '#/bilans'], ['niveaux', 'Mes niveaux', '#/niveaux']], 'records') +
-      '<p class="small" style="margin:0">Tes meilleurs résultats aux bilans et aux défis, et ce que tu as gagné depuis ton premier.</p>' +
+    return '<main class="screen">' + MC.kidBar(me, st) + MC.kidProgresTabs('records') +
+      '<p class="small" style="margin:0">Tes records : tes meilleurs résultats, et ce que tu as gagné depuis le premier.</p>' +
       '<ol class="list">' + rows + '</ol>' +
       bilanBtn(me, bl) +
       '<a class="btn2" href="#/progression">' + icon('up', 16) + ' Ma progression d\'un bilan à l\'autre</a>' +
@@ -144,7 +143,7 @@
         '<section class="sec">' + MC.suivi.progression(me.records, { vide: 'Fais ton premier bilan pour voir ta progression ici.' }) + '</section>' +
         '<section class="sec"><h2 class="h2">Mes séances</h2><p class="small" style="margin:0">Touche une séance pour revoir le détail.</p>' + MC.suivi.seances(me.seances, { bravos: me.bravos }) + '</section></main>';
     });
-  }, { kid: true, nav: 'prepa', live: true });
+  }, { kid: true, nav: 'progres', live: true });
 
   // ---------- NIVEAUX ----------
   app.route('/niveaux', function () {
@@ -162,14 +161,13 @@
             '<button type="button" class="cbtn" data-act="lvStep" data-cle="' + cle + '" data-n="' + n + '" data-d="1" aria-label="' + esc(C.CLES[cle].nom) + ' : niveau d\'après"' + (upOk ? '' : ' disabled') + '>' + icon('plus', 18) + '</button></span></li>';
         }).join('') + '</ul></section>';
       }).join('');
-      return '<main class="screen">' + MC.kidBar(me, st) + MC.prepaTabs('bilans') +
-        ui.seg([['records', 'Mes records', '#/bilans'], ['niveaux', 'Mes niveaux', '#/niveaux']], 'niveaux') +
+      return '<main class="screen">' + MC.kidBar(me, st) + MC.kidProgresTabs('niveaux') +
         '<div class="head"><span class="kicker">N1 début · N2 moyen · N3 fort · N4 champion</span>' +
         '<p class="lead">Ils viennent de ton bilan (niveau 1 si tu ne l\'as pas encore fait). Trop facile ? Touche <b>+</b> pour passer au niveau d\'après, si ta technique est parfaite. Trop dur ? Touche <b>−</b>. Le <b>N4 champion</b> s\'ouvre quand le N3 est « facile » 2 séances de suite.</p></div>' +
         props + '<div class="cols2"><div class="sec" style="gap:20px">' + fams.split('</section>').slice(0, 2).join('</section>') + '</section></div><div class="sec" style="gap:20px">' + fams.split('</section>').slice(2, 4).join('</section>') + '</section></div></div>' +
         '<div class="note">' + icon('info', 20) + '<span>Tes parents et ton éduc voient tes niveaux et peuvent aussi les ajuster.</span></div></main>';
     });
-  }, { kid: true, nav: 'prepa', live: true });
+  }, { kid: true, nav: 'progres', live: true });
 
   MC.act.lvStep = function (b) {
     var cle = b.getAttribute('data-cle'), n = Number(b.getAttribute('data-n')), a = n + Number(b.getAttribute('data-d'));
@@ -355,18 +353,21 @@
       if (MC.accueil) MC.accueil.markArene(res[0].joueur.id);
       return paintRank(res[0], res[1]);
     });
-  }, { kid: true, nav: 'prepa', bg: '#2A1640' });
+  }, { kid: true, nav: 'equipe', bg: '#2A1640' });
 
   function paintRank(me, Lg) {
     var R = rankCards(Lg, { id: me.joueur.id, prenom: me.joueur.prenom, toi: true }, rank.sel, rank.mode);
     var meNote = !R.seen ? '<div class="note">' + icon('info', 20) + '<span>Tu n\'apparais pas encore : saisis ton bilan (ou un défi) et fais-le confirmer par un adulte.</span></div>' : '';
-    return '<main class="screen">' + MC.kidBar(me, app.S.stats) + MC.prepaTabs('classement') + '<div class="head"><span class="kicker" style="color:var(--pink)">Classement · M12</span><h1 class="big">L\'arène</h1></div>' +
-      '<section class="rkset"><p class="small" style="margin:0;color:var(--soft)">Sur chaque épreuve, tu te mesures aux joueurs de ton niveau (ta ligue).</p>' +
+    // (v67) l'onglet Équipe : les podiums de ta ligue ; pas de grand titre, les filtres repliés sous une ligne
+    return '<main class="screen">' + MC.kidBar(me, app.S.stats) + '<div class="head acc-h"><h1 class="acc-t">Les podiums</h1>' +
+      '<p class="small" style="margin:0">Sur chaque épreuve, avec les joueurs de ton niveau (ta ligue).</p></div>' +
+      '<details class="rkf"' + (rank.ouvert ? ' open' : '') + '><summary>' + icon('menu', 16) + '<span class="grow">' + (rank.mode === 'prog' ? 'Par progrès' : 'Par record') + ' · ' + (rank.sel.length ? rank.sel.length + ' épreuve' + (rank.sel.length > 1 ? 's' : '') : 'toutes les épreuves') + '</span>' + icon('down', 14, 'class="rkf-i"') + '</summary>' +
       '<div class="sec" style="gap:8px"><span class="lab">Épreuves' + (rank.sel.length ? ' · ' + rank.sel.length + ' choisie' + (rank.sel.length > 1 ? 's' : '') : ' · toutes') + '</span>' + rankChips(rank.sel, 'rkTest') + '</div>' +
-      '<div class="sec" style="gap:8px"><span class="lab">Classer par</span>' + modeBtns(rank.mode, 'rkMode') + '</div></section>' +
+      '<div class="sec" style="gap:8px"><span class="lab">Classer par</span>' + modeBtns(rank.mode, 'rkMode') + '</div></details>' +
       meNote + R.html +
       '<p class="small" style="text-align:center;margin:0">' + (rank.mode === 'prog' ? 'Progrès depuis ton 1er résultat : tout le monde peut être 1er.' : 'Records des bilans et des défis, confirmés par un adulte.') + '</p></main>';
   }
+  document.addEventListener('toggle', function (ev) { var t = ev.target; if (t && t.classList && t.classList.contains('rkf')) rank.ouvert = t.open; }, true);   // (v67) les filtres restent ouverts d'un toucher à l'autre
   MC.act.rkTest = function (b) { rank.sel = toggleSel(rank.sel, b.getAttribute('data-v')); app.lsSet('mc-rank', rank); paintAgain(); };
   MC.act.rkMode = function (b) { rank.mode = b.getAttribute('data-v'); app.lsSet('mc-rank', rank); paintAgain(); };
   // déplier / replier le classement complet d'une épreuve (enfant et parent)
@@ -423,7 +424,7 @@
       ensureBil(me);
       return paintBilan(me, L.currentBilan());
     });
-  }, { kid: true, nav: 'prepa' });
+  }, { kid: true, nav: 'progres' });
 
   function prevBilanValue(me, test, B) {
     var best = null;
@@ -505,7 +506,7 @@
       '<li><span class="num" style="--sc:var(--cyan)">1</span><span class="tx"><b>12 petits tests</b> (sauts, gainage, navette…) pour voir où tu en es. Quand tu veux, avec un adulte.</span></li>' +
       '<li><span class="num" style="--sc:var(--cyan)">2</span><span class="tx"><b>Avec un adulte</b> à côté qui regarde, compte et chronomètre. Environ 45 min, 2 min de repos entre deux tests.</span></li>' +
       '<li><span class="num" style="--sc:var(--cyan)">3</span><span class="tx">Il <b>règle tes niveaux</b> exercice par exercice, et tes résultats deviennent tes <b>records</b>.</span></li>' +
-      '<li><span class="num" style="--sc:var(--cyan)">4</span><span class="tx">Un parent ou ton éduc les <b>confirme</b> : ils entrent alors dans l\'arène (le classement).</span></li></ol>' +
+      '<li><span class="num" style="--sc:var(--cyan)">4</span><span class="tx">Un parent ou ton éduc les <b>confirme</b> : ils entrent alors dans les podiums de l\'équipe.</span></li></ol>' +
       (first ? '<p class="small" style="margin:0;color:var(--soft)">' + icon('info', 14) + ' Pas d\'adulte dispo aujourd\'hui ? Pas de souci : <b>tu peux t\'entraîner dès maintenant</b>, tes exos sont au niveau 1. Tu feras ton bilan quand un adulte sera là.</p>' : '') + '</section>';
   }
   function guidedCta() {
