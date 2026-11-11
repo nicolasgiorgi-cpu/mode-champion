@@ -576,7 +576,7 @@
     // un seul appel : résultats datés + niveaux + profil à jour en retour
     var nEx = 0;
     return app.kidCall('submitRecords', { bilan: String(B.n), valeurs: vals, date: bil.date || L.today(), niveaux: newLv, journal: journal, avecDossier: true }).then(function (r) {
-      nEx = (r.records || []).filter(function (x) { return x.statut === 'attente'; }).length;
+      nEx = (r.records || []).filter(function (x) { return x.statut === 'attente' && x.exploit; }).length;   // pas les anciens résultats « à confirmer » renvoyés tels quels
       if (r.me) return r.me;
       return app.kidCall('updateMe', { niveaux: newLv, journal: journal }); // serveur pas encore à jour
     }).then(function (res) {

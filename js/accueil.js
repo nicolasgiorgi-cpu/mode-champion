@@ -21,7 +21,7 @@ MC.accueil = (function () {
       ['group', '#FF7FBC', 'Équipe', 'les podiums, avec les joueurs de ton niveau'],
       ['trend', '#FFC23D', 'Progrès', 'tes records et tes niveaux'],
       ['user', '#3DFFB0', 'Moi', 'ton grade, tes badges et tes trophées']],
-    f: [['bolt', '#38E8FF', 'Prépa', 'ses séances à la maison, et ses résultats (un exploit est à confirmer)'],
+    f: [['bolt', '#38E8FF', 'Prépa', 'ses séances à la maison, et ses résultats (seuls les exploits sont à confirmer)'],
       ['target', '#FF7FBC', 'Missions', 'les défis et les encouragements de ses éducs'],
       ['star', '#FFC23D', 'Skills', 'ses étoiles rugby, validées par les éducs au terrain'],
       ['menu', '#C9AEFF', 'Plus', 'votre code, l\'aide et les réglages']],

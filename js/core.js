@@ -934,6 +934,8 @@ var Core = (function () {
         date = String(req.date);
       }
       var vals = Array.isArray(req.valeurs) ? req.valeurs.slice(0, 20) : [];
+      // (v70, relecture) les niveaux du bilan d'abord : l'exploit « podium » se juge dans la ligue où l'enfant s'affichera
+      if (req.niveaux || req.journal) majJoueur(req, ctx);
       var mine = where(ctx.db.rows('records'), 'joueurId', ctx.auth.id), saved = [];
       for (var i = 0; i < vals.length; i++) {
         var v = vals[i];
@@ -969,7 +971,6 @@ var Core = (function () {
       if (bilan !== 'defi' && req.date) {
         mine.forEach(function (r) { if (r.bilan === bilan && r.date !== date) ctx.db.update('records', r.id, { date: date }); });
       }
-      if (req.niveaux || req.journal) majJoueur(req, ctx);
       return { records: saved, me: req.avecDossier ? dossier(ctx, find(ctx.db.rows('joueurs'), ctx.auth.id), true) : null };
     }
   };

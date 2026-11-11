@@ -120,5 +120,21 @@ assert.strictEqual(st(note(O2, 'corde1', 85)), 'attente:podium', 'repère : Léo
 fam = g.call({ action: 'adultLogin', code: L1.fcode });
 assert.ok(g.call({ action: 'setVisible', token: fam.token, joueurId: L1.id, visible: false }).ok);
 assert.strictEqual(st(note(O, 'corde1', 85)), 'ok', 'Léo caché : 2 autres classés seulement, pas de podium à gagner');
+// un enfant désactivé ne compte pas non plus
+const Z = ['Zia', 'Zoé', 'Zac'].map(p => enfant(p)), Z4 = enfant('Zéphyr');
+[160, 150, 140].forEach((v, i) => note(Z[i], 'saut', v));
+assert.ok(g.call({ action: 'updatePlayer', token: et, joueurId: Z[0].id, actif: false }).ok);
+assert.strictEqual(st(note(Z4, 'saut', 155)), 'ok', 'Zia désactivée : 2 autres classés seulement (sinon : 2e sur 4, un podium)');
+// (relecture) les niveaux du bilan comptent avant de juger le podium : la ligue où il s'affichera
+const N3 = ['Abel', 'Adam', 'Ali', 'Amir', 'Anis'].map(p => enfant(p, { pompes: 3 }));
+[40, 35, 30, 25, 20].forEach((v, i) => note(N3[i], 'pompes', v));
+const N1 = ['Bao', 'Ben', 'Bix', 'Bly'].map(p => enfant(p));
+[10, 8, 6, 5].forEach((v, i) => note(N1[i], 'pompes', v));
+const nouveau = enfant('Cyan');
+x = g.call({ action: 'submitRecords', token: nouveau.tok, bilan: '0', valeurs: [{ test: 'pompes', valeur: 15 }], niveaux: { pompes: 3 }, journal: [{ type: 'bilan_niveaux', data: { bilan: 0 } }] });
+assert.ok(x.ok && st(x.records[0]) === 'ok', 'son bilan le passe N3 : 6e sur 6 de sa ligue N3, pas un podium chez les N1 — ' + JSON.stringify(x.records));
+// un éduc qui n'est pas le parent ne peut pas retirer un score qui compte déjà
+const scoreTom = g.call({ action: 'me', token: tom.tok }).records.find(r => r.statut === 'ok');
+assert.strictEqual(g.call({ action: 'confirm', token: et, decisions: [{ id: scoreTom.id, statut: 'refuse' }] }).error, 'interdit', 'c\'est sa famille qui corrige');
 console.log('podium OK');
 console.log('TOUT OK');
