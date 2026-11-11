@@ -9,7 +9,7 @@ MC.CONFIG = {
   API_URL: 'https://script.google.com/macros/s/AKfycbzeUymcxVaYsENKbVL2e6BMtwrQ_IRbjeCMQ3A_VJAgK1M4__ujnjc6wOb2DLdCZIg/exec',
 
   // Nom affiché
-  CLUB: 'M12 · PRÉPA PHYSIQUE · 2026-27',
+  CLUB: 'PRÉPA PHYSIQUE · 2026-27',   // (v76, restes du lot E1) « M12 » retiré des titres (revue du 09/11)
 
   // Les cycles de 8 semaines (le lundi de la 1re semaine). Le tableau des étoiles suit ces dates.
   CYCLES: [

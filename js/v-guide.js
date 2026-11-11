@@ -72,8 +72,8 @@
       card('onglets', 'menu', '#38E8FF', 'L\'appli en 4 onglets', 'Accueil · Équipe · Progrès · Moi',
         ul([
           '<b>Accueil</b> : je fais quoi aujourd\'hui ? La séance du jour (le bouton pour la lancer), <b>mes missions</b> (ce que demandent tes éducs, comme choisir ton poste ; « Toutes » ouvre la liste), ta semaine en une ligne (tes étoiles, la <b>semaine parfaite</b>) et la dernière nouvelle de l\'équipe. Une pastille rose = une mission à faire.',
-          '<b>Équipe</b> : <b>Ça bouge</b>, les séances et les records battus de l\'équipe cette semaine (un 👏 pour encourager les autres : tu choisis un mot tout prêt), et les <b>podiums</b> : le progrès du mois et la régularité de toute l\'équipe, et les records de chaque épreuve avec les joueurs de ton niveau (ta ligue).',
-          '<b>Progrès</b> : tes <b>records</b> (tes meilleurs résultats, ton bilan), tes <b>niveaux</b>' + (SKON ? ' et tes <b>Skills</b> (ton carnet de compétences rugby, 8 cartes d\'étoiles validées par tes éducs)' : '') + '.',
+          '<b>Équipe</b> : <b>Ça bouge</b>, le <b>défi d\'équipe</b> (une jauge commune : tes répétitions des séances guidées la remplissent avec celles des autres ; pleine, un badge pour tous), les séances et les records battus de l\'équipe cette semaine (un 👏 pour encourager les autres : tu choisis un mot tout prêt), et les <b>podiums</b> : le progrès du mois et la régularité de toute l\'équipe, et les records de chaque épreuve avec les joueurs de ton niveau (ta ligue).',
+          '<b>Progrès</b> : tes <b>records</b> (tes meilleurs résultats, ton bilan, tes <b>compteurs</b> : tout ce que tu as fait dans tes séances guidées depuis septembre), tes <b>niveaux</b>' + (SKON ? ' et tes <b>Skills</b> (ton carnet de compétences rugby, 8 cartes d\'étoiles validées par tes éducs)' : '') + '.',
           '<b>Moi</b> : ton grade, tes XP, ' + (COPON ? 'tes postes et tes copains' : 'tes postes') + ', tes trophées, l\'aide et les réglages.',
           'La <b>flèche en haut à gauche</b> te ramène à l\'écran d\'avant, là où tu étais. Tout en haut d\'un écran, <b>tire vers le bas</b> puis lâche pour l\'actualiser. Quand l\'appli a une nouvelle version, elle se met à jour toute seule.'
         ].filter(Boolean)), true) +
@@ -247,6 +247,7 @@
         ul([
           'Le classement compare les enfants <b>de même niveau</b> sur chaque test, en meilleur score ou en progrès.',
           'Prépa › <b>Classement</b> : la ligue de votre enfant sur chaque test. Seule la prépa physique y compte (jamais les missions' + (SKON ? ' ni les Skills' : '') + ').',
+          'Le <b>défi d\'équipe</b> (Équipe › Ça bouge des enfants) : une jauge commune remplie par les répétitions des séances guidées de tous ; chaque enfant voit le total et sa part, jamais celle des autres. Jauge pleine : un badge pour tous, gardé même si un enfant quitte le groupe.',
           'Côté enfants, deux podiums de plus, pour toute l\'équipe : le <b>progrès du mois</b> (le nombre de records battus ces 30 jours) et la <b>régularité</b> (les étoiles des 4 dernières semaines). Chaque enfant voit le podium, puis sa place et ses voisins, jamais le bas du tableau.',
           'Tous les enfants y apparaissent par défaut. Vous pouvez <b>masquer votre enfant</b> (en bas du classement, ou dans Plus) : il continue de voir sa propre place.',
           'Dans l\'onglet <b>Équipe › Ça bouge</b> des enfants, les autres voient aussi ses séances (le jour et l\'heure) et ses records battus (l\'écart, jamais le score), et peuvent lui dire bravo avec un mot tout prêt. Masqué, il n\'y apparaît pas et n\'envoie pas de bravo.',

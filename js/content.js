@@ -354,7 +354,14 @@ window.MC = window.MC || {};
     { id: 'exploit', nom: 'Badges d\'exploit', intro: 'Au bilan, ou un jour où tu te sens fort, avec un adulte qui compte. Touche un badge pour tenter le défi.' },
     { id: 'seances', nom: 'Badges de séances', intro: '10 séances = bronze, 25 = argent, 40 = or. Chaque palier rapporte des XP.' },
     { id: 'regularite', nom: 'Badges de régularité', intro: '' },
-    { id: 'missions', nom: 'Badges de missions', intro: 'Une mission spéciale accomplie = un badge.' }
+    { id: 'missions', nom: 'Badges de missions', intro: 'Une mission spéciale accomplie = un badge.' },
+    { id: 'equipe', nom: 'Badges d\'équipe', intro: 'Gagnés tous ensemble : quand la jauge du défi d\'équipe est pleine, chacun a le badge.' }
+  ];
+  // (v76, lot E6) les compteurs : les répétitions (ou les secondes) notées dans les séances guidées, depuis le début de la saison ;
+  // sansMini : la variante « mini matériel » est un autre mouvement (tirage élastique, superman tenu), pas comptée
+  var COMPTEURS = [
+    { exo: 'squat', nom: 'squats' }, { exo: 'pompes', nom: 'pompes' }, { exo: 'tractions', nom: 'tractions', sansMini: true }, { exo: 'fentes', nom: 'fentes' },
+    { exo: 'pont', nom: 'ponts' }, { exo: 'mollets', nom: 'montées sur les mollets' }, { exo: 'planche', nom: 'de planche', temps: true }, { exo: 'suspension', nom: 'de suspension', temps: true, sansMini: true }
   ];
   var PALIERS = [
     { nom: 'Bronze', color: '#E0894A' },
@@ -380,7 +387,9 @@ window.MC = window.MC || {};
     { id: 'fidele', famille: 'regularite', nom: 'Fidèle', cond: '25 séances à la maison', icon: 'shield', color: '#B48CFF' },
     { id: 'legende', famille: 'regularite', nom: 'Légende', cond: '56 étoiles sur un cycle de 8 semaines', icon: 'trophy', color: '#FFC23D' },
     { id: 'jeu10', famille: 'missions', nom: 'Prêt pour le jeu à 10', cond: 'Mission « Choisis ton poste » accomplie', mission: 'poste', lien: '#/mission/postes', icon: 'ball', color: '#38E8FF' },
-    { id: 'copains', famille: 'missions', nom: 'Esprit d\'équipe', cond: 'Mission « Avec qui tu aimes jouer » accomplie', mission: 'copains', lien: '#/mission/copains', icon: 'group', color: '#3DFFB0' }
+    { id: 'copains', famille: 'missions', nom: 'Esprit d\'équipe', cond: 'Mission « Avec qui tu aimes jouer » accomplie', mission: 'copains', lien: '#/mission/copains', icon: 'group', color: '#3DFFB0' },
+    // (v76, lot E6) le badge du défi d'équipe : pour tous quand la jauge est pleine
+    { id: 'equipe_noel26', famille: 'equipe', nom: 'Tous ensemble', icon: 'group', color: '#3DFFB0', cond: 'La jauge du défi d\'équipe pleine : 10 000 mouvements de jambes avant Noël', equipe: 'noel26' }
   ].filter(function (b) {
     // V1 (28/10) : la mission des copains n'est pas ouverte aux enfants, son badge non plus (voir MC.CONFIG.ENFANTS)
     return b.mission !== 'copains' || !MC.ouvert || MC.ouvert('copains');
@@ -421,7 +430,7 @@ window.MC = window.MC || {};
   MC.CONTENT = {
     NIVEAUX: NIVEAUX, CLES: CLES, FAMILLES: FAMILLES, EXOS: EXOS, REVEIL: REVEIL, CALME: CALME,
     JOURS: JOURS, SEMAINE: SEMAINE, SLOTS: SLOTS, TESTS: TESTS, BADGES: BADGES, FAMILLES_BADGES: FAMILLES_BADGES, PALIERS: PALIERS, DEFI_TESTS: DEFI_TESTS,
-    GRADES: GRADES, XP: XP, A_DEUX: A_DEUX,
+    GRADES: GRADES, XP: XP, A_DEUX: A_DEUX, COMPTEURS: COMPTEURS,
     COULEURS: ['#38E8FF', '#FF4FA3', '#3DFFB0', '#FFC23D', '#B48CFF', '#FF8A3D', '#4D9BFF', '#FF4F6D', '#7CFF6B', '#F5F7FF']
   };
 })();

@@ -270,6 +270,12 @@ MC.logic = (function () {
         if (nav.length >= 2) { var f = nav[0].valeur; for (var i = 1; i < nav.length; i++) if (nav[i].valeur < f) { ok = nav[i]; break; } }
       } else if (b.id === 'champion') {
         ok = n4Exploit(data);
+      } else if (b.equipe) {
+        // (v76, lot E6) un badge pour tous : la jauge du défi d'équipe pleine (le serveur le dit, défis finis compris)
+        var de = (data.defisEquipe || []).filter(function (x) { return x.id === b.equipe; })[0];
+        // (relecture v76) un défi fini sans jauge pleine : son badge disparaît des trophées (et du compte des badges)
+        if (de && de.fini && !de.plein) { res[b.id] = { earned: false, tier: 0, cache: true }; return; }
+        ok = de && de.plein ? { date: de.date || '' } : null;
       } else if (b.paliers) {
         // nombre de jours différents avec une séance de ce type
         var jours = {}, dates = [];
@@ -403,13 +409,14 @@ MC.logic = (function () {
     var badges = badgesOf(data, W, st);
     var nbBadges = 0, nbPaliers = 0;
     Object.keys(badges).forEach(function (k) { if (badges[k].earned) { nbBadges++; nbPaliers += badges[k].tier || 1; } });
+    var nbBadgesTot = C.BADGES.filter(function (b) { return !(badges[b.id] && badges[b.id].cache); }).length;
     xp += nbPaliers * X.badge; // chaque palier (bronze, argent, or) rapporte comme un badge
     var cy = cycleAt(today());
     var bd = board(W, cy);
     var thisWeek = weekInfo(W, monday(today()));
     return {
       W: W, xp: xp, bilansComplets: bilansComplets, grade: gradeOf(xp), stars: totalStars, streak: sk.cur, bestStreak: sk.best, maison: maison,
-      perfectWeeks: perfectWeeks, badges: badges, nbBadges: nbBadges, recordsBattus: recordsBattus,
+      perfectWeeks: perfectWeeks, badges: badges, nbBadges: nbBadges, nbBadgesTot: nbBadgesTot, recordsBattus: recordsBattus,
       cycle: cy, board: bd, week: thisWeek, niveaux: (data.joueur && data.joueur.niveaux) || {},
       bests: bests(data.records, {}), bestsOk: bests(data.records, { confirmed: true }),
       proposals: proposals(data), seancesCount: seances.length, etoilesSkills: nbEtoiles
@@ -572,6 +579,32 @@ MC.logic = (function () {
     return out;
   }
 
+  // ---------- (v76, lot E6) les compteurs ----------
+  // Les répétitions (ou les secondes) de chaque exercice compté, dans les séances guidées depuis une date (le début de la saison).
+  // Mêmes règles que la jauge d'équipe au serveur (repsExo dans js/core.js) : une dose « par jambe » ou « par côté » compte les deux,
+  // une série de plus de 100 répétitions (ou 600 s) est écartée ; la variante mini matériel ne compte pas quand c'est un autre mouvement.
+  var SERIE_MAX = 100, SERIE_MAX_S = 600;
+  function repsExo(e, temps) {
+    if (!e || !Array.isArray(e.series)) return 0;
+    var k = /\/ (jambe|côté)$/.test(String(e.dose || '')) ? 2 : 1, n = 0;
+    e.series.forEach(function (v) { v = Number(v); if (isFinite(v) && v > 0 && v <= (temps ? SERIE_MAX_S : SERIE_MAX)) n += Math.round(v) * k; });
+    return n;
+  }
+  function compteurs(seances, depuis) {
+    var tot = {}, par = {};
+    C.COMPTEURS.forEach(function (c) { par[c.exo] = c; });
+    (seances || []).forEach(function (s) {
+      if (s.mode !== 'guidee' || !s.details || !Array.isArray(s.details.exos) || (depuis && s.date < depuis)) return;
+      s.details.exos.forEach(function (e) {
+        var c = e && par[e.id];
+        if (!c || (c.sansMini && e.mini)) return;
+        var n = repsExo(e, c.temps);
+        if (n) tot[e.id] = (tot[e.id] || 0) + n;
+      });
+    });
+    return C.COMPTEURS.map(function (c) { return { exo: c.exo, nom: c.nom, temps: !!c.temps, n: tot[c.exo] || 0 }; }).filter(function (c) { return c.n > 0; });
+  }
+
   // ---------- (v74, lot E3) le record du jour ----------
   // Une épreuve par jour de séance à la maison, liée au thème du jour (lundi le haut du corps, mardi l'explosivité,
   // mercredi le cardio, jeudi les jambes) ; les 12 épreuves tournent en 4 semaines. Décisions de Nicolas (10/11) :
@@ -632,7 +665,7 @@ MC.logic = (function () {
     levelFromTest: levelFromTest, levelsFromBilan: levelsFromBilan, proposals: proposals, compute: compute, gradeOf: gradeOf,
     niveau: niveau, dayLevel: dayLevel, league: league, progresMois: progresMois, regularite: regularite, podiumVoisins: podiumVoisins,
     recordDuJour: recordDuJour, peutTenter: peutTenter, tentativesDu: tentativesDu, DU_JOUR: DU_JOUR, TENTATIVES_JOUR: TENTATIVES_JOUR,
-    bilanCycle: bilanCycle, recordsParCycle: recordsParCycle, cycleDef: cycleDef, GRILLE_DEPUIS: GRILLE_DEPUIS,
+    bilanCycle: bilanCycle, recordsParCycle: recordsParCycle, cycleDef: cycleDef, GRILLE_DEPUIS: GRILLE_DEPUIS, compteurs: compteurs,
     _setToday: function (d) { fakeToday = d; }
   };
 })();

@@ -15,8 +15,8 @@ assert.strictEqual(MC.ouvert('copains'), false);
 assert.strictEqual(MC.ouvert('missionsEducs'), false);
 assert.strictEqual(MC.ouvert('autre'), true, 'ce qui n\'est pas listé reste ouvert');
 
-// badges : 18, sans « Esprit d'équipe »
-assert.strictEqual(C.BADGES.length, 18);
+// badges : 19, sans « Esprit d'équipe » (v76 : + « Tous ensemble », le défi d'équipe)
+assert.strictEqual(C.BADGES.length, 19);
 assert.ok(!C.BADGES.some(b => b.id === 'copains'));
 assert.ok(C.BADGES.some(b => b.id === 'jeu10'));
 
