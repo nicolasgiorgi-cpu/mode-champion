@@ -64,11 +64,11 @@ with sync_playwright() as p:
     check('Missions : des encouragements, pas de « +1 »', pg.locator('.mp-bloc .encd').count() >= 1 and '+1' not in pg.inner_text('.mp-bloc'), pg.inner_text('.mp-bloc')[:200])
     check('Missions : la date de fin', bool(re.search(r"Jusqu'aux vacances|jusqu'au", pg.inner_text('.mp-bloc'), re.I)), pg.inner_text('.mp-bloc')[:200])
 
-    # plusieurs étoiles arrivent : l'onglet Skills devient doré (pas d'animation ailleurs)
+    # plusieurs étoiles arrivent : l'onglet Progrès devient doré et mène aux Skills (v68) (pas d'animation ailleurs)
     nb = reculer(pg, 3)
     go(pg, '#/semaine', 900)
     check('3 étoiles « nouvelles »', nb == 3, nb)
-    check('onglet Skills doré', pg.query_selector('#nav a.gold[href^="#/skills"]') is not None)
+    check('onglet Progrès doré, qui mène aux Skills', pg.query_selector('#nav a.gold[href^="#/skills"]') is not None and 'PROGRÈS' in (pg.inner_text('#nav a.gold') if pg.query_selector('#nav a.gold') else '').upper())
     check('pas de booster ailleurs que dans Skills', pg.query_selector('.bk') is None)
     shot(pg, 'onglet-dore')
     pg.click('#nav a[href^="#/skills"]'); pg.wait_for_timeout(900)
@@ -87,7 +87,7 @@ with sync_playwright() as p:
     check('booster : rangé (fermé)', pg.query_selector('.bk') is None)
     check('booster fermé : l\'appli redevient active', pg.get_attribute('#app', 'inert') is None)
     check('booster : les étoiles arrivent dans les cartes (pop)', pg.locator('.sk-pips .et.pop').count() >= 1, pg.locator('.sk-pips .et.pop').count())
-    check('onglet Skills redevenu normal', pg.query_selector('#nav a.gold') is None)
+    check('onglet Progrès redevenu normal', pg.query_selector('#nav a.gold') is None)
     go(pg, '#/skills', 900)
     check('le booster ne revient pas', pg.query_selector('.bk') is None)
 

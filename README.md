@@ -171,4 +171,5 @@ python3 /home/claude/tests/e2e_postes.py 390 844                   # répartitio
 node /home/claude/tests/test_compo_v67.js                          # (v67) postes ★ équilibrés entre les équipes, « Équilibrer d'abord », matchs comme un plateau (serveur compris)
 node /home/claude/tests/test_minuit.js                             # (v67) les comptes « par jour » du serveur à 0 h 30, heure de Paris
 python3 /home/claude/tests/e2e_v67.py 390 844                      # (v67) matchs d'entraînement comme un plateau, option « Équilibrer », « Effacer » à côté de « Publier »
+python3 /home/claude/tests/e2e_v68.py 390 844                      # (v68) enfant : Accueil · Équipe · Progrès · Moi
 ```

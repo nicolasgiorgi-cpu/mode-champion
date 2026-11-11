@@ -14,7 +14,8 @@ def full(pg, name): pg.screenshot(path=OUT + tag + '-' + name + '.png', full_pag
 def pin(pg, code, sel='.modal'):
     for c in code: pg.click('%s [data-k="%s"]' % (sel, c)); pg.wait_for_timeout(40)
 def noscroll(pg): return pg.evaluate('document.scrollingElement.scrollWidth <= document.documentElement.clientWidth + 1')
-def nb(pg): return pg.evaluate("(function(){var a=document.querySelectorAll('#nav a')[1];var n=a&&a.querySelector('.nb');return n?+n.textContent:0})()")
+# (v68) les missions sont sur l'Accueil : la pastille est sur le 1er onglet
+def nb(pg): return pg.evaluate("(function(){var a=document.querySelectorAll('#nav a')[0];var n=a&&a.querySelector('.nb');return n?+n.textContent:0})()")
 def close_news(pg):
     for k in ['.modal.sheet-news', '.modal.sheet-bvn']:
         if pg.query_selector(k):
@@ -35,13 +36,13 @@ with sync_playwright() as p:
     pg.reload(); pg.wait_for_timeout(1500)
     check('retour : nouveauté de la mission', pg.query_selector('.modal.sheet-news') is not None and 'jeu à 10' in pg.inner_text('.modal.sheet-news').lower(), pg.inner_text('.modal') if pg.query_selector('.modal') else '')
     close_news(pg)
-    check('bandeau « Nouveau dans Missions » sur Prépa', pg.query_selector('.nbanner') is not None)
+    check('bandeau « Nouveau dans tes missions » sur l\'Accueil', pg.query_selector('.nbanner') is not None)
     n0 = nb(pg)
-    check('pastille sur l\'onglet Missions', n0 >= 1, n0)
+    check('pastille sur l\'onglet Accueil', n0 >= 1, n0)
     check('pas de défilement horizontal (semaine)', noscroll(pg))
     shot(pg, 'm01-semaine')
     xp0 = pg.evaluate('MC.app.S.stats.xp')
-    pg.click('#nav a >> nth=1'); pg.wait_for_timeout(700)
+    pg.click('main .acc-mis a.lnk[href="#/missions"]'); pg.wait_for_timeout(700)   # (v68) depuis l'Accueil : « Toutes » les missions
     check('Missions : 2 missions séparées dans « Pour toute l\'équipe »', pg.query_selector('a.mrow[href="#/mission/postes"]') is not None and pg.query_selector('a.mrow[href="#/mission/copains"]') is not None)
     check('copains : se débloque après le poste', 'débloque' in pg.inner_text('a.mrow[href="#/mission/copains"]'))
     shot(pg, 'm02-missions')
@@ -110,7 +111,7 @@ with sync_playwright() as p:
     shot(pg, 'm11-bravo')
     pg.click('a.btn[href="#/missions"]'); pg.wait_for_timeout(700)
     check('Missions : plus de mission jeu à 10 « en cours »', pg.query_selector('a.mrow[href="#/mission/postes"]') is None and pg.query_selector('a.mrow[href="#/mission/copains"]') is None)
-    check('pastille Missions en baisse', nb(pg) < n0, (n0, nb(pg)))
+    check('pastille de l\'Accueil en baisse', nb(pg) < n0, (n0, nb(pg)))
     pg.goto(BASE + '#/missions?vue=faites'); pg.wait_for_timeout(600)
     check('Missions › Faites : les 2 missions', pg.query_selector('a.mrow[href="#/mission/postes"]') is not None and pg.query_selector('a.mrow[href="#/mission/copains"]') is not None)
     pg.goto(BASE + '#/profil'); pg.wait_for_timeout(500)

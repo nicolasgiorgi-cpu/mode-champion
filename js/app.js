@@ -400,7 +400,9 @@ MC.app = (function () {
     navEl.setAttribute('aria-label', set === 'k' ? 'Navigation principale' : set === 'p' ? 'Navigation de l\'espace parent' : 'Navigation de l\'espace éduc');
     navEl.innerHTML = items.map(function (it) {
       var on = active === it[0], n = navBadge(it[0]);
-      return '<a href="' + (on ? it[1] : tabHref(it)) + '" class="' + (on ? 'on' : '') + (it[0] === 'progres' && n && !on ? ' gold' : '') + '" style="--tc:' + it[4] + '"' + (on ? ' aria-current="page"' : '') + '>' + ui.icon(it[2], 22) + '<span>' + it[3] + '</span>' +
+      // (v68) Progrès doré (de nouvelles étoiles) : il mène aux Skills, où les étoiles arrivent
+      var dore = it[0] === 'progres' && n && !on;
+      return '<a href="' + (on ? it[1] : dore ? '#/skills' : tabHref(it)) + '" class="' + (on ? 'on' : '') + (dore ? ' gold' : '') + '" style="--tc:' + it[4] + '"' + (on ? ' aria-current="page"' : '') + '>' + ui.icon(it[2], 22) + '<span>' + it[3] + '</span>' +
         (n ? '<span class="nb" aria-label="' + n + (NB_LABEL[it[0]] || '') + '">' + n + '</span>' : '') + '</a>';
     }).join('');
   }
