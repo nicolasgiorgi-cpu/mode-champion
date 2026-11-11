@@ -17,7 +17,7 @@ Site statique (HTML/CSS/JS, rien à installer) + une Google Sheet qui sert de ba
 | `js/config.js` | **Les réglages** : adresse du serveur, dates des cycles et des bilans |
 | `js/core.js` | Le cœur du serveur (codes, séances, records), utilisé aussi par le mode démo |
 | `js/logic.js` | Les règles du jeu (étoiles, série, XP, badges, niveaux, ligues) |
-| `js/anims.js` | Les animations des exercices |
+| `js/anims.js` | Les animations des exercices et des tests du bilan (`ANIM` dans `js/v-bilan.js` ; la navette a la sienne depuis la v78 : départ debout, demi-tour dessiné en miroir avec `flip`) |
 | `js/fiches.js` | Les fiches **Détails et sécurité** (comment faire, erreurs, sécurité) de chaque exo, test et étape |
 | `js/routine.js` | L'échauffement et le retour au calme guidés (GO, chrono par étape ; au retour au calme, 10 s pour se mettre en position avant chaque étape, 5 s pour changer de côté — v62) |
 | `js/suivi.js` | Le suivi : progression d'un bilan à l'autre, détail des séances, progrès du groupe |

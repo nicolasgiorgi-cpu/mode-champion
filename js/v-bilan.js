@@ -15,7 +15,7 @@
   var RING = 2 * Math.PI * 210;
 
   // animation de chaque test (et de sa version « mini matériel »)
-  var ANIM = { flamant: 'flamant', saut: 'saut_longueur', navette: 'departs', susp: 'suspension', tract: 'tractions', pompes: 'pompes', planche: 'planche', squats: 'squat', chaise: 'chaise_mur', corde: 'corde', corde1: 'corde', burpees: 'burpees' };
+  var ANIM = { flamant: 'flamant', saut: 'saut_longueur', navette: 'navette', susp: 'suspension', tract: 'tractions', pompes: 'pompes', planche: 'planche', squats: 'squat', chaise: 'chaise_mur', corde: 'corde', corde1: 'corde', burpees: 'burpees' };
   var ANIM_SM = { susp: 'superman', tract: 'tirage_elastique', corde: 'sauts_lateraux', corde1: 'sauts_lateraux' };
   // quand toucher STOP
   var STOP_QUAND = {
