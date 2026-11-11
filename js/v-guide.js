@@ -72,7 +72,7 @@
       card('onglets', 'menu', '#38E8FF', 'L\'appli en 4 onglets', 'Accueil · Équipe · Progrès · Moi',
         ul([
           '<b>Accueil</b> : je fais quoi aujourd\'hui ? La séance du jour (le bouton pour la lancer), <b>mes missions</b> (ce que demandent tes éducs, comme choisir ton poste ; « Toutes » ouvre la liste), et ta semaine en une ligne (tes étoiles, la <b>semaine parfaite</b>). Une pastille rose = une mission à faire.',
-          '<b>Équipe</b> : les <b>podiums</b> de chaque épreuve, avec les joueurs de ton niveau (ta ligue) : toi et tes voisins.',
+          '<b>Équipe</b> : <b>Ça bouge</b>, les séances et les records battus des copains cette semaine (un 👏 pour les encourager : tu choisis un mot tout prêt), et les <b>podiums</b> de chaque épreuve, avec les joueurs de ton niveau (ta ligue).',
           '<b>Progrès</b> : tes <b>records</b> (tes meilleurs résultats, ton bilan), tes <b>niveaux</b>' + (SKON ? ' et tes <b>Skills</b> (ton carnet de compétences rugby, 8 cartes d\'étoiles validées par tes éducs)' : '') + '.',
           '<b>Moi</b> : ton grade, tes XP, ' + (COPON ? 'tes postes et tes copains' : 'tes postes') + ', tes trophées, l\'aide et les réglages.',
           'La <b>flèche en haut à gauche</b> te ramène à l\'écran d\'avant, là où tu étais. Tout en haut d\'un écran, <b>tire vers le bas</b> puis lâche pour l\'actualiser. Quand l\'appli a une nouvelle version, elle se met à jour toute seule.'
@@ -151,7 +151,7 @@
         ])) +
       card('classement', 'podium', '#4D9BFF', 'Le classement et les ligues', 'Tu te compares aux joueurs de ton niveau',
         ul([
-          '<b>Équipe</b> › <b>Les podiums</b> : il y a un podium <b>par test du bilan</b> (planche, navette, pompes…), tous affichés d\'un coup ; ouvre la ligne des filtres, puis touche les épreuves que tu veux garder, « Toutes » pour tout revoir. Seule la prépa physique compte : ' + (SKON ? 'tes missions et tes Skills ne sont jamais classés.' : 'tes missions ne sont jamais classées.') + '',
+          '<b>Équipe</b> › <b>Podiums</b> : il y a un podium <b>par test du bilan</b> (planche, navette, pompes…), tous affichés d\'un coup ; ouvre la ligne des filtres, puis touche les épreuves que tu veux garder, « Toutes » pour tout revoir. Seule la prépa physique compte : ' + (SKON ? 'tes missions et tes Skills ne sont jamais classés.' : 'tes missions ne sont jamais classées.') + '',
           'Tu es dans la <b>ligue</b> des joueurs qui ont <b>le même niveau</b> que toi sur ce test. S\'il y a moins de ' + MC.CONFIG.LIGUE_MIN + ' joueurs, la ligue s\'ouvre aux niveaux voisins.',
           '2 façons de classer : <b>meilleur score</b>, ou <b>plus gros progrès</b> depuis ton premier bilan. Même si tu n\'es pas le plus fort, tu peux être celui qui progresse le plus !',
           'Tes résultats y comptent tout de suite (un exploit, une fois confirmé). On n\'y voit que les prénoms. Tes parents peuvent choisir de ne pas t\'afficher.'

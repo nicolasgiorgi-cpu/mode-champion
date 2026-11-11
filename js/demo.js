@@ -318,6 +318,13 @@ MC.demo = (function () {
       db.insert('bravos', { id: id(), joueurId: ids[nom], seanceId: l[0].id, mot: mot || '', parQui: par.id, parNom: par.nom, retire: false, cree: t, maj: t });
     }
     bravo('Tom', x.cyril, 'Super régularité, continue !');
+    // (E5) un bravo de copain (un mot tout prêt), un peu avant celui de Cyril
+    (function () {
+      var l = db.rows('seances').filter(function (s) { return s.joueurId === ids['Tom']; }).sort(function (a, b) { return a.cree < b.cree ? 1 : -1; });
+      if (!l.length || !ids['Nina']) return;
+      var t = new Date(Math.min(Date.now() - 120000, Date.parse(l[0].cree) + 3540000)).toISOString();
+      db.insert('bravos', { id: id(), joueurId: ids['Tom'], seanceId: l[0].id, mot: 'Trop balèze !', parQui: ids['Nina'], parNom: 'Nina', retire: false, cree: t, maj: t, de: 'p' });
+    })();
     bravo('Inès', x.julien, '');
     var mInes = perso('Inès', 'passe', ['gauche', 'vrillee'], x.nico, L.addDays(today, -6), 'Passe à gauche et Passe vrillée');
     plus1('Inès', mInes, x.nico, x.e0, x.merAv, '');
