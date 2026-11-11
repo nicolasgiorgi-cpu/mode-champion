@@ -54,6 +54,12 @@ with sync_playwright() as p:
     pg.click('#nav a[href="#/classement"]'); pg.wait_for_timeout(900)
     check('Équipe : « Les podiums », onglet Équipe allumé', on_tab() == 'ÉQUIPE' and 'LES PODIUMS' in pg.inner_text('main h1.acc-t').upper(), on_tab())
     check('Équipe : les filtres repliés sous une ligne', pg.query_selector('details.rkf:not([open])') is not None)
+    # (v69, Nicolas 11/11) « Toi » à droite du prénom : les prénoms commencent tous au même endroit
+    r = ev("""(() => { const l = [...document.querySelectorAll('.rkcards .li .t1')].filter(t => t.offsetParent); if (!l.length) return null;
+      const g = t => { const n = t.firstChild, rg = document.createRange(); rg.selectNodeContents(n); return Math.round(rg.getBoundingClientRect().left); };
+      const toi = document.querySelector('.rkcards .li.me .rk-toi');
+      return { lefts: [...new Set(l.slice(0, 8).map(g))], apres: toi ? !!toi.previousSibling && toi.previousSibling.nodeType === 3 && toi.getBoundingClientRect().left > g(toi.parentNode) : null }; })()""")
+    check('Équipe : « Toi » à droite du prénom, les prénoms alignés', r and r['apres'] is True and len(r['lefts']) == 1, r)
     pg.click('details.rkf > summary'); pg.wait_for_timeout(300)
     check('Équipe : les filtres se déplient', ev("document.querySelector('details.rkf').open"))
     check('Équipe : pas de défilement de côté', noscroll())

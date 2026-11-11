@@ -329,8 +329,9 @@
         var me = r.p.id === who.id, hide = compact && !keep[k];
         var v = mode === 'prog' ? (r.prog > 0 ? '+' : '') + ui.fmtVal(r.prog, t.unite, t.decimales) : ui.fmtVal(r.best, t.unite, t.decimales);
         var gap = compact && !hide && k > 0 && !keep[k - 1] ? '<li class="rkgap" aria-hidden="true">⋯</li>' : '';
+        // (v69, Nicolas 11/11) « Toi » à droite du prénom : les prénoms restent alignés d'une ligne à l'autre
         return hide ? '' : gap + '<li class="li rkl' + (me ? ' me' : '') + '"><span class="rank" style="--rc:' + (r.rank <= 3 ? medal[r.rank - 1] : 'var(--dim)') + '">' + r.rank + '</span>' +
-          '<span class="grow"><span class="t1">' + (me && who.toi ? '<b class="rk-toi">Toi</b>' : '') + esc(r.p.prenom.toUpperCase()) + '</span>' + (lg.lo !== lg.hi ? '<span class="t2">N' + r.lv + '</span>' : '') + '</span>' +
+          '<span class="grow"><span class="t1">' + esc(r.p.prenom.toUpperCase()) + (me && who.toi ? '<b class="rk-toi">Toi</b>' : '') + '</span>' + (lg.lo !== lg.hi ? '<span class="t2">N' + r.lv + '</span>' : '') + '</span>' +
           '<span class="rkv" style="color:' + (mode === 'prog' ? 'var(--green)' : me ? 'var(--cyan)' : 'var(--ink)') + '">' + v + '</span></li>';
       }).join('');
       var more = lg.rows.length > 5 && ids.length > 2 ? '<button type="button" class="btn2 grey sm rkmore" data-act="rkFull" data-v="' + tid + '">' + (compact ? icon('chevd', 16) + ' Voir les ' + lg.rows.length + ' joueurs' : icon('chevd', 16, 'style="transform:rotate(180deg)"') + ' Réduire') + '</button>' : '';
