@@ -50,9 +50,10 @@ with sync_playwright() as p:
     pg.click('.acc-mis a.lnk[href="#/missions"]'); pg.wait_for_timeout(800)
     check('Missions : depuis l\'Accueil, onglet Accueil allumé, Retour en haut', on_tab() == 'ACCUEIL' and pg.query_selector('.topbar [data-act="back"], .topbar .tb-back') is not None, on_tab())
 
-    # ----- Équipe : les podiums -----
-    pg.click('#nav a[href="#/classement"]'); pg.wait_for_timeout(900)
-    check('Équipe : « Les podiums », onglet Équipe allumé', on_tab() == 'ÉQUIPE' and 'LES PODIUMS' in pg.inner_text('main h1.acc-t').upper(), on_tab())
+    # ----- Équipe : les podiums (v72 : l'onglet s'ouvre sur « Ça bouge », les podiums en 2e sous-onglet) -----
+    pg.click('#nav a[href="#/equipe"]'); pg.wait_for_timeout(900)
+    pg.click('.stabs a[href="#/classement"]'); pg.wait_for_timeout(900)
+    check('Équipe : « Podiums », onglet Équipe allumé', on_tab() == 'ÉQUIPE' and pg.inner_text('.stabs a.on').strip().upper() == 'PODIUMS' and pg.query_selector('.rkcards') is not None, on_tab())
     check('Équipe : les filtres repliés sous une ligne', pg.query_selector('details.rkf:not([open])') is not None)
     # (v69, Nicolas 11/11) « Toi » à droite du prénom : les prénoms commencent tous au même endroit
     # carte par carte (sur iPad paysage, les cartes sont sur 2 colonnes), dont la carte où se trouve l'enfant

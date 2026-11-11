@@ -54,7 +54,9 @@ with sync_playwright() as p:
     visit(pg, '#/bilans', 'k02-bilans', 'Progrès', 'Records')
     check('Progrès : sous-onglets Records · Niveaux · Skills (démo tout ouvert)', [a.inner_text().strip().upper() for a in pg.query_selector_all('.stabs a')] == ['RECORDS', 'NIVEAUX', 'SKILLS'], [a.inner_text() for a in pg.query_selector_all('.stabs a')])
     visit(pg, '#/niveaux', 'k03-niveaux', 'Progrès', 'Niveaux')
-    visit(pg, '#/classement', 'k04-classement', 'Équipe', 'Les podiums')
+    # (v72, E5) l'onglet Équipe : Ça bouge (le fil des copains) · Podiums
+    visit(pg, '#/equipe', 'k04b-equipe', 'Équipe', 'Ça bouge')
+    visit(pg, '#/classement', 'k04-classement', 'Équipe', 'Podiums')
     # (v44) venir d'ailleurs = le premier écran de l'onglet (on ne retient plus le dernier)
     go(pg, '#/missions')
     check('onglet Accueil : ramène à l\'accueil', pg.get_attribute('#nav a:has-text("Accueil")', 'href') == '#/semaine', pg.get_attribute('#nav a:has-text("Accueil")', 'href'))
