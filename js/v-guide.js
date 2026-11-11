@@ -84,7 +84,7 @@
           'Chaque jour fait = <b>1 étoile</b>. Les 6 étoiles de la semaine = <b>+1 étoile bonus</b> (semaine parfaite).',
           'Tu as raté un jour ? Fais sa séance un autre jour de la même semaine : son étoile s\'allume quand même.',
           icon('flame', 14) + ' <b>Ta série</b> : les étoiles d\'affilée, sans en rater (le vendredi ne compte pas). Si tu rates un jour, elle repart à 0.',
-          '👏 <b>Bravo !</b> Quand tes éducs ou les autres joueurs voient ta séance, ils peuvent te dire bravo (avec un petit mot) : tu le vois en haut de l\'Accueil et dans la cloche.'
+          '👏 <b>Bravo !</b> Quand tes éducs ou les autres joueurs voient ta séance, ils peuvent te dire bravo (souvent avec un petit mot) : tu le vois en haut de l\'Accueil et dans la cloche.'
         ])) +
       card('seance', 'play', '#3DFFB0', 'Faire une séance', 'Guidée exo par exo, ou notée en 10 secondes',
         ul([

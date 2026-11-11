@@ -35,7 +35,7 @@ MC.notifs = (function () {
     ],
     f: [
       ['seance', 'Séances', 'Votre enfant a fait une séance de prépa.', 'pulse', '#38E8FF'],
-      ['bravo', 'Bravos des éducs', 'Un éduc a félicité votre enfant pour sa séance.', 'heart', '#FFC23D'],
+      ['bravo', 'Les bravos', 'Un éduc ou un joueur de l\'équipe a félicité votre enfant pour sa séance.', 'heart', '#FFC23D'],
       ['confirmer', 'Bilans et défis', 'Votre enfant a noté son bilan ou un défi (seuls les exploits sont à confirmer).', 'check', '#FF4FA3'],
       ['mission', 'Missions faites', 'Votre enfant a fait une mission.', 'target', '#FF7FBC'],
       ['niveau', 'Niveaux', 'Un niveau de votre enfant a changé.', 'up', '#C9AEFF'],

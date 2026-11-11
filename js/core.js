@@ -1502,7 +1502,7 @@ var Core = (function () {
       if (!s) fail('introuvable', 'Séance introuvable.');
       if (s.joueurId === me.id) fail('interdit', 'Un bravo, c\'est pour les autres !');
       // (relecture v72) le drapeau « visible » vaut dans les deux sens : un enfant caché par sa famille n'envoie pas de bravo (son prénom apparaîtrait)
-      if (!me.visible) fail('interdit', 'Ta famille a choisi de te cacher de l\'équipe : pas de bravo pour l\'instant.');
+      if (!me.visible) fail('interdit', 'Tes parents ont choisi de ne pas t\'afficher dans l\'équipe : pas de bravo pour l\'instant.');
       var j = equipeVisible(ctx, me)[s.joueurId];
       if (!j) fail('introuvable', 'Séance introuvable.');
       if (!(s.date >= isoDate(ctx.now - FIL_JOURS * DAY))) fail('invalide', 'Cette séance date d\'il y a plus d\'une semaine.');

@@ -45,7 +45,7 @@
       }
       var bv = parS[x.id] || [], mien = bv.filter(function (b) { return b.moi; })[0], n = bv.length;
       var compte = n ? '<span class="eqn" aria-label="' + n + ' bravo' + (n > 1 ? 's' : '') + '">👏 ' + n + '</span>' : '';
-      var btn = moi || !me.joueur.visible ? compte : '<button type="button" class="bvb sm' + (mien ? ' on' : '') + '" data-act="eqBravo" data-s="' + esc(x.id) + '" data-j="' + esc(x.joueurId) + '" aria-label="' + esc((mien ? 'Bravo envoyé à ' : 'Dire bravo à ') + j.prenom) + '"><span class="bv-i" aria-hidden="true">👏</span><span class="bv-t">' + (mien ? 'Envoyé' : 'Bravo') + '</span></button>';
+      var btn = moi ? compte : !me.joueur.visible ? '' : '<button type="button" class="bvb sm' + (mien ? ' on' : '') + '" data-act="eqBravo" data-s="' + esc(x.id) + '" data-j="' + esc(x.joueurId) + '" aria-label="' + esc((mien ? 'Bravo envoyé à ' : 'Dire bravo à ') + j.prenom) + '"><span class="bv-i" aria-hidden="true">👏</span><span class="bv-t">' + (mien ? 'Envoyé' : 'Bravo') + '</span></button>';
       var t2 = esc(nomSeance(x).replace(/^sa /, '').replace(/^son /, '')) + ' · ' + esc(quand(x.cree, x.date)) + (mien && mien.mot ? ' · « ' + esc(mien.mot) + ' »' : '') + (!moi && n ? ' · 👏 ' + n : '');
       return '<li class="li eqli">' + dot + '<span class="grow"><span class="t1">' + qui + (moi ? ' : ta séance' : ' a fait sa séance') + '</span><span class="t2">' + t2 + '</span></span>' + btn + '</li>';
     }).join('');
@@ -57,7 +57,7 @@
       var l = fil(me, d), cache = !me.joueur.visible;
       return '<main class="screen">' + MC.kidBar(me, app.S.stats) + tabs('fil') +
         '<p class="small" style="margin:0">Les séances et les records de l\'équipe, ces 7 derniers jours.' + (cache ? '' : ' Un 👏 pour encourager les autres !') + '</p>' +
-        (cache ? '<div class="note">' + icon('info', 18, 'style="flex:none"') + '<span class="small">Ta famille a choisi de te cacher de l\'équipe : tu vois les autres, mais tu ne peux pas envoyer de bravo.</span></div>' : '') +
+        (cache ? '<div class="note">' + icon('info', 18, 'style="flex:none"') + '<span class="small">Tes parents ont choisi de ne pas t\'afficher dans l\'équipe : tu vois les autres, mais tu ne peux pas envoyer de bravo.</span></div>' : '') +
         (l ? '<ul class="list eqfil">' + l + '</ul>' : '<div class="empty">Pas encore de séance cette semaine dans l\'équipe. Lance la tienne !</div>') +
         '</main>';
     });
