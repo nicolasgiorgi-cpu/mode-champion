@@ -31,7 +31,7 @@ with sync_playwright() as p:
     check('Prépa physique : « Bravos à donner » avec le nombre d\'enfants', a is not None and 'Bravos à donner' in a.inner_text() and 'séance' in a.inner_text(), a.inner_text() if a else None)
     n_av = ev("MC.bravo.nb(MC.app.S.cache.group)")
     pg.click('a.bvgo'); pg.wait_for_timeout(1000)
-    check('l\'écran « Bravos » s\'ouvre', pg.url.endswith('#/educ/bravos') and 'Bravos' in pg.inner_text('.topbar'), pg.url)
+    check('l\'écran « Bravos » s\'ouvre', pg.url.endswith('#/educ/bravos') and 'BRAVOS' in pg.inner_text('.topbar').upper(), pg.url)
     lignes = pg.query_selector_all('.bvk')
     check('un enfant par ligne, autant que « à donner »', len(lignes) == n_av and n_av >= 3, (len(lignes), n_av))
     mots = ev("[...document.querySelectorAll('.bvk [data-act=bvMot]')].map(b => b.dataset.mot)")
@@ -51,6 +51,7 @@ with sync_playwright() as p:
     check('un toucher sur un mot : le bravo est envoyé avec ce mot', len(r) == 1 and r[0]['mot'] == mot, r)
     li = pg.query_selector('.bvk[data-j="%s"]' % jid)
     check('la ligne reste, « envoyé » avec son mot', li is not None and 'ok' in li.get_attribute('class') and mot in li.inner_text(), li.inner_text() if li else None)
+    check('… à sa place (la 1re ligne)', pg.get_attribute('.bvk >> nth=0', 'data-j') == jid, pg.get_attribute('.bvk >> nth=0', 'data-j'))
     check('« Bravo à tous » compte un enfant de moins', str(n_av - 1) in pg.inner_text('[data-act="bvTous"]'), pg.inner_text('[data-act="bvTous"]'))
 
     # ----- le crayon : son propre mot -----

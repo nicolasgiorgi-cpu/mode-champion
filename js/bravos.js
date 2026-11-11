@@ -144,7 +144,7 @@
   // mon dernier bravo (14 jours au plus), 3 mots proposés : un toucher envoie le bravo avec ce mot (sur sa dernière séance) ;
   // le crayon pour écrire le sien ; « Bravo à tous » envoie à chacun le 1er mot proposé (tous différents).
   // ======================================================================
-  var BV = { cle: '', mots: {}, faits: {} };   // les mots proposés restent les mêmes pendant la visite ; faits : enfant → bravo envoyé ici
+  var BV = { cle: '', mots: {}, faits: {}, ordre: [] };   // pendant la visite : les mots proposés, l'ordre des lignes, faits (enfant → séance félicitée ici)
   function aFeliciter(g) {
     var depuis = L.addDays(L.today(), -RECENT), out = [];
     (g.joueurs || []).forEach(function (p) {
@@ -172,15 +172,16 @@
     return MC.loadGroup().then(function (g) {
       app.refreshNav();
       var cle = g.moi.id + '|' + L.today();
-      if (BV.cle !== cle) BV = { cle: cle, mots: {}, faits: {} };
-      // les enfants déjà félicités pendant cette visite restent à l'écran (avec leur mot)
-      var l = aFeliciter(g), vus = {};
-      l.forEach(function (x) { vus[x.p.joueur.id] = 1; });
-      Object.keys(BV.faits).forEach(function (jid) {
-        if (vus[jid]) return;
-        var p = joueur(g, jid), s = seance(p, BV.faits[jid]);
+      if (BV.cle !== cle) BV = { cle: cle, mots: {}, faits: {}, ordre: [] };
+      // les enfants déjà félicités pendant cette visite restent à leur place (avec leur mot) ; un nouveau arrive en bas
+      var a = aFeliciter(g), par = {}, l = [];
+      a.forEach(function (x) { par[x.p.joueur.id] = x; });
+      BV.ordre.forEach(function (jid) {
+        if (par[jid]) { l.push(par[jid]); delete par[jid]; return; }
+        var p = joueur(g, jid), s = BV.faits[jid] ? seance(p, BV.faits[jid]) : null;
         if (p && s) l.push({ p: p, s: s, n: 1 });
       });
+      a.forEach(function (x) { if (par[x.p.joueur.id]) { l.push(x); BV.ordre.push(x.p.joueur.id); } });
       var pris = {};
       Object.keys(BV.mots).forEach(function (k) { BV.mots[k].forEach(function (m) { pris[m] = 1; }); });
       l.forEach(function (x) { if (!BV.mots[x.p.joueur.id]) BV.mots[x.p.joueur.id] = motsPour(x.p, 3, pris); });
