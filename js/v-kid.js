@@ -129,7 +129,7 @@
         (b.mot ? '<span class="bvc-m">« ' + esc(b.mot) + ' »</span>' : '') + '</span></div>';
     }
     // (v68, relecture) le dernier bravo en entier, les autres repliés : « Lancer la séance » reste au premier écran
-    return '<section class="bvcard" data-cible="bravos" aria-label="Les bravos de tes éducs">' + ligne(l[0]) +
+    return '<section class="bvcard" data-cible="bravos" aria-label="Tes bravos">' + ligne(l[0]) +
       (l.length > 1 ? '<details class="bvc-plus"><summary>+ ' + (l.length - 1) + ' autre' + (l.length > 2 ? 's' : '') + ' bravo' + (l.length > 2 ? 's' : '') + icon('down', 14, 'class="bvc-pi"') + '</summary>' + l.slice(1).map(ligne).join('') + '</details>' : '') + '</section>';
   }
   function paintSemaine(me, st) {

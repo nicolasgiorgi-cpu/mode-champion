@@ -65,7 +65,7 @@ with sync_playwright() as p:
 
     # ----- le copain le voit sur sa séance -----
     prenom = [x for x in db()['joueurs'] if x['id'] == jid][0]['prenom']
-    ev("MC.app.setMe && 0"); pg.goto(BASE + '#/reglages'); pg.wait_for_timeout(500); pg.click('[data-act="logoutKid"]'); pg.wait_for_timeout(500)
+    pg.goto(BASE + '#/reglages'); pg.wait_for_timeout(500); pg.click('[data-act="logoutKid"]'); pg.wait_for_timeout(500)
     pg.goto(BASE + '#/connexion'); pg.wait_for_timeout(600)
     btn = pg.query_selector('.kidbtn:has-text("%s")' % prenom.upper())
     if btn:

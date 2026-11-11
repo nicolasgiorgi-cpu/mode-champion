@@ -2051,3 +2051,4 @@ textarea.txt{min-height:84px;padding:10px 12px;resize:vertical;font:500 16px/1.4
 .eqdot{flex:none;width:10px;height:10px;border-radius:50%;background:var(--c)}
 .eqn{flex:none;font:700 13px/1 var(--f-hud);color:var(--gold)}
 .eqmots button.on{border-color:var(--green);color:var(--green)}
+.eqli .bvb[data-wait]{opacity:.75;pointer-events:none}

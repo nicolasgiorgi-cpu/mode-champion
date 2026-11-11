@@ -84,7 +84,7 @@
           'Chaque jour fait = <b>1 étoile</b>. Les 6 étoiles de la semaine = <b>+1 étoile bonus</b> (semaine parfaite).',
           'Tu as raté un jour ? Fais sa séance un autre jour de la même semaine : son étoile s\'allume quand même.',
           icon('flame', 14) + ' <b>Ta série</b> : les étoiles d\'affilée, sans en rater (le vendredi ne compte pas). Si tu rates un jour, elle repart à 0.',
-          '👏 <b>Bravo !</b> Quand tes éducs voient ta séance, ils peuvent te dire bravo (parfois avec un petit mot) : tu le vois en haut de l\'Accueil et dans la cloche.'
+          '👏 <b>Bravo !</b> Quand tes éducs ou les autres joueurs voient ta séance, ils peuvent te dire bravo (avec un petit mot) : tu le vois en haut de l\'Accueil et dans la cloche.'
         ])) +
       card('seance', 'play', '#3DFFB0', 'Faire une séance', 'Guidée exo par exo, ou notée en 10 secondes',
         ul([
@@ -189,7 +189,7 @@
       card('p-voir', 'eye', '#3DFFB0', 'Ce que vous voyez', 'Le suivi de votre enfant',
         ul([
           'Sa semaine : les étoiles gagnées et les séances faites. <b>Touchez une séance</b> pour le détail : exercices, niveau, séries, ressenti.',
-          '👏 Les <b>bravos des éducs</b> : quand un éduc félicite votre enfant pour une séance, c\'est écrit sous la séance (avec son mot, s\'il en a laissé un), et la cloche vous prévient.',
+          '👏 Les <b>bravos</b> : quand un éduc (ou un autre joueur, avec un mot tout prêt) félicite votre enfant pour une séance, c\'est écrit sous la séance (avec le mot, s\'il y en a un), et la cloche vous prévient.',
           '<b>Sa progression aux bilans</b> : ses résultats à chaque bilan et ce qu\'il a gagné depuis le précédent.',
           'Son grade, ses niveaux exercice par exercice, ses records.',
           'Ses <b>exploits à confirmer</b>, et ses derniers scores, que vous pouvez corriger.',
@@ -235,6 +235,7 @@
           'Le classement compare les enfants <b>de même niveau</b> sur chaque test, en meilleur score ou en progrès.',
           'Prépa › <b>Classement</b> : la ligue de votre enfant, comme il la voit. Seule la prépa physique y compte (jamais les missions' + (SKON ? ' ni les Skills' : '') + ').',
           'Tous les enfants y apparaissent par défaut. Vous pouvez <b>masquer votre enfant</b> (en bas du classement, ou dans Plus) : il continue de voir sa propre place.',
+          'Dans l\'onglet <b>Équipe › Ça bouge</b> des enfants, les autres voient aussi ses séances (le jour et l\'heure) et ses records battus (l\'écart, jamais le score), et peuvent lui dire bravo avec un mot tout prêt. Masqué, il n\'y apparaît pas et n\'envoie pas de bravo.',
           'Le site ne garde que des prénoms et des résultats sportifs, dans un fichier du club. Pas d\'adresse e-mail, pas de nom de famille. Les codes sont enregistrés chiffrés.'
         ])) +
       card('p-rythme', 'heart', '#FF4F6D', 'Rythme et sécurité', 'Court, régulier, sans forcer',
@@ -260,7 +261,7 @@
           '<b>Entraîn.</b> (on arrive ici) : à venir et passés. Un entraînement : les présents de Spond (à corriger d\'un toucher), <b>1. les ateliers</b> puis <b>2. les matchs</b>, et après la séance : évaluer des Skills avec les présents (une étoile ou un atelier), et les missions des présents (un toucher = +1).',
           '<b>Plateaux</b> : à venir et joués. Un plateau : les présents, puis la compo (jeu à 5 ou à 10, 2 versions, vote, contre-propositions), et le +1 pendant et après. Pastille rose = un vote ou une contre-proposition attend.',
           '<b>Progrès</b> : <b>Missions</b> (pour le groupe, individuelles ; ouvert de base), <b>Skills</b> (le <b>Passeport de compétences</b> : les étoiles de chaque enfant, carte par carte ; le <b>Catalogue</b> : toutes les étoiles, cartes repliées, une étoile touchée se donne à des enfants <b>en mission</b> ou <b>acquise</b> ; le bouton <b>Évaluer</b> pour un atelier ou une journée d\'évaluation) et <b>Prépa physique</b> (les résultats de votre enfant à confirmer, ça bouge, <b>À relancer</b> (rien noté depuis 7 jours, à déplier), le classement, les progrès aux bilans).',
-          '👏 <b>Bravo</b> : un enfant a fait sa séance ? Touchez « 👏 Bravo » sur sa ligne, dans <b>Progrès › Prépa physique › Ça bouge</b>, dans la <b>cloche</b> ou sur sa <b>fiche › Prépa</b> : c\'est envoyé, l\'enfant et sa famille le voient (une alerte sur le téléphone s\'ils l\'ont allumée). Retouchez « Envoyé » pour ajouter un petit mot ou retirer le bravo. Pas d\'XP : c\'est un encouragement.',
+          '👏 <b>Bravo</b> : un enfant a fait sa séance ? Touchez « 👏 Bravo » sur sa ligne, dans <b>Progrès › Prépa physique › Ça bouge</b>, dans la <b>cloche</b> ou sur sa <b>fiche › Prépa</b> : c\'est envoyé, l\'enfant et sa famille le voient (une alerte sur le téléphone s\'ils l\'ont allumée). Retouchez « Envoyé » pour ajouter un petit mot ou retirer le bravo. Pas d\'XP : c\'est un encouragement. Les enfants peuvent aussi se dire bravo entre eux (un mot tout prêt, jamais de texte libre) : vous le voyez sous la séance.',
           '👏 <b>Bravos à donner</b> (Progrès › Prépa physique, au-dessus de Ça bouge) : chaque enfant qui a fait une séance depuis votre dernier bravo, avec 3 mots proposés (pas un mot qu\'il vient de recevoir ; le 1er est différent pour chaque enfant). Touchez un mot : le bravo part avec ce mot. Le crayon pour écrire le vôtre. <b>Bravo à tous</b> : chacun reçoit son premier mot proposé.',
           '<b>Enfants</b> : la fiche terrain du groupe, une ligne par enfant (plusieurs s\'il a plus de trois postes), avec ses postes abrégés dans une colonne à part, juste avant le niveau, alignés (Pil, Tal, 3eL, 9, 10, Ctr, Ail, toutes de la même largeur ; le préféré en pastille pleine et en premier, puis l\'ordre des postes ; deux enfants au même prénom : « Baptiste Lem. » sur téléphone), son niveau, ses passerelles (une ou deux) et son plaquage (le bouclier, de 0 à 3 ; vide = pas encore évalué). Toucher la ligne ouvre sa fiche, où tout se règle. Filtres : par niveau (en bas, ceux qui ont une passerelle vers ce niveau), puis par poste (ceux qui l\'ont en préféré, puis ceux qui peuvent aussi le jouer). Toucher un prénom ouvre sa fiche, partout dans l\'appli.',
           'La <b>flèche en haut à gauche</b>, sur tous les écrans, ramène à l\'écran d\'avant, là où vous étiez. Tout en haut d\'un écran, <b>tirez vers le bas</b> puis relâchez pour l\'actualiser (résultats, présents, compos). Quand une nouvelle version de l\'appli sort, elle se met à jour toute seule, à l\'ouverture ou en y revenant (ou en tirant pour actualiser) ; le numéro de version est en bas des réglages.',

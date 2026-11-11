@@ -45,7 +45,7 @@ MC.notifs = (function () {
     ],
     k: [
       ['resultat', 'Tes résultats', 'Un parent ou un éduc a confirmé ton exploit (ou retiré un résultat).', 'check', '#3DFFB0'],
-      ['bravo', 'Les bravos de tes éducs', 'Un éduc te dit bravo pour ta séance.', 'heart', '#FFC23D'],
+      ['bravo', 'Les bravos', 'Un éduc ou un joueur de l\'équipe te dit bravo pour ta séance.', 'heart', '#FFC23D'],
       ['nouvelle', 'Nouvelles missions', 'Une nouvelle mission à faire.', 'target', '#FF7FBC'],
       ['niveau', 'Tes niveaux', 'Un parent ou un éduc a changé un de tes niveaux.', 'up', '#C9AEFF'],
       ['etoile', 'Tes étoiles', 'Un éduc a validé une de tes étoiles.', 'star', '#FFC23D', ['skills']],

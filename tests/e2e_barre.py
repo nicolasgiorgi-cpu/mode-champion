@@ -13,7 +13,7 @@ def check(name, cond, info=''):
 # onglets du bas : pas de Retour (on y revient par la barre du bas)
 RACINES = {'#/educ', '#/educ/entrainements', '#/educ/plateaux', '#/educ/progres', '#/educ/skills', '#/educ/missions', '#/educ/joueurs', '#/educ/terrain', '#/educ/compos', '#/educ/outils',
            '#/parent', '#/parent/bilans', '#/parent/progres', '#/parent/classement', '#/parent/missions', '#/parent/skills', '#/parent/plus',
-           '#/semaine', '#/bilans', '#/niveaux', '#/classement', '#/missions', '#/skills', '#/profil'}
+           '#/semaine', '#/bilans', '#/niveaux', '#/classement', '#/equipe', '#/missions', '#/skills', '#/profil'}
 
 def audit(pg, hashes):
     for h in hashes:
@@ -66,7 +66,7 @@ with sync_playwright() as p:
     pg.evaluate("MC.api.call('roster',{}).then(r=>{const k=(r.joueurs||r).find(x=>x.prenom==='Tom'); return MC.api.call('login',{joueurId:k.id,pin:MC.demo.CODES.enfant});}).then(res=>{MC.app.setKid({token:res.token,joueur:res.joueur}); if(res.me) MC.app.setMe(res.me); location.hash='#/semaine';})"); pg.wait_for_timeout(1500)
     T = pg.evaluate("(() => { const J = MC.CONTENT.JOURS, k = Object.keys(J); return { maison: k.filter(x => J[x].maison), autre: k.filter(x => !J[x].maison), exo: Object.keys(MC.CONTENT.EXOS)[0], defi: (MC.CONTENT.DEFI_TESTS || [])[0] }; })()")
     defi = T['defi'] if isinstance(T['defi'], str) else (T['defi'] or {}).get('id', 'x')
-    audit(pg, ['#/semaine', '#/bilans', '#/profil', '#/classement', '#/progression', '#/niveaux', '#/trophees', '#/bilan', '#/reglages', '#/aide', '#/missions', '#/missions/perso', '#/missions/mots', '#/skills', '#/skills/passe', '#/mission', '#/mission/postes', '#/mission/copains', '#/nouveautes', '#/echauffement',
+    audit(pg, ['#/semaine', '#/bilans', '#/profil', '#/classement', '#/equipe', '#/progression', '#/niveaux', '#/trophees', '#/bilan', '#/reglages', '#/aide', '#/missions', '#/missions/perso', '#/missions/mots', '#/skills', '#/skills/passe', '#/mission', '#/mission/postes', '#/mission/copains', '#/nouveautes', '#/echauffement',
                '#/calme', '#/jour/' + T['maison'][0], '#/jour/' + T['autre'][0], '#/exo/' + T['exo'], '#/noter?type=club', '#/mission/poste/pilier', '#/mission/quiz', '#/defi/' + defi, '#/guide', '#/bienvenue'])
     # la séance guidée elle-même (plein écran) : un moyen d'en sortir en haut
     pg.goto(BASE + '#/go/' + T['maison'][0]); pg.wait_for_timeout(1200)
