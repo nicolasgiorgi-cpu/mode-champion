@@ -119,7 +119,8 @@ const g = makeEnv(); g.installer();
 const code = g._logs.join('\n').match(/administrateur.*?: (\d{4})/)[1];
 let r = g.call({ action: 'adultLogin', code }); const tok = r.token;
 const pj = {};
-['Tom', 'Léa', 'Zoé'].forEach(x => { r = g.call({ action: 'addPlayer', token: tok, prenom: x, familleNom: 'Famille ' + x }); pj[x] = r.joueur.id; });
+const temp = {};
+['Tom', 'Léa', 'Zoé'].forEach(x => { r = g.call({ action: 'addPlayer', token: tok, prenom: x, familleNom: 'Famille ' + x }); pj[x] = r.joueur.id; temp[x] = r.code; });
 r = g.call({ action: 'setTerrain', token: tok, lignes: [{ joueurId: pj.Tom, postesOk: ['arriere', 'ailier', 'gardien'], postesPref: ['arriere'] }] });
 assert.deepStrictEqual(J(r.terrain[pj.Tom].postesOk), ['arriere', 'ailier'], 'la fiche garde « arrière »'); assert.deepStrictEqual(J(r.terrain[pj.Tom].postesPref), ['arriere']);
 r = g.call({ action: 'setEvenement', token: tok, titre: 'Plateau - Essai', debut: '2026-12-05', sorte: 'plateau', presents: Object.values(pj) });
@@ -129,11 +130,24 @@ r = g.call({ action: 'saveCompo', token: tok, evenementId: evId, version: 0, ban
 assert.ok(r.ok, JSON.stringify(r));
 assert.deepStrictEqual(J(r.compo.equipes.map(t => [t.id, t.tri || '', t.joueurs.map(j => j.poste).join()])), [['B1', 'main', 'arriere,arriere'], ['B2', '', 'ailier']]);
 assert.deepStrictEqual(J(r.compo.equipes[0].joueurs.map(j => j.id)), [pj['Zoé'], pj.Tom], 'l\'ordre des joueurs est gardé');
+// (relecture) modifier une compo publiée en ne changeant QUE l'ordre (équipe rangée à la main) : c'est un changement, version 2
+const pub = r.compo, eqs = (tri, ids) => [{ id: 'B1', niveau: 'B', tri: tri, joueurs: ids.map(id => ({ id: id, poste: 'arriere' })) }, { id: 'B2', niveau: 'B', joueurs: [{ id: pj['Léa'], poste: 'ailier' }] }];
+r = g.call({ action: 'saveCompo', token: tok, evenementId: evId, compoId: pub.id, version: pub.version, banc: [], reglages: pub.reglages, equipes: eqs('main', [pj.Tom, pj['Zoé']]) });
+assert.ok(r.ok, JSON.stringify(r));
+assert.strictEqual(r.compo.version, 2, 'un changement d\'ordre seul crée une nouvelle version');
+assert.deepStrictEqual(J(r.compo.equipes[0].joueurs.map(j => j.id)), [pj.Tom, pj['Zoé']], 'le nouvel ordre est enregistré');
+// « remettre le tri » seul : aussi un changement
+r = g.call({ action: 'saveCompo', token: tok, evenementId: evId, compoId: r.compo.id, version: 2, banc: [], reglages: pub.reglages, equipes: eqs(undefined, [pj.Tom, pj['Zoé']]) });
+assert.strictEqual(r.compo.version, 3, '« remettre le tri » seul crée une nouvelle version'); assert.strictEqual(r.compo.equipes[0].tri, undefined);
+// rien de changé (équipes triées, ordre différent mais pas « à la main ») : pas de nouvelle version
+r = g.call({ action: 'saveCompo', token: tok, evenementId: evId, compoId: r.compo.id, version: 3, banc: [], reglages: pub.reglages, equipes: eqs(undefined, [pj['Zoé'], pj.Tom]) });
+assert.strictEqual(r.compo.version, 3, 'une équipe triée : l\'ordre envoyé ne compte pas');
 // les vœux d'un enfant : l'arrière se choisit
-r = g.call({ action: 'login', code: g._logs.join('\n').match(/Tom.*?: (\d{4})/) ? g._logs.join('\n').match(/Tom.*?: (\d{4})/)[1] : '' });
-if (r.token) {
-  r = g.call({ action: 'mission', token: r.token, mission: 'jeu10', postes: ['arriere', 'pirate'] });
-  assert.deepStrictEqual(J(r.missions[0].reponses.postes), ['arriere']);
-}
-// l'ancien formulaire : « Arrière » est reconnu
+r = g.call({ action: 'login', joueurId: pj.Tom, pin: temp.Tom }); assert.ok(r.token, JSON.stringify(r));
+r = g.call({ action: 'setPin', token: r.token, pin: '7391' }); assert.ok(r.token, JSON.stringify(r));
+r = g.call({ action: 'mission', token: r.token, mission: 'jeu10', postes: ['arriere', 'pirate'] });
+assert.ok(r.ok, JSON.stringify(r)); assert.deepStrictEqual(J(r.missions[0].reponses.postes), ['arriere'], 'l\'arrière dans les vœux, un poste inconnu retiré');
+// l'ancien formulaire : « Arrière » et « 15 » sont reconnus
+assert.strictEqual(g.Core._posteDuTexte('Arrière'), 'arriere'); assert.strictEqual(g.Core._posteDuTexte('15'), 'arriere'); assert.strictEqual(g.Core._posteDuTexte('arriere'), 'arriere');
+assert.strictEqual(g.Core._posteDuTexte('Ailier'), 'ailier');
 console.log('test_compo_v85 : OK');

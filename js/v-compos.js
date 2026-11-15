@@ -1194,7 +1194,7 @@ window.MC = window.MC || {};
     var sousRep = !!t && !d.reglages.partie && f.plaquage !== null && f.plaquage !== undefined && f.plaquage !== '' && f.plaquage < (K.SEUIL[t.niveau] || 0);
     var ty = K.typeDe(f), tag;
     if (t && d.reglages.format === 10) tag = j.poste ? '<span class="cpo">' + COURT[j.poste] + '</span>' : !K.postesDe(f).length ? '<span class="cpo csp" title="Aucun poste sur sa fiche : à régler">Sans poste</span>' : '<span class="cpo none">Remp.</span>';
-    else if (t) { var pp = K.posteDefaut(f); tag = pp ? '<span class="cpo ty" title="Poste principal (fiche)' + (ty === 'les2' ? ', joue aussi ' + (K.typePoste(pp) === 'av' ? 'arrière' : 'avant') : '') + '">' + (ty === 'les2' ? '⇄ ' : '') + COURT[pp] + '</span>' : ''; }
+    else if (t) { var pp = K.posteDefaut(f); tag = pp ? '<span class="cpo ty" title="Poste principal (fiche)' + (ty === 'les2' ? ', joue aussi ' + (K.typePoste(pp) === 'av' ? 'dans les lignes arrières' : 'avant') : '') + '">' + (ty === 'les2' ? '⇄ ' : '') + COURT[pp] + '</span>' : ''; }
     else tag = ty ? '<span class="cpo ty">' + (ty === 'av' ? 'Av' : ty === 'ar' ? 'Ar' : 'Av·Ar') + '</span>' : '';
     var on = B && B.sel && B.sel.v === v && B.sel.id === j.id;
     // (v60, demande de Nicolas) les postes de sa fiche, comme dans la liste Enfants (pleine = préféré), à droite de la ligne des marques
@@ -1625,7 +1625,7 @@ window.MC = window.MC || {};
   function dgTouch(e) { if (DG && DG.on && e.cancelable) e.preventDefault(); }
   // ce qu'il y a sous le pointeur : { k: 'grp' | 'eq' | 'banc', el, t, p, avant, precis, carte, apres, deux } ou null (rien à faire ici)
   function dgCible(x, y) {
-    var e = document.elementFromPoint(x, y), col = e && e.closest ? e.closest('.cboard2 .ccol[data-t]') : null;
+    var e = document.elementFromPoint(x, y), col = e && e.closest ? e.closest('.cboard2.ed .ccol[data-t]') : null;
     if (!col || !B || Number(col.getAttribute('data-v')) !== DG.v) return null;
     var tid = col.getAttribute('data-t'), d = B.vs[DG.v], w = K.where(d, DG.id), de = w && w.t >= 0 ? d.equipes[w.t] : null;
     if (tid === 'banc') return w && w.t < 0 ? null : { k: 'banc', el: col, t: 'banc' };
@@ -1687,6 +1687,8 @@ window.MC = window.MC || {};
     if (g.bar) g.bar.remove();
     g.el.classList.remove('cdg-src'); document.body.classList.remove('cdg-on');
     if (!g.on) return;
+    // (relecture) un toucher un peu long (plus de 0,28 s) sans bouger : ce n'est pas un glisser, le toucher choisit le joueur
+    if (g.loin < 10) return;
     dgSansClic = Date.now();
     if (pose && g.cible && B && editable()) dgPose(g.v, g.id, g.cible);
   }
@@ -1704,15 +1706,16 @@ window.MC = window.MC || {};
   document.addEventListener('pointerdown', function (e) {
     if (DG) { if (e.pointerId !== DG.pid) dgFin(false); return; }   // un 2e doigt : on lâche tout
     if (!e.isPrimary || (e.pointerType === 'mouse' && e.button !== 0) || !B || !editable() || document.querySelector('.modal')) return;
-    var el = e.target.closest && e.target.closest('.cboard2 .cpj[data-id]');
+    var el = e.target.closest && e.target.closest('.cboard2.ed .cpj[data-id]');   // (relecture) jamais sur un tableau en lecture (contre-proposition…)
     if (!el) return;
     DG = { id: el.getAttribute('data-id'), v: Number(el.getAttribute('data-v')) || 0, el: el, pid: e.pointerId, touch: e.pointerType !== 'mouse',
-      x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, on: false, cible: null };
+      x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, on: false, cible: null, loin: 0 };
     if (DG.touch) DG.tm = setTimeout(dgDebut, 280);
   });
   document.addEventListener('pointermove', function (e) {
     if (!DG || e.pointerId !== DG.pid) return;
     DG.x = e.clientX; DG.y = e.clientY;
+    DG.loin = Math.max(DG.loin, Math.abs(DG.x - DG.x0) + Math.abs(DG.y - DG.y0));
     if (!DG.on) {
       var dd = Math.abs(DG.x - DG.x0) + Math.abs(DG.y - DG.y0);
       if (DG.touch) { if (dd > 10) dgFin(false); return; }   // le doigt part avant la fin de l'appui long : il fait défiler la page
@@ -1992,7 +1995,7 @@ window.MC = window.MC || {};
     if (!B || !B.undo.length) return;
     B.vs = JSON.parse(B.undo.pop()); B.sel = null;
     var c = curC();
-    B.dirty = !c || B.mode === 'draft' || B.vs.length > 1 || K.diff(c, B.vs[0]).length > 0 || JSON.stringify(c.reglages) !== JSON.stringify(B.vs[0].reglages);
+    B.dirty = !c || B.mode === 'draft' || B.vs.length > 1 || K.diff(c, B.vs[0]).length > 0 || JSON.stringify(c.reglages) !== JSON.stringify(B.vs[0].reglages) || K.ordreCompo(c) !== K.ordreCompo(B.vs[0]);
     if (B.dirty) saveDraft(); else dropDraft(B.evtId, B.partie);
     rerenderKeep();
   };

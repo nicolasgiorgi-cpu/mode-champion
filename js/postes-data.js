@@ -255,14 +255,14 @@ MC.POSTES = [
     dark: "#0A4A40",
     emblem: "rempart",
     stats: [55, 85, 85, 70, 85, 85],
-    intro: "L'arrière joue derrière tous ses copains. Il rattrape les ballons tapés au pied, repart en courant pour relancer, et c'est le dernier à pouvoir plaquer avant la ligne d'essai.",
+    intro: "L'arrière joue derrière tous ses copains. Il rattrape les ballons tapés au pied, repart en courant pour relancer, et c'est souvent le dernier défenseur avant la ligne d'essai.",
     pouvoirs: [
       { icon: "aimant", titre: "Mains sûres", texte: "Il attrape les ballons qui tombent du ciel sans les lâcher." },
       { icon: "turbo", titre: "Relance", texte: "Ballon en main, il repart en courant et lance l'attaque de loin." }
     ],
     attaque: ["Relancer en courant", "Venir dans la ligne pour faire un joueur en plus", "Taper loin au pied"],
     defense: ["Rattraper les coups de pied", "Plaquer le dernier attaquant", "Parler pour replacer ses copains"],
-    jeu10: "Au jeu à 10, tu es seul derrière la ligne : tu surveilles le fond du terrain, et tu viens dans la ligne pour attaquer.",
+    jeu10: "Au jeu à 10, tu joues seul derrière tes copains : tu surveilles le fond du terrain, et tu viens dans la ligne d'attaque pour faire un joueur en plus.",
     pourToi: ["tu attrapes bien les ballons hauts", "tu aimes relancer et courir", "tu restes calme quand tout le monde compte sur toi"],
     heros: [
       { nom: "Thomas Ramos", info: "Arrière · Stade Toulousain", photo: "", commons: "", credit: "" },

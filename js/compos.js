@@ -985,6 +985,10 @@ MC.compos = (function () {
     return o;
   }
   // (v85) revenir au tri par défaut d'une équipe (les A en haut, puis le plaquage)
+  // (v85, relecture) l'ordre des équipes rangées à la main : sert à savoir si une compo publiée a changé (K.diff ne voit pas l'ordre)
+  function ordreCompo(c) {
+    return ((c && c.equipes) || []).map(function (t) { return t.id + (t.tri === 'main' ? ':' + (t.joueurs || []).map(function (j) { return j.id; }).join(',') : ''); }).join('|');
+  }
   function triAuto(c, tid) {
     var o = clone(c);
     (o.equipes || []).forEach(function (t) { if (t.id === tid) delete t.tri; });
@@ -1377,7 +1381,7 @@ MC.compos = (function () {
     proposer: proposer, vide: vide, stats: stats, alertes: alertes, apparier: apparier, scoreNiveau: scoreNiveau,
     moveTo: moveTo, swap: swap, setPoste: setPoste, where: where, diff: diff, presents: presents, attente: attente, retirer: retirer, sorteDuTitre: sorteDuTitre,
     nomPoste: nomPoste, frDate: frDate,
-    STYLES: STYLES, AVANTS: AVANTS, BESOIN: BESOIN, postesEquipe: postesEquipe, posteEnPlus: posteEnPlus, eligible: eligible, vivier: vivier, rangVivier: rangVivier, postesDe: postesDe, posteDefaut: posteDefaut, prefDe: prefDe, lienPoste: lienPoste, rang: rang, repartition: repartition, placeLibre: placeLibre, typePoste: typePoste, typeDe: typeDe, sections: sections, ordonnes: ordonnes, ranger: ranger, triAuto: triAuto, ORDRE: ORDRE,
+    STYLES: STYLES, AVANTS: AVANTS, BESOIN: BESOIN, postesEquipe: postesEquipe, posteEnPlus: posteEnPlus, eligible: eligible, vivier: vivier, rangVivier: rangVivier, postesDe: postesDe, posteDefaut: posteDefaut, prefDe: prefDe, lienPoste: lienPoste, rang: rang, repartition: repartition, placeLibre: placeLibre, typePoste: typePoste, typeDe: typeDe, sections: sections, ordonnes: ordonnes, ranger: ranger, triAuto: triAuto, ordreCompo: ordreCompo, ORDRE: ORDRE,
     PARTIES: PARTIES, regEnt: regEnt, proposerEnt: proposerEnt, videEnt: videEnt, reprendre: reprendre, alertesEnt: alertesEnt,
     blocDe: blocDe, blocsDe: blocsDe, nomBloc: nomBloc, nomEq: nomEq, texteCompo: texteCompo,
     partsPoste: partsPoste, comptePostes: comptePostes, niveauxMatch: niveauxMatch

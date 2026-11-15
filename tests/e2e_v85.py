@@ -230,6 +230,11 @@ with sync_playwright() as p:
     if pg.query_selector('.modal'): pg.keyboard.press('Escape'); pg.wait_for_timeout(300)
     if pg.query_selector(carte('Nina') + '.sel'): ev("s => document.querySelector(s).click()", carte('Nina')); pg.wait_for_timeout(400)   # le panneau du joueur peut couvrir la carte
     check('toucher encore : le joueur n\'est plus choisi', pg.query_selector('.cpj.sel') is None)
+    # (relecture) un toucher un peu long (0,4 s) sans bouger : ce n'est pas un glisser, il choisit le joueur
+    s = centre(carte('Nina')); x0, y0 = s['x'] + s['width'] * 0.3, s['y'] + s['height'] * 0.4
+    touche('touchStart', x0, y0); pg.wait_for_timeout(420); touche('touchEnd'); pg.wait_for_timeout(500)
+    check('toucher de 0,4 s sans bouger : le joueur est choisi, rien ne bouge', pg.query_selector(carte('Nina') + '.sel') is not None and ou('Nina') == o0, ou('Nina'))
+    if pg.query_selector(carte('Nina') + '.sel'): ev("s => document.querySelector(s).click()", carte('Nina')); pg.wait_for_timeout(400)
     check('pas d\'erreur JavaScript pendant les gestes', not errs, errs)
 
     # ----- 5. « Créer manuellement » : depuis « Pas placés » vers un poste, et retour -----

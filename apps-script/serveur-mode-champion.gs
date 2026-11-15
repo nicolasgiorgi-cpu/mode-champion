@@ -2174,6 +2174,11 @@ var Core = (function () {
     });
     return out;
   }
+  // (v85, relecture) l'ordre des équipes rangées à la main (glisser-déposer) : un changement d'ordre seul, ou « remettre le tri »,
+  // est aussi un changement (diffCompo ne regarde que l'équipe et le poste)
+  function ordreCompo(c) {
+    return (c.equipes || []).map(function (t) { return t.id + (t.tri === 'main' ? ':' + (t.joueurs || []).map(function (j) { return j.id; }).join(',') : ''); }).join('|');
+  }
   function jourJ(ctx, e) { return String(e.debut).slice(0, 10) === isoDate(ctx.now); }
   function compoActive(ctx, evenementId, partie) {
     var l = ctx.db.rows('compos').filter(function (c) { return c.evenementId === evenementId && (c.partie || '') === (partie || '') && (c.statut === 'publiee' || c.statut === 'vote'); });
@@ -2229,7 +2234,7 @@ var Core = (function () {
       var auteur = cur.auteur === me.id, dm = jourJ(ctx, e);
       if (!auteur && !dm) fail('interdit', 'C\'est la compo de ' + cur.auteurNom + ' : faites plutôt une contre-proposition.');
       var ch = diffCompo(actifsSeuls(ctx, cur), c);
-      if (!ch.length && JSON.stringify(cur.reglages) === JSON.stringify(c.reglages)) return { compo: pubCompo(cur) };
+      if (!ch.length && JSON.stringify(cur.reglages) === JSON.stringify(c.reglages) && ordreCompo(actifsSeuls(ctx, cur)) === ordreCompo(c)) return { compo: pubCompo(cur) };
       var v = (Number(cur.version) || 1) + 1;
       var hist = (cur.historique || []).concat([{ v: v, par: me.nom, quand: now, note: note || (auteur ? 'Modifiée' : 'Dernière minute'), n: ch.length, dm: !auteur }]).slice(-30);
       var patch = { equipes: c.equipes, banc: c.banc, reglages: c.reglages, raisons: c.raisons, version: v, historique: hist, maj: now };
@@ -2336,7 +2341,7 @@ var Core = (function () {
   // les joueurs encore actifs d'une compo (un joueur désactivé depuis ne compte pas comme un changement)
   function actifsSeuls(ctx, c) {
     var actifs = {}; ctx.db.rows('joueurs').forEach(function (j) { if (j.actif) actifs[j.id] = true; });
-    return { equipes: (c.equipes || []).map(function (t) { return { id: t.id, niveau: t.niveau, joueurs: (t.joueurs || []).filter(function (j) { return actifs[j.id]; }) }; }),
+    return { equipes: (c.equipes || []).map(function (t) { var o = { id: t.id, niveau: t.niveau, joueurs: (t.joueurs || []).filter(function (j) { return actifs[j.id]; }) }; if (t.tri === 'main') o.tri = 'main'; return o; }),   // (v85) l'ordre à la main compte (ordreCompo)
       banc: (c.banc || []).filter(function (id) { return actifs[id]; }) };
   }
   function rejouer(ctx, cur, changements) {
