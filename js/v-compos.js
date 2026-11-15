@@ -110,6 +110,7 @@ window.MC = window.MC || {};
   }
   // les enfants à répartir : les présents ; tout le groupe tant que les invitations ne sont pas parties
   function baseIds(C, e) { return invitPas(e) ? tousOf(C) : presentsOf(C, e); }
+  function effTxt(C, e) { if (invitPas(e)) return 'invitations Spond pas encore parties · ' + tousOf(C).length + ' enfants'; var n = presentsOf(C, e).length; return n + ' présent' + (n > 1 ? 's' : ''); }
   // (v57, demande de Nicolas du 07/11) au jeu à 10 (plateau ou matchs), une compo part des présents (par défaut) ou de tout
   // le groupe : les absents et ceux qui n'ont pas répondu sur Spond y sont alors marqués, sans que l'appli touche aux équipes
   function tousOf(C) { return C.g.joueurs.filter(function (p) { return C.actifs[p.joueur.id] && !/^test$/i.test(p.joueur.prenom || ''); }).map(function (p) { return p.joueur.id; }); }   // sans l'enfant « Test » (comme la liste Enfants)
@@ -797,10 +798,10 @@ window.MC = window.MC || {};
     if (B.partie) {
       // mercredi : groupes de niveau ; samedi : niveaux mélangés (règle du groupe)
       var last = derniere(C, e, B.partie), lr = (last && last.reglages) || {};
-      B.reg = K.regEnt({ partie: B.partie, mode: L.dow(jour(e)) === 5 ? 'equilibre' : 'niveau', separer: !!lr.separer }, presentsOf(C, e), C.F);
+      B.reg = K.regEnt({ partie: B.partie, mode: L.dow(jour(e)) === 5 ? 'equilibre' : 'niveau', separer: !!lr.separer }, baseIds(C, e), C.F);
       return B.reg;
     }
-    var ids = presentsOf(C, e), format = jour(e) >= '2026-12-01' ? 10 : 5;
+    var ids = baseIds(C, e), format = jour(e) >= '2026-12-01' ? 10 : 5;
     // reprendre le format du dernier plateau ; (v57) à partir de décembre (jeu à 10), seulement un plateau de décembre ou après
     var last = C.cd.compos.filter(function (c) { return c.statut === 'publiee' && !c.partie; }).sort(function (a, b) { return a.maj < b.maj ? 1 : -1; })[0];   // (v35) pas un match d'entraînement
     var le = last && C.evts[last.evenementId];
@@ -938,7 +939,7 @@ window.MC = window.MC || {};
     var M = B.partie === 'matchs', last = M ? derniere(C, e, 'matchs') : null, le = last ? C.evts[last.evenementId] : null;
     var avant = M && !compoOf(C.cd, e.id, 'ateliers') ? '<p class="small" style="margin:0;color:var(--gold)">Les ateliers ne sont pas encore faits : <a href="' + lienCompo(esc(e.id), 'ateliers') + '">commencer par les ateliers</a>, ou faire les matchs d\'abord.</p>' : '';
     return '<main class="screen">' + MC.educBar(C.g, (M ? 'Matchs · ' : 'Compo · ') + e.titre, '#/educ/evt/' + e.id, e.titre) +
-      '<div class="head"><span class="kicker" style="color:var(--gold)">' + esc(quand(e)) + ' · ' + presentsOf(C, e).length + ' présents</span><h1 class="big sm">' + (M ? NOM_PARTIE.matchs : 'Préparer la compo') + '</h1></div>' +
+      '<div class="head"><span class="kicker" style="color:var(--gold)">' + esc(quand(e)) + ' · ' + effTxt(C, e) + '</span><h1 class="big sm">' + (M ? NOM_PARTIE.matchs : 'Préparer la compo') + '</h1></div>' +
       (M ? stepsHtml(C, e, 'matchs') + avant : '') +
       (ids.length < 2 && !(reg.format === 10 && tousOf(C).length >= 2) ? '<div class="empty">Cochez d\'abord les présents sur la page de l\'événement.</div><a class="btn2" href="#/educ/evt/' + esc(e.id) + '">Les présents</a></main>' :
       '<section class="sec"><h2 class="h2">Le format</h2><div class="grid2">' + K.FORMATS.map(function (f) {
@@ -1042,7 +1043,7 @@ window.MC = window.MC || {};
     var le = last ? C.evts[last.evenementId] : null, autre = autreMode(reg.mode);
     var avant = at ? '' : (function () { var ca = compoOf(C.cd, e.id, 'ateliers'); return ca ? '' : '<p class="small" style="margin:0;color:var(--gold)">Les ateliers ne sont pas encore faits : <a href="' + lienCompo(esc(e.id), 'ateliers') + '">commencer par les ateliers</a>, ou faire les matchs d\'abord.</p>'; })();
     return '<main class="screen">' + MC.educBar(C.g, (at ? 'Ateliers' : 'Matchs') + ' · ' + e.titre, '#/educ/evt/' + e.id, e.titre) +
-      '<div class="head"><span class="kicker" style="color:var(--gold)">' + esc(quand(e)) + ' · ' + presentsOf(C, e).length + ' présents</span><h1 class="big sm">' + NOM_PARTIE[B.partie] + '</h1></div>' +
+      '<div class="head"><span class="kicker" style="color:var(--gold)">' + esc(quand(e)) + ' · ' + effTxt(C, e) + '</span><h1 class="big sm">' + NOM_PARTIE[B.partie] + '</h1></div>' +
       stepsHtml(C, e, B.partie) + avant +
       (ids.length < 2 && !(!at && tousOf(C).length >= 2) ? '<div class="empty">Cochez d\'abord les présents sur la page de l\'entraînement.</div><a class="btn2" href="#/educ/evt/' + esc(e.id) + '">Les présents</a></main>' :
       regEntHtml(C, reg, ids, { mode: 'data-act="cEMode" data-v', sep: 'data-act="cESep" data-v', n: 'data-act="cEN" data-k', base: 'data-act="cBase" data-v' }, e) +
@@ -1336,7 +1337,10 @@ window.MC = window.MC || {};
     var large = (gone && !avecPoste) || / csp"/.test(tag || '');   // « absent » ou « Sans poste » en haut à droite : le prénom laisse plus de place
     return '<li><button type="button" class="cpj' + (on ? ' sel' : '') + (moved ? ' moved' : '') + (gone ? ' gone' : '') + (att ? ' att' : '') + (large ? ' cpo-l' : '') + '" data-act="cPick" data-v="' + v + '" data-id="' + esc(j.id) + '" aria-pressed="' + !!on + '">' +
       // (v60, demande de Nicolas) « ? » doré (pas encore répondu sur Spond) collé à droite du prénom, au lieu du chrono
-      '<span class="cpl1"><span class="cpn">' + esc(f.prenom) + '</span>' + (att ? '<span class="cfl catt" title="Pas encore répondu sur Spond"><span aria-hidden="true">?</span><span class="sr-only">pas encore répondu sur Spond</span></span>' : '') + '</span>' + (gone && !avecPoste ? '<span class="cpo cabs">absent</span>' : tag) + '<span class="row cfls"><span class="cflg">' + (avecPoste ? '<span class="cfl cabsf" title="Absent sur Spond (ou retiré des présents)">absent</span>' : '') + (hors ? '<span class="cfl chors" title="' + esc(ATT.horsT) + '">' + esc(ATT.horsLab) + '</span>' : '') + starsMini(f.plaquage, sousRep) + lv + heart + (f.niveau ? '' : '<span class="cfl cq" title="Niveau à renseigner">?</span>') + '</span>' +
+      '<span class="cpl1"><span class="cpn">' + esc(f.prenom) + '</span>' + (att ? '<span class="cfl catt" title="Pas encore répondu sur Spond"><span aria-hidden="true">?</span><span class="sr-only">pas encore répondu sur Spond</span></span>' : '') +
+        // (v89, demande de Nicolas du 15/11) à côté du « ? » : ✓ vert pour un enfant qui a confirmé, ✗ rouge pour un absent
+        (ATT && ATT.pres[j.id] && ATT.rep ? '<span class="cfl crep cok" title="' + ATT.okT + '">' + icon('check', 10) + '<span class="sr-only">' + ATT.okT + '</span></span>' : '') +
+        (gone ? '<span class="cfl crep cno" title="Absent">' + icon('x', 10) + '<span class="sr-only">absent</span></span>' : '') + '</span>' + (gone && !avecPoste ? '<span class="cpo cabs">absent</span>' : tag) + '<span class="row cfls"><span class="cflg">' + (avecPoste ? '<span class="cfl cabsf" title="Absent sur Spond (ou retiré des présents)">absent</span>' : '') + (hors ? '<span class="cfl chors" title="' + esc(ATT.horsT) + '">' + esc(ATT.horsLab) + '</span>' : '') + starsMini(f.plaquage, sousRep) + lv + heart + (f.niveau ? '' : '<span class="cfl cq" title="Niveau à renseigner">?</span>') + '</span>' +
       // (v60, demande de Nicolas) les postes de sa fiche sur la même ligne que le plaquage et les passerelles, à droite
       (d.reglages.partie !== 'ateliers' && pills ? '<span class="cpps"><span class="sr-only">postes : </span>' + pills + '</span>' : '') + '</span></button></li>';
   }
@@ -1458,6 +1462,9 @@ window.MC = window.MC || {};
     ATT = { pres: {}, att: {}, abs: {}, tous: baseTous(vs[0].reglages), horsLab: e.source === 'spond' ? 'hors Spond' : 'pas coché',
       horsT: e.source === 'spond' ? 'Pas dans l\'événement Spond (pas relié, autre catégorie…)' : 'Pas coché dans les présents' };
     presents.forEach(function (id) { ATT.pres[id] = 1; }); att.forEach(function (id) { ATT.att[id] = 1; }); absentsOf(C, e).forEach(function (id) { ATT.abs[id] = 1; });
+    // (v89) ✓ sur les cartes : une réponse Spond « oui » (ou coché présent, pour un événement fait à la main)
+    ATT.rep = e.source === 'spond' ? !invitPas(e) : presents.length > 0;
+    ATT.okT = e.source === 'spond' ? 'A confirmé sur Spond' : 'Coché présent';
     var fmt = vs[0].reglages.format, P = B.partie;
     // ce qui change : par rapport à la compo publiée (modif, contre-proposition), ou entre les 2 versions
     var moved = vs.map(function () { return {}; });
@@ -1501,7 +1508,7 @@ window.MC = window.MC || {};
     var suite = P === 'ateliers' ? '<a class="btn2" href="' + lienCompo(esc(e.id), 'matchs') + '">' + icon('right', 16) + ' Ensuite : les matchs</a>' : '';
     return '<main class="screen cscreen">' + MC.educBar(C.g, (P ? (P === 'ateliers' ? 'Ateliers' : 'Matchs') : 'Compo') + ' · ' + e.titre, '#/educ/evt/' + e.id, e.titre) +
       '<div class="head"><span class="kicker" style="color:var(--gold)">' + esc(quand(e)) + ' · ' + (ATT.tous ? tousOf(C).length + ' enfants · ' : '') + presents.length + ' présents' + (entB() ? '' : ' · jeu à ' + fmt) + '</span><h1 class="big sm">' + (P ? NOM_PARTIE[P] : 'La compo') + '</h1></div>' +
-      (P ? stepsHtml(C, e, P) : '') + state + topHtml(C, e, c) + avBlock + cmp + spondHtml(C, e) +
+      (P ? stepsHtml(C, e, P) : '') + state + topHtml(C, e, c) + avBlock + cmp + spondHtml(C, e, c) +
       (ed && fmt === 10 && nv === 1 ? '<button type="button" class="btn2" data-act="cParPoste" data-v="0">' + icon('board', 16) + ' Poste par poste</button>' : '') +   // (v57)
       (communes ? '<p class="small" style="margin:0"><b style="color:var(--yellow)">Entourés</b> : placés autrement d\'une version à l\'autre.</p>' : '') +
       '<details class="caide"' + (aideOuverte() ? ' open' : '') + '><summary>' + icon('info', 16) + '<span>Légende et gestes</span>' + icon('down', 14, 'class="caide-i"') + '</summary>' +
@@ -1520,15 +1527,84 @@ window.MC = window.MC || {};
   }
   // (v57) une compo partie de tout le groupe : les réponses Spond du moment (marquées dans la compo), et « Actualiser » pour les relire
   // tout de suite (sinon toutes les heures) ; l'appli ne change rien aux équipes (demande de Nicolas du 07/11)
-  function spondHtml(C, e) {
-    if (!ATT || !ATT.tous) return '';
-    var np = 0, na = 0, nab = 0, nh = 0;
-    tousOf(C).forEach(function (id) { if (ATT.pres[id]) np++; else if (ATT.att[id]) na++; else if (ATT.abs[id]) nab++; else nh++; });
-    return '<div class="between cspond"><span class="small">' + icon('refresh', 14) + ' ' + (e.source === 'spond' ? 'Spond' : 'Présents') + ' : ' + np + ' présent' + (np > 1 ? 's' : '') +
-      (nab ? ' · <b style="color:var(--pink)">' + nab + ' absent' + (nab > 1 ? 's' : '') + '</b>' : '') + (na ? ' · <b style="color:var(--gold)">' + na + ' sans réponse</b>' : '') +
-      (nh ? ' · ' + nh + ' ' + (e.source === 'spond' ? 'pas sur l\'événement' : 'pas cochés') : '') + ', marqués dans la compo' + '</span>' +
-      (e.source === 'spond' && !MC.api.DEMO ? '<button type="button" class="btn2 sm" data-act="cSync">' + icon('refresh', 14) + ' Actualiser</button>' : '') + '</div>';
+  // (v89, demande de Nicolas du 15/11) les réponses Spond face à la compo : qui a confirmé (✓), qui attend (?), les absents à
+  // remplacer (✗, un bouton « Remplacer » chacun) et ce qui a changé depuis que la compo a été enregistrée ; « Actualiser » relit
+  // Spond tout de suite (sinon toutes les heures). L'appli ne touche jamais seule aux équipes.
+  function spondHtml(C, e, c) {
+    if (!ATT) return '';
+    var spond = e.source === 'spond', act = spond && !MC.api.DEMO ? '<button type="button" class="btn2 sm" data-act="cSync">' + icon('refresh', 14) + ' Actualiser</button>' : '';
+    if (invitPas(e)) {
+      var dt = e.invitation ? new Date(e.invitation) : null, quandI = dt && !isNaN(dt) ? ' (envoi prévu le ' + ui.fmtDate(localDay(e.invitation)) + ')' : '';
+      return '<div class="between cspond cpres"><span class="small"><b>Invitations Spond pas encore parties</b>' + esc(quandI) + ' : la compo se fait avec tout le groupe, chacun en <span class="cqatt" aria-hidden="true">?</span> en attendant sa réponse.</span>' + act + '</div>';
+    }
+    if (!ATT.rep && !ATT.tous) return '';
+    var d = B.vs[0], placed = [];
+    d.equipes.forEach(function (t) { t.joueurs.forEach(function (j) { if (placed.indexOf(j.id) < 0) placed.push(j.id); }); });
+    var ok = placed.filter(function (id) { return ATT.pres[id]; }), at = placed.filter(function (id) { return ATT.att[id]; }), abs = placed.filter(function (id) { return absentIci(id, d); });
+    var html = '<div class="cpres"><div class="between"><span class="small">' + (spond ? 'Spond' : 'Présents') + ', dans ' + (B.vs.length > 1 ? 'la V1' : 'la compo') + ' : ' +
+      '<span class="cpres-n ok">' + icon('check', 12) + ' ' + ok.length + ' confirmé' + (ok.length > 1 ? 's' : '') + '</span>' +
+      (at.length ? ' · <span class="cpres-n att"><span class="cqatt" aria-hidden="true">?</span> ' + at.length + ' en attente</span>' : '') +
+      (abs.length ? ' · <span class="cpres-n no">' + icon('x', 12) + ' ' + abs.length + ' absent' + (abs.length > 1 ? 's' : '') + ' à remplacer</span>' : '') + '</span>' + act + '</div>';
+    // les absents placés : où ils sont, et « Remplacer »
+    if (abs.length) html += '<ul class="cpres-abs">' + abs.map(function (id) {
+      var w = K.where(d, id), t = w && w.t >= 0 ? d.equipes[w.t] : null, j = t ? t.joueurs[w.j] : null;
+      return '<li><span class="grow"><b>' + esc(nom(C, id)) + '</b> <span class="small">· ' + esc(t ? labelEq(t) : '') + (j && j.poste ? ' · ' + NOMP[j.poste] : '') + '</span></span>' +
+        (editable() ? '<button type="button" class="btn2 sm" data-act="cRemp" data-v="0" data-id="' + esc(id) + '">' + icon('swap', 14) + ' Remplacer</button>' : '') + '</li>';
+    }).join('') + '</ul>';
+    // ce qui a changé depuis la compo enregistrée (réponses gardées avec elle)
+    var R = c && c.reponses, ch = [];
+    if (R && !B.dirty) {
+      var avant = function (id) { return R.pres.indexOf(id) >= 0 ? 'ok' : R.abs.indexOf(id) >= 0 ? 'no' : R.att.indexOf(id) >= 0 ? 'att' : ''; };
+      var mtn = function (id) { return ATT.pres[id] ? 'ok' : ATT.abs[id] ? 'no' : ATT.att[id] ? 'att' : ''; };
+      var nouveaux = [];
+      tousOf(C).forEach(function (id) {
+        var a = avant(id), m = mtn(id);
+        if (a === m || !m) return;
+        if (placed.indexOf(id) >= 0) ch.push({ id: id, m: m });
+        else if (m === 'ok') nouveaux.push(id);
+      });
+      var lab = { ok: 'a confirmé', no: 'ne vient plus', att: 'n\'a plus répondu' };
+      if (ch.length || nouveaux.length) html += '<p class="small cpres-ch"><b>Depuis la compo du ' + esc(ui.fmtDate(localDay(R.quand))) + '</b> : ' +
+        ch.map(function (x) { return '<span class="cpres-n ' + x.m + '">' + esc(nom(C, x.id)) + ' ' + lab[x.m] + '</span>'; }).concat(nouveaux.length ? ['<span class="cpres-n ok">' + nouveaux.length + ' nouveau' + (nouveaux.length > 1 ? 'x' : '') + ' présent' + (nouveaux.length > 1 ? 's' : '') + ', pas placé' + (nouveaux.length > 1 ? 's' : '') + ' : ' + esc(nouveaux.map(function (id) { return nom(C, id); }).join(', ')) + '</span>'] : []).join(' · ') + '.</p>';
+    }
+    // tout le groupe : ceux qui ne sont pas dans l'événement
+    if (ATT.tous) {
+      var nh = tousOf(C).filter(function (id) { return !ATT.pres[id] && !ATT.att[id] && !ATT.abs[id]; }).length;
+      if (nh) html += '<p class="small" style="margin:0">' + nh + ' ' + (spond ? 'pas sur l\'événement Spond' : 'pas cochés') + ' (marqués « ' + ATT.horsLab + ' »).</p>';
+    }
+    return html + '</div>';
   }
+  // (v89) remplacer un absent : les enfants libres (pas dans une équipe), confirmés d'abord, puis en attente ; au jeu à 10, ceux qui
+  // ont le poste sur leur fiche d'abord (préféré en tête), puis le même niveau que l'équipe. Un toucher : il prend sa place et son poste.
+  function candidats(C, d, id) {
+    var w = K.where(d, id), t = w && w.t >= 0 ? d.equipes[w.t] : null, p = t ? t.joueurs[w.j].poste : '';
+    var libres = tousOf(C).filter(function (x) { var wx = K.where(d, x); return (!wx || wx.t < 0) && (ATT.pres[x] || ATT.att[x]) && x !== id; });
+    var note = function (x) {
+      var f = C.F[x] || {}, n = 0, ps = K.postesDe(f);
+      if (ATT.att[x]) n += 1000;
+      if (p) { var pref = (f.pref || []).length ? f.pref : ps.slice(0, 1); n += pref.indexOf(p) >= 0 ? 0 : ps.indexOf(p) >= 0 ? 100 : K.typePoste(p) && ps.some(function (q) { return K.typePoste(q) === K.typePoste(p); }) ? 200 : 300; }
+      if (t && t.niveau) n += f.niveau === t.niveau ? 0 : 50;
+      return n;
+    };
+    return { t: t, p: p, l: libres.sort(function (a, b) { return note(a) - note(b) || nom(C, a).localeCompare(nom(C, b), 'fr'); }) };
+  }
+  MC.act.cRemp = function (b) {
+    withC(function (C) {
+      var v = Number(b.getAttribute('data-v')) || 0, id = b.getAttribute('data-id'), d = B.vs[v];
+      if (!d || !editable()) return;
+      var r = candidats(C, d, id), l = r.l.slice(0, 12);
+      if (!l.length) { ui.toast('Personne de libre pour le remplacer : retirez-le, ou touchez sa carte puis un joueur d\'une autre équipe.'); return; }
+      ui.modal({ title: 'Remplacer ' + esc(nom(C, id)), body: '<p class="small" style="margin:0">' + esc((r.t ? labelEq(r.t) : '') + (r.p ? ' · ' + NOMP[r.p] : '')) + ' · les enfants pas encore placés, confirmés d\'abord.</p>',
+        actions: l.map(function (x) {
+          var f = C.F[x] || {};
+          return { label: '<span class="crem-l">' + (ATT.pres[x] ? '<span class="cfl crep cok">' + icon('check', 10) + '</span>' : '<span class="cqatt">?</span>') + '<b>' + esc(nom(C, x)) + '</b>' + niveauTag(f.niveau, true) + '<span class="cpps">' + pillsPostes(f) + '</span></span>', value: x, cls: 'btn2 crem' };
+        }).concat([{ label: 'Annuler', value: null, cls: 'btn2 grey' }]) }).then(function (x) {
+        if (!x) return;
+        change(function () { B.vs[v] = K.swap(d, id, x, C.F); });
+        ui.toast(nom(C, x) + ' remplace ' + nom(C, id));
+      });
+    });
+  };
   // le vote en cours : qui a voté quoi, la majorité à atteindre
   function voteState(C, c) {
     var educs = C.cd.educs || [], tot = educs.length || 1, need = Math.floor(tot / 2) + 1, votes = c.votes || {};
@@ -2276,7 +2352,7 @@ window.MC = window.MC || {};
   // refaire une version d'un entraînement avec d'autres réglages
   function reglEnt(v, d) {
     withC(function (C, e) {
-      var reg = K.regEnt(JSON.parse(JSON.stringify(d.reglages)), presentsOf(C, e), C.F);
+      var reg = K.regEnt(JSON.parse(JSON.stringify(d.reglages)), baseIds(C, e), C.F);
       // (relecture v65) aux ateliers, le choix des groupes (par niveau, équilibrés, A forte) en tête de la fenêtre
       function body() { return (reg.partie === 'ateliers' ? modesHtml(reg, { mode: 'data-rm' }) : '') + regEntHtml(C, reg, idsBase(C, e, reg), { mode: 'data-rm', sep: 'data-rsep', n: 'data-rk', base: 'data-rb' }, e); }
       ui.modal({

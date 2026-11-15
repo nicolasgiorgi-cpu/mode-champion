@@ -2166,3 +2166,24 @@ body.cdg-on .cpj{cursor:grabbing}
 .cswipe>.cev:focus-visible{outline-offset:-2px}
 .cswipe>.cev.cnext{background:color-mix(in srgb,var(--cyan) 6%,var(--panel2))}
 .cboard2 .cgrp.vide-tous{display:none}
+/* (v89) réponses Spond sur les cartes : ✓ vert (confirmé), ✗ rouge (absent), à côté du « ? » doré (en attente) */
+.cpj .cfl.crep{flex:none;display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%}
+.cpj .cfl.cok{background:color-mix(in srgb,var(--green) 18%,transparent);border:1.5px solid var(--green);color:var(--green)}
+.cpj .cfl.cno{background:var(--red);border:1.5px solid var(--red);color:#070A12}
+.cpj .cfl.crep svg{stroke-width:3.2}
+/* (v89) le point des réponses Spond en haut de la compo */
+.cpres{display:flex;flex-direction:column;gap:8px;padding:10px 12px;border:1px solid var(--line2);background:var(--panel2)}
+.cpres .between{align-items:center;gap:8px}
+.cpres-n{display:inline-flex;align-items:center;gap:4px;font-weight:700;white-space:nowrap}
+.cpres-n.ok{color:var(--green)}
+.cpres-n.att{color:var(--gold)}
+.cpres-n.no{color:var(--red)}
+.cpres-n .cqatt{width:14px;height:14px;font-size:9px}
+.cpres-abs{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.cpres-abs li{display:flex;align-items:center;gap:8px;padding:6px 8px;border-left:3px solid var(--red);background:color-mix(in srgb,var(--red) 7%,transparent)}
+.cpres-ch{margin:0;line-height:1.6}
+.cpres-ch .cpres-n{white-space:normal}
+.modal .crem{justify-content:flex-start;text-transform:none;letter-spacing:0}
+.crem-l{display:flex;align-items:center;gap:6px;width:100%;min-width:0;font:600 14px/1.2 var(--f-body)}
+.crem-l .cpps{margin-left:auto;display:inline-flex;gap:3px}
+.crem-l .cfl.crep{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:color-mix(in srgb,var(--green) 18%,transparent);border:1.5px solid var(--green);color:var(--green)}

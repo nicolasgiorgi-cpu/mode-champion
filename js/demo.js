@@ -193,7 +193,7 @@ MC.demo = (function () {
     function sauf(noms) { var out = []; Object.keys(ids).forEach(function (n) { if (noms.indexOf(n) < 0) out.push(ids[n]); }); return out; }
     function evt(o) {
       var row = { id: o.id, source: o.source || 'spond', titre: o.titre, sorte: o.sorte || K.sorteDuTitre(o.titre), debut: o.debut, fin: '', lieu: o.lieu || '', presents: o.presents || [], absents: o.absents || [],
-        sansReponse: o.sansReponse || [], ajouts: [], retraits: [], inconnus: o.inconnus || [], annule: !!o.annule, parQui: o.parQui || 'Spond', maj: nowIso };
+        sansReponse: o.sansReponse || [], ajouts: [], retraits: [], inconnus: o.inconnus || [], annule: !!o.annule, parQui: o.parQui || 'Spond', maj: nowIso, invitation: o.invitation || '' };
       db.insert('evenements', row); return row;
     }
     // Coach Nico est aussi le papa de Tom : il confirme les résultats de Tom depuis son espace éduc
@@ -231,6 +231,18 @@ MC.demo = (function () {
       justification: tomIn ? 'Chloé n\'est pas encore montée en A cette saison : son tour avant Tom.' : 'Tom n\'est pas encore monté en A : c\'est son tour.', statut: 'attente', reponse: '', parQui: '', cree: nowIso, maj: nowIso });
     evt({ id: 'sp-demo-p3', titre: 'Plateau 3 - Muret', debut: L.addDays(today, 32) + 'T08:00:00.000Z', lieu: 'Muret', presents: sauf(['Rose', 'Nathan', 'Côme', 'Maël', 'Lucas']),
       absents: [ids['Maël']], sansReponse: [ids['Nathan'], ids['Côme'], ids['Lucas']], inconnus: ['Julien C.'] });
+    // (v89) un plateau dont la compo (jeu à 10) a été faite avant des réponses Spond : Léo et Sacha ne viennent plus, Lou a confirmé
+    var p6 = evt({ id: 'sp-demo-p6', titre: 'Plateau 2 bis - Lézat', debut: L.addDays(today, 25) + 'T08:00:00.000Z', lieu: 'Lézat',
+      presents: sauf(['Rose', 'Côme', 'Lucas', 'Hugo', 'Nathan', 'Léo', 'Sacha', 'Jade', 'Mila']), absents: [ids['Léo'], ids['Sacha']], sansReponse: [ids['Jade'], ids['Mila']] });
+    evts[p6.id] = p6;
+    var avant6 = sauf(['Rose', 'Côme', 'Lucas', 'Hugo', 'Nathan', 'Jade', 'Mila', 'Lou']);
+    var q6 = K.proposer(avant6, F, K.historique(compos, evts, F, today), { format: 10, nb: { A: 1, B: 1, C: 0 } }, today);
+    db.insert('compos', { id: id(), evenementId: p6.id, sorte: 'plateau', version: 1, auteur: nico.id, auteurNom: 'Coach Nico', statut: 'publiee', reglages: q6.reglages || { format: 10, nb: { A: 1, B: 1, C: 0 } },
+      equipes: q6.equipes, banc: [], raisons: q6.raisons || {}, justification: '', historique: [{ v: 1, par: 'Coach Nico', quand: L.addDays(today, -2) + 'T20:00:00.000Z', note: 'Compo publiée' }],
+      cree: L.addDays(today, -2) + 'T20:00:00.000Z', maj: L.addDays(today, -2) + 'T20:00:00.000Z', versions: [], votes: {}, choix: -1,
+      reponses: { quand: L.addDays(today, -2) + 'T20:00:00.000Z', pres: avant6.filter(function (x) { return x !== ids['Jade'] && x !== ids['Mila']; }), att: [ids['Jade'], ids['Mila'], ids['Lou']], abs: [] } });
+    // (v89) l'entraînement de la semaine d'après : Spond n'a pas encore envoyé les invitations (personne n'a pu répondre)
+    evt({ id: 'sp-demo-e2', titre: 'Entraînement - Saint-Sulpice', debut: L.addDays(today, ((2 - L.dow(today)) + 7) % 7 + 7 || 7) + 'T16:30:00.000Z', lieu: 'Saint-Sulpice', presents: [], invitation: L.addDays(today, 3) + 'T08:00:00.000Z' });
     // (v88) un plateau annulé dans Spond (on peut l'effacer d'un glisser vers la gauche)
     evt({ id: 'sp-demo-p5', titre: 'Plateau 3 bis - Revel', debut: L.addDays(today, 39) + 'T08:00:00.000Z', lieu: 'Revel', annule: true, presents: sauf(['Rose', 'Côme', 'Lucas', 'Hugo', 'Nathan']) });
     // plateau 4 : Cyril a proposé 2 versions au vote des éducs (il a voté pour la 2)
