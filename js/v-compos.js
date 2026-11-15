@@ -96,12 +96,25 @@ window.MC = window.MC || {};
   MC.evtListe = listeDe;
   function presentsOf(C, e) { return K.presents(e).filter(function (id) { return C.actifs[id]; }); }
   // pas encore répondu sur Spond : plaçables en attendant leur réponse
-  function attenteOf(C, e) { return K.attente(e).filter(function (id) { return C.actifs[id]; }); }
+  function attenteOf(C, e) {
+    // (v89) invitations Spond pas encore parties : tout le groupe attend (sauf ceux déjà marqués à la main)
+    if (invitPas(e)) { var p = K.presents(e), non = (e.absents || []).concat(e.retraits || []); return tousOf(C).filter(function (id) { return p.indexOf(id) < 0 && non.indexOf(id) < 0; }); }
+    return K.attente(e).filter(function (id) { return C.actifs[id]; });
+  }
+  // (v89, demande de Nicolas du 15/11) on commence souvent les compos avant que Spond envoie les invitations : tant qu'elles ne
+  // sont pas parties (heure d'envoi dans le futur, ou personne n'a encore de réponse), la compo se fait avec tout le groupe
+  function invitPas(e) {
+    if (!e || e.source !== 'spond' || e.annule) return false;
+    if (e.invitation && String(e.invitation) > new Date().toISOString()) return true;
+    return !(e.presents || []).length && !(e.absents || []).length && !(e.sansReponse || []).length && !(e.ajouts || []).length && !(e.retraits || []).length;
+  }
+  // les enfants à répartir : les présents ; tout le groupe tant que les invitations ne sont pas parties
+  function baseIds(C, e) { return invitPas(e) ? tousOf(C) : presentsOf(C, e); }
   // (v57, demande de Nicolas du 07/11) au jeu à 10 (plateau ou matchs), une compo part des présents (par défaut) ou de tout
   // le groupe : les absents et ceux qui n'ont pas répondu sur Spond y sont alors marqués, sans que l'appli touche aux équipes
   function tousOf(C) { return C.g.joueurs.filter(function (p) { return C.actifs[p.joueur.id] && !/^test$/i.test(p.joueur.prenom || ''); }).map(function (p) { return p.joueur.id; }); }   // sans l'enfant « Test » (comme la liste Enfants)
   function baseTous(reg) { return !!reg && reg.base === 'tous' && K.fmt(reg) === 10; }
-  function idsBase(C, e, reg) { return baseTous(reg) ? tousOf(C) : presentsOf(C, e); }
+  function idsBase(C, e, reg) { return baseTous(reg) ? tousOf(C) : baseIds(C, e); }
   // (v57) les absents : répondu « non » sur Spond (sauf ajoutés à la main) ou retirés des présents ; un enfant qui n'est pas
   // dans l'événement (pas relié à Spond, autre catégorie, pas coché) n'est pas « absent »
   function absentsOf(C, e) {

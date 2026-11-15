@@ -161,7 +161,8 @@ function lireSpond_() {
       var ev = {
         id: e.id, titre: e.heading || '', debut: e.startTimestamp || '', fin: e.endTimestamp || '', categorie: c.nom,
         lieu: (e.location && (e.location.feature || e.location.address)) || '', annule: !!(e.cancelled || e.canceled),
-        acceptes: r.acceptedIds || [], refuses: r.declinedIds || [], sansReponse: (r.unansweredIds || []).concat(r.unconfirmedIds || []), attente: r.waitinglistIds || []
+        acceptes: r.acceptedIds || [], refuses: r.declinedIds || [], sansReponse: (r.unansweredIds || []).concat(r.unconfirmedIds || []), attente: r.waitinglistIds || [],
+        invitation: e.inviteTime || ''   // (v89) l'heure d'envoi des invitations (dans le futur : pas encore envoyées)
       };
       vusE[e.id] = ev; evenements.push(ev);
     });
