@@ -72,7 +72,8 @@ with sync_playwright() as p:
     sansposte = ev("""(d) => { const F = MC.compos.fiches(MC.app.S.cache.group); return d.equipes.every(t => t.joueurs.every(j => !!j.poste === (MC.compos.postesDe(F[j.id]).length > 0))); }""", d)
     check('chacun a un poste, remplaçants compris (sauf ceux qui n\'en ont aucun)', sansposte)
     check('en haut : « N enfants · M présents »', ('%d ENFANTS · %d PRÉSENTS' % (ntous, npres)) in pg.inner_text('.head').upper(), pg.inner_text('.head'))
-    check('la ligne Spond : présents, absents, sans réponse (« Actualiser » caché en démo, comme la liste)', pg.query_selector('.cspond') is not None and 'marqués dans la compo' in pg.inner_text('.cspond') and pg.query_selector('.cspond [data-act="cSync"]') is None)
+    # (v89) la ligne Spond devient le point des réponses (confirmés, en attente, absents à remplacer), en haut de la compo
+    check('le point des réponses Spond : confirmés, en attente (« Actualiser » caché en démo, comme la liste)', pg.query_selector('.cpres') is not None and 'confirmés' in pg.inner_text('.cpres') and 'en attente' in pg.inner_text('.cpres') and pg.query_selector('.cpres [data-act="cSync"]') is None, pg.inner_text('.cpres') if pg.query_selector('.cpres') else '')
     nabs = ev("document.querySelectorAll('.ccol:not(.banc) .cpj.gone .cabsf').length")
     check('les absents sont dans les équipes, marqués « absent », avec leur poste', nabs > 0 and ev("[...document.querySelectorAll('.ccol:not(.banc) .cpj.gone')].every(x => x.querySelector('.cpo') && x.querySelector('.cabsf'))"), nabs)
     check('« À regarder » : les absents dans une équipe, à retirer d\'un geste', 'dans une équipe :' in pg.inner_text('main'))
@@ -88,7 +89,7 @@ with sync_playwright() as p:
       return { n: hors.length, ok: hors.every(id => [...document.querySelectorAll('.cpj[data-id="' + id + '"]')].every(b => b.querySelector('.chors') && !b.classList.contains('gone'))),
         absOk: A.filter(id => P.indexOf(id) < 0).every(id => [...document.querySelectorAll('.ccol:not(.banc) .cpj[data-id="' + id + '"]')].every(b => b.classList.contains('gone'))) }; })()""")
     check('pas dans l\'événement Spond : « hors Spond », pas barré ; les vrais absents barrés', hs['n'] > 0 and hs['ok'] and hs['absOk'], hs)
-    check('la ligne Spond compte à part ceux qui ne sont pas dans l\'événement', "pas sur l'événement" in pg.inner_text('.cspond'), pg.inner_text('.cspond'))
+    check('la ligne Spond compte à part ceux qui ne sont pas dans l\'événement', "pas sur l'événement" in pg.inner_text('.cpres'), pg.inner_text('.cpres'))
     # (I6) un absent ne tient pas de place : le nombre de joueurs de l'équipe ne le compte pas, « N absent » dans l'en-tête
     eqs = ev("""[...document.querySelectorAll('.ccol')].filter(c => c.querySelector('.chd .cn')).map(c => ({ n: +c.querySelector('.chd .cn').textContent, vis: c.querySelectorAll('.cpj:not(.gone)').length, gone: c.querySelectorAll('.cpj.gone').length, hd: c.querySelector('.cavtq').textContent }))""")
     check('équipes : les absents ne comptent pas (« N absent » en haut)', any(x['gone'] for x in eqs) and all(x['n'] == x['vis'] and (('absent' in x['hd']) == (x['gone'] > 0)) for x in eqs), eqs)
@@ -98,7 +99,7 @@ with sync_playwright() as p:
     pg.click('.cbopt [data-act="cNb"][data-n="B"][data-d="1"]'); pg.wait_for_timeout(250)
     pg.click('.cbopt [data-act="cKeep"]'); pg.wait_for_timeout(600)
     d = draft('sp-demo-p3')
-    check('« Garder mes placements » : « tout le groupe » gardé, 4 équipes', d['reglages'].get('base') == 'tous' and [t['id'] for t in d['equipes']] == ['A1', 'A2', 'B1', 'B2'] and pg.query_selector('.cspond') is not None, d['reglages'])
+    check('« Garder mes placements » : « tout le groupe » gardé, 4 équipes', d['reglages'].get('base') == 'tous' and [t['id'] for t in d['equipes']] == ['A1', 'A2', 'B1', 'B2'] and pg.query_selector('.cpres') is not None, d['reglages'])
     pg.click('[data-act="cParPoste"]'); pg.wait_for_timeout(700)
     m4 = ev("""(() => { const rows = [...document.querySelectorAll('.modal .pprow')].filter(r => !r.closest('details:not([open])')), c = document.querySelector('.modal .card');
       return { many: rows.length > 0 && rows.every(r => r.classList.contains('many')), nom: Math.min(...rows.map(r => r.querySelector('.ppi').getBoundingClientRect().width)),
@@ -114,7 +115,7 @@ with sync_playwright() as p:
     pg.click('.cbopt > summary'); pg.wait_for_timeout(200)
     check('annuler : de nouveau A1 et B1', [t['id'] for t in draft('sp-demo-p3')['equipes']] == ['A1', 'B1'])
     ev("MC.api.DEMO = false; MC.app.rerender()"); pg.wait_for_timeout(400)
-    check('hors démo : « Actualiser » sur la ligne Spond', pg.query_selector('.cspond [data-act="cSync"]') is not None)
+    check('hors démo : « Actualiser » sur la ligne Spond', pg.query_selector('.cpres [data-act="cSync"]') is not None)
     ev("MC.api.DEMO = true; MC.app.rerender()"); pg.wait_for_timeout(400)
     check('« À regarder » : ceux qui ne sont pas dans l\'événement Spond, à part', "pas dans l'événement Spond" in pg.inner_text('main'))
     gone = ev("[...document.querySelectorAll('.ccol:not(.banc) .cpj.gone')].map(b => b.getAttribute('data-id'))")
@@ -174,7 +175,7 @@ with sync_playwright() as p:
     cp = ev("MC.app.S.cache.compos.compos.find(c => c.evenementId === 'sp-demo-p3' && !c.partie)")
     check('publiée : « tout le groupe » gardé, plusieurs talonneurs gardés', cp and cp['reglages'].get('base') == 'tous' and len([j for t in cp['equipes'] for j in t['joueurs'] if j['poste'] == 'talonneur']) >= 3, cp and cp['reglages'])
     pg.goto(BASE + '#/educ/compo/sp-demo-p3'); pg.wait_for_timeout(1000)
-    check('rouverte : les absents toujours marqués', ev("document.querySelectorAll('.ccol .cpj.gone').length") > 0 and pg.query_selector('.cspond') is not None)
+    check('rouverte : les absents toujours marqués', ev("document.querySelectorAll('.ccol .cpj.gone').length") > 0 and pg.query_selector('.cpres') is not None)
 
     # ----- (relecture v57, I2) un plateau de décembre sans présents encore : « Tout le groupe » refait le nombre d'équipes -----
     eid = ev("""MC.app.adultCall('setEvenement', { titre: 'Plateau 9 - Essai', debut: '2026-12-12T09:00:00.000Z', lieu: 'Essai', sorte: 'plateau', presents: [] }).then(r => MC.loadCompos(true).then(() => r.evenement.id))""")

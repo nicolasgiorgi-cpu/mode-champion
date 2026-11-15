@@ -506,7 +506,7 @@ window.MC = window.MC || {};
     var pres = presentsOf(C, e), sr = (e.sansReponse || []).filter(function (id) { return C.actifs[id] && pres.indexOf(id) < 0; }).length;
     var ab = (e.absents || []).filter(function (id) { return C.actifs[id]; }).length;
     var presCard = '<a class="li cpres-card" href="#/educ/evt/' + esc(e.id) + '/presents"><span class="cbig">' + pres.length + '</span><span class="grow"><span class="t1">Les présents</span><span class="t2">' +
-      (e.source === 'spond' ? ([ab ? ab + ' absent' + (ab > 1 ? 's' : '') : '', sr ? sr + ' sans réponse' : ''].filter(Boolean).join(' · ') || 'D\'après Spond') : 'Cochés à la main') + '</span></span>' + icon('right', 16) + '</a>';
+      (invitPas(e) ? 'Invitations Spond pas encore parties' : e.source === 'spond' ? ([ab ? ab + ' absent' + (ab > 1 ? 's' : '') : '', sr ? sr + ' sans réponse' : ''].filter(Boolean).join(' · ') || 'D\'après Spond') : 'Cochés à la main') + '</span></span>' + icon('right', 16) + '</a>';
     // (v56, demande de Nicolas) une compo faite passe en premier, plus grande et en surbrillance
     var aCompo = train ? K.PARTIES.some(function (x) { return compoOf(C.cd, e.id, x) || (!past && app.lsGet(draftKey(e.id, x))); }) : e.sorte === 'plateau' && (!!c || (!past && !!app.lsGet(draftKey(e.id))));
     var compoBlock;
@@ -1442,15 +1442,23 @@ window.MC = window.MC || {};
     var pl = partis.length > 1;
     if (partis.length) al.unshift({ k: 'parti', niveau: 'warn', texte: (main ? (tous ? (pl ? 'Pas cochés dans les présents, dans une équipe : ' : 'Pas coché dans les présents, dans une équipe : ') : (pl ? 'Ne viennent plus (décochés des présents) : ' : 'Ne vient plus (décoché des présents) : ')) :
       tous ? (pl ? 'Absents (sur Spond ou retirés des présents), dans une équipe : ' : 'Absent (sur Spond ou retiré des présents), dans une équipe : ') :
-      pl ? 'Ne viennent plus (absents sur Spond ou retirés des présents) : ' : 'Ne vient plus (absent sur Spond ou retiré des présents) : ') + noms(partis) + '.', fix: { t: 'out', ids: partis, lab: 'Retirer', texte: 'Retiré' + (partis.length > 1 ? 's' : '') + ' : ' + noms(partis) } });
+      pl ? 'Ne viennent plus (absents sur Spond ou retirés des présents) : ' : 'Ne vient plus (absent sur Spond ou retiré des présents) : ') + noms(partis) + '.', rem: partis, fix: { t: 'out', ids: partis, lab: 'Retirer', texte: 'Retiré' + (partis.length > 1 ? 's' : '') + ' : ' + noms(partis) } });
     return al;
   }
   function alertesHtml(C, d, v, presents, nv, att) {
     var al = alertesFull(C, d, presents, att);
+    // (v89) les réponses Spond arrivées depuis que la compo a été enregistrée
+    var dep = v === 0 ? depuisCompo(C, compoOf(C.cd, B.evtId, B.partie), d) : null;
+    if (dep) al = [{ k: 'depuis', niveau: 'info', texte: dep }].concat(al);
     var head = nv > 1 ? vName(v) : 'À regarder';
     if (!al.length) return '<div class="empty" style="border-color:rgba(61,255,176,.4);color:var(--green)">' + icon('check', 16) + ' ' + (nv > 1 ? vName(v) + ' : rien' : 'Rien') + ' à signaler.</div>';
     return '<details class="calertw"' + (nv > 1 ? '' : ' open') + '><summary class="between"><h2 class="h2">' + head + '</h2><span class="hud" style="color:var(--orange)">' + al.length + ' à regarder</span></summary><ul class="list calerts">' + al.map(function (a, i) {
-      return '<li class="li ' + (a.niveau === 'warn' ? 'warn' : 'info') + '">' + icon(a.niveau === 'warn' ? 'warn' : 'info', 18, 'style="flex:none"') + '<span class="grow small" style="color:var(--soft)">' + esc(a.texte) + '</span>' +
+      // (v89) un bouton « Remplacer » par absent placé : les enfants libres, confirmés d'abord
+      var rem = a.rem && a.rem.length && editable() ? '<span class="cpres-abs">' + a.rem.map(function (id) {
+        var w = K.where(d, id), t = w && w.t >= 0 ? d.equipes[w.t] : null, j = t ? t.joueurs[w.j] : null;
+        return '<button type="button" class="cpres-r" data-act="cRemp" data-v="' + v + '" data-id="' + esc(id) + '">' + icon('swap', 13) + '<span>Remplacer <b>' + esc(nom(C, id)) + '</b></span><small>' + esc((t ? labelEq(t) : '') + (j && j.poste ? ', ' + NOMP[j.poste] : '')) + '</small></button>';
+      }).join('') + '</span>' : '';
+      return '<li class="li ' + (a.niveau === 'warn' ? 'warn' : 'info') + (rem ? ' crem-al' : '') + '">' + icon(a.niveau === 'warn' ? 'warn' : 'info', 18, 'style="flex:none"') + '<span class="grow small" style="color:var(--soft)">' + esc(a.texte) + rem + '</span>' +
         (a.fix && editable() ? '<button type="button" class="btn2 sm" data-act="cFix" data-v="' + v + '" data-i="' + i + '" title="' + esc(a.fix.texte) + '">' + (a.fix.lab || 'Corriger') + '</button>' : '') + '</li>';
     }).join('') + '</ul></details>';
   }
@@ -1538,41 +1546,35 @@ window.MC = window.MC || {};
       return '<div class="between cspond cpres"><span class="small"><b>Invitations Spond pas encore parties</b>' + esc(quandI) + ' : la compo se fait avec tout le groupe, chacun en <span class="cqatt" aria-hidden="true">?</span> en attendant sa réponse.</span>' + act + '</div>';
     }
     if (!ATT.rep && !ATT.tous) return '';
+    // une ligne (la 1re équipe reste dans le premier écran du téléphone) ; les absents à remplacer et ce qui a changé depuis la
+    // compo enregistrée sont dans « À regarder », avec un bouton « Remplacer » par absent
     var d = B.vs[0], placed = [];
     d.equipes.forEach(function (t) { t.joueurs.forEach(function (j) { if (placed.indexOf(j.id) < 0) placed.push(j.id); }); });
-    var ok = placed.filter(function (id) { return ATT.pres[id]; }), at = placed.filter(function (id) { return ATT.att[id]; }), abs = placed.filter(function (id) { return absentIci(id, d); });
-    var html = '<div class="cpres"><div class="between"><span class="small">' + (spond ? 'Spond' : 'Présents') + ', dans ' + (B.vs.length > 1 ? 'la V1' : 'la compo') + ' : ' +
-      '<span class="cpres-n ok">' + icon('check', 12) + ' ' + ok.length + ' confirmé' + (ok.length > 1 ? 's' : '') + '</span>' +
-      (at.length ? ' · <span class="cpres-n att"><span class="cqatt" aria-hidden="true">?</span> ' + at.length + ' en attente</span>' : '') +
-      (abs.length ? ' · <span class="cpres-n no">' + icon('x', 12) + ' ' + abs.length + ' absent' + (abs.length > 1 ? 's' : '') + ' à remplacer</span>' : '') + '</span>' + act + '</div>';
-    // les absents placés : où ils sont, et « Remplacer »
-    if (abs.length) html += '<ul class="cpres-abs">' + abs.map(function (id) {
-      var w = K.where(d, id), t = w && w.t >= 0 ? d.equipes[w.t] : null, j = t ? t.joueurs[w.j] : null;
-      return '<li><span class="grow"><b>' + esc(nom(C, id)) + '</b> <span class="small">· ' + esc(t ? labelEq(t) : '') + (j && j.poste ? ' · ' + NOMP[j.poste] : '') + '</span></span>' +
-        (editable() ? '<button type="button" class="btn2 sm" data-act="cRemp" data-v="0" data-id="' + esc(id) + '">' + icon('swap', 14) + ' Remplacer</button>' : '') + '</li>';
-    }).join('') + '</ul>';
-    // ce qui a changé depuis la compo enregistrée (réponses gardées avec elle)
-    var R = c && c.reponses, ch = [];
-    if (R && !B.dirty) {
-      var avant = function (id) { return R.pres.indexOf(id) >= 0 ? 'ok' : R.abs.indexOf(id) >= 0 ? 'no' : R.att.indexOf(id) >= 0 ? 'att' : ''; };
-      var mtn = function (id) { return ATT.pres[id] ? 'ok' : ATT.abs[id] ? 'no' : ATT.att[id] ? 'att' : ''; };
-      var nouveaux = [];
-      tousOf(C).forEach(function (id) {
-        var a = avant(id), m = mtn(id);
-        if (a === m || !m) return;
-        if (placed.indexOf(id) >= 0) ch.push({ id: id, m: m });
-        else if (m === 'ok') nouveaux.push(id);
-      });
-      var lab = { ok: 'a confirmé', no: 'ne vient plus', att: 'n\'a plus répondu' };
-      if (ch.length || nouveaux.length) html += '<p class="small cpres-ch"><b>Depuis la compo du ' + esc(ui.fmtDate(localDay(R.quand))) + '</b> : ' +
-        ch.map(function (x) { return '<span class="cpres-n ' + x.m + '">' + esc(nom(C, x.id)) + ' ' + lab[x.m] + '</span>'; }).concat(nouveaux.length ? ['<span class="cpres-n ok">' + nouveaux.length + ' nouveau' + (nouveaux.length > 1 ? 'x' : '') + ' présent' + (nouveaux.length > 1 ? 's' : '') + ', pas placé' + (nouveaux.length > 1 ? 's' : '') + ' : ' + esc(nouveaux.map(function (id) { return nom(C, id); }).join(', ')) + '</span>'] : []).join(' · ') + '.</p>';
-    }
-    // tout le groupe : ceux qui ne sont pas dans l'événement
-    if (ATT.tous) {
-      var nh = tousOf(C).filter(function (id) { return !ATT.pres[id] && !ATT.att[id] && !ATT.abs[id]; }).length;
-      if (nh) html += '<p class="small" style="margin:0">' + nh + ' ' + (spond ? 'pas sur l\'événement Spond' : 'pas cochés') + ' (marqués « ' + ATT.horsLab + ' »).</p>';
-    }
-    return html + '</div>';
+    var ok = placed.filter(function (id) { return ATT.pres[id]; }).length, at = placed.filter(function (id) { return ATT.att[id]; }).length, abs = placed.filter(function (id) { return absentIci(id, d); }).length;
+    var nh = ATT.tous ? tousOf(C).filter(function (id) { return !ATT.pres[id] && !ATT.att[id] && !ATT.abs[id]; }).length : 0;
+    return '<div class="between cspond cpres"><span class="small">' + (spond ? 'Spond' : 'Présents') + (B.vs.length > 1 ? ' (V1)' : '') + ' : ' +
+      '<span class="cpres-n ok">' + icon('check', 12) + ' ' + ok + ' confirmé' + (ok > 1 ? 's' : '') + '</span>' +
+      (at ? ' · <span class="cpres-n att"><span class="cqatt" aria-hidden="true">?</span> ' + at + ' en attente</span>' : '') +
+      (abs ? ' · <a class="cpres-n no" href="#calertes" data-act="cVoirAl">' + icon('x', 12) + ' ' + abs + ' absent' + (abs > 1 ? 's' : '') + ' à remplacer</a>' : '') +
+      (nh ? ' · ' + nh + ' ' + (spond ? 'pas sur l\'événement' : 'pas cochés') : '') + '</span>' + act + '</div>';
+  }
+  // (v89) ce qui a changé dans les réponses depuis que la compo a été enregistrée (réponses gardées avec elle par le serveur)
+  function depuisCompo(C, c, d) {
+    var R = c && c.reponses;
+    if (!R || !ATT || B.dirty) return null;
+    var placed = []; d.equipes.forEach(function (t) { t.joueurs.forEach(function (j) { placed.push(j.id); }); });
+    var avant = function (id) { return R.pres.indexOf(id) >= 0 ? 'ok' : R.abs.indexOf(id) >= 0 ? 'no' : R.att.indexOf(id) >= 0 ? 'att' : ''; };
+    var mtn = function (id) { return ATT.pres[id] ? 'ok' : ATT.abs[id] ? 'no' : ATT.att[id] ? 'att' : ''; };
+    var ch = [], nouveaux = [];
+    tousOf(C).forEach(function (id) {
+      var a = avant(id), m = mtn(id);
+      if (a === m || !m) return;
+      if (placed.indexOf(id) >= 0) ch.push({ id: id, m: m }); else if (m === 'ok') nouveaux.push(id);
+    });
+    if (!ch.length && !nouveaux.length) return null;
+    var lab = { ok: 'a confirmé', no: 'ne vient plus', att: 'n\'a plus de réponse' };
+    return 'Depuis la compo du ' + ui.fmtDate(localDay(R.quand)) + ' : ' + ch.map(function (x) { return nom(C, x.id) + ' ' + lab[x.m]; })
+      .concat(nouveaux.length ? [nouveaux.map(function (id) { return nom(C, id); }).join(', ') + (nouveaux.length > 1 ? ' ont confirmé (pas placés)' : ' a confirmé (pas placé)')] : []).join(' · ') + '.';
   }
   // (v89) remplacer un absent : les enfants libres (pas dans une équipe), confirmés d'abord, puis en attente ; au jeu à 10, ceux qui
   // ont le poste sur leur fiche d'abord (préféré en tête), puis le même niveau que l'équipe. Un toucher : il prend sa place et son poste.
@@ -1588,6 +1590,11 @@ window.MC = window.MC || {};
     };
     return { t: t, p: p, l: libres.sort(function (a, b) { return note(a) - note(b) || nom(C, a).localeCompare(nom(C, b), 'fr'); }) };
   }
+  MC.act.cVoirAl = function (b, ev) {
+    if (ev && ev.preventDefault) ev.preventDefault();
+    var w = document.querySelector('#calertes details'); if (w) w.open = true;
+    var x = document.getElementById('calertes'); if (x) { x.scrollIntoView({ behavior: 'smooth', block: 'start' }); try { x.focus({ preventScroll: true }); } catch (y) { /* rien */ } }
+  };
   MC.act.cRemp = function (b) {
     withC(function (C) {
       var v = Number(b.getAttribute('data-v')) || 0, id = b.getAttribute('data-id'), d = B.vs[v];

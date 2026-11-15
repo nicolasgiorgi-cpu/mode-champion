@@ -31,7 +31,7 @@ MC.notifs = (function () {
       ['mission', 'Réponses aux missions', 'Choisis ton poste, copains, vidéo, QCM, et le mot pour les éducs.', 'target', '#FF7FBC'],
       ['etoile', 'Demandes d\'étoiles', 'Un enfant demande une étoile Skills.', 'star', '#FFC23D'],
       ['niveau', 'Niveaux', 'Un niveau changé par l\'enfant, un parent ou un autre éduc.', 'up', '#C9AEFF'],
-      ['compo', 'Compos', 'Un vote ou une contre-proposition d\'un autre éduc.', 'kids', '#FF8A3D']
+      ['compo', 'Compos', 'Un vote, une contre-proposition d\'un autre éduc, un absent à remplacer.', 'kids', '#FF8A3D']
     ],
     f: [
       ['seance', 'Séances', 'Votre enfant a fait une séance de prépa.', 'pulse', '#38E8FF'],
@@ -191,11 +191,22 @@ MC.notifs = (function () {
         var dt = e && e.debut ? String(e.debut).slice(8, 10) + '/' + String(e.debut).slice(5, 7) : '';
         return 'la compo ' + q + (e ? ' « ' + esc(court(e.titre, 40)) + ' »' : '') + (dt ? ' du ' + esc(dt) : '');
       };
-      var byId = {};
+      var byId = {}, prenoms = {}, hui = MC.logic && MC.logic.today ? MC.logic.today() : new Date().toISOString().slice(0, 10);
+      (g.joueurs || []).forEach(function (p) { if (p.joueur && p.joueur.actif) prenoms[p.joueur.id] = p.joueur.prenom; });
       (cd.compos || []).forEach(function (c) {
         byId[c.id] = c;
         if (c.statut === 'retiree') return;
         if (c.statut === 'vote' && c.auteur !== me.id && !(c.votes && c.votes[me.id] !== undefined)) out.push({ id: 'cv:' + c.id, cat: 'compo', t: ms(c.cree), txt: b(c.auteurNom || 'Un éduc') + ' demande votre vote sur ' + dequoi(c) + '.', href: lien(c) });
+        // (v89, demande de Nicolas du 15/11) un enfant placé dans une compo à venir répond « non » sur Spond (ou est retiré des
+        // présents) : à remplacer. Une ligne par compo et par liste d'absents (un nouvel absent : une nouvelle ligne)
+        var ev = evts[c.evenementId];
+        if (ev && !ev.annule && String(ev.debut || '').slice(0, 10) >= hui && (c.statut === 'publiee' || c.statut === 'vote')) {
+          var ret = ev.retraits || [], pres = (ev.presents || []).concat(ev.ajouts || []).filter(function (x) { return ret.indexOf(x) < 0; });
+          var non = (ev.absents || []).concat(ret).filter(function (x) { return pres.indexOf(x) < 0; }), dans = [];
+          (c.equipes || []).forEach(function (t) { (t.joueurs || []).forEach(function (j) { if (non.indexOf(j.id) >= 0 && dans.indexOf(j.id) < 0 && prenoms[j.id]) dans.push(j.id); }); });
+          if (dans.length) out.push({ id: 'ca:' + c.id + ':' + dans.slice().sort().join(','), cat: 'compo', t: ms(ev.maj) || ms(c.maj),
+            txt: dans.map(function (x) { return b(prenoms[x]); }).join(', ') + (dans.length > 1 ? ' ne viennent plus' : ' ne vient plus') + ' : à remplacer dans ' + dequoi(c) + '.', href: lien(c) });
+        }
         if (c.auteur === me.id) Object.keys(c.votes || {}).forEach(function (eid) {
           if (eid === me.id) return;
           out.push({ id: 'vo:' + c.id + ':' + eid, cat: 'compo', t: 0, t0: ms(c.maj), txt: b(noms[eid] || 'Un éduc') + ' a voté sur ' + dequoi(c) + '.', href: lien(c) });

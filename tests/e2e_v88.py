@@ -97,7 +97,7 @@ with sync_playwright() as p:
         cdp.send('Input.dispatchTouchEvent', {'type': typ, 'touchPoints': pts})
     LI = '.cswipe:has(.t1:text("Revel"))'
     def boite():
-        el = pg.query_selector(LI + ' > .cev'); el.scroll_into_view_if_needed(); pg.wait_for_timeout(150); return el.bounding_box()
+        el = pg.query_selector(LI + ' > .cev'); el.evaluate("e => e.scrollIntoView({ block: 'center' })"); pg.wait_for_timeout(200); return el.bounding_box()   # (au milieu : pas sous la barre du bas)
     def doigt(dx, dy=0, pas=10):
         bb = boite(); x0, y0 = bb['x'] + bb['width'] * 0.75, bb['y'] + bb['height'] * 0.5
         touche('touchStart', x0, y0); pg.wait_for_timeout(40)
