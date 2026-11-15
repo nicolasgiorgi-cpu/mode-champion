@@ -64,10 +64,10 @@ with sync_playwright() as p:
     # le graphique : replié, lignes simples (pas de prénoms au toucher), pas de texte dessous
     check('répartition des postes repliée', pg.evaluate("!document.querySelector('details.rpost[data-rp=\"terrain\"]').open"))
     pg.click('details.rpost[data-rp="terrain"] summary'); pg.wait_for_timeout(300)
-    check('répartition : plus de prénoms au toucher ni de texte dessous', pg.locator('.rpost[data-rp="terrain"] details.pbarw').count() == 0 and pg.locator('.rpost[data-rp="terrain"] .rpost-c > p').count() == 0 and pg.locator('.rpost[data-rp="terrain"] .pbar').count() == 7)
+    check('répartition : plus de prénoms au toucher ni de texte dessous', pg.locator('.rpost[data-rp="terrain"] details.pbarw').count() == 0 and pg.locator('.rpost[data-rp="terrain"] .rpost-c > p').count() == 0 and pg.locator('.rpost[data-rp="terrain"] .pbar').count() == 8)   # (v85) 8 postes
     pg.click('details.rpost[data-rp="terrain"] summary'); pg.wait_for_timeout(300)
     # filtres : niveau puis poste
-    check('filtres : une rangée de niveaux et une rangée de postes', pg.locator('.tfils .tfil').count() == 2 and pg.locator('.tfp button').count() == 8)
+    check('filtres : une rangée de niveaux et une rangée de postes', pg.locator('.tfils .tfil').count() == 2 and pg.locator('.tfp button').count() == 9)   # (v85) Tous + 8 postes
     tronq = pg.evaluate("[...document.querySelectorAll('.tfils .opt span')].filter(e => e.scrollWidth > e.clientWidth + 0.5).map(e => e.textContent)")
     check('filtres : aucun nom de poste coupé (« Centre », pas « CENT… »)', tronq == [], tronq)
     vx = pg.evaluate("[...document.querySelectorAll('#tlist .tfrow')].filter(l => l.querySelector('.tpp.voeu')).map(l => l.querySelectorAll('.tpp.pref').length)")

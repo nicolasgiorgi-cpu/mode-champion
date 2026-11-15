@@ -1221,10 +1221,11 @@ body:has(.cdock .cselp) .toast{top:calc(74px + var(--safe-t) + var(--vvt));botto
 .cprm{font:500 12px/1.3 var(--f-body);color:var(--soft)}
 .cprm b{color:var(--yellow)}
 .cpr-ou{color:var(--orange)}
-/* (v57) poste par poste (jeu à 10) : les 7 postes en haut, les équipes, un bouton par équipe sur chaque ligne */
+/* (v57) poste par poste (jeu à 10) : les postes en haut, les équipes, un bouton par équipe sur chaque ligne */
 .ppnavw{flex:none}
-.ppnav{display:flex;flex-wrap:wrap;gap:4px}
-.ppn{flex:1 1 40px;min-width:40px;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:4px 2px;border:1px solid var(--line2);background:#0C1120;color:var(--soft)}
+/* (v85) 8 postes avec l'arrière : toujours sur une ligne, 8 colonnes égales (au téléphone, le 15 passait seul sur une 2e ligne) */
+.ppnav{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:4px}
+.ppn{min-width:0;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:4px 2px;border:1px solid var(--line2);background:#0C1120;color:var(--soft)}
 .ppn b{font:700 12px/1 var(--f-hud);letter-spacing:.04em}
 .ppn small{font:600 10px/1 var(--f-hud);color:var(--dim)}
 .ppn.court small{color:var(--orange)}
@@ -2119,6 +2120,8 @@ section.rdj .lnk{min-height:44px}
 /* le poste est dit par le groupe : plus d'étiquette de poste en haut à droite de la carte (sauf « absent ») */
 .cgrp .cpj>.cpo:not(.cabs){display:none}
 .cgrp .cpj:not(.cpo-l) .cpl1{padding-right:0}
+.cdg-ghost.cdg-g>.cpo:not(.cabs){display:none}
+.cdg-ghost.cdg-g:not(.cpo-l) .cpl1{padding-right:0}
 .ctri{align-self:flex-start;margin-top:2px}
 .cpj{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 .cboard2.ed .cpj{cursor:grab}

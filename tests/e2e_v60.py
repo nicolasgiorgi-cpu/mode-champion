@@ -100,7 +100,7 @@ with sync_playwright() as p:
     ev("""(() => { window.memeLigne = b => { const pp = b.querySelector('.cpps'); if (!pp) return true; const r = pp.getBoundingClientRect(), p0 = pp.querySelector('.tpp').getBoundingClientRect();
       const fl = [...b.querySelectorAll('.cflg > *')].filter(x => x.offsetParent); if (!fl.length) return true;
       const l = fl[fl.length - 1].getBoundingClientRect(); return p0.top < l.bottom - 2 && p0.bottom > l.top + 2 && r.left >= l.right - 1 && Math.abs(r.top - p0.top) < 3; }; return 1; })()""")
-    C = ev("""(() => { const K = MC.compos, F = K.fiches(MC.app.S.cache.group), COURT = { pilier: 'Pil', talonneur: 'Tal', 'troisieme-ligne': '3eL', 'demi-de-melee': '9', ouvreur: '10', centre: 'Ctr', ailier: 'Ail' };
+    C = ev("""(() => { const K = MC.compos, F = K.fiches(MC.app.S.cache.group), COURT = { pilier: 'Pil', talonneur: 'Tal', 'troisieme-ligne': '3eL', 'demi-de-melee': '9', ouvreur: '10', centre: 'Ctr', ailier: 'Ail', arriere: '15' };
       return [...document.querySelectorAll('.cpj')].map(b => { const id = b.getAttribute('data-id'), f = F[id], br = b.getBoundingClientRect(), pp = b.querySelector('.cpps'), ch = b.querySelector('.catt');
         const pf = f.postesOk.length ? K.prefDe(f) : [], attendu = K.postesDe(f).slice().sort((a, c) => (pf.indexOf(a) >= 0 ? 0 : 1) - (pf.indexOf(c) >= 0 ? 0 : 1) || K.ORDRE.indexOf(a) - K.ORDRE.indexOf(c));
         const pills = pp ? [...pp.querySelectorAll('.tpp:not(.voeu)')] : [], r = pp && pp.getBoundingClientRect();
@@ -145,10 +145,11 @@ with sync_playwright() as p:
       const ids = [...document.querySelectorAll('.ccote .cpj')].map(b => b.getAttribute('data-id')).filter(id => F[id] && !MC.compos.postesDe(F[id]).length);
       ids.forEach(id => { e.presents = (e.presents || []).filter(x => x !== id); e.sansReponse = (e.sansReponse || []).filter(x => x !== id).concat([id]); }); MC.app.rerender(); })()""")
     pg.wait_for_timeout(500)
-    qq = ev("""[...document.querySelectorAll('.ccote .cpj')].filter(b => b.querySelector('.catt') && b.querySelector(':scope > .cpo')).map(b => { const q = b.querySelector('.catt').getBoundingClientRect(), o = b.querySelector(':scope > .cpo').getBoundingClientRect();
+    qq = ev("""[...document.querySelectorAll('.ccote .cpj')].filter(b => b.querySelector('.catt') && b.querySelector(':scope > .cpo') && b.querySelector(':scope > .cpo').offsetParent).map(b => { const q = b.querySelector('.catt').getBoundingClientRect(), o = b.querySelector(':scope > .cpo').getBoundingClientRect();
       return { nom: b.querySelector('.cpn').textContent, ok: q.right <= o.left + 1 || q.top >= o.bottom || q.bottom <= o.top }; })""")
     # et la place gardée pour le prénom s'arrête avant l'étiquette en haut à droite, quel que soit le prénom
-    pl = ev("""[...document.querySelectorAll('.cpj')].filter(b => b.querySelector(':scope > .cpo')).map(b => { const l = b.querySelector('.cpl1'), o = b.querySelector(':scope > .cpo').getBoundingClientRect();
+    # (v85) dans un groupe de poste, l'étiquette du poste est cachée : seules les étiquettes affichées comptent
+    pl = ev("""[...document.querySelectorAll('.cpj')].filter(b => b.querySelector(':scope > .cpo') && b.querySelector(':scope > .cpo').offsetParent).map(b => { const l = b.querySelector('.cpl1'), o = b.querySelector(':scope > .cpo').getBoundingClientRect();
       return { nom: b.querySelector('.cpn').textContent, cpo: b.querySelector(':scope > .cpo').textContent, ok: b.getBoundingClientRect().right - parseFloat(getComputedStyle(b).paddingRight) - parseFloat(getComputedStyle(b).borderRightWidth) - parseFloat(getComputedStyle(l).paddingRight) <= o.left + 1 }; })""")
     qq = qq + [x for x in pl if not x['ok']]
     check('côte à côte : le « ? » doré ne chevauche pas « Sans poste » ni le poste', len(qq) > 0 and all(x['ok'] for x in qq), [x for x in qq if not x['ok']][:3])
@@ -159,12 +160,12 @@ with sync_playwright() as p:
     check('côte à côte : sans postes, les marques sur une seule ligne quand elles tiennent', len(m1) > 0 and all(x['ok'] for x in m1), [x for x in m1 if not x['ok']][:3])
     cl = ev("""[...document.querySelectorAll('.ccote .cpj')].filter(b => !memeLigne(b)).map(b => b.querySelector('.cpn').textContent)""")
     check('côte à côte : les postes sur la ligne du plaquage, même avec beaucoup de postes', not cl, cl)
-    # un enfant avec les 7 postes, dans l'encadré le plus étroit : ses postes passent à la ligne à droite, pas sous le bouclier
+    # un enfant avec tous les postes (8 depuis la v85), dans l'encadré le plus étroit : ses postes passent à la ligne à droite, pas sous le bouclier
     n7id = ev("""(() => { const b = [...document.querySelectorAll('.ccote .ccol:not(.banc) .cpj')].find(b => b.querySelector('.cpps')); if (!b) return null; const id = b.getAttribute('data-id');
       return MC.app.adultCall('setTerrain', { lignes: [{ joueurId: id, postesOk: MC.compos.ORDRE.slice(), postesPref: ['centre'] }] }).then(() => MC.loadGroup(true)).then(() => { MC.app.rerender(); return id; }); })()""")
     pg.wait_for_timeout(600)
     n7 = ev("""(id => { const c = document.querySelector('.ccote .cpj[data-id="' + id + '"]'); return c ? { n: c.querySelectorAll('.cpps .tpp').length, ok: memeLigne(c), w: Math.round(c.getBoundingClientRect().width) } : null; })""", n7id)
-    check('côte à côte : 7 postes restent sur la ligne du plaquage (à droite, sur 2 rangées si besoin)', n7 and n7['n'] == 7 and n7['ok'], n7)
+    check('côte à côte : 8 postes restent sur la ligne du plaquage (à droite, sur 2 rangées si besoin)', n7 and n7['n'] == 8 and n7['ok'], n7)
     pg.click('[data-act="cCote"][data-v="0"]'); pg.wait_for_timeout(300)
     # les ateliers : pas de postes sur les pastilles
     pg.goto(BASE + '#/educ/compo/sp-demo-e1?p=ateliers'); pg.wait_for_timeout(1200)

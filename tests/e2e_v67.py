@@ -71,7 +71,7 @@ with sync_playwright() as p:
     pg.click('details[data-rp] > summary'); pg.wait_for_timeout(400)
     r = ev("""(() => { const l = [...document.querySelectorAll('details[data-rp] .pbarw > summary')].map(e => e.getBoundingClientRect());
       return { n: l.length, pas: l.length > 1 ? Math.round(l[1].top - l[0].top) : 0, h: l.length ? Math.round(l[0].height) : 0 }; })()""")
-    check('répartition des postes : des lignes serrées (34 px de haut, sans écart)', r['n'] == 7 and r['pas'] <= 36 and r['h'] >= 32, r)
+    check('répartition des postes : des lignes serrées (34 px de haut, sans écart)', r['n'] == 8 and r['pas'] <= 36 and r['h'] >= 32, r)
     check('matchs, réglages : pas de défilement de côté', noscroll())
 
     # générer : B1 et B2, postes ★ équilibrés, le panneau des options en haut

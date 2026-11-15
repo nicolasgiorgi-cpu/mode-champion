@@ -40,7 +40,7 @@ with sync_playwright() as p:
     NIVS = '.tfil:not(.rpf):not(.tfp) .opt'
     check('filtres : Tous, Sans niveau, A, B, C', len(pg.query_selector_all(NIVS)) == 5 and nsn > 0, (len(pg.query_selector_all(NIVS)), nsn))
     check('filtres : sur une seule ligne', une_ligne(pg, NIVS))
-    check('(v43) filtres de postes : une 2e rangée, sur une ligne', len(pg.query_selector_all('.tfp .opt')) == 8 and une_ligne(pg, '.tfp .opt'))
+    check('(v43) filtres de postes : une 2e rangée, sur une ligne (v85 : Tous + 8 postes)', len(pg.query_selector_all('.tfp .opt')) == 9 and une_ligne(pg, '.tfp .opt'))
     check('… chaque bouton sur une hauteur raisonnable (pas de 3 lignes)', ev(pg, "Math.max(...[...document.querySelectorAll('.tfil .opt')].map(b => b.getBoundingClientRect().height))") <= 56)
     check('pas de défilement de côté', sans_debord(pg))
     # ----- 2. la répartition des postes : repliée, puis ouverte ; elle suit le filtre -----
@@ -49,7 +49,7 @@ with sync_playwright() as p:
     check('… le résumé : Tous · ' + str(n0) + ' enfants', d is not None and ('Tous · %d enfants' % n0) in d.inner_text(), d.inner_text() if d else '')
     pg.click('details[data-rp="terrain"] > summary'); pg.wait_for_timeout(300)
     bb = barres(pg, 'terrain')
-    check('ouverte : les 7 postes, dans l\'ordre du jeu à 10', [x[0] for x in bb] == ['Pilier', 'Talonneur', '3e ligne', 'Demi de mêlée', 'Ouvreur', 'Centre', 'Ailier'], bb)
+    check('ouverte : les 8 postes, dans l\'ordre du jeu à 10 (v85 : l\'arrière en dernier)', [x[0] for x in bb] == ['Pilier', 'Talonneur', '3e ligne', 'Demi de mêlée', 'Ouvreur', 'Centre', 'Ailier', 'Arrière'], bb)
     check('… les nombres = la fiche terrain (principal + peut aussi jouer)', [x[1] for x in bb] == att0, ([x[1] for x in bb], att0))
     t = pg.inner_text('details[data-rp="terrain"]')
     check('(v43) plus de texte sous les barres (légende, postes pas réglés)', 'Barre pleine' not in t and 'Pas encore de poste réglé' not in t, t[-200:])
@@ -92,13 +92,13 @@ with sync_playwright() as p:
     pl = [[j['poste'] for j in t['joueurs']] for t in d0['equipes']]
     avec = ev(pg, "(() => { const F = MC.compos.fiches(MC.app.S.cache.group), k = Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0 && k.endsWith(':matchs')); return JSON.parse(localStorage.getItem(k)).vs[0].equipes.map(t => t.joueurs.filter(j => MC.compos.postesDe(F[j.id]).length).length); })()")
     check('(v57) chaque équipe : tous ceux qui ont un poste en ont un pour le match (remplaçants compris)', len(pl) == 2 and all(len([x for x in l if x]) == n for l, n in zip(pl, avec)), (pl, avec))
-    check('(v58) le tableau : la couverture des postes en haut de chaque équipe (plus de « Av …/5 »), les postes sur les joueurs', ev(pg, "[...document.querySelectorAll('.ccol .chd')].every(h => h.querySelectorAll('.cpg .cpgl').length === 7) && document.querySelectorAll('.ccol .chd').length === 2") and '/5' not in pg.inner_text('.cboard2') and len(pg.query_selector_all('.ccol .cpj .cpo')) >= 10)
+    check('(v58) le tableau : la couverture des postes en haut de chaque équipe (plus de « Av …/5 »), les postes sur les joueurs', ev(pg, "[...document.querySelectorAll('.ccol .chd')].every(h => h.querySelectorAll('.cpg .cpgl').length === 8) && document.querySelectorAll('.ccol .chd').length === 2") and '/5' not in pg.inner_text('.cboard2') and len(pg.query_selector_all('.ccol .cpj .cpo')) >= 10)
     check('matchs : pas de défilement de côté', sans_debord(pg))
     # changer le poste d'un enfant, juste pour ce match (même un poste qui n'est pas sur sa fiche)
     j = ev(pg, """(() => { const F = MC.compos.fiches(MC.app.S.cache.group), k = Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0 && k.endsWith(':matchs')), d = JSON.parse(localStorage.getItem(k)).vs[0];
       for (const t of d.equipes) for (const x of t.joueurs) if (x.poste && MC.compos.postesDe(F[x.id]).indexOf('ailier') < 0 && x.poste !== 'ailier') return x.id; return null; })()""")
     pg.click('.ccol .cpj[data-id="%s"]' % j); pg.wait_for_timeout(400)
-    check('(v57) toucher un joueur : les 7 postes (plus de « Remp. » sans poste)', len(pg.query_selector_all('[data-act="cPoste"]')) == 7)
+    check('(v57) toucher un joueur : les 8 postes (plus de « Remp. » sans poste ; v85 : l\'arrière)', len(pg.query_selector_all('[data-act="cPoste"]')) == 8)
     pg.click('[data-act="cPoste"][data-p="ailier"]'); pg.wait_for_timeout(500)
     d1 = ev(pg, "(() => { const k = Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0 && k.endsWith(':matchs')); return JSON.parse(localStorage.getItem(k)).vs[0]; })()")
     pj = [x['poste'] for t in d1['equipes'] for x in t['joueurs'] if x['id'] == j]

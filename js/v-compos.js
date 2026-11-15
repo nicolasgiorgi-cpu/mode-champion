@@ -1119,7 +1119,7 @@ window.MC = window.MC || {};
   // (v56) option « Sans » : les copains ne comptent pas, on ne les montre pas non plus sur la compo
   function sansCop(d) { return !!d && !!d.reglages && platR(d.reglages) && K.optsDe(d.reglages).copains === 'sans'; }
   // une équipe : en-tête (effectif, plaquage, copains, passerelles, avants / arrières) puis ses joueurs,
-  // rangés en sections : les avants en haut (piliers, talonneur, 3es lignes), les arrières dessous (9, 10, centres, ailiers)
+  // rangés en sections : les avants en haut (piliers, talonneur, 3es lignes), les arrières dessous (9, 10, centres, ailiers, arrière)
   function team(C, t, v, d, moved, ed) {
     // (v57) les absents (Spond, retirés) restent affichés mais ne tiennent pas de place : places tenues, postes à couvrir, plaquage moyen
     var tc = sansHorsJeu(t, d), nAbs = t.joueurs.length - tc.joueurs.length;
@@ -1669,7 +1669,7 @@ window.MC = window.MC || {};
     if (!DG || DG.on || !DG.el.isConnected || !editable()) { dgFin(false); return; }
     var r = DG.el.getBoundingClientRect(), g = DG.el.cloneNode(true);
     DG.on = true; MC.glisse = true; DG.dx = DG.x0 - r.left; DG.dy = DG.y0 - r.top;
-    g.className = 'cpj cdg-ghost'; g.removeAttribute('data-act'); g.setAttribute('aria-hidden', 'true'); g.tabIndex = -1;
+    g.className = 'cpj cdg-ghost' + (DG.el.closest('.cgrp') ? ' cdg-g' : ''); g.removeAttribute('data-act'); g.setAttribute('aria-hidden', 'true'); g.tabIndex = -1;
     g.style.width = r.width + 'px'; g.style.minHeight = r.height + 'px';
     DG.ghost = g; DG.bar = document.createElement('div'); DG.bar.className = 'cdg-bar';
     document.body.appendChild(g); document.body.appendChild(DG.bar);
@@ -1852,7 +1852,7 @@ window.MC = window.MC || {};
     });
   }
   // ---------- (v57) Poste par poste (jeu à 10) — demande de Nicolas du 07/11/2026 ----------
-  // Une fenêtre, un poste à la fois, dans l'ordre (piliers, talonneur, 3es lignes, 9, 10, centre, ailiers). La liste des enfants :
+  // Une fenêtre, un poste à la fois, dans l'ordre (piliers, talonneur, 3es lignes, 9, 10, centre, ailier, arrière). La liste des enfants :
   // ceux qui l'ont en poste principal, puis ceux qui peuvent le jouer, puis les autres (repliés) ; dans chaque groupe, du niveau A
   // au C puis du meilleur plaqueur au moins bon (les absents en bas). Sur chaque ligne, un bouton par équipe (1 et 2 aux matchs,
   // A et B au plateau) : toucher met l'enfant dans l'équipe à ce poste, toucher encore l'enlève. On en prend autant qu'on veut

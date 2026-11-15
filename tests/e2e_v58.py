@@ -44,7 +44,7 @@ with sync_playwright() as p:
         const R = K.repartition(t.joueurs.map(j => j.id).filter(id => !gone.has(id)), F);
         return { n: lignes.length, txt: col.querySelector('.chd').textContent, ok: R.postes.every((p, i) => { const l = lignes[i], a = p.princ.length, b = p.autres.length;
           return l.getAttribute('data-p') === p.id && l.querySelector('.n').textContent === a + (b ? '+' + b : '') && l.querySelectorAll('.tr i').length === 2; }) }; }); })()""")
-    check('en-tête : les postes comme « Répartition des postes » (une ligne par poste, sa barre, principal + peut jouer à droite), sans les absents', len(cov) == 2 and all(x['n'] == 7 and x['ok'] for x in cov), cov)
+    check('en-tête : les postes comme « Répartition des postes » (une ligne par poste, sa barre, principal + peut jouer à droite), sans les absents (v85 : 8 postes avec l'arrière)', len(cov) == 2 and all(x['n'] == 8 and x['ok'] for x in cov), cov)
     check('en-tête : plus de « Av x/5 · Ar x/5 · Remp. »', all('/5' not in x['txt'] and 'Remp.' not in x['txt'] for x in cov), [x['txt'] for x in cov])
     check('en-tête : lignes serrées (moins de 20 px par poste)', ev("[...document.querySelectorAll('.chd .cpgl')].every(l => l.getBoundingClientRect().height < 20)"))
     check('en-tête : les lignes tiennent dans l\'équipe', ev("[...document.querySelectorAll('.cpgl')].every(c => c.scrollWidth <= c.clientWidth + 1)"))

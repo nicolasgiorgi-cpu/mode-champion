@@ -159,7 +159,8 @@ MC.demo = (function () {
     db.insert('educs', julien);
     var nico = db.rows('educs')[0];
     // postes réglés par les éducs (le 1er = poste principal) ; les autres joueurs ont seulement leurs vœux
-    var POSTES = { Inès: ['ailier', 'centre'], Léo: ['troisieme-ligne', 'pilier'], Nina: ['demi-de-melee', 'ouvreur'], Sacha: ['centre'], Arthur: ['ailier', 'centre'],
+    // (v85) Arthur joue arrière (le 15) ; Lina l'a en vœu (pas encore de poste réglé)
+    var POSTES = { Inès: ['ailier', 'centre'], Léo: ['troisieme-ligne', 'pilier'], Nina: ['demi-de-melee', 'ouvreur'], Sacha: ['centre'], Arthur: ['arriere', 'ailier', 'centre'],
       Gabin: ['pilier', 'troisieme-ligne'], Louise: ['ouvreur', 'centre'], Tom: ['centre', 'ailier', 'troisieme-ligne'], Enzo: ['pilier', 'talonneur'], Chloé: ['ouvreur'],
       Jules: ['demi-de-melee'], Adam: ['talonneur', 'pilier'], Noah: ['troisieme-ligne', 'centre'], Zoé: ['centre', 'ailier'], Malo: ['pilier'], Raphaël: ['talonneur'] };
     // fiche terrain : [prénom, niveau, passerelle, plaquage] (Nathan, Côme et Rose : niveau pas encore renseigné)
@@ -173,8 +174,8 @@ MC.demo = (function () {
       db.insert('terrain', { id: ids[t[0]], niveau: t[1], passerelle: t[2], plaquage: 0, plaquage3: t[1] ? [0, 1, 1, 2, 3, 3][t[3]] || 0 : '', postesOk: POSTES[t[0]] || [], spondId: '', note: '', parQui: 'Coach Nico', maj: nowIso, postesPref: PREF[t[0]] || null });
     });
     // copains et postes du reste du groupe (mission « jeu à 10 » faite)
-    [['Arthur', ['ailier', 'centre'], ['Gabin', 'Louise']], ['Gabin', ['pilier'], ['Arthur']], ['Jules', ['demi-de-melee'], ['Adam', 'Noah']], ['Adam', ['talonneur', 'pilier'], ['Jules']],
-      ['Lina', ['ailier'], ['Zoé', 'Chloé']], ['Zoé', ['centre', 'ailier'], ['Lina']], ['Noah', ['troisieme-ligne'], ['Jules', 'Timéo']], ['Malo', ['pilier'], ['Raphaël']],
+    [['Arthur', ['arriere', 'ailier'], ['Gabin', 'Louise']], ['Gabin', ['pilier'], ['Arthur']], ['Jules', ['demi-de-melee'], ['Adam', 'Noah']], ['Adam', ['talonneur', 'pilier'], ['Jules']],
+      ['Lina', ['arriere'], ['Zoé', 'Chloé']], ['Zoé', ['centre', 'ailier'], ['Lina']], ['Noah', ['troisieme-ligne'], ['Jules', 'Timéo']], ['Malo', ['pilier'], ['Raphaël']],
       ['Raphaël', ['talonneur'], ['Malo']], ['Mila', ['ailier'], ['Jade']], ['Elio', ['ouvreur'], ['Mila']], ['Louise', ['ouvreur', 'centre'], ['Arthur', 'Inès']]
     ].forEach(function (m) {
       var d = L.addDays(today, -ri(1, 6));

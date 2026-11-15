@@ -79,7 +79,7 @@ with sync_playwright() as p:
     # (v58) en haut de l'équipe : les postes comme « Répartition des postes » (principal + peut jouer), sans les absents
     cv = ev("""(() => { const K = MC.compos, F = K.fiches(MC.app.S.cache.group), d = JSON.parse(localStorage.getItem(Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0 && k.indexOf('sp-demo-p3') > 0))).vs[0], gone = new Set([...document.querySelectorAll('.cpj.gone')].map(b => b.getAttribute('data-id')));
       return d.equipes.map(t => { const col = document.querySelector('.ccol[aria-label="Équipe ' + t.id + '"]'), l = [...col.querySelectorAll('.chd .cpgl')], R = K.repartition(t.joueurs.map(j => j.id).filter(id => !gone.has(id)), F);
-        return l.length === 7 && R.postes.every((p, i) => l[i].querySelector('.n').textContent === p.princ.length + (p.autres.length ? '+' + p.autres.length : '')) && !/\\/5/.test(col.querySelector('.chd').textContent); }); })()""")
+        return l.length === 8 && R.postes.every((p, i) => l[i].querySelector('.n').textContent === p.princ.length + (p.autres.length ? '+' + p.autres.length : '')) && !/\\/5/.test(col.querySelector('.chd').textContent); }); })()""")
     check('(v58) en-tête d\'équipe : les postes (principal + peut jouer), plus de « Av x/5 », sans les absents', cv == [True, True], cv)
     check('compo : pas de défilement de côté', noscroll())
     # (relecture v57, I5) un enfant qui n'est pas dans l'événement Spond n'est pas « absent » : une marque neutre, comptée à part
@@ -121,7 +121,7 @@ with sync_playwright() as p:
 
     # ----- 3. la fenêtre poste par poste (plateau : boutons A et B) -----
     pg.click('[data-act="cParPoste"]'); pg.wait_for_timeout(700)
-    check('poste par poste : s\'ouvre sur les piliers, 7 postes en haut', pg.inner_text('.modal h2').split('\n')[0].upper().endswith('PILIERS') and len(pg.query_selector_all('.modal .ppn')) == 7)
+    check('poste par poste : s\'ouvre sur les piliers, 8 postes en haut (v85 : l\'arrière)', pg.inner_text('.modal h2').split('\n')[0].upper().endswith('PILIERS') and len(pg.query_selector_all('.modal .ppn')) == 8)
     lab = ev("[...document.querySelector('.modal .pprow').querySelectorAll('.ppb')].map(b => b.textContent)")
     check('un bouton par équipe : A et B', lab == ['A', 'B'], lab)
     dd = draft('sp-demo-p3')
@@ -164,9 +164,9 @@ with sync_playwright() as p:
     pg.click('.modal .mbtns button[data-i="0"]'); pg.wait_for_timeout(300)
     check('OK : le poste suivant (3es lignes)', pg.inner_text('.modal h2').split('\n')[0].upper().endswith('3ES LIGNES'))
     pg.click('.modal [data-close]'); pg.wait_for_timeout(400)
-    # un joueur touché : les 7 postes, plus de « Remp. »
+    # un joueur touché : les 8 postes (v85), plus de « Remp. »
     pg.locator('.ccol >> nth=0 >> .cpj >> nth=0').evaluate('e => e.click()'); pg.wait_for_timeout(300)
-    check('joueur touché : les 7 postes, plus de « Remp. »', len(pg.query_selector_all('[data-act="cPoste"]')) == 7 and 'Remp.' not in pg.inner_text('.cdock'))
+    check('joueur touché : les 8 postes, plus de « Remp. »', len(pg.query_selector_all('[data-act="cPoste"]')) == 8 and 'Remp.' not in pg.inner_text('.cdock'))
     pg.locator('.ccol >> nth=0 >> .cpj >> nth=0').evaluate('e => e.click()'); pg.wait_for_timeout(300)
     # publier puis relire : « tout le groupe » est gardé
     pg.click('[data-act="cPublish"]'); pg.wait_for_timeout(400)
@@ -223,7 +223,7 @@ with sync_playwright() as p:
     d = draft('sp-demo-e1', 'matchs')
     w = [(t['id'], j['poste']) for t in d['equipes'] for j in t['joueurs'] if j['id'] == r0]
     check('passer de l\'équipe B1 à la B2 d\'un toucher', w == [('B2', 'pilier')], w)
-    for i in range(7): pg.click('.modal .mbtns button[data-i="0"]'); pg.wait_for_timeout(250)
+    for i in range(8): pg.click('.modal .mbtns button[data-i="0"]'); pg.wait_for_timeout(250)   # (v85) 8 postes
     check('OK jusqu\'au bout : la fenêtre se ferme', pg.query_selector('.modal') is None)
     # (3e relecture) chaque version a sa règle : V1 les présents, V2 « tout le groupe » ; sur V2, ceux qui ne sont pas dans
     # l'événement Spond restent « hors Spond » (pas barrés) et comptent dans l'effectif

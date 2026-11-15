@@ -359,7 +359,7 @@ with sync_playwright() as p:
     pg.click('[data-act="tkPoste"][data-v="pilier"]'); pg.wait_for_timeout(1300)
     tt = ev(pg, "MC.api.call('group',{token:MC.app.S.adult.token}).then(g=>g.joueurs.find(p=>p.joueur.prenom==='Tom').terrain)")
     check('postes préférés gardés + un autre poste enregistré au toucher', tt['postesPref'] == ['centre', 'ailier'] and 'pilier' in tt['postesOk'] and 'centre' in tt['postesOk'], tt)
-    check('fiche : avant et arrière', 'AVANT ET ARRIÈRE' in pg.inner_text('main').upper())
+    check('fiche : avant et lignes arrières (v85 : « Lignes arrières », pour ne pas confondre avec le poste d\'arrière)', 'AVANT ET LIGNES ARRIÈRES' in pg.inner_text('main').upper())
     check('pas de défilement horizontal (fiche)', noscroll(pg))
     shot(pg, 'k09-fiche', True)
     # ----- Joueurs : le niveau à côté du prénom -----
@@ -448,7 +448,7 @@ with sync_playwright() as p:
     check('jeu à 10 : postes affichés', len(pg.query_selector_all('.cpj .cpo')) >= 16)
     check('jeu à 10 : bouton Postes auto', pg.query_selector('[data-act="cPostes"]') is not None)
     ordre = ev(pg, """[...document.querySelectorAll('.ccol')].map(c => [...c.querySelectorAll('.csec')].map(s => ((s.querySelector('.csech span') || {}).textContent || '') + ':' + [...s.querySelectorAll('.cpo')].map(x => x.textContent).join(',')))""")
-    rang = {'Pil': 0, 'Tal': 1, '3eL': 2, '9': 3, '10': 4, 'Ctr': 5, 'Ail': 6}
+    rang = {'Pil': 0, 'Tal': 1, '3eL': 2, '9': 3, '10': 4, 'Ctr': 5, 'Ail': 6, '15': 7}   # (v85) l'arrière, le 15
     def bien_range(team):
         if not team or not team[0].startswith('Avants:') or len(team) < 2 or not team[1].startswith('Arrières:'): return False
         for sec in team[:2]:
@@ -456,7 +456,7 @@ with sync_playwright() as p:
             if [rang[x] for x in ps] != sorted(rang[x] for x in ps): return False
         av = [x for x in team[0].split(':', 1)[1].split(',') if x]; ar = [x for x in team[1].split(':', 1)[1].split(',') if x]
         return all(rang[x] <= 2 for x in av) and all(rang[x] >= 3 for x in ar)
-    check('jeu à 10 : avants (piliers, talonneur, 3es lignes) puis arrières (9, 10, centres, ailiers)', all(bien_range(t) for t in ordre), ordre)
+    check('jeu à 10 : avants (piliers, talonneur, 3es lignes) puis arrières (9, 10, centres, ailiers, arrière)', all(bien_range(t) for t in ordre), ordre)
     shot(pg, 'k10-jeu10', True)
     # ----- composer à la main : partir de zéro, toucher l'équipe, choisir les piliers puis le talonneur… -----
     pg.click('[data-act="cDiscard"]'); pg.wait_for_timeout(300)
@@ -465,7 +465,7 @@ with sync_playwright() as p:
     pg.click('[data-act="cZero10"]'); pg.wait_for_timeout(800)
     check('(v57) poste par poste : la fenêtre s\'ouvre sur les piliers', pg.query_selector('.modal.ppk') is not None and pg.inner_text('.modal h2').split('\n')[0].upper().endswith('PILIERS'))
     pg.click('.modal [data-close]'); pg.wait_for_timeout(400)
-    check('à la main : places vides dans l\'ordre des postes (plus de « + Remplaçant »)', ev(pg, "[...document.querySelectorAll('.ccol')[0].querySelectorAll('.cslot')].map(x=>x.textContent).join('|')") == '+ Pilier|+ Pilier|+ Talonneur|+ 3e ligne|+ 3e ligne|+ Demi de mêlée|+ Ouvreur|+ Centre|+ Ailier|+ Ailier')
+    check('à la main : places vides dans l\'ordre des postes (plus de « + Remplaçant »)', ev(pg, "[...document.querySelectorAll('.ccol')[0].querySelectorAll('.cslot')].map(x=>x.textContent).join('|')") == '+ Pilier|+ Pilier|+ Talonneur|+ 3e ligne|+ 3e ligne|+ Demi de mêlée|+ Ouvreur|+ Centre|+ Ailier|+ Arrière')   # (v85) 1 ailier + 1 arrière
     pg.click('.ccol >> nth=0 >> .chd'); pg.wait_for_timeout(500)
     check('à la main : on commence par les piliers', pg.inner_text('.modal h2').split('\n')[0].upper().endswith('PILIERS') and 'PILIER EN POSTE PRINCIPAL' in pg.inner_text('.modal .cpick').upper())
     tids = ev(pg, "MC.compos && [...document.querySelectorAll('.ccol')].slice(0, 2).map(c => c.getAttribute('aria-label').replace('Équipe ', ''))")
@@ -482,8 +482,8 @@ with sync_playwright() as p:
         pg.click('.modal .mbtns button[data-i="0"]'); pg.wait_for_timeout(400)
         titres.append(pg.inner_text('.modal h2').split('\n')[0].upper())
     check('(v57) OK : piliers, puis talonneurs, puis 3es lignes', titres[0].endswith('PILIERS') and titres[1].endswith('TALONNEURS') and titres[2].endswith('3ES LIGNES'), titres)
-    pg.click('.modal .ppn[data-pp="ailier"]'); pg.wait_for_timeout(300)
-    check('(v57) aller à un poste d\'un toucher ; au dernier, « OK · Terminé »', pg.inner_text('.modal h2').split('\n')[0].upper().endswith('AILIERS') and 'TERMINÉ' in pg.inner_text('.modal .mbtns').upper())
+    pg.click('.modal .ppn[data-pp="arriere"]'); pg.wait_for_timeout(300)   # (v85) le dernier poste : l'arrière
+    check('(v57) aller à un poste d\'un toucher ; au dernier, « OK · Terminé »', pg.inner_text('.modal h2').split('\n')[0].upper().endswith('ARRIÈRES') and 'TERMINÉ' in pg.inner_text('.modal .mbtns').upper())
     pg.click('.modal .mbtns button[data-i="0"]'); pg.wait_for_timeout(500)
     check('(v57) OK au dernier poste : la fenêtre se ferme', pg.query_selector('.modal') is None)
     po0 = ev(pg, "[...document.querySelectorAll('.ccol')[0].querySelectorAll('.cpj .cpo')].map(x=>x.textContent).join(',')")
