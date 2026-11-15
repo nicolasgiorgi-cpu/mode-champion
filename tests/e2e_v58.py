@@ -105,19 +105,12 @@ with sync_playwright() as p:
     check('toute fenêtre : une hauteur maximale (aussi sans dvh), les boutons collés au bas de la carte', ev("getComputedStyle(document.querySelector('.modal .card')).maxHeight !== 'none' && Math.abs(document.querySelector('.modal .mbtns').getBoundingClientRect().bottom - document.querySelector('.modal .card').getBoundingClientRect().bottom) < 2"))
     ev("document.documentElement.style.removeProperty('--safe-t')")
 
-    # ----- 5. une compo publiée : en lecture, « Modifier la compo » d'un geste -----
+    # ----- 5. une compo publiée : (v86, demande de Nicolas du 15/11) modifiable tout de suite, sans « Modifier la compo » ;
+    # dès le 1er changement « Annuler » ou « Enregistrer » ; avant (v58) : en lecture jusqu'à « Modifier la compo » -----
     pg.click('.modal .mbtns button[data-i="0"]'); pg.wait_for_timeout(1800)
-    check('publiée : en lecture (pas de « Poste par poste », pas d\'options), « Modifier la compo »', pg.query_selector('[data-act="cEditer"]') is not None and pg.query_selector('[data-act="cParPoste"]') is None and pg.query_selector('.cbopt') is None and pg.query_selector('[data-act="cUndo"]') is None)
-    # (v63, textes épurés) le bandeau ne répète plus « Pour ajuster… : Modifier la compo » : le bouton est juste dessous
-    check('publiée : le bandeau nomme l\'auteur, le bouton « Modifier la compo » juste dessous', 'Compo de ' in ev("document.querySelector('.cstate').textContent") and ev("(() => { const s = document.querySelector('.cstate').getBoundingClientRect(), b = document.querySelector('[data-act=cEditer]').getBoundingClientRect(); return b.top >= s.bottom && b.top - s.bottom < 60; })()"))
-    j = ev("document.querySelector('.ccol:not(.banc) .cpj:not(.gone)').getAttribute('data-id')")
-    pg.click('.ccol .cpj[data-id="%s"]' % j); pg.wait_for_timeout(400)
-    check('publiée : toucher un joueur montre sa fiche, sans le déplacer', pg.query_selector('.cdock') is not None and pg.query_selector('[data-act="cMove"]') is None)
-    pg.click('[data-act="cEditer"]'); pg.wait_for_timeout(600)
-    check('« Modifier la compo » : « Poste par poste », les options et « Terminer »', pg.query_selector('[data-act="cParPoste"]') is not None and pg.query_selector('.cbopt') is not None and pg.query_selector('[data-act="cFinEdit"]') is not None)
-    pg.click('[data-act="cFinEdit"]'); pg.wait_for_timeout(500)
-    check('« Terminer » sans changement : de nouveau en lecture', pg.query_selector('[data-act="cEditer"]') is not None and pg.query_selector('[data-act="cParPoste"]') is None)
-    pg.click('[data-act="cEditer"]'); pg.wait_for_timeout(500)
+    check('publiée : modifiable tout de suite (« Poste par poste », options, annuler un geste), plus de « Modifier la compo »', pg.query_selector('[data-act="cEditer"]') is None and pg.query_selector('[data-act="cParPoste"]') is not None and pg.query_selector('.cbopt') is not None and pg.query_selector('[data-act="cUndo"]') is not None and pg.query_selector('.cboard2.ed') is not None)
+    check('publiée, sans changement : « Partager », ni « Enregistrer » ni « Annuler »', pg.query_selector('[data-act="cPartager"]') is not None and pg.query_selector('[data-act="cSave"]') is None and pg.query_selector('.ctop [data-act="cDiscard"]') is None)
+    check('publiée : le bandeau nomme l\'auteur', 'Compo de ' in ev("document.querySelector('.cstate').textContent"))
     # changer le poste d'un joueur avec « Poste par poste », puis enregistrer : version 2
     pg.click('[data-act="cParPoste"]'); pg.wait_for_timeout(700)
     pg.click('.modal [data-pp="ailier"]'); pg.wait_for_timeout(400)
@@ -125,34 +118,54 @@ with sync_playwright() as p:
     pid = ev("(() => { const b = [...document.querySelectorAll('.modal .ppb[aria-pressed=\"false\"]')].find(x => x.offsetParent); return b ? [b.getAttribute('data-ppid'), b.getAttribute('data-ppt')] : null; })()")
     pg.click('.modal .ppb[data-ppid="%s"][data-ppt="%s"]' % (pid[0], pid[1])); pg.wait_for_timeout(400)
     pg.click('.modal [data-close]'); pg.wait_for_timeout(400)
-    check('modifiée : « Enregistrer (v2) »', pg.query_selector('[data-act="cSave"]') is not None and '(v2)' in ev("document.querySelector('[data-act=cSave]').textContent"))
+    check('modifiée : « Annuler » et « Enregistrer » côte à côte en haut, « pas encore enregistrés »', pg.query_selector('.ctop [data-act="cSave"]') is not None and pg.query_selector('.ctop [data-act="cDiscard"]') is not None and 'pas encore enregistrés' in ev("document.querySelector('.cstate').textContent"))
+    r = ev("(() => { const a = document.querySelector('.ctop [data-act=cDiscard]').getBoundingClientRect(), b = document.querySelector('.ctop [data-act=cSave]').getBoundingClientRect(); return Math.abs(a.top - b.top) < 4 && a.right <= b.left + 1; })()")
+    check('« Annuler » à gauche de « Enregistrer », sur la même ligne', r)
+    check('modifiée : plus de lien « Annuler mes changements » en bas (le bouton est en haut)', 'Annuler mes changements' not in pg.inner_text('main'))
     pg.click('[data-act="cSave"]'); pg.wait_for_timeout(600)
     if pg.query_selector('.modal'): pg.click('.modal .mbtns button[data-i="0"]'); pg.wait_for_timeout(1800)
     c = ev("MC.app.S.cache.compos.compos.find(c => c.evenementId === 'sp-demo-p3' && !c.partie && c.statut === 'publiee')")
     pj = [x['poste'] for t in c['equipes'] for x in t['joueurs'] if x['id'] == pid[0] and t['id'] == pid[1]]
     check('enregistrée : version 2, le joueur à l\'aile dans son équipe', c['version'] == 2 and pj == ['ailier'], (c['version'], pj))
-    check('enregistrée : de nouveau en lecture', pg.query_selector('[data-act="cEditer"]') is not None)
-    # (relecture) rouverte puis quittée sans changement : de nouveau en lecture au retour
-    pg.click('[data-act="cEditer"]'); pg.wait_for_timeout(500)
+    check('enregistrée : toujours modifiable, plus de « Enregistrer »', pg.query_selector('.cboard2.ed') is not None and pg.query_selector('[data-act="cSave"]') is None)
+    # un changement pas enregistré reste sur l'appareil : on quitte, on revient, il est là
+    j = ev("document.querySelector('.ccol:not(.banc) .cpj:not(.gone)').getAttribute('data-id')")
+    pg.click('[data-act="cParPoste"]'); pg.wait_for_timeout(700)
+    pg.click('.modal [data-pp="centre"]'); pg.wait_for_timeout(400)
+    ev("[...document.querySelectorAll('.modal details.cpgrp')].forEach(x => x.open = true)"); pg.wait_for_timeout(300)
+    pid2 = ev("(() => { const b = [...document.querySelectorAll('.modal .ppb[aria-pressed=\"false\"]')].find(x => x.offsetParent); return b ? [b.getAttribute('data-ppid'), b.getAttribute('data-ppt')] : null; })()")
+    pg.click('.modal .ppb[data-ppid="%s"][data-ppt="%s"]' % (pid2[0], pid2[1])); pg.wait_for_timeout(400)
+    pg.click('.modal [data-close]'); pg.wait_for_timeout(400)
     pg.goto(BASE + '#/educ/evt/sp-demo-p3'); pg.wait_for_timeout(900)
     pg.goto(BASE + '#/educ/compo/sp-demo-p3'); pg.wait_for_timeout(1100)
-    check('quittée sans changement : de nouveau en lecture au retour', pg.query_selector('[data-act="cEditer"]') is not None and pg.query_selector('[data-act="cFinEdit"]') is None)
-    # (relecture) « Retirer » de « À regarder » reste là en lecture, et rouvre la compo
+    check('quittée avec un changement : au retour, il est là, avec « Annuler » et « Enregistrer »', pg.query_selector('[data-act="cSave"]') is not None and pg.query_selector('.ctop [data-act="cDiscard"]') is not None)
+    pg.click('.ctop [data-act="cDiscard"]'); pg.wait_for_timeout(400); pg.click('.modal .mbtns button[data-i="0"]'); pg.wait_for_timeout(900)
+    c2 = ev("MC.app.S.cache.compos.compos.find(c => c.evenementId === 'sp-demo-p3' && !c.partie && c.statut === 'publiee')")
+    check('« Annuler » : de nouveau la version 2, toujours modifiable', pg.query_selector('[data-act="cSave"]') is None and pg.query_selector('.cboard2.ed') is not None and c2['version'] == 2)
+    # annuler le dernier geste jusqu'au bout : plus de changement, plus de boutons
+    pg.click('[data-act="cParPoste"]'); pg.wait_for_timeout(700)
+    pg.click('.modal [data-pp="centre"]'); pg.wait_for_timeout(400)
+    ev("[...document.querySelectorAll('.modal details.cpgrp')].forEach(x => x.open = true)"); pg.wait_for_timeout(300)
+    pid3 = ev("(() => { const b = [...document.querySelectorAll('.modal .ppb[aria-pressed=\"false\"]')].find(x => x.offsetParent); return b ? [b.getAttribute('data-ppid'), b.getAttribute('data-ppt')] : null; })()")
+    pg.click('.modal .ppb[data-ppid="%s"][data-ppt="%s"]' % (pid3[0], pid3[1])); pg.wait_for_timeout(400)
+    pg.click('.modal [data-close]'); pg.wait_for_timeout(400)
+    pg.click('[data-act="cUndo"]'); pg.wait_for_timeout(500)
+    check('annuler le seul geste : plus de « Enregistrer » ni « Annuler »', pg.query_selector('[data-act="cSave"]') is None and pg.query_selector('.ctop [data-act="cDiscard"]') is None)
+    # (relecture v58) « Retirer » de « À regarder » : d'un geste, puis « Enregistrer (v3) » ou « Annuler »
     fi = ev("""(() => { const b = [...document.querySelectorAll('[data-act="cFix"]')].find(x => /Absent/.test(x.closest('li').textContent)); return b ? [b.getAttribute('data-v'), b.getAttribute('data-i')] : null; })()""")
-    check('en lecture : « Retirer » les absents d\'un geste, toujours là', fi is not None)
+    check('« Retirer » les absents d\'un geste, toujours là', fi is not None)
     if fi:
         nabs = ev("document.querySelectorAll('.ccol:not(.banc) .cpj.gone').length")
         pg.click('[data-act="cFix"][data-v="%s"][data-i="%s"]' % (fi[0], fi[1])); pg.wait_for_timeout(600)
-        check('… « Retirer » : les absents sortent, la compo passe en modification (Enregistrer v3)', nabs > 0 and ev("document.querySelectorAll('.ccol:not(.banc) .cpj.gone').length") == 0 and pg.query_selector('[data-act="cSave"]') is not None and '(v3)' in ev("document.querySelector('[data-act=cSave]').textContent"))
-        pg.click('[data-act="cDiscard"]'); pg.wait_for_timeout(400); pg.click('.modal .mbtns button[data-i="0"]'); pg.wait_for_timeout(900)
-        check('« Annuler mes changements » : de nouveau la version 2, en lecture', pg.query_selector('[data-act="cEditer"]') is not None and ev("document.querySelectorAll('.ccol:not(.banc) .cpj.gone').length") == nabs)
+        check('… « Retirer » : les absents sortent, « Enregistrer »', nabs > 0 and ev("document.querySelectorAll('.ccol:not(.banc) .cpj.gone').length") == 0 and pg.query_selector('[data-act="cSave"]') is not None)
+        pg.click('.ctop [data-act="cDiscard"]'); pg.wait_for_timeout(400); pg.click('.modal .mbtns button[data-i="0"]'); pg.wait_for_timeout(900)
+        check('« Annuler » : de nouveau la version 2', pg.query_selector('[data-act="cSave"]') is None and ev("document.querySelectorAll('.ccol:not(.banc) .cpj.gone').length") == nabs)
 
-    # ----- 6. depuis la page du plateau : « Modifier la compo » ouvre la compo en modification -----
+    # ----- 6. depuis la page du plateau : « Modifier la compo » mène à la compo, modifiable -----
     pg.goto(BASE + '#/educ/evt/sp-demo-p3'); pg.wait_for_timeout(1200)
     check('page du plateau : « Modifier la compo »', pg.query_selector('[data-act="eEditer"]') is not None)
     pg.click('[data-act="eEditer"]'); pg.wait_for_timeout(1300)
-    check('… la compo s\'ouvre en modification', '#/educ/compo/sp-demo-p3' in pg.url and pg.query_selector('[data-act="cParPoste"]') is not None and pg.query_selector('[data-act="cFinEdit"]') is not None)
-    pg.click('[data-act="cFinEdit"]'); pg.wait_for_timeout(400)
+    check('… la compo s\'ouvre, modifiable', '#/educ/compo/sp-demo-p3' in pg.url and pg.query_selector('[data-act="cParPoste"]') is not None and pg.query_selector('.cboard2.ed') is not None)
     # un autre éduc (pas le jour J) : pas de bouton, une contre-proposition
     pg.goto(BASE + '#/educ/evt/demo-r1'); pg.wait_for_timeout(1200)
     au = ev("(() => { const c = MC.app.S.cache.compos.compos.find(c => c.evenementId === 'demo-r1' && !c.partie); return c && c.auteur; })()")
@@ -166,7 +179,7 @@ with sync_playwright() as p:
         ouvrirAuto(pg); pg.click('[data-act="cPropose"]'); pg.wait_for_timeout(1300)
     pg.click('[data-act="cPublish"]'); pg.wait_for_timeout(500)
     if pg.query_selector('.modal'): pg.click('.modal .mbtns button[data-i="0"]'); pg.wait_for_timeout(1800)
-    check('matchs publiés : en lecture, « Modifier la compo », la couverture des postes', pg.query_selector('[data-act="cEditer"]') is not None and len(pg.query_selector_all('.ccol .chd .cpg')) == 2)
+    check('matchs publiés : modifiables tout de suite (v86), la couverture des postes', pg.query_selector('.cboard2.ed') is not None and pg.query_selector('[data-act="cEditer"]') is None and len(pg.query_selector_all('.ccol .chd .cpg')) == 2)
     pg.goto(BASE + '#/educ/evt/sp-demo-e1'); pg.wait_for_timeout(1200)
     check('page de l\'entraînement : « Modifier les matchs »', pg.query_selector('[data-act="eEditer"][data-p="matchs"]') is not None and 'Modifier les matchs' in ev("document.querySelector('main').textContent"))
     pg.click('[data-act="eEditer"][data-p="matchs"]'); pg.wait_for_timeout(1300)

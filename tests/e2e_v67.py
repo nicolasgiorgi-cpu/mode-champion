@@ -119,9 +119,8 @@ with sync_playwright() as p:
     t2 = ev("(() => { const a = document.querySelector('a.cpart[href*=\"p=matchs\"] .t2'); return a ? a.innerText : ''; })()")
     check('page de l\'entraînement : « 2 équipes (B1 …, B2 …) »', '2 équipes (B1' in t2, t2)
     pg.goto(BASE + '#/educ/compo/sp-demo-e1?p=matchs'); pg.wait_for_timeout(1300)
-    check('matchs publiés : « Modifier » et « Partager »', pg.query_selector('[data-act="cEditer"]') is not None and pg.query_selector('[data-act="cPartager"]') is not None)
-    pg.click('[data-act="cEditer"]'); pg.wait_for_timeout(600)
-    check('« Modifier » : le panneau des options du plateau', pg.query_selector('details.cbopt') is not None)
+    check('matchs publiés : « Partager », modifiables tout de suite (v86)', pg.query_selector('[data-act="cEditer"]') is None and pg.query_selector('[data-act="cPartager"]') is not None)
+    check('matchs publiés : le panneau des options du plateau', pg.query_selector('details.cbopt') is not None)
     check('matchs publiés : pas de défilement de côté', noscroll())
     # (relecture) l'entraînement suivant : « Reprendre les équipes du … » reprend B1 et B2, avec les effectifs d'aujourd'hui
     eid = ev("""(() => { const c = MC.app.S.cache.compos.evenements.find(e => e.id === 'sp-demo-e1'), d = String(c.debut).slice(0, 10), x = new Date(d + 'T12:00:00Z'); x.setUTCDate(x.getUTCDate() + 7);

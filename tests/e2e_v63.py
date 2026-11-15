@@ -84,9 +84,10 @@ with sync_playwright() as p:
     # ----- 4. une compo publiée : « Partager » donne le texte des équipes -----
     pg.click('[data-act="cPublish"]'); pg.wait_for_timeout(700)
     pg.click('.modal button:has-text("Publier")'); pg.wait_for_timeout(2200)
-    check('compo publiée : « Partager » à côté de « Modifier la compo »', pg.is_visible('[data-act="cPartager"]') and pg.is_visible('[data-act="cEditer"]'))
-    r = ev("(() => { const a = document.querySelector('[data-act=cPartager]').getBoundingClientRect(), b = document.querySelector('[data-act=cEditer]').getBoundingClientRect(); return { memeLigne: Math.abs(a.top - b.top) < 4, h: Math.round(a.height) }; })()")
-    check('… sur la même ligne, 44 px au moins', r['memeLigne'] and r['h'] >= 44, r)
+    # (v86) plus de « Modifier la compo » : la compo publiée est modifiable tout de suite ; « Partager » reste en haut
+    check('compo publiée : « Partager » en haut, plus de « Modifier la compo »', pg.is_visible('.ctop [data-act="cPartager"]') and pg.query_selector('[data-act="cEditer"]') is None)
+    r = ev("(() => { const a = document.querySelector('[data-act=cPartager]').getBoundingClientRect(); return { h: Math.round(a.height) }; })()")
+    check('… 44 px au moins', r['h'] >= 44, r)
     check('compo publiée : plus de « Pour ajuster les équipes… »', 'Pour ajuster les équipes' not in txt())
     pg.click('[data-act="cPartager"]'); pg.wait_for_timeout(600)
     cp = ev('window.__copie') or ''

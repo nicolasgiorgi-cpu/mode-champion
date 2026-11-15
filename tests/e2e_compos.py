@@ -239,14 +239,13 @@ with sync_playwright() as p:
     check('compo publiée (version 1, justification)', '"version":1' in cp and 'première fois' in cp, cp[:200])
     check('compo de Coach Nico affichée', 'COMPO DE COACH NICO' in pg.inner_text('.cstate').upper())
     check('brouillon effacé', ev(pg, "Object.keys(localStorage).filter(k=>k.indexOf('mc-cdraft:')===0 && k.indexOf('sp-demo-p3')>0 && localStorage.getItem(k)!=='null').length") == 0)
-    # l'auteur modifie : (v58) la compo publiée s'affiche en lecture, « Modifier la compo » la rouvre ; version 2
-    check('(v58) compo publiée : en lecture, « Modifier la compo »', pg.query_selector('[data-act="cEditer"]') is not None and pg.query_selector('[data-act="cUndo"]') is None)
-    pg.click('[data-act="cEditer"]'); pg.wait_for_timeout(500)
+    # l'auteur modifie : (v86) la compo publiée est modifiable tout de suite (avant, v58 : « Modifier la compo ») ; version 2
+    check('(v86) compo publiée : modifiable tout de suite, sans « Modifier la compo »', pg.query_selector('[data-act="cEditer"]') is None and pg.query_selector('[data-act="cUndo"]') is not None)
     x = pg.query_selector('.ccol >> nth=0').query_selector('.cpj').get_attribute('data-id')
     pg.click('.cpj[data-id="%s"]' % x); pg.wait_for_timeout(300)
     pg.click('.cselp [data-act="cMove"][data-t="banc"]'); pg.wait_for_timeout(500)
     check('colonne « Pas placés »', pg.query_selector('.ccol.banc .cpj[data-id="%s"]' % x) is not None)
-    check('bouton Enregistrer (v2)', 'V2' in pg.inner_text('[data-act="cSave"]').upper())
+    check('bouton Enregistrer', pg.query_selector('[data-act="cSave"]') is not None)
     pg.click('[data-act="cSave"]'); pg.wait_for_timeout(300)
     pg.fill('#cjust', 'Blessé'); pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(1000)
     check('version 2 enregistrée', ev(pg, "MC.app.S.cache.compos.compos.find(c=>c.evenementId==='sp-demo-p3').version") == 2)
@@ -259,7 +258,6 @@ with sync_playwright() as p:
     pg.click('[data-act="prSave"]'); pg.wait_for_timeout(700)
     pg.goto(BASE + '#/educ/compo/sp-demo-p3'); pg.wait_for_timeout(800)
     check('présent arrivé après la compo : dans « Pas placés »', pg.query_selector('.ccol.banc .cpj[data-id="%s"]' % nid) is not None)
-    pg.click('[data-act="cEditer"]'); pg.wait_for_timeout(500)   # (v58) la compo publiée se rouvre d'un geste
     pg.click('.cpj[data-id="%s"]' % nid); pg.wait_for_timeout(300)
     pg.click('.cselp [data-act="cMove"][data-t="B1"]'); pg.wait_for_timeout(500)
     check('… et se place en B1', ev(pg, "!!document.querySelectorAll('.ccol')[1].querySelector('[data-id=\"%s\"]')" % nid))

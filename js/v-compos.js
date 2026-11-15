@@ -610,8 +610,9 @@ window.MC = window.MC || {};
   // ======================================================================
   // B : la compo affichée.
   //   vs   : les versions (1 ou 2), chacune { reglages, equipes, banc, raisons }
-  //   mode : 'reglages' (pas encore de compo) | 'draft' (brouillon, pas publié) | 'pub' (compo publiée que je peux modifier : je suis
-  //          l'auteur, ou c'est le jour J ; en lecture jusqu'à « Modifier la compo », v58) | 'edit' (en modification)
+  //   mode : 'reglages' (pas encore de compo) | 'draft' (brouillon, pas publié) | 'edit' (compo publiée que je peux modifier : je suis
+  //          l'auteur, ou c'est le jour J ; v86, demande de Nicolas du 15/11 : modifiable tout de suite, sans « Modifier la compo » ;
+  //          les changements restent sur l'appareil jusqu'à « Enregistrer », ou « Annuler ») | 'pub' (en lecture, v58 : plus utilisé)
   //          | 'view' (compo d'un autre éduc) | 'counter' (ma contre-proposition) | 'vote' (2 versions soumises au vote des éducs)
   //   sel  : { v: n° de version, id: joueur choisi }
   // Téléphone d'abord : les niveaux l'un sous l'autre ; dans chaque niveau, la version 1 à gauche et la version 2 à droite.
@@ -633,7 +634,7 @@ window.MC = window.MC || {};
     }
     if (s) { dropDraft(e.id, partie); if (B && B.evtId === e.id && (B.partie || '') === partie && B.dirty) ui.toast('La compo a changé entre-temps : vos changements non envoyés sont effacés.', true); }
     if (c && c.statut === 'vote') B = { evtId: e.id, partie: partie, moi: C.moi.id, base: base, compoId: c.id, mode: 'vote', vs: JSON.parse(JSON.stringify(c.versions)), undo: [], sel: null, dirty: false };
-    else if (c) B = { evtId: e.id, partie: partie, moi: C.moi.id, base: base, compoId: c.id, mode: canEdit(C, c) ? 'pub' : 'view', vs: [copyCompo(c)], undo: [], sel: null, dirty: false };
+    else if (c) B = { evtId: e.id, partie: partie, moi: C.moi.id, base: base, compoId: c.id, mode: canEdit(C, c) ? 'edit' : 'view', vs: [copyCompo(c)], undo: [], sel: null, dirty: false };
     else B = { evtId: e.id, partie: partie, moi: C.moi.id, base: 0, compoId: null, mode: 'reglages', vs: [], undo: [], sel: null, dirty: false, reg: null, auto: false };
     return B;
   }
@@ -1344,8 +1345,8 @@ window.MC = window.MC || {};
     else if (B.mode === 'counter') state = '<div class="cstate counter">' + icon('swap', 18) + '<span><b>Votre contre-proposition</b> sur la compo de ' + esc(c.auteurNom) + '</span></div>';
     else if (B.mode === 'vote') state = voteState(C, c);
     else state = '<div class="cstate pub">' + icon('check', 18) + '<span><b>Compo de ' + esc(c.auteurNom) + '</b> · version ' + c.version + (c.justification ? '<br><span class="small" style="color:var(--soft)">« ' + esc(c.justification) + ' »</span>' : '') +
-      (B.mode === 'pub' && c.auteur !== C.moi.id ? '<br><span class="small" style="color:var(--soft)">Jour J : vous pouvez la modifier.</span>' : '') +
-      (B.mode === 'edit' ? '<br><span class="small" style="color:var(--gold)">En modification' + (c.auteur !== C.moi.id ? ' (jour J)' : '') + '</span>' : '') + '</span></div>';
+      ((B.mode === 'pub' || (B.mode === 'edit' && !B.dirty)) && c.auteur !== C.moi.id ? '<br><span class="small" style="color:var(--soft)">Jour J : vous pouvez la modifier.</span>' : '') +
+      (B.mode === 'edit' && B.dirty ? '<br><span class="small" style="color:var(--gold)">Changements pas encore enregistrés' + (c.auteur !== C.moi.id ? ' (jour J)' : '') + '</span>' : '') + '</span></div>';
     var avBlock = avAtt.map(function (a) {
       return '<a class="li calert-top" href="#/educ/avis/' + esc(a.id) + '">' + icon('swap', 18, 'style="color:var(--pink);flex:none"') + '<span class="grow"><span class="t1">Contre-proposition de ' + esc(a.auteurNom) + '</span><span class="t2">' + a.changements.length + ' changement' + (a.changements.length > 1 ? 's' : '') + ' · « ' + esc(a.justification.slice(0, 80)) + (a.justification.length > 80 ? '…' : '') + ' »</span></span>' + icon('right', 16) + '</a>';
     }).join('');
@@ -1387,8 +1388,7 @@ window.MC = window.MC || {};
       '<section class="sec" id="calertes" tabindex="-1">' + vs.map(function (d, v) { return alertesHtml(C, d, v, presents, nv, att); }).join('') + '</section>' +
       rsAll + hist + avHist + suite +
       (B.mode === 'draft' && nv === 1 ? '<button type="button" class="btn2" data-act="cAddV">' + icon('plus', 16) + ' Ajouter une 2e version à côté</button>' : '') +
-      (B.mode === 'counter' ? '<button type="button" class="lnk" data-act="cDiscard" style="align-self:flex-start">Abandonner ma contre-proposition</button>' :
-        B.mode === 'edit' && B.dirty ? '<button type="button" class="lnk" data-act="cDiscard" style="align-self:flex-start">Annuler mes changements (revenir à la version ' + c.version + ')</button>' : '') +
+      (B.mode === 'counter' ? '<button type="button" class="lnk" data-act="cDiscard" style="align-self:flex-start">Abandonner ma contre-proposition</button>' : '') +   // (v86) « Annuler » est en haut, à côté de « Enregistrer »
       (c && B.mode !== 'counter' && (c.auteur === C.moi.id || C.moi.admin) ? '<button type="button" class="lnk" data-act="cRetirer" style="align-self:flex-start">' + (c.statut === 'vote' ? 'Retirer le vote (repartir de zéro)' : 'Retirer cette compo (repartir de zéro)') + '</button>' : '') +
       dockHtml(C, e, c) + '</main>';
   }
@@ -1440,8 +1440,9 @@ window.MC = window.MC || {};
     var effacer = '<button type="button" class="btn2 sm ceff" data-act="cDiscard" aria-label="Effacer le brouillon" title="Effacer le brouillon">' + icon('trash', 16) + '<span class="ceff-t">Effacer</span></button>';
     if (B.mode === 'draft' && nv === 1) act = effacer + '<button type="button" class="btn sm" data-act="cPublish" data-v="0">' + icon('send', 16) + ' Publier</button>';
     else if (B.mode === 'draft') act = effacer + '<button type="button" class="btn2 sm" data-act="cPublishWhich">Publier…</button><button type="button" class="btn sm" data-act="cVote">' + icon('podium', 16) + ' Au vote</button>';
-    else if (B.mode === 'edit' && B.dirty) act = '<button type="button" class="btn sm" data-act="cSave">' + icon('check', 16) + ' Enregistrer (v' + (c2.version + 1) + ')</button>';
-    else if (B.mode === 'edit') act = '<button type="button" class="btn2 sm" data-act="cFinEdit">' + icon('check', 16) + ' Terminer</button>';
+    // (v86, demande de Nicolas du 15/11) une compo publiée se modifie tout de suite ; dès le 1er changement : « Annuler » ou « Enregistrer »
+    else if (B.mode === 'edit' && B.dirty) act = '<button type="button" class="btn2 sm" data-act="cDiscard">' + icon('x', 16) + ' Annuler</button><button type="button" class="btn sm" data-act="cSave">' + icon('check', 16) + ' Enregistrer</button>';
+    else if (B.mode === 'edit') act = partager;
     else if (B.mode === 'pub') act = partager + '<button type="button" class="btn sm" data-act="cEditer">' + icon('edit', 16) + ' Modifier' + (P ? '' : ' la compo') + '</button>';
     else if (B.mode === 'view') act = partager + '<button type="button" class="btn sm" data-act="cCounter">' + icon('swap', 16) + ' Proposer des changements</button>';
     else if (B.mode === 'counter') act = '<button type="button" class="btn sm pink" data-act="cSendCounter"' + (c2 && K.diff(c2, B.vs[0]).length ? '' : ' disabled') + '>' + icon('send', 16) + ' Envoyer à ' + esc(c2 ? c2.auteurNom : '') + '</button>';
@@ -2289,10 +2290,10 @@ window.MC = window.MC || {};
       app.adultCall('retirerCompo', { compoId: c.id }).then(function () { return afterSave(c.statut === 'vote' ? 'Vote retiré' : 'Compo retirée'); }).catch(onErr);
     });
   };
-  // en quittant la compo (hashchange arrive sur window) : plus de joueur choisi ; (v58) une compo rouverte sans changement
-  // revient en lecture. B reste en mémoire (les réglages pas encore appliqués, après un aller-retour vers « Les présents »).
+  // en quittant la compo (hashchange arrive sur window) : plus de joueur choisi. B reste en mémoire (les réglages pas encore
+  // appliqués, après un aller-retour vers « Les présents ») ; (v86) une compo publiée reste modifiable, plus de retour en lecture.
   window.addEventListener('hashchange', function () {
-    if (B && location.hash.indexOf('#/educ/compo/' + B.evtId) !== 0) { B.sel = null; if (B.mode === 'edit' && !B.dirty) B.mode = 'pub'; }
+    if (B && location.hash.indexOf('#/educ/compo/' + B.evtId) !== 0) B.sel = null;
   });
 
   // ======================================================================

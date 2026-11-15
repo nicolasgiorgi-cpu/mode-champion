@@ -271,20 +271,28 @@ with sync_playwright() as p:
     pg.keyboard.press('Escape'); pg.wait_for_timeout(400)
     effacer()
 
-    # ----- 7. compo publiée, en lecture : pas de glisser -----
+    # ----- 7. compo publiée : (v86) modifiable tout de suite ; la compo d'un autre éduc, en lecture : pas de glisser -----
     pg.click('[data-act="cFmt"][data-v="10"]'); pg.wait_for_timeout(400)
     if pg.query_selector('[data-act="cAuto"][aria-expanded="false"]'): pg.click('[data-act="cAuto"]'); pg.wait_for_timeout(500)
     pg.click('#cauto [data-act="cPropose"]'); pg.wait_for_timeout(1600)
     pg.click('[data-act="cPublish"]'); pg.wait_for_timeout(900)
     if pg.query_selector('.modal button[data-i="0"]'): pg.click('.modal button[data-i="0"]'); pg.wait_for_timeout(900)
-    check('publiée : en lecture (« Modifier la compo »), le tableau sans « ed »', pg.query_selector('[data-act="cEditer"]') is not None and pg.query_selector('.cboard2.ed') is None)
+    check('(v86) publiée : le tableau modifiable tout de suite, sans « Modifier la compo »', pg.query_selector('[data-act="cEditer"]') is None and pg.query_selector('.cboard2.ed') is not None)
     I = ou('Inès'); tI = I['t']
     tirer(carte('Inès'), gsel(tI, 'centre') + ' > .cgl')
-    check('publiée en lecture : glisser ne déplace personne', ou('Inès') == I, ou('Inès'))
-    pg.click('[data-act="cEditer"]'); pg.wait_for_timeout(600)
-    check('« Modifier la compo » : le tableau redevient éditable', pg.query_selector('.cboard2.ed') is not None)
-    tirer(carte('Inès'), gsel(tI, 'centre') + ' > .cgl')
-    check('en modification : le glisser marche', ou('Inès') == {'t': tI, 'p': 'centre'}, ou('Inès'))
+    check('(v86) publiée : le glisser marche, puis « Annuler » et « Enregistrer »', ou('Inès') == {'t': tI, 'p': 'centre'} and pg.query_selector('.ctop [data-act="cSave"]') is not None and pg.query_selector('.ctop [data-act="cDiscard"]') is not None, ou('Inès'))
+    pg.click('.ctop [data-act="cDiscard"]'); pg.wait_for_timeout(400); pg.click('.modal .mbtns button[data-i="0"]'); pg.wait_for_timeout(900)
+    check('(v86) « Annuler » : la compo publiée revient', ou('Inès') == I and pg.query_selector('[data-act="cSave"]') is None, ou('Inès'))
+    # la compo d'un autre éduc (pas le jour J) : en lecture, le glisser ne déplace personne
+    pg.goto(BASE + '#/educ/compo/sp-demo-e0?p=matchs'); pg.wait_for_timeout(1300)
+    check('compo d\'un autre éduc : en lecture (« Proposer des changements »), le tableau sans « ed »', pg.query_selector('[data-act="cCounter"]') is not None and pg.query_selector('.cboard2.ed') is None)
+    cs = ev("[...document.querySelectorAll('.cboard2 .ccol[data-t]:not(.banc)')].map(c => c.getAttribute('data-t'))")
+    src = ev("(() => { const c = document.querySelector('.cboard2 .ccol[data-t]:not(.banc) .cpj[data-id]'); return [c.getAttribute('data-id'), c.closest('.ccol').getAttribute('data-t')]; })()")
+    dst = [t for t in cs if t != src[1]][0]
+    tirer('.cboard2 .cpj[data-id="%s"]' % src[0], '.cboard2 .ccol[data-t="%s"] .chd' % dst)
+    apres = ev("s => document.querySelector('.cboard2 .cpj[data-id=\"' + s + '\"]').closest('.ccol').getAttribute('data-t')", src[0])
+    check('compo d\'un autre éduc : glisser ne déplace personne, pas de copie', apres == src[1] and ev("!document.querySelector('.cdg-ghost')"), apres)
+    pg.goto(BASE + '#/educ/compo/sp-demo-p3'); pg.wait_for_timeout(1300)
 
     # ----- 8. côté éduc : la mission des postes compte l'arrière -----
     pg.goto(BASE + '#/educ/mission/poste'); pg.wait_for_timeout(1300)
