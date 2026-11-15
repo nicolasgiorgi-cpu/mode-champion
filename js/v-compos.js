@@ -465,9 +465,11 @@ window.MC = window.MC || {};
       compoBlock = '<a class="li calert-top vote ccompo" href="#/educ/compo/' + esc(e.id) + '">' + icon('podium', 24, 'style="color:var(--violet);flex:none"') + '<span class="grow"><span class="t1">Vote des éducs : 2 versions de ' + esc(c.auteurNom) + '</span><span class="t2">' + (mv === undefined ? 'Vous n\'avez pas encore voté' : 'Vous avez voté pour la version ' + (mv + 1)) + '</span></span>' + icon('right', 16) + '</a>';
     } else if (c) {
       var av = avisOf(C.cd, c.id).filter(function (a) { return a.statut === 'attente'; });
-      compoBlock = '<a class="li ccompo" href="#/educ/compo/' + esc(e.id) + '">' + icon('swap', 24, 'style="color:var(--green);flex:none"') + '<span class="grow"><span class="t1">Compo de ' + esc(c.auteurNom) + ' · version ' + c.version + '</span><span class="t2">' +
+      // (v86, relecture) des changements pas encore enregistrés sur cet appareil : ils se voient ici aussi
+      var nonEnr = c.statut === 'publiee' && !!app.lsGet(draftKey(e.id, ''));
+      compoBlock = '<a class="li ccompo" href="#/educ/compo/' + esc(e.id) + '">' + icon('swap', 24, 'style="color:var(--green);flex:none"') + '<span class="grow"><span class="t1">Compo de ' + esc(c.auteurNom) + ' · version ' + c.version + '</span>' + (nonEnr ? '<span class="t2 cnonenr" style="color:var(--gold)">Changements pas encore enregistrés</span>' : '') + '<span class="t2">' +
         c.equipes.map(function (t) { return t.id + ' (' + t.joueurs.length + ')'; }).join(' · ') + (c.reglages.format === 10 ? ' · jeu à 10' : ' · jeu à 5') + '</span></span>' + icon('right', 16) + '</a>' +
-        (canEdit(C, c) ? '<button type="button" class="btn2" data-act="eEditer" data-id="' + esc(e.id) + '">' + icon('edit', 16) + ' Modifier la compo</button>' : '') +   // (v58)
+        // (v86, demande de Nicolas du 15/11) plus de « Modifier la compo » : la carte ouvre la compo, modifiable tout de suite
         (av.length ? '<a class="li calert-top" href="#/educ/avis/' + esc(av[0].id) + '">' + icon('swap', 18, 'style="color:var(--pink);flex:none"') + '<span class="grow"><span class="t1">Contre-proposition de ' + esc(av[0].auteurNom) + '</span><span class="t2">' + av[0].changements.length + ' changement' + (av[0].changements.length > 1 ? 's' : '') + ' · à voir</span></span>' + icon('right', 16) + '</a>' : '');
     } else if (past) compoBlock = '<div class="empty">Pas de compo enregistrée pour ce plateau.</div>';
     else {
@@ -567,11 +569,11 @@ window.MC = window.MC || {};
       t2 = 'De ' + esc(c.auteurNom) + ' · ' + (platR(r) ? nn + ' équipe' + (nn > 1 ? 's' : '') + ' (' + c.equipes.map(function (t) { return esc(t.id) + ' ' + t.joueurs.length; }).join(', ') + ')' :   // (v67) matchs faits comme un plateau
         P === 'matchs' ? (nn / 2) + ' match' + (nn > 2 ? 's' : '') + ' ' + (r.mode === 'equilibre' ? 'équilibré' : 'par niveau') + (nn > 2 ? 's' : '') :
         nn + ' groupe' + (nn > 1 ? 's ' : ' ') + m + (r.separer ? ', avants / arrières à part' : '') + ' (' + c.equipes.map(function (t) { return t.joueurs.length; }).join(', ') + ')');
-      pill = '<span class="pill" style="--pc:var(--green)">Publiés</span>';
+      pill = c.statut === 'publiee' && dr ? '<span class="pill cnonenr" style="--pc:var(--gold)">Pas enregistrés</span>' : '<span class="pill" style="--pc:var(--green)">Publiés</span>';   // (v86, relecture)
     } else if (dr) { t2 = 'Brouillon en cours'; pill = '<span class="pill" style="--pc:var(--gold)">Brouillon</span>'; }
     else t2 = past ? 'Pas faits' : 'À préparer';   // (v57)
     return '<a class="li cpart' + (c ? ' ok ccompo' + (c.statut === 'vote' ? ' vote' : '') : '') + '" href="' + lienCompo(esc(e.id), P) + '"><span class="cpnum">' + (c ? icon('check', 14) : n) + '</span><span class="grow"><span class="t1">' + NOM_PARTIE[P] + '</span><span class="t2">' + t2 + '</span></span>' + pill + icon('right', 16) + '</a>' +
-      (c && c.statut === 'publiee' && canEdit(C, c) ? '<button type="button" class="btn2 sm cpart-mod" data-act="eEditer" data-id="' + esc(e.id) + '" data-p="' + P + '">' + icon('edit', 14) + ' Modifier ' + (P === 'matchs' ? 'les matchs' : 'les ateliers') + '</button>' : '');   // (v58)
+      '';   // (v86) plus de « Modifier les ateliers / les matchs » : la carte ouvre la partie, modifiable tout de suite   // (v58)
   }
   MC.act.prToggle = function (b) {
     var id = b.getAttribute('data-id'), e = (app.S.cache.compos.evenements || []).filter(function (x) { return x.id === PR.evtId; })[0];
@@ -612,7 +614,7 @@ window.MC = window.MC || {};
   //   vs   : les versions (1 ou 2), chacune { reglages, equipes, banc, raisons }
   //   mode : 'reglages' (pas encore de compo) | 'draft' (brouillon, pas publié) | 'edit' (compo publiée que je peux modifier : je suis
   //          l'auteur, ou c'est le jour J ; v86, demande de Nicolas du 15/11 : modifiable tout de suite, sans « Modifier la compo » ;
-  //          les changements restent sur l'appareil jusqu'à « Enregistrer », ou « Annuler ») | 'pub' (en lecture, v58 : plus utilisé)
+  //          les changements restent sur l'appareil jusqu'à « Enregistrer », ou « Annuler » ; le mode 'pub' de la v58, en lecture, n'existe plus)
   //          | 'view' (compo d'un autre éduc) | 'counter' (ma contre-proposition) | 'vote' (2 versions soumises au vote des éducs)
   //   sel  : { v: n° de version, id: joueur choisi }
   // Téléphone d'abord : les niveaux l'un sous l'autre ; dans chaque niveau, la version 1 à gauche et la version 2 à droite.
@@ -654,7 +656,6 @@ window.MC = window.MC || {};
       // un entraînement : d'abord les ateliers, ensuite les matchs
       var partie = e.sorte === 'entrainement' ? (q && q.p === 'matchs' ? 'matchs' : 'ateliers') : '';
       initBoard(C, e, partie);
-      if (EDITER === e.id + ':' + partie) { EDITER = null; if (B.mode === 'pub') { B.mode = 'edit'; B.sel = null; } }   // (v58) « Modifier la compo » depuis la page de l'événement
       afterPaint(cur);
       return B.mode === 'reglages' ? (partie === 'ateliers' ? paintReglagesEnt(C, e) : paintReglages(C, e)) : paintBoard(C, e);
     });
@@ -1330,7 +1331,7 @@ window.MC = window.MC || {};
     if (!al.length) return '<div class="empty" style="border-color:rgba(61,255,176,.4);color:var(--green)">' + icon('check', 16) + ' ' + (nv > 1 ? vName(v) + ' : rien' : 'Rien') + ' à signaler.</div>';
     return '<details class="calertw"' + (nv > 1 ? '' : ' open') + '><summary class="between"><h2 class="h2">' + head + '</h2><span class="hud" style="color:var(--orange)">' + al.length + ' à regarder</span></summary><ul class="list calerts">' + al.map(function (a, i) {
       return '<li class="li ' + (a.niveau === 'warn' ? 'warn' : 'info') + '">' + icon(a.niveau === 'warn' ? 'warn' : 'info', 18, 'style="flex:none"') + '<span class="grow small" style="color:var(--soft)">' + esc(a.texte) + '</span>' +
-        (a.fix && (editable() || B.mode === 'pub') ? '<button type="button" class="btn2 sm" data-act="cFix" data-v="' + v + '" data-i="' + i + '" title="' + esc(a.fix.texte) + '">' + (a.fix.lab || 'Corriger') + '</button>' : '') + '</li>';
+        (a.fix && editable() ? '<button type="button" class="btn2 sm" data-act="cFix" data-v="' + v + '" data-i="' + i + '" title="' + esc(a.fix.texte) + '">' + (a.fix.lab || 'Corriger') + '</button>' : '') + '</li>';
     }).join('') + '</ul></details>';
   }
   function paintBoard(C, e) {
@@ -1354,7 +1355,7 @@ window.MC = window.MC || {};
     else if (B.mode === 'counter') state = '<div class="cstate counter">' + icon('swap', 18) + '<span><b>Votre contre-proposition</b> sur la compo de ' + esc(c.auteurNom) + '</span></div>';
     else if (B.mode === 'vote') state = voteState(C, c);
     else state = '<div class="cstate pub">' + icon('check', 18) + '<span><b>Compo de ' + esc(c.auteurNom) + '</b> · version ' + c.version + (c.justification ? '<br><span class="small" style="color:var(--soft)">« ' + esc(c.justification) + ' »</span>' : '') +
-      ((B.mode === 'pub' || (B.mode === 'edit' && !B.dirty)) && c.auteur !== C.moi.id ? '<br><span class="small" style="color:var(--soft)">Jour J : vous pouvez la modifier.</span>' : '') +
+      (B.mode === 'edit' && !B.dirty && c.auteur !== C.moi.id ? '<br><span class="small" style="color:var(--soft)">Jour J : vous pouvez la modifier.</span>' : '') +
       (B.mode === 'edit' && B.dirty ? '<br><span class="small" style="color:var(--gold)">Changements pas encore enregistrés' + (c.auteur !== C.moi.id ? ' (jour J)' : '') + '</span>' : '') + '</span></div>';
     var avBlock = avAtt.map(function (a) {
       return '<a class="li calert-top" href="#/educ/avis/' + esc(a.id) + '">' + icon('swap', 18, 'style="color:var(--pink);flex:none"') + '<span class="grow"><span class="t1">Contre-proposition de ' + esc(a.auteurNom) + '</span><span class="t2">' + a.changements.length + ' changement' + (a.changements.length > 1 ? 's' : '') + ' · « ' + esc(a.justification.slice(0, 80)) + (a.justification.length > 80 ? '…' : '') + ' »</span></span>' + icon('right', 16) + '</a>';
@@ -1452,7 +1453,6 @@ window.MC = window.MC || {};
     // (v86, demande de Nicolas du 15/11) une compo publiée se modifie tout de suite ; dès le 1er changement : « Annuler » ou « Enregistrer »
     else if (B.mode === 'edit' && B.dirty) act = '<button type="button" class="btn2 sm" data-act="cDiscard">' + icon('x', 16) + ' Annuler</button><button type="button" class="btn sm" data-act="cSave">' + icon('check', 16) + ' Enregistrer</button>';
     else if (B.mode === 'edit') act = partager;
-    else if (B.mode === 'pub') act = partager + '<button type="button" class="btn sm" data-act="cEditer">' + icon('edit', 16) + ' Modifier' + (P ? '' : ' la compo') + '</button>';
     else if (B.mode === 'view') act = partager + '<button type="button" class="btn sm" data-act="cCounter">' + icon('swap', 16) + ' Proposer des changements</button>';
     else if (B.mode === 'counter') act = '<button type="button" class="btn sm pink" data-act="cSendCounter"' + (c2 && K.diff(c2, B.vs[0]).length ? '' : ' disabled') + '>' + icon('send', 16) + ' Envoyer à ' + esc(c2 ? c2.auteurNom : '') + '</button>';
     else if (B.mode === 'vote') {
@@ -2025,7 +2025,6 @@ window.MC = window.MC || {};
     rerenderKeep();
   };
   MC.act.cFix = function (b) {
-    if (B && B.mode === 'pub') B.mode = 'edit';   // (v58) une compo publiée : « Retirer » / « Corriger » la rouvre d'abord
     withC(function (C, e) {
       var v = Number(b.getAttribute('data-v')) || 0, d = B.vs[v], pres = presentsOf(C, e);
       var al = alertesFull(C, d, pres, attenteOf(C, e));
@@ -2289,14 +2288,6 @@ window.MC = window.MC || {};
       if (keepReg) setTimeout(function () { if (B) { B.reg = platR(keepReg) ? regDe(keepReg) : B.partie === 'matchs' ? null : JSON.parse(JSON.stringify(keepReg)); B.auto = autoAvant; } app.rerender(); }, 0);
     });
   };
-  // (v58, demande de Nicolas) une compo publiée se rouvre en un geste pour ajuster équipes et postes ; « Terminer » sans changement la referme
-  var EDITER = null;
-  MC.act.cEditer = function () { if (!B || B.mode !== 'pub') return; B.mode = 'edit'; B.sel = null; app.rerender(); };
-  MC.act.cFinEdit = function () { if (!B || B.mode !== 'edit' || B.dirty) return; B.mode = 'pub'; B.sel = null; app.rerender(); };
-  MC.act.eEditer = function (b) {
-    var id = b.getAttribute('data-id'), P = b.getAttribute('data-p') || '';
-    EDITER = id + ':' + P; location.hash = lienCompo(id, P);
-  };
   MC.act.cCounter = function () { if (!B) return; B.mode = 'counter'; B.sel = null; app.rerender(); ui.toast('Déplacez les joueurs, puis envoyez votre proposition'); };
   MC.act.cSendCounter = function () {
     var c = curC();
@@ -2363,7 +2354,12 @@ window.MC = window.MC || {};
   }
   function avisAnswer(id, params, msg) {
     params.avisId = id;
-    return app.adultCall('repondreAvis', params).then(function () { return loadCompos(true); }).then(function () { B = null; ui.toast(msg); app.rerender(); }).catch(function (e) { ui.toast(e.message, true); });
+    return app.adultCall('repondreAvis', params).then(function () { return loadCompos(true); }).then(function () {
+      // (v86, relecture) la compo a changé de version : des changements pas encore enregistrés sur cet appareil sont effacés, on le dit
+      var perdu = B && B.dirty && B.mode === 'edit';
+      if (perdu) dropDraft(B.evtId, B.partie);
+      B = null; ui.toast(msg + (perdu ? ' · vos changements pas encore enregistrés sont effacés' : '')); app.rerender();
+    }).catch(function (e) { ui.toast(e.message, true); });
   }
   MC.act.aAccept = function (b) {
     var id = b.getAttribute('data-id');

@@ -161,18 +161,26 @@ with sync_playwright() as p:
         pg.click('.ctop [data-act="cDiscard"]'); pg.wait_for_timeout(400); pg.click('.modal .mbtns button[data-i="0"]'); pg.wait_for_timeout(900)
         check('« Annuler » : de nouveau la version 2', pg.query_selector('[data-act="cSave"]') is None and ev("document.querySelectorAll('.ccol:not(.banc) .cpj.gone').length") == nabs)
 
-    # ----- 6. depuis la page du plateau : « Modifier la compo » mène à la compo, modifiable -----
+    # ----- 6. la page du plateau : (v86) plus de « Modifier la compo », la carte ouvre la compo, modifiable ; un changement pas
+    # enregistré s'y voit -----
     pg.goto(BASE + '#/educ/evt/sp-demo-p3'); pg.wait_for_timeout(1200)
-    check('page du plateau : « Modifier la compo »', pg.query_selector('[data-act="eEditer"]') is not None)
-    pg.click('[data-act="eEditer"]'); pg.wait_for_timeout(1300)
-    check('… la compo s\'ouvre, modifiable', '#/educ/compo/sp-demo-p3' in pg.url and pg.query_selector('[data-act="cParPoste"]') is not None and pg.query_selector('.cboard2.ed') is not None)
-    # un autre éduc (pas le jour J) : pas de bouton, une contre-proposition
+    check('page du plateau : plus de « Modifier la compo », rien en attente', pg.query_selector('[data-act="eEditer"]') is None and pg.query_selector('.cnonenr') is None)
+    pg.click('a.ccompo[href="#/educ/compo/sp-demo-p3"]'); pg.wait_for_timeout(1300)
+    check('… la carte ouvre la compo, modifiable', '#/educ/compo/sp-demo-p3' in pg.url and pg.query_selector('[data-act="cParPoste"]') is not None and pg.query_selector('.cboard2.ed') is not None)
+    j1 = ev("document.querySelector('.ccol:not(.banc) .cpj:not(.gone)').getAttribute('data-id')")
+    pg.click('.ccol .cpj[data-id="%s"]' % j1); pg.wait_for_timeout(400)
+    pg.click('.cdock [data-act="cMove"][data-t="banc"]'); pg.wait_for_timeout(500)
+    pg.goto(BASE + '#/educ/evt/sp-demo-p3'); pg.wait_for_timeout(1200)
+    check('un changement pas enregistré : « Changements pas encore enregistrés » sur la page du plateau', pg.query_selector('.ccompo .cnonenr') is not None)
+    pg.goto(BASE + '#/educ/compo/sp-demo-p3'); pg.wait_for_timeout(1100)
+    pg.click('.ctop [data-act="cDiscard"]'); pg.wait_for_timeout(400); pg.click('.modal .mbtns button[data-i="0"]'); pg.wait_for_timeout(900)
+    pg.goto(BASE + '#/educ/evt/sp-demo-p3'); pg.wait_for_timeout(1200)
+    check('« Annuler » : plus rien en attente sur la page du plateau', pg.query_selector('.cnonenr') is None)
+    # un autre éduc (pas le jour J) : la carte, et une contre-proposition depuis la compo
     pg.goto(BASE + '#/educ/evt/demo-r1'); pg.wait_for_timeout(1200)
-    au = ev("(() => { const c = MC.app.S.cache.compos.compos.find(c => c.evenementId === 'demo-r1' && !c.partie); return c && c.auteur; })()")
-    moi = ev("MC.app.S.cache.group.moi.id")
-    check('page d\'un plateau : « Modifier la compo » seulement pour qui peut la modifier', (pg.query_selector('[data-act="eEditer"]') is not None) == (au == moi), (au, moi))
+    check('page d\'un plateau d\'un autre éduc : la carte de la compo, pas de bouton « Modifier »', pg.query_selector('a.ccompo') is not None and pg.query_selector('[data-act="eEditer"]') is None)
 
-    # ----- 7. les matchs d'un entraînement : « Modifier les matchs » une fois publiés -----
+    # ----- 7. les matchs d'un entraînement, une fois publiés -----
     pg.goto(BASE + '#/educ/compo/sp-demo-e1?p=matchs'); pg.wait_for_timeout(1200)
     ouvrirAuto(pg)   # (v65)
     if pg.query_selector('[data-act="cPropose"]'):
@@ -181,9 +189,15 @@ with sync_playwright() as p:
     if pg.query_selector('.modal'): pg.click('.modal .mbtns button[data-i="0"]'); pg.wait_for_timeout(1800)
     check('matchs publiés : modifiables tout de suite (v86), la couverture des postes', pg.query_selector('.cboard2.ed') is not None and pg.query_selector('[data-act="cEditer"]') is None and len(pg.query_selector_all('.ccol .chd .cpg')) == 2)
     pg.goto(BASE + '#/educ/evt/sp-demo-e1'); pg.wait_for_timeout(1200)
-    check('page de l\'entraînement : « Modifier les matchs »', pg.query_selector('[data-act="eEditer"][data-p="matchs"]') is not None and 'Modifier les matchs' in ev("document.querySelector('main').textContent"))
-    pg.click('[data-act="eEditer"][data-p="matchs"]'); pg.wait_for_timeout(1300)
-    check('… les matchs s\'ouvrent en modification', 'p=matchs' in pg.url and pg.query_selector('[data-act="cParPoste"]') is not None)
+    check('page de l\'entraînement : plus de « Modifier les matchs » (v86), la carte des matchs « Publiés »', pg.query_selector('[data-act="eEditer"]') is None and 'Modifier les matchs' not in ev("document.querySelector('main').textContent") and 'Publiés' in ev("document.querySelector('a.cpart[href*=matchs]').textContent"))
+    pg.click('a.cpart[href*="p=matchs"]'); pg.wait_for_timeout(1300)
+    check('… la carte ouvre les matchs, modifiables', 'p=matchs' in pg.url and pg.query_selector('[data-act="cParPoste"]') is not None and pg.query_selector('.cboard2.ed') is not None)
+    # un changement pas enregistré : la carte des matchs le dit
+    j2 = ev("document.querySelector('.ccol:not(.banc) .cpj:not(.gone)').getAttribute('data-id')")
+    pg.click('.ccol .cpj[data-id="%s"]' % j2); pg.wait_for_timeout(400)
+    pg.click('.cdock [data-act="cMove"][data-t="banc"]'); pg.wait_for_timeout(500)
+    pg.goto(BASE + '#/educ/evt/sp-demo-e1'); pg.wait_for_timeout(1200)
+    check('page de l\'entraînement : « Pas enregistrés » sur la carte des matchs', 'Pas enregistrés' in ev("document.querySelector('a.cpart[href*=matchs]').textContent"))
     check('pas de défilement de côté', noscroll())
 
     print('ERREURS JS :', errs or 'aucune')
