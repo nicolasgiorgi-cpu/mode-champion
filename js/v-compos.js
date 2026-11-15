@@ -182,7 +182,9 @@ window.MC = window.MC || {};
   // face des piliers…). Les colonnes d'une même rangée (même hauteur de départ) prennent, pour l'en-tête et pour chaque poste, la
   // hauteur de la plus haute ; au téléphone, une équipe sous l'autre : rien à aligner.
   function alignerPostes() {
-    var cols = Array.prototype.slice.call(document.querySelectorAll('.cboard2 .ccol:not(.banc)'));
+    // (relecture v88) seulement les équipes au jeu à 10 (un groupe par poste) : au jeu à 5 et aux ateliers, rien à mettre en face
+    var cols = Array.prototype.slice.call(document.querySelectorAll('.cboard2 .ccol:not(.banc)')).filter(function (c) { return c.querySelector('.cgrp[data-p]'); });
+    document.querySelectorAll('.cboard2 .cgrp.vide-tous').forEach(function (e) { e.classList.remove('vide-tous'); });
     if (!cols.length) return;
     var cle = function (e) { return e.classList.contains('csech') ? 'h:' + e.textContent.replace(/\d+/g, '').trim() : 'p:' + e.getAttribute('data-p'); };
     var parts = function (c) { return Array.prototype.slice.call(c.querySelectorAll('.csech, .cgrp[data-p]')); };
@@ -194,8 +196,10 @@ window.MC = window.MC || {};
       if (r.length < 2) return;
       r.forEach(function (c) { c.classList.add('aligne'); });   // un poste vide n'apparaît qu'en face d'une autre équipe
       // dans l'ordre : chaque titre de section puis chaque poste commence à la même hauteur dans toutes les colonnes de la rangée
-      var ordre = [];
-      r.forEach(function (c) { parts(c).forEach(function (e) { var k = cle(e); if (ordre.indexOf(k) < 0) ordre.push(k); }); });
+      var ordre = [], plein = {};
+      r.forEach(function (c) { parts(c).forEach(function (e) { var k = cle(e); if (ordre.indexOf(k) < 0) ordre.push(k); if (!e.classList.contains('vide')) plein[k] = 1; }); });
+      // un poste vide dans toutes les équipes de la rangée : pas de ligne vide
+      r.forEach(function (c) { parts(c).forEach(function (e) { if (e.classList.contains('vide') && !plein[cle(e)]) e.classList.add('vide-tous'); }); });
       ordre.forEach(function (k) {
         var els = r.map(function (c) { return parts(c).filter(function (e) { return cle(e) === k && e.offsetParent; })[0]; }).filter(Boolean);
         if (els.length < 2) return;
@@ -638,11 +642,17 @@ window.MC = window.MC || {};
     return ui.modal({ title: 'Supprimer l\'événement ?', body: '<p class="lead">' + (e && e.annule ? 'Il est annulé : il disparaît de l\'appli, avec ses compos.' : 'Il disparaît de la liste, avec ses présents.') + '</p>',
       actions: [{ label: 'Supprimer', value: true, cls: 'btn pink' }, { label: 'Annuler', value: false, cls: 'btn2 grey' }] });
   }
+  // (relecture v88) un brouillon ou des présents modifiés sur l'événement effacé : oubliés (sinon l'appli croit un travail en cours)
+  function oublierEvt(id) {
+    if (B && B.evtId === id) B = null;
+    if (PR.evtId === id) PR = { evtId: null, chg: {} };
+    dropDraft(id, ''); K.PARTIES.forEach(function (p) { dropDraft(id, p); });
+  }
   MC.act.eEffacer = function (b) {
     var id = b.getAttribute('data-id'), e = (app.S.cache.compos.evenements || []).filter(function (x) { return x.id === id; })[0];
     confirmerEffacer(e).then(function (ok) {
       if (!ok) { fermerSwipe(); return; }
-      app.adultCall('setEvenement', { id: id, supprimer: true }).then(function () { return loadCompos(true); }).then(function () { ui.toast('Événement supprimé'); app.rerender(); }).catch(function (x) { ui.toast(x.message, true); });
+      app.adultCall('setEvenement', { id: id, supprimer: true }).then(function () { oublierEvt(id); return loadCompos(true); }).then(function () { ui.toast('Événement supprimé'); app.rerender(); }).catch(function (x) { ui.toast(x.message, true); });
     });
   };
   // le glisser vers la gauche d'une ligne d'événement annulé (doigt, souris ou stylet) : au-delà de la moitié du bouton, il reste ouvert
@@ -696,7 +706,8 @@ window.MC = window.MC || {};
     confirmerEffacer(e0).then(function (ok) {
       if (!ok) return;
       var back = listeDe(e0);
-      app.adultCall('setEvenement', { id: PR.evtId, supprimer: true }).then(function () { return loadCompos(true); }).then(function () { ui.toast('Événement supprimé'); app.go(back, true); }).catch(function (e) { ui.toast(e.message, true); });
+      var eid = PR.evtId;
+      app.adultCall('setEvenement', { id: eid, supprimer: true }).then(function () { oublierEvt(eid); return loadCompos(true); }).then(function () { ui.toast('Événement supprimé'); app.go(back, true); }).catch(function (e) { ui.toast(e.message, true); });
     });
   };
 

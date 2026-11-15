@@ -77,3 +77,9 @@ assert.strictEqual(r.error, 'interdit', 'une compo publiée : on ne l\'efface pa
 r = g.call({ action: 'setEvenement', token: 'zzz', id: 'sp-EV2', supprimer: true });
 assert.ok(r.error, JSON.stringify(r));
 console.log('test_evt_efface : OK');
+// (relecture) un effacé passé de plus de 30 jours est oublié à la synchro suivante (la propriété ne grossit pas sans fin)
+const vieux = new Date(Date.now() - 40 * 864e5).toISOString().slice(0, 10);
+g._props.evtsEffaces = JSON.stringify([{ id: 'sp-VIEUX', debut: vieux }, { id: 'sp-RECENT', debut: jour(5) }]);
+r = g.call({ action: 'syncSpond', token: nico }); assert.ok(r.ok);
+assert.deepStrictEqual(JSON.parse(g._props.evtsEffaces).map(x => x.id), ['sp-RECENT']);
+console.log('test_evt_efface (purge) : OK');

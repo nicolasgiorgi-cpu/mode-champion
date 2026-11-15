@@ -85,6 +85,11 @@ with sync_playwright() as p:
         check('l\'iPad grandit (1366) : toujours en face', m['rangees'] >= 1 and not m['ecarts'], m)
         pg.set_viewport_size({'width': W, 'height': H}); pg.wait_for_timeout(800)
     check('compo : pas de défilement de côté', noscroll())
+    # (relecture) au jeu à 5 (un plateau joué) et aux ateliers : rien n'est décalé (pas de trou sous une équipe courte)
+    for ev_id in ['sp-demo-p2', 'sp-demo-e0']:
+        pg.goto(BASE + '#/educ/compo/' + ev_id); pg.wait_for_timeout(1300)
+        n = ev("[...document.querySelectorAll('.cboard2 .csech, .cboard2 .cgrp')].filter(e => e.style.marginTop).length")
+        check('pas de jeu à 10 (%s) : rien n\'est décalé' % ev_id, n == 0, n)
 
     # ----- 2. un événement annulé : glisser sa ligne vers la gauche, « Effacer » -----
     def touche(typ, x=None, y=None):

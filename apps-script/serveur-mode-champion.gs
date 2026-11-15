@@ -2041,7 +2041,9 @@ var Core = (function () {
   // (v88) les événements Spond annulés qu'un éduc a effacés : [{ id, debut }] (la synchro ne les recrée pas tant qu'ils restent annulés)
   function evtsEffaces(ctx) {
     var l; try { l = JSON.parse(ctx.db.getProp('evtsEffaces') || '[]'); } catch (x) { l = []; }
-    return Array.isArray(l) ? l.filter(function (x) { return x && x.id; }) : [];
+    // (relecture v88) passé de plus de 30 jours : Spond ne le relit plus, on l'oublie (une propriété est limitée en taille)
+    var min = isoDate(ctx.now - 30 * DAY);
+    return Array.isArray(l) ? l.filter(function (x) { return x && x.id && !(x.debut && x.debut < min); }) : [];
   }
   function dateEvt(s) {
     s = String(s || '');
@@ -2078,7 +2080,7 @@ var Core = (function () {
           if (e.source === 'spond') {
             var ef = evtsEffaces(ctx).filter(function (x) { return x.id !== e.id; });
             ef.push({ id: e.id, debut: String(e.debut).slice(0, 10) });
-            ctx.db.setProp('evtsEffaces', JSON.stringify(ef.slice(-200)));
+            ctx.db.setProp('evtsEffaces', JSON.stringify(ef.slice(-100)));
           }
         }
         ctx.db.remove('evenements', e.id);
@@ -2457,7 +2459,8 @@ var Core = (function () {
       else { row.id = id; row.source = 'spond'; row.sorte = sorteEvt(row.titre); row.ajouts = []; row.retraits = []; row.parQui = 'Spond'; ctx.db.insert('evenements', row); }
       evts++;
     });
-    if (nEff) ctx.db.setProp('evtsEffaces', JSON.stringify(efList.filter(function (x) { return effaces[x.id]; })));
+    var efNew = JSON.stringify(efList.filter(function (x) { return effaces[x.id]; }));   // rétablis dans Spond, ou trop anciens : retirés
+    if (ctx.db.getProp('evtsEffaces') && efNew !== ctx.db.getProp('evtsEffaces')) ctx.db.setProp('evtsEffaces', efNew);
     // un événement Spond de la période lue qui n'y est plus a été supprimé dans Spond ;
     // celui d'une catégorie que l'appli ne suit plus disparaît (sauf s'il a déjà des groupes : on le garde tel quel)
     if (Array.isArray(data.evenements)) {

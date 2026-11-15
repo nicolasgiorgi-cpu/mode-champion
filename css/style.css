@@ -2160,3 +2160,9 @@ body.cdg-on .cpj{cursor:grabbing}
 .cswipe.sw>.cev.past{opacity:1}
 .cswipe-del{position:absolute;top:0;right:0;bottom:0;width:92px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:0;background:var(--red);color:#fff;font:700 11px/1 var(--f-hud);letter-spacing:.06em;text-transform:uppercase;visibility:hidden;cursor:pointer}
 .cswipe.sw>.cswipe-del{visibility:visible}
+/* (relecture v88) la ligne glissée reste dans sa case ; « Le prochain » opaque ; pas d'aperçu de lien d'iOS pendant le geste */
+.cswipe{overflow:hidden}
+.cswipe>.cev{-webkit-touch-callout:none}
+.cswipe>.cev:focus-visible{outline-offset:-2px}
+.cswipe>.cev.cnext{background:color-mix(in srgb,var(--cyan) 6%,var(--panel2))}
+.cboard2 .cgrp.vide-tous{display:none}
