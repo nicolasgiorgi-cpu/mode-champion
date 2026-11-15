@@ -12,9 +12,10 @@ MC.compos = (function () {
   // (v46) les niveaux en dégradé de violet, repris partout ; (v47) plus contrastés : A violet vif, B violet pâle, C presque blanc,
   // lettre toujours en noir (palette « B au milieu » choisie par Nicolas le 04/11)
   var COUL_NIV = { A: '#9A4BFF', B: '#BFA6FF', C: '#F6F3FF' };
-  // Jeu à 10 (règlement FFR M12) : mêlée 3 + 2 (les avants), puis 5 arrières (dans l'appli, « arrières » = les lignes arrières : 9, 10, centres, ailiers).
-  // Derrière la charnière (9 et 10) : 1 centre et 2 ailiers (décidé par Nicolas le 20/10 ; à ajuster ici si le club joue autrement).
-  var POSTES10 = [['pilier', 2], ['talonneur', 1], ['troisieme-ligne', 2], ['demi-de-melee', 1], ['ouvreur', 1], ['centre', 1], ['ailier', 2]];
+  // Jeu à 10 (règlement FFR M12) : mêlée 3 + 2 (les avants), puis 5 arrières (dans l'appli, « arrières » = les lignes arrières : 9, 10, centres, ailiers, arrière).
+  // Derrière la charnière (9 et 10) : 1 centre, 1 ailier et 1 arrière (le 15), décidé par Nicolas le 15/11 (v85 ; avant : 1 centre
+  // et 2 ailiers, décision du 20/10) ; à ajuster ici si le club joue autrement.
+  var POSTES10 = [['pilier', 2], ['talonneur', 1], ['troisieme-ligne', 2], ['demi-de-melee', 1], ['ouvreur', 1], ['centre', 1], ['ailier', 1], ['arriere', 1]];
   var SLOTS10 = [], BESOIN = {};
   POSTES10.forEach(function (p) { BESOIN[p[0]] = p[1]; for (var i = 0; i < p[1]; i++) SLOTS10.push(p[0]); });
   // Étoiles de plaquage attendues pour jouer dans un niveau (proposition, à valider par les éducs) :
@@ -135,9 +136,9 @@ MC.compos = (function () {
     var l = postesDe(f).filter(function (p) { return prefDe(f).indexOf(p) < 0; }), i = l.indexOf(poste);
     return i >= 0 ? i + 1 : 9;
   }
-  // avant (piliers, talonneur, 3es lignes) ou arrière (9, 10, centres, ailiers)
+  // avant (piliers, talonneur, 3es lignes) ou arrière (9, 10, centres, ailiers, arrière)
   var AVANTS = ['pilier', 'talonneur', 'troisieme-ligne'];
-  // l'ordre d'affichage dans une équipe : piliers, talonneur, 3es lignes, puis 9, 10, centres, ailiers
+  // l'ordre d'affichage dans une équipe : piliers, talonneur, 3es lignes, puis 9, 10, centres, ailiers, arrière
   var ORDRE = POSTES10.map(function (p) { return p[0]; });
   function typePoste(p) { return !p ? '' : AVANTS.indexOf(p) >= 0 ? 'av' : 'ar'; }
   // 'av', 'ar', 'les2' (peut jouer avant et arrière) ou '' (pas encore de poste)
@@ -301,7 +302,7 @@ MC.compos = (function () {
       }
       return false;
     }
-    [0, 1, 2, 3, 4, 5, 6, 7].forEach(function (maxR) {   // 7 : le 7e poste d'un enfant sans préféré ★
+    [0, 1, 2, 3, 4, 5, 6, 7, 8].forEach(function (maxR) {   // 8 : le 8e poste d'un enfant sans préféré ★ (v85 : 8 postes avec l'arrière)
       ids.forEach(function (pid) { if (slotOf[pid] === undefined) tryAssign(pid, maxR, {}); });
     });
     if (remplir) ids.forEach(function (pid) {
@@ -774,20 +775,29 @@ MC.compos = (function () {
 
   // ---------- Les joueurs d'une équipe, rangés : avants puis arrières ----------
   // Jeu à 10 : d'après le poste du plateau (sans poste = remplaçant) ; jeu à 5 : d'après le poste principal de la fiche.
-  // Dans chaque section : piliers, talonneur, 3es lignes / 9, 10, centres, ailiers ; à poste égal, l'ordre de l'équipe.
+  // Dans chaque section : piliers, talonneur, 3es lignes / 9, 10, centres, ailiers, arrière.
+  // (v85, demande de Nicolas du 15/11) à poste égal : les A en haut, puis le plaquage du plus fort au plus faible (le même ordre
+  // que « Poste par poste » : A, B avec passerelle vers A, B, C avec passerelle vers le haut, C, sans niveau ; pas encore évalué
+  // en dernier), puis l'ordre de l'équipe. Une équipe rangée à la main (t.tri === 'main', glisser-déposer) garde l'ordre posé.
   // renvoie { av: [joueurs], ar: [], rempl: [], sans: [] } (joueurs = les entrées de t.joueurs)
+  function cleOrdre(f) {
+    var q = f ? f.plaquage : null, sans = q === null || q === undefined || q === '';
+    return rangVivier(f || {}) * 100 + (sans ? 50 : 10 - (Number(q) || 0));
+  }
   function sections(t, F, format) {
-    var o = { av: [], ar: [], rempl: [], sans: [] }, k = {};
+    var o = { av: [], ar: [], rempl: [], sans: [] }, k = {}, main = t.tri === 'main';
     (t.joueurs || []).forEach(function (j, i) {
       var p = format === 10 ? j.poste : posteDefaut(F[j.id]), ty = typePoste(p);
-      k[j.id] = rangOrdre(p || posteDefaut(F[j.id])) * 1000 + i;
+      k[j.id] = [rangOrdre(p || posteDefaut(F[j.id])), main ? 0 : cleOrdre(F[j.id]), i];
       // (v35) au jeu à 10, sans poste du match : remplaçant s'il a des postes sur sa fiche, sinon « sans poste » (à régler)
       if (ty) o[ty].push(j); else if (format === 10 && postesDe(F[j.id]).length) o.rempl.push(j); else o.sans.push(j);
     });
-    function tri(a, b) { return k[a.id] - k[b.id]; }
+    function tri(a, b) { var x = k[a.id], y = k[b.id]; return x[0] - y[0] || x[1] - y[1] || x[2] - y[2]; }
     o.av.sort(tri); o.ar.sort(tri); o.rempl.sort(tri); o.sans.sort(tri);
     return o;
   }
+  // (v85) les joueurs d'une équipe dans l'ordre affiché
+  function ordonnes(t, F, format) { var sc = sections(t, F, format); return sc.av.concat(sc.ar, sc.rempl, sc.sans); }
 
   // ---------- Indicateurs d'une équipe ----------
   // niveaux (v67) : dans des matchs, les niveaux qui ont une équipe ; un enfant dont le niveau n'en a pas n'est pas « hors niveau »
@@ -908,7 +918,7 @@ MC.compos = (function () {
   }
   function virg(x) { return String(x).replace('.', ','); }
   function noms(ids, F) { return ids.map(function (id) { return (F[id] || {}).prenom || '?'; }).join(', '); }
-  var NOMS_POSTES = { pilier: 'pilier', talonneur: 'talonneur', 'troisieme-ligne': '3e ligne', 'demi-de-melee': 'demi de mêlée', ouvreur: 'ouvreur', centre: 'centre', ailier: 'ailier' };
+  var NOMS_POSTES = { pilier: 'pilier', talonneur: 'talonneur', 'troisieme-ligne': '3e ligne', 'demi-de-melee': 'demi de mêlée', ouvreur: 'ouvreur', centre: 'centre', ailier: 'ailier', arriere: 'arrière' };
   function nomPoste(p) { return NOMS_POSTES[p] || p; }
   // (v67) au pluriel : « 4 piliers », « 2 3es lignes », « 2 demis de mêlée »
   var PL_POSTES = { 'troisieme-ligne': '3es lignes', 'demi-de-melee': 'demis de mêlée' };
@@ -953,6 +963,31 @@ MC.compos = (function () {
   function setPoste(c, id, poste) {
     var o = clone(c), w = where(o, id);
     if (w && w.t >= 0) o.equipes[w.t].joueurs[w.j].poste = poste || '';
+    return o;
+  }
+  // (v85) glisser-déposer : met un joueur dans une équipe (jeu à 10 : à ce poste, '' = sans poste), à une place précise :
+  // avant le joueur « avant », sinon à la fin de son poste. L'ordre affiché de l'équipe est d'abord figé, puis elle est marquée
+  // « rangée à la main » (tri: 'main'), sauf si l'ordre obtenu est justement l'ordre par défaut.
+  function ranger(c, id, tid, poste, avant, F) {
+    var o = clone(c), f10 = fmt(o.reglages) === 10, t = (o.equipes || []).filter(function (x) { return x.id === tid; })[0];
+    if (!t || avant === id) return c;
+    t.joueurs = ordonnes(t, F, fmt(o.reglages)); t.tri = 'main';
+    var w = where(o, id), entry = { id: id, poste: '', n: (F && F[id] && F[id].niveau) || '' };
+    if (w) { if (w.t >= 0) entry = o.equipes[w.t].joueurs.splice(w.j, 1)[0]; else o.banc.splice(w.j, 1); }
+    entry.poste = f10 ? poste || '' : '';
+    var i = -1, k;
+    if (avant) for (k = 0; k < t.joueurs.length; k++) if (t.joueurs[k].id === avant) { i = k; break; }
+    if (i < 0) { i = t.joueurs.length; if (f10) for (k = t.joueurs.length - 1; k >= 0; k--) if ((t.joueurs[k].poste || '') === entry.poste) { i = k + 1; break; } }
+    t.joueurs.splice(i, 0, entry);
+    var a = ordonnes(t, F, fmt(o.reglages)).map(function (j) { return j.id; }).join('|');
+    delete t.tri;
+    if (ordonnes(t, F, fmt(o.reglages)).map(function (j) { return j.id; }).join('|') !== a) t.tri = 'main';
+    return o;
+  }
+  // (v85) revenir au tri par défaut d'une équipe (les A en haut, puis le plaquage)
+  function triAuto(c, tid) {
+    var o = clone(c);
+    (o.equipes || []).forEach(function (t) { if (t.id === tid) delete t.tri; });
     return o;
   }
   // le meilleur échange entre deux équipes d'un même niveau (écart de plaquage)
@@ -1018,7 +1053,7 @@ MC.compos = (function () {
   // (v63) la compo en texte, pour la partager entre éducs (WhatsApp : *gras*). Les prénoms seulement : ni plaquage, ni copains,
   // ni passerelles. o : { titre, quand, absent(id) → vrai s'il ne vient pas (il sort de son équipe, cité à la fin),
   // marque(id) → vrai si sa présence n'est pas confirmée (« (?) ») }
-  var POSTES_TXT = { pilier: ['Pilier', 'Piliers'], talonneur: ['Talonneur', 'Talonneurs'], 'troisieme-ligne': ['3e ligne', '3es lignes'], 'demi-de-melee': ['9', '9'], ouvreur: ['10', '10'], centre: ['Centre', 'Centres'], ailier: ['Ailier', 'Ailiers'] };
+  var POSTES_TXT = { pilier: ['Pilier', 'Piliers'], talonneur: ['Talonneur', 'Talonneurs'], 'troisieme-ligne': ['3e ligne', '3es lignes'], 'demi-de-melee': ['9', '9'], ouvreur: ['10', '10'], centre: ['Centre', 'Centres'], ailier: ['Ailier', 'Ailiers'], arriere: ['Arrière', 'Arrières'] };
   function texteCompo(c, F, o) {
     o = o || {};
     var r = (c && c.reglages) || {}, P = r.partie || '', f10 = fmt(r) === 10 && P !== 'ateliers', abs = [];
@@ -1042,8 +1077,10 @@ MC.compos = (function () {
       L.push('*' + (/^(Groupe|Équipe)/.test(nomT) ? '' : P === 'ateliers' ? 'Groupe ' : 'Équipe ') + nomT + '* (' + js.length + ')');
       if (!js.length) { L.push('—'); return; }
       if (!f10) { L.push(js.map(prm).join(', ')); return; }
+      // (v85) dans chaque poste, l'ordre affiché sur la compo (les A en haut, puis le plaquage ; ou l'ordre posé à la main)
+      var rg = {}; ordonnes(t, F, 10).forEach(function (j, i) { rg[j.id] = i; });
       ORDRE.forEach(function (p) {
-        var l = js.filter(function (j) { return j.poste === p; });
+        var l = js.filter(function (j) { return j.poste === p; }).sort(function (a, b) { return rg[a.id] - rg[b.id]; });
         if (l.length) L.push(POSTES_TXT[p][l.length > 1 ? 1 : 0] + ' : ' + l.map(prm).join(', '));
       });
       var sans = js.filter(function (j) { return ORDRE.indexOf(j.poste) < 0; });
@@ -1340,7 +1377,7 @@ MC.compos = (function () {
     proposer: proposer, vide: vide, stats: stats, alertes: alertes, apparier: apparier, scoreNiveau: scoreNiveau,
     moveTo: moveTo, swap: swap, setPoste: setPoste, where: where, diff: diff, presents: presents, attente: attente, retirer: retirer, sorteDuTitre: sorteDuTitre,
     nomPoste: nomPoste, frDate: frDate,
-    STYLES: STYLES, AVANTS: AVANTS, BESOIN: BESOIN, postesEquipe: postesEquipe, posteEnPlus: posteEnPlus, eligible: eligible, vivier: vivier, rangVivier: rangVivier, postesDe: postesDe, posteDefaut: posteDefaut, prefDe: prefDe, lienPoste: lienPoste, rang: rang, repartition: repartition, placeLibre: placeLibre, typePoste: typePoste, typeDe: typeDe, sections: sections, ORDRE: ORDRE,
+    STYLES: STYLES, AVANTS: AVANTS, BESOIN: BESOIN, postesEquipe: postesEquipe, posteEnPlus: posteEnPlus, eligible: eligible, vivier: vivier, rangVivier: rangVivier, postesDe: postesDe, posteDefaut: posteDefaut, prefDe: prefDe, lienPoste: lienPoste, rang: rang, repartition: repartition, placeLibre: placeLibre, typePoste: typePoste, typeDe: typeDe, sections: sections, ordonnes: ordonnes, ranger: ranger, triAuto: triAuto, ORDRE: ORDRE,
     PARTIES: PARTIES, regEnt: regEnt, proposerEnt: proposerEnt, videEnt: videEnt, reprendre: reprendre, alertesEnt: alertesEnt,
     blocDe: blocDe, blocsDe: blocsDe, nomBloc: nomBloc, nomEq: nomEq, texteCompo: texteCompo,
     partsPoste: partsPoste, comptePostes: comptePostes, niveauxMatch: niveauxMatch

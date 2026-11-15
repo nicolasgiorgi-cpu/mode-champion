@@ -567,6 +567,7 @@ MC.app = (function () {
     PT.track = true; PT.y0 = e.touches[0].clientY; PT.x0 = e.touches[0].clientX; PT.d = 0; PT.ts = Date.now();
   }
   function onTouchMove(e) {
+    if (MC.glisse) { PT.track = false; if (PT.on) { PT.on = false; root.classList.remove('ptr-pull'); ptrHide(); } return; }   // (v85) une carte de compo glissée au doigt
     if (!PT.track || !e.touches || e.touches.length !== 1) return;
     var dy = e.touches[0].clientY - PT.y0, dx = e.touches[0].clientX - PT.x0;
     if (!PT.on) {
@@ -684,6 +685,7 @@ MC.app = (function () {
     EB.track = true; EB.py = EB.y0 = e.touches[0].clientY; EB.x0 = e.touches[0].clientX;
   }
   function ebMove(e) {
+    if (MC.glisse) { EB.track = false; if (EB.on) { EB.on = false; ebSet(0); } return; }   // (v85) une carte de compo glissée au doigt : pas de rebond
     if (!EB.track || !e.touches || e.touches.length !== 1) return;
     if (PT.on || PT.busy) { EB.track = false; if (EB.on) { EB.on = false; ebSet(0); } return; }   // « tirer pour actualiser » a la main
     var y = e.touches[0].clientY, py = EB.py;
@@ -716,7 +718,7 @@ MC.app = (function () {
     EB.lastY = y; EB.lastT = now;
     // la vitesse du défilement (px/ms), lissée sur les derniers événements
     EB.vel = dt > 0 && dt < 100 && Math.abs(dy) < 600 ? (vAvant ? 0.6 * (dy / dt) + 0.4 * vAvant : dy / dt) : 0;
-    if (EB.touching || EB.raf || EB.x || !painted || Date.now() - EB.tEnd > 3000 || !(dt > 0 && dt < 100) || Math.abs(dy) > 600) return;
+    if (MC.glisse || EB.touching || EB.raf || EB.x || !painted || Date.now() - EB.tEnd > 3000 || !(dt > 0 && dt < 100) || Math.abs(dy) > 600) return;
     // au bout, le dernier pas est raccourci (la page s'arrête net) : la vitesse d'avant compte aussi
     var vel = Math.abs(vAvant) > Math.abs(dy / dt) && (vAvant > 0) === (dy > 0) ? vAvant : dy / dt;
     if (Math.abs(vel) < 0.35 || ebReduced() || PT.on || PT.busy || document.querySelector('.modal, .bk')) return;

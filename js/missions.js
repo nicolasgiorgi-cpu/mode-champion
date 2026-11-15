@@ -13,7 +13,7 @@ window.MC = window.MC || {};
 MC.MISSIONS = [
   {
     id: 'poste', ligne: 'jeu10', titre: 'Choisis ton poste', debut: '2026-10-13', fin: '2026-11-09', badge: 'jeu10', lien: '#/mission/postes', icon: 'ball',
-    texte: 'Découvre les 7 postes du jeu à 10 et choisis ton top : 1 à 3 postes.'
+    texte: 'Découvre les 8 postes du jeu à 10 et choisis ton top : 1 à 3 postes.'
   },
   {
     id: 'copains', ligne: 'jeu10', titre: 'Avec qui tu aimes jouer', debut: '2026-10-13', fin: '2026-11-02', badge: 'copains', lien: '#/mission/copains', icon: 'group', apres: 'poste',
@@ -59,38 +59,38 @@ MC.missions = (function () {
 
   // ---------- test « Aide-moi à choisir » (repris tel quel du site « Choisis ton poste ») ----------
   // chaque réponse donne des points aux postes (w) ; « why » s'affiche dans le résultat
-  var P = 'pilier', T = 'talonneur', L = 'troisieme-ligne', N = 'demi-de-melee', O = 'ouvreur', C = 'centre', A = 'ailier';
+  var P = 'pilier', T = 'talonneur', L = 'troisieme-ligne', N = 'demi-de-melee', O = 'ouvreur', C = 'centre', A = 'ailier', R = 'arriere';   // (v85) R : l'arrière
   function W() { var o = {}; for (var i = 0; i < arguments.length; i += 2) o[arguments[i]] = arguments[i + 1]; return o; }
   var QUIZ = [
     { q: 'Sur le terrain, ce que tu préfères…', k: 'Préfère', opts: [
       { t: 'Pousser et aller au contact', i: 'belier', w: W(P, 3, T, 2, L, 1), why: 'le contact' },
       { t: 'Plaquer et récupérer le ballon', i: 'griffe', w: W(L, 3, C, 2, T, 1), why: 'plaquer et récupérer' },
-      { t: 'Courir vite et marquer des essais', i: 'turbo', w: W(A, 3, C, 1, T, 1), why: 'courir et marquer' },
+      { t: 'Courir vite et marquer des essais', i: 'turbo', w: W(A, 3, C, 1, T, 1, R, 1), why: 'courir et marquer' },
       { t: 'Faire des passes, toucher plein de ballons', i: 'eclair', w: W(N, 3, O, 1, C, 1), why: 'les passes' },
-      { t: 'Taper au pied', i: 'pied', w: W(O, 3, N, 1), why: 'le jeu au pied' },
+      { t: 'Taper au pied', i: 'pied', w: W(O, 3, N, 1, R, 2), why: 'le jeu au pied' },
       { t: 'Foncer pour percer la défense', i: 'perce', w: W(C, 3, L, 1, P, 1), why: 'percer la défense' }
     ] },
     { q: 'Ton point fort ?', k: 'Point fort', opts: [
       { t: 'Je suis costaud, dur à faire tomber', i: 'bouclier', w: W(P, 3, C, 1, T, 1, L, 1), why: 'ton côté costaud' },
-      { t: 'Je suis très rapide', i: 'turbo', w: W(A, 3, N, 1, T, 1), why: 'ta vitesse' },
+      { t: 'Je suis très rapide', i: 'turbo', w: W(A, 3, N, 1, T, 1, R, 2), why: 'ta vitesse' },
       { t: 'J\'ai de l\'énergie à revendre', i: 'radar', w: W(L, 3, N, 2, T, 1), why: 'ton énergie' },
-      { t: 'J\'esquive et je feinte', i: 'feinte', w: W(A, 2, O, 2, N, 1, C, 1), why: 'tes feintes' },
-      { t: 'J\'ai des mains très adroites', i: 'aimant', w: W(N, 2, T, 2, O, 1, C, 1), why: 'tes mains adroites' }
+      { t: 'J\'esquive et je feinte', i: 'feinte', w: W(A, 2, O, 2, N, 1, C, 1, R, 1), why: 'tes feintes' },
+      { t: 'J\'ai des mains très adroites', i: 'aimant', w: W(N, 2, T, 2, O, 1, C, 1, R, 2), why: 'tes mains adroites' }
     ] },
     { q: 'En défense, ton truc c\'est…', k: 'En défense', opts: [
       { t: 'Plaquer fort, même les plus grands', i: 'bouclier', w: W(C, 3, L, 2, P, 1), why: 'les gros plaquages' },
       { t: 'Être le premier sur le ballon au sol', i: 'aimant', w: W(L, 3, T, 2, N, 1), why: 'gratter les ballons' },
       { t: 'Tenir le bloc avec les copains (mêlée, maul)', i: 'colonne', w: W(P, 3, T, 2, L, 1), why: 'tenir le bloc' },
-      { t: 'Rattraper celui qui s\'échappe', i: 'turbo', w: W(A, 3, O, 1, N, 1), why: 'rattraper les échappés' }
+      { t: 'Rattraper celui qui s\'échappe', i: 'turbo', w: W(A, 3, O, 1, N, 1, R, 3), why: 'rattraper les échappés' }
     ] },
     { q: 'Ballon en main, tu…', k: 'Ballon en main, tu', opts: [
       { t: 'Fonces dans le tas', i: 'belier', w: W(P, 2, C, 2, L, 1, T, 1), why: 'foncer dans le tas' },
-      { t: 'Cherches l\'espace et sprintes', i: 'turbo', w: W(A, 3, C, 1), why: 'sprinter dans l\'espace' },
+      { t: 'Cherches l\'espace et sprintes', i: 'turbo', w: W(A, 3, C, 1, R, 2), why: 'sprinter dans l\'espace' },
       { t: 'Fais la passe au bon moment', i: 'eclair', w: W(N, 2, O, 2, C, 1), why: 'la passe au bon moment' },
-      { t: 'Tapes au pied pour gagner du terrain', i: 'pied', w: W(O, 3, N, 1), why: 'gagner du terrain au pied' }
+      { t: 'Tapes au pied pour gagner du terrain', i: 'pied', w: W(O, 3, N, 1, R, 2), why: 'gagner du terrain au pied' }
     ] },
     { q: 'Dans l\'équipe, tu…', k: 'Dans l\'équipe, tu', opts: [
-      { t: 'Parles et organises le jeu', i: 'oeil', w: W(O, 3, N, 2), why: 'organiser le jeu' },
+      { t: 'Parles et organises le jeu', i: 'oeil', w: W(O, 3, N, 2, R, 1), why: 'organiser le jeu' },
       { t: 'Ne lâches jamais rien', i: 'colonne', w: W(P, 2, L, 2, T, 1), why: 'ne rien lâcher' },
       { t: 'Finis les actions et marques', i: 'essai', w: W(A, 3, C, 1), why: 'finir les actions' },
       { t: 'Aimes les gestes précis (lancer en touche, tir au but)', i: 'cible', w: W(T, 3, O, 2), why: 'les gestes précis' },

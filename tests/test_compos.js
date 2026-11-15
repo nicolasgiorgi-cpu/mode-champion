@@ -78,7 +78,7 @@ delete F.x1;
 
 // ----- jeu à 10 : postes -----
 const G = {};
-const postes = ['pilier', 'pilier', 'talonneur', 'troisieme-ligne', 'troisieme-ligne', 'demi-de-melee', 'ouvreur', 'centre', 'centre', 'ailier', 'ailier', 'centre'];
+const postes = ['pilier', 'pilier', 'talonneur', 'troisieme-ligne', 'troisieme-ligne', 'demi-de-melee', 'ouvreur', 'centre', 'centre', 'ailier', 'arriere', 'centre'];   // (v85) 1 ailier et 1 arrière
 postes.forEach((ps, i) => { G['p' + i] = { id: 'p' + i, prenom: 'P' + i, niveau: 'A', passerelle: '', plaquage: 3, voeux: [ps], postesOk: [], copains: [] }; });
 let ap = K.apparier(Object.keys(G), G);
 assert.deepStrictEqual(J(ap.manquants), [], 'tous les postes couverts');
@@ -182,7 +182,7 @@ const tard = K.swap(c0, 'zz-nouveau', 'a1', F);
 assert.ok(K.where(tard, 'zz-nouveau').t >= 0 && J(tard.banc).indexOf('a1') >= 0, 'un présent arrivé tard prend la place');
 // ----- jeu à 10 avec une équipe de 8 : les 8 joueurs ont un poste s'ils peuvent en tenir un -----
 const E8 = {};
-['ailier', 'ailier', 'centre', 'pilier', 'pilier', 'talonneur', 'demi-de-melee', 'ouvreur'].forEach((ps, i) => { E8['e' + i] = { id: 'e' + i, prenom: 'E' + i, niveau: 'A', plaquage: 2, voeux: [ps], postesOk: [], copains: [] }; });
+['ailier', 'arriere', 'centre', 'pilier', 'pilier', 'talonneur', 'demi-de-melee', 'ouvreur'].forEach((ps, i) => { E8['e' + i] = { id: 'e' + i, prenom: 'E' + i, niveau: 'A', plaquage: 2, voeux: [ps], postesOk: [], copains: [] }; });
 ap = K.apparier(Object.keys(E8), E8);
 assert.strictEqual(Object.values(ap.poste).filter(Boolean).length, 8, JSON.stringify(ap));
 assert.deepStrictEqual(J(ap.manquants).sort(), ['troisieme-ligne', 'troisieme-ligne']);
@@ -200,7 +200,7 @@ assert.strictEqual(K.typeDe({ voeux: ['ailier'] }), 'ar');
 assert.strictEqual(K.typeDe({}), '');
 // au jeu à 10, chacun prend en priorité son poste principal
 const G10 = {};
-[['pilier'], ['pilier'], ['talonneur'], ['troisieme-ligne', 'centre'], ['troisieme-ligne'], ['demi-de-melee'], ['ouvreur'], ['ailier', 'centre'], ['centre'], ['ailier', 'pilier'], ['demi-de-melee'], ['centre', 'troisieme-ligne']]
+[['pilier'], ['pilier'], ['talonneur'], ['troisieme-ligne', 'centre'], ['troisieme-ligne'], ['demi-de-melee'], ['ouvreur'], ['ailier', 'centre'], ['centre'], ['arriere', 'pilier'], ['demi-de-melee'], ['centre', 'troisieme-ligne']]   // (v85) g9 : arrière
   .forEach((ps, i) => { G10['g' + i] = { id: 'g' + i, prenom: 'G' + i, niveau: 'A', plaquage: 3, voeux: ['ouvreur'], postesOk: ps, copains: [] }; });
 let ap10 = K.apparier(Object.keys(G10), G10);
 assert.deepStrictEqual(J(ap10.manquants), [], JSON.stringify(ap10));
@@ -211,10 +211,10 @@ let t10 = { id: 'A1', niveau: 'A', joueurs: Object.keys(G10).map(id => ({ id, po
 let s10 = K.stats(t10, G10, 10);
 assert.strictEqual(s10.av, 5); assert.strictEqual(s10.ar, 5); assert.strictEqual(s10.rempl, 2);
 assert.strictEqual(s10.remplTypes.av + s10.remplTypes.ar + s10.remplTypes.les2 + s10.remplTypes.inconnus, 2);
-// sections : avants (piliers, talonneur, 3es lignes) puis arrières (9, 10, centres, ailiers), remplaçants à part
+// sections : avants (piliers, talonneur, 3es lignes) puis arrières (9, 10, centre, ailier, arrière — v85), remplaçants à part
 let sc10 = K.sections(t10, G10, 10);
 assert.deepStrictEqual(J(sc10.av.map(j => j.poste)), ['pilier', 'pilier', 'talonneur', 'troisieme-ligne', 'troisieme-ligne']);
-assert.deepStrictEqual(J(sc10.ar.map(j => j.poste)), ['demi-de-melee', 'ouvreur', 'centre', 'ailier', 'ailier']);
+assert.deepStrictEqual(J(sc10.ar.map(j => j.poste)), ['demi-de-melee', 'ouvreur', 'centre', 'ailier', 'arriere']);
 assert.strictEqual(sc10.rempl.length, 2); assert.strictEqual(sc10.sans.length, 0);
 // l'ordre de l'équipe ne compte pas : même rangement si les joueurs arrivent mélangés
 assert.deepStrictEqual(J(K.sections({ joueurs: t10.joueurs.slice().reverse() }, G10, 10).av.map(j => j.poste)), J(sc10.av.map(j => j.poste)));

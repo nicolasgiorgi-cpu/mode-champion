@@ -11,7 +11,7 @@ window.MC = window.MC || {};
   var app = MC.app, ui = MC.ui, L = MC.logic, K = MC.compos, M = MC.missions;
   var esc = ui.esc, icon = ui.icon;
   // (v48) abrégés (choix de Nicolas, 04/11) : la ligne d'un enfant tient sur une ligne
-  var COURT = { pilier: 'Pil', talonneur: 'Tal', 'troisieme-ligne': '3eL', 'demi-de-melee': '9', ouvreur: '10', centre: 'Ctr', ailier: 'Ail' };
+  var COURT = { pilier: 'Pil', talonneur: 'Tal', 'troisieme-ligne': '3eL', 'demi-de-melee': '9', ouvreur: '10', centre: 'Ctr', ailier: 'Ail', arriere: '15' };   // (v85) l'arrière : son numéro, comme le 9 et le 10
   var BG = '#1E1A3A';
 
   // ---------- données ----------
@@ -171,6 +171,9 @@ window.MC = window.MC || {};
       var bd = root.querySelector('.cboard');
       if (bd && keepX !== null) bd.scrollLeft = keepX;
       keepX = null;
+      // (v85) glisser-déposer au doigt : le tableau seul retient le défilement, et seulement pendant le geste (voir dgTouch)
+      var b2 = root.querySelector('.cboard2');
+      if (b2) b2.addEventListener('touchmove', dgTouch, { passive: false });
     };
   }
 
@@ -1082,14 +1085,31 @@ window.MC = window.MC || {};
   // o : { compte, bad, slots: [postes libres] (places vides à toucher, rangées avec les joueurs), plus: html après la liste }
   function secHtml(C, t, v, d, moved, nom, list, o) {
     o = o || {};
-    var fmt10 = d.reglages.format === 10, items = list.map(function (j, i) {
-      return { r: (fmt10 && j.poste ? K.ORDRE.indexOf(j.poste) : 99) * 1000 + i, h: chip(C, t, j, v, d, moved[j.id]) };
-    });
-    (o.slots || []).forEach(function (p, i) { items.push({ r: K.ORDRE.indexOf(p) * 1000 + 900 + i, h: slotHtml(v, t, p, '+ ' + NOMP[p]) }); });
-    items.sort(function (a, b) { return a.r - b.r; });
-    if (!items.length && o.compte == null && !o.plus) return '';
+    var fmt10 = d.reglages.format === 10, corps = '', n = list.length + (o.slots || []).length;
+    if (o.postes) {
+      // (v85, demande de Nicolas du 15/11) jeu à 10 : un groupe par poste (piliers, talonneur, 3es lignes…), sur lequel on glisse
+      // une carte pour donner ce poste ; les joueurs y sont dans l'ordre de K.sections ; les places vides (+) à la suite
+      corps = o.postes.map(function (p) {
+        var js = list.filter(function (j) { return j.poste === p; }), sl = (o.slots || []).filter(function (x) { return x === p; });
+        if (!js.length && !sl.length) return '';
+        return '<div class="cgrp" role="group" aria-label="' + NOMPL[p] + '" data-v="' + v + '" data-t="' + esc(t.id) + '" data-p="' + p + '" style="--pc:' + coulPoste(p) + '">' +
+          '<span class="cgl" title="' + NOMPL[p] + '">' + COURT[p] + '</span><ul class="cpl">' + js.map(function (j) { return chip(C, t, j, v, d, moved[j.id]); }).join('') +
+          sl.map(function () { return slotHtml(v, t, p, '+ ' + NOMP[p]); }).join('') + '</ul></div>';
+      }).join('');
+      // un poste inconnu (vieille compo) : à la suite, sans groupe
+      var reste = list.filter(function (j) { return o.postes.indexOf(j.poste) < 0; });
+      if (reste.length) corps += '<ul class="cpl">' + reste.map(function (j) { return chip(C, t, j, v, d, moved[j.id]); }).join('') + '</ul>';
+    } else {
+      var items = list.map(function (j, i) {
+        return { r: (fmt10 && j.poste ? K.ORDRE.indexOf(j.poste) : 99) * 1000 + i, h: chip(C, t, j, v, d, moved[j.id]) };
+      });
+      (o.slots || []).forEach(function (p, i) { items.push({ r: K.ORDRE.indexOf(p) * 1000 + 900 + i, h: slotHtml(v, t, p, '+ ' + NOMP[p]) }); });
+      items.sort(function (a, b) { return a.r - b.r; });
+      if (items.length) corps = '<ul class="cpl">' + items.map(function (x) { return x.h; }).join('') + '</ul>';
+    }
+    if (!n && o.compte == null && !o.plus) return '';
     return '<div class="csec">' + (list.length || o.compte != null ? '<p class="csech"><span>' + nom + '</span><b' + (o.bad ? ' class="bad"' : '') + '>' + (o.compte != null ? o.compte : list.length) + '</b></p>' : '') +
-      (items.length ? '<ul class="cpl">' + items.map(function (x) { return x.h; }).join('') + '</ul>' : '') + (o.plus || '') + '</div>';
+      corps + (o.plus || '') + '</div>';
   }
   // une place vide : on la touche pour choisir qui la prend (ou pour y mettre le joueur choisi)
   function slotHtml(v, t, p, label, li) {
@@ -1116,8 +1136,8 @@ window.MC = window.MC || {};
     var sc = K.sections(t, C.F, d.reglages.format), miss = ed && fmt10 && places ? st.manquants : [];
     var corps = fmt10
       // (v57) les avants (tous, remplaçants compris), en rouge s'il manque une place ; les places vides (+) restent à toucher
-      ? secHtml(C, t, v, d, moved, 'Avants', sc.av, { compte: st.avTous, bad: !petit && st.av !== 5, slots: miss.filter(function (p) { return K.typePoste(p) === 'av'; }) }) +
-        secHtml(C, t, v, d, moved, 'Arrières', sc.ar, { compte: st.arTous, bad: !petit && st.ar !== 5, slots: miss.filter(function (p) { return K.typePoste(p) === 'ar'; }) }) +
+      ? secHtml(C, t, v, d, moved, 'Avants', sc.av, { compte: st.avTous, bad: !petit && st.av !== 5, slots: miss.filter(function (p) { return K.typePoste(p) === 'av'; }), postes: K.ORDRE.filter(function (p) { return K.typePoste(p) === 'av'; }) }) +
+        secHtml(C, t, v, d, moved, 'Arrières', sc.ar, { compte: st.arTous, bad: !petit && st.ar !== 5, slots: miss.filter(function (p) { return K.typePoste(p) === 'ar'; }), postes: K.ORDRE.filter(function (p) { return K.typePoste(p) === 'ar'; }) }) +
         secHtml(C, t, v, d, moved, 'Sans poste', sc.sans, { bad: true }) +
         secHtml(C, t, v, d, moved, 'Remplaçants sans poste', sc.rempl, { plus: ed && petit && st.manquants.length ? slotHtml(v, t, st.manquants[0], '+ Ajouter un joueur', false) : '' })
       : t.bloc === 'av' || t.bloc === 'ar'
@@ -1126,14 +1146,16 @@ window.MC = window.MC || {};
         : secHtml(C, t, v, d, moved, 'Avants', sc.av) + secHtml(C, t, v, d, moved, 'Arrières', sc.ar) + secHtml(C, t, v, d, moved, 'Sans poste', sc.sans) +
           (ed ? slotHtml(v, t, '*', '+ Ajouter des joueurs', false) : '');
     var nomT = K.nomEq(t);
-    return '<section class="ccol" style="--lc:' + coulEq(t, d) + '" aria-label="' + (estMatch(t) ? esc(nomT) : 'Équipe ' + esc(nomT)) + (B && B.vs.length > 1 ? ', ' + vName(v) : '') + '">' +
+    // (v85) une équipe rangée à la main (glisser-déposer) : une ligne pour revenir au tri par défaut
+    var tri = ed && t.tri === 'main' ? '<button type="button" class="lnk sm ctri" data-act="cTri" data-v="' + v + '" data-t="' + esc(t.id) + '">Ordre à la main · remettre le tri</button>' : '';
+    return '<section class="ccol" data-v="' + v + '" data-t="' + esc(t.id) + '" style="--lc:' + coulEq(t, d) + '" aria-label="' + (estMatch(t) ? esc(nomT) : 'Équipe ' + esc(nomT)) + (B && B.vs.length > 1 ? ', ' + vName(v) : '') + '">' +
       '<button type="button" class="chd' + (dest ? ' dest' : '') + '" data-act="cTeam" data-v="' + v + '" data-t="' + esc(t.id) + '"' + (dest || ed ? '' : ' tabindex="-1"') + (ed && !dest ? ' aria-label="Composer ' + esc(labelEq(t)) + '"' : '') + '>' +
       '<span class="row" style="justify-content:space-between;width:100%"><b class="ctid' + (nomT.length > 4 ? ' long' : '') + '">' + esc(nomT) + '</b><span class="cn">' + st.n + '</span></span>' +
       '<span class="cind"><span title="Plaquage moyen">' + icon('shieldavg', 13) + ' ' + (st.plaq === null ? '—' : virg(st.plaq)) + '</span><span title="Bons plaqueurs (2 et plus, sur 3)">' + icon('shieldok', 13) + ' ' + st.bons + '</span>' +
       (st.ontCopains && !sansCop(d) ? '<span title="Avec au moins un copain">' + icon('heart', 12) + ' ' + st.avecCopain + '/' + st.ontCopains + '</span>' : '') + (st.passerelles ? '<span title="Hors de leur niveau (passerelles)">⇅ ' + st.passerelles + '</span>' : '') + '</span>' +
       avtq +
       (dest ? '<span class="cdest">' + icon('down', 12) + ' Ici</span>' : '') + '</button>' +
-      corps + '</section>';
+      corps + tri + '</section>';
   }
   // (v58, précisé par Nicolas le 08/11 à 12 h 48) les postes de l'équipe, comme « Répartition des postes » ailleurs : une ligne par
   // poste, sa barre (pleine = poste principal, pâle = peut aussi jouer), à droite le nombre (principal + peut jouer) ; lignes serrées.
@@ -1244,7 +1266,7 @@ window.MC = window.MC || {};
     if (bancs.some(function (b) { return b.length; }) || (selV >= 0 && o.ed)) {
       html += '<section class="clevel banc"><h3 class="clvh">Pas placés <span class="small">· ' + (ATT && ATT.tous ? 'pas encore dans une équipe (absents marqués)' : 'présents sans équipe, blessés…') + '</span></h3><div class="cvcols nv' + nv + '">' + bancs.map(function (banc, v) {
         var bdest = o.ed && selV === v && banc.indexOf(B.sel.id) < 0;
-        return '<div class="cvcol"><section class="ccol banc"><button type="button" class="chd' + (bdest ? ' dest' : '') + '" data-act="cTeam" data-v="' + v + '" data-t="banc"' + (bdest ? '' : ' tabindex="-1"') + '><span class="row" style="justify-content:space-between;width:100%"><b class="ctid" style="font-size:14px">' + (nv > 1 ? 'V' + (v + 1) : 'Pas placés') + '</b><span class="cn">' + banc.length + '</span></span>' +
+        return '<div class="cvcol"><section class="ccol banc" data-v="' + v + '" data-t="banc"><button type="button" class="chd' + (bdest ? ' dest' : '') + '" data-act="cTeam" data-v="' + v + '" data-t="banc"' + (bdest ? '' : ' tabindex="-1"') + '><span class="row" style="justify-content:space-between;width:100%"><b class="ctid" style="font-size:14px">' + (nv > 1 ? 'V' + (v + 1) : 'Pas placés') + '</b><span class="cn">' + banc.length + '</span></span>' +
           (bdest ? '<span class="cdest">' + icon('down', 12) + ' Ici</span>' : '') + '</button><ul class="cpl">' + banc.map(function (id) { return chip(C, null, { id: id }, v, vs[v], (o.moved[v] || {})[id]); }).join('') + '</ul></section></div>';
       }).join('') + '</div></section>';
     }
@@ -1255,7 +1277,7 @@ window.MC = window.MC || {};
         return '<div class="cvcol"><section class="cattcol"><ul class="cpl">' + a.map(function (id) { return chip(C, null, { id: id }, v, vs[v], false); }).join('') + '</ul></section></div>';
       }).join('') + '</div></section>';
     }
-    return '<div class="cboard2">' + html + '</div>';
+    return '<div class="cboard2' + (o.ed ? ' ed' : '') + '">' + html + '</div>';
   }
   // résumé d'une version (pour comparer) : alertes, écart de plaquage, copains
   // une compo sans ceux qui sont hors du jeu (pour les alertes, comme les en-têtes d'équipe)
@@ -1356,7 +1378,10 @@ window.MC = window.MC || {};
       (ed && fmt === 10 && nv === 1 ? '<button type="button" class="btn2" data-act="cParPoste" data-v="0">' + icon('board', 16) + ' Poste par poste</button>' : '') +   // (v57)
       (communes ? '<p class="small" style="margin:0"><b style="color:var(--yellow)">Entourés</b> : placés autrement d\'une version à l\'autre.</p>' : '') +
       '<details class="caide"' + (aideOuverte() ? ' open' : '') + '><summary>' + icon('info', 16) + '<span>Légende et gestes</span>' + icon('down', 14, 'class="caide-i"') + '</summary>' +
-      '<p class="small" style="margin:0">' + (ed ? 'Touchez un joueur, puis son ' + (P === 'ateliers' ? 'groupe' : 'équipe') + ' d\'arrivée (ou un joueur d\'' + (P === 'ateliers' ? 'un autre groupe' : 'une autre équipe') + ' : ils s\'échangent). Pour ' + (P === 'ateliers' ? 'remplir un groupe' : 'composer une équipe') + ', touchez son nom' + (fmt === 10 ? ', une place vide (+) ou « Poste par poste »' : ' ou « + Ajouter des joueurs »') + '.' + (nv > 1 ? ' Chaque version se modifie à part.' : '') : 'Touchez un joueur pour voir sa fiche.') + '</p>' +
+      '<p class="small" style="margin:0">' + (ed ? 'Touchez un joueur, puis son ' + (P === 'ateliers' ? 'groupe' : 'équipe') + ' d\'arrivée (ou un joueur d\'' + (P === 'ateliers' ? 'un autre groupe' : 'une autre équipe') + ' : ils s\'échangent). Pour ' + (P === 'ateliers' ? 'remplir un groupe' : 'composer une équipe') + ', touchez son nom' + (fmt === 10 ? ', une place vide (+) ou « Poste par poste »' : ' ou « + Ajouter des joueurs »') + '.' +
+        // (v85) le glisser-déposer, en une phrase
+        ' Ou glissez sa carte (au doigt : appui long d\'abord) sur ' + (P === 'ateliers' ? 'un groupe' : fmt === 10 ? 'un poste ou une équipe ; dans un poste, pour changer l\'ordre' : 'une équipe') + '.' +
+        (nv > 1 ? ' Chaque version se modifie à part.' : '') : 'Touchez un joueur pour voir sa fiche.') + '</p>' +
       '<p class="small clegend"><span>' + icon('shieldavg', 12) + ' plaquage moyen</span>' + '<span>' + icon('shieldok', 12) + ' bons plaqueurs</span>' + (vs.every(sansCop) ? '' : '<span>' + icon('heart', 11) + ' avec un copain</span>') + '<span>⇅ hors niveau</span>' + (P ? '' : '<span>' + bouclier(2, 'mini', true) + ' sous le repère de l\'équipe</span>') + (fmt === 10 ? '<span>Postes : barre pleine = principal, pâle = peut jouer</span>' : '<span>Av avants · Ar arrières</span>') + (att.length ? '<span class="clg-att"><span class="cqatt" aria-hidden="true">?</span> pas encore répondu sur Spond</span>' : '') + (sansNiv ? '<span><b class="cfl cq" aria-hidden="true">?</b> niveau à renseigner</span>' : '') + '</p></details>' +
       vueHtml(vs) + boardHtml(C, { vs: vs, presents: presents, attente: att, moved: moved, ed: ed }) +
       '<section class="sec" id="calertes" tabindex="-1">' + vs.map(function (d, v) { return alertesHtml(C, d, v, presents, nv, att); }).join('') + '</section>' +
@@ -1590,7 +1615,126 @@ window.MC = window.MC || {};
     if (quitte && quitte !== tid) { var tq = B.vs[v].equipes.filter(function (x) { return x.id === quitte; })[0]; ui.toast(nameOf(id) + ' quitte ' + (tq ? labelEq(tq) : quitte)); }
     return quitte;
   }
-  var NOMP = { pilier: 'Pilier', talonneur: 'Talonneur', 'troisieme-ligne': '3e ligne', 'demi-de-melee': 'Demi de mêlée', ouvreur: 'Ouvreur', centre: 'Centre', ailier: 'Ailier' };
+  // ---------- (v85) glisser-déposer des cartes (demande de Nicolas du 15/11) ----------
+  // On glisse la carte d'un joueur : sur un poste (jeu à 10) il prend ce poste ; sur une carte de ce poste, il se range juste avant
+  // ou juste après (l'équipe passe alors en « ordre à la main ») ; sur une autre équipe il y va (son poste de fiche) ; sur « Pas placés »
+  // il sort. À la souris : on tire tout de suite. Au doigt (et au stylet) : un appui long de 0,28 s d'abord, pour que le doigt qui
+  // fait défiler la page ne déplace personne ; pendant le geste la page ne défile plus sous le doigt, elle avance toute seule près
+  // des bords. Toucher un joueur puis sa destination marche toujours.
+  var DG = null, dgSansClic = 0;
+  function dgTouch(e) { if (DG && DG.on && e.cancelable) e.preventDefault(); }
+  // ce qu'il y a sous le pointeur : { k: 'grp' | 'eq' | 'banc', el, t, p, avant, precis, carte, apres, deux } ou null (rien à faire ici)
+  function dgCible(x, y) {
+    var e = document.elementFromPoint(x, y), col = e && e.closest ? e.closest('.cboard2 .ccol[data-t]') : null;
+    if (!col || !B || Number(col.getAttribute('data-v')) !== DG.v) return null;
+    var tid = col.getAttribute('data-t'), d = B.vs[DG.v], w = K.where(d, DG.id), de = w && w.t >= 0 ? d.equipes[w.t] : null;
+    if (tid === 'banc') return w && w.t < 0 ? null : { k: 'banc', el: col, t: 'banc' };
+    var grp = e.closest('.cgrp[data-p]');
+    if (grp && d.reglages.format === 10) {
+      var p = grp.getAttribute('data-p'), carte = e.closest('.cpj'), ici = !!de && de.id === tid && de.joueurs[w.j].poste === p;
+      var ids = Array.prototype.map.call(grp.querySelectorAll('.cpj'), function (b) { return b.getAttribute('data-id'); });
+      if (carte && carte.getAttribute('data-id') !== DG.id) {
+        var r = carte.getBoundingClientRect(), ul = carte.closest('.cpl'), deux = !!ul && r.width < ul.getBoundingClientRect().width * 0.75;
+        var apres = deux ? x > r.left + r.width / 2 : y > r.top + r.height / 2;
+        var sans = ids.filter(function (i) { return i !== DG.id; }), k = sans.indexOf(carte.getAttribute('data-id')) + (apres ? 1 : 0), avant = sans[k] || null;
+        // déjà à cette place : rien à faire
+        if (ici && (ids[ids.indexOf(DG.id) + 1] || null) === avant) return null;
+        return { k: 'grp', el: grp, t: tid, p: p, avant: avant, precis: true, carte: carte, apres: apres, deux: deux };
+      }
+      return ici ? null : { k: 'grp', el: grp, t: tid, p: p };
+    }
+    return de && de.id === tid ? null : { k: 'eq', el: col, t: tid };
+  }
+  function dgMarque(c) {
+    if (DG.cible && DG.cible.el) DG.cible.el.classList.remove('cdg-sur');
+    DG.cible = c;
+    if (c) c.el.classList.add('cdg-sur');
+    if (!DG.bar) return;
+    if (!c || !c.precis) { DG.bar.style.display = 'none'; return; }
+    var r = c.carte.getBoundingClientRect(), st = DG.bar.style;
+    st.display = 'block';
+    if (c.deux) { st.width = '4px'; st.height = r.height + 'px'; st.left = (c.apres ? r.right + 1 : r.left - 4) + 'px'; st.top = r.top + 'px'; }
+    else { st.height = '4px'; st.width = r.width + 'px'; st.left = r.left + 'px'; st.top = (c.apres ? r.bottom + 1 : r.top - 4) + 'px'; }
+  }
+  function dgVise() { if (DG && DG.on) dgMarque(dgCible(DG.x, DG.y)); }
+  function dgPlace() { if (DG.ghost) DG.ghost.style.transform = 'translate3d(' + Math.round(DG.x - DG.dx) + 'px,' + Math.round(DG.y - DG.dy) + 'px,0)'; }
+  // près du haut ou du bas de l'écran, la page avance toute seule
+  function dgTic() {
+    if (!DG || !DG.on) return;
+    var h = window.innerHeight, m = DG.y < 110 ? -(110 - DG.y) / 6 - 2 : DG.y > h - 120 ? (DG.y - (h - 120)) / 6 + 2 : 0;
+    if (m) { var y0 = window.scrollY; window.scrollBy(0, Math.max(-16, Math.min(16, m))); if (window.scrollY !== y0) dgVise(); }
+    DG.raf = requestAnimationFrame(dgTic);
+  }
+  function dgDebut() {
+    if (!DG || DG.on || !DG.el.isConnected || !editable()) { dgFin(false); return; }
+    var r = DG.el.getBoundingClientRect(), g = DG.el.cloneNode(true);
+    DG.on = true; MC.glisse = true; DG.dx = DG.x0 - r.left; DG.dy = DG.y0 - r.top;
+    g.className = 'cpj cdg-ghost'; g.removeAttribute('data-act'); g.setAttribute('aria-hidden', 'true'); g.tabIndex = -1;
+    g.style.width = r.width + 'px'; g.style.minHeight = r.height + 'px';
+    DG.ghost = g; DG.bar = document.createElement('div'); DG.bar.className = 'cdg-bar';
+    document.body.appendChild(g); document.body.appendChild(DG.bar);
+    DG.el.classList.add('cdg-src'); document.body.classList.add('cdg-on');
+    if (DG.touch && navigator.vibrate) { try { navigator.vibrate(8); } catch (er) { /* rien */ } }
+    dgPlace(); dgVise();
+    DG.raf = requestAnimationFrame(dgTic);
+  }
+  function dgFin(pose) {
+    if (!DG) return;
+    var g = DG; clearTimeout(g.tm); cancelAnimationFrame(g.raf);
+    if (g.cible && g.cible.el) g.cible.el.classList.remove('cdg-sur');
+    DG = null; MC.glisse = false;
+    if (g.ghost) g.ghost.remove();
+    if (g.bar) g.bar.remove();
+    g.el.classList.remove('cdg-src'); document.body.classList.remove('cdg-on');
+    if (!g.on) return;
+    dgSansClic = Date.now();
+    if (pose && g.cible && B && editable()) dgPose(g.v, g.id, g.cible);
+  }
+  function dgPose(v, id, c) {
+    var F = K.fiches(app.S.cache.group), avant = K.where(B.vs[v], id), quitte = avant && avant.t >= 0 ? B.vs[v].equipes[avant.t].id : '';
+    B.sel = null;
+    // sur un poste, sans viser une carte : il prend le poste (tri par défaut) ; dans une équipe rangée à la main, il va à la fin du poste
+    var main = B.vs[v].equipes.some(function (x) { return x.id === c.t && x.tri === 'main'; });
+    if (c.k === 'grp' && !c.precis && !main) { placer(v, id, c.t, c.p); return; }
+    change(function () {
+      B.vs[v] = c.k === 'grp' ? K.ranger(B.vs[v], id, c.t, c.p, c.avant, F) : c.k === 'banc' ? K.moveTo(B.vs[v], id, 'banc', F) : placerDans(B.vs[v], id, c.t, F);
+    });
+    if (quitte && quitte !== c.t) { var tq = B.vs[v].equipes.filter(function (x) { return x.id === quitte; })[0]; ui.toast(nameOf(id) + ' quitte ' + (tq ? labelEq(tq) : quitte)); }
+  }
+  document.addEventListener('pointerdown', function (e) {
+    if (DG) { if (e.pointerId !== DG.pid) dgFin(false); return; }   // un 2e doigt : on lâche tout
+    if (!e.isPrimary || (e.pointerType === 'mouse' && e.button !== 0) || !B || !editable() || document.querySelector('.modal')) return;
+    var el = e.target.closest && e.target.closest('.cboard2 .cpj[data-id]');
+    if (!el) return;
+    DG = { id: el.getAttribute('data-id'), v: Number(el.getAttribute('data-v')) || 0, el: el, pid: e.pointerId, touch: e.pointerType !== 'mouse',
+      x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, on: false, cible: null };
+    if (DG.touch) DG.tm = setTimeout(dgDebut, 280);
+  });
+  document.addEventListener('pointermove', function (e) {
+    if (!DG || e.pointerId !== DG.pid) return;
+    DG.x = e.clientX; DG.y = e.clientY;
+    if (!DG.on) {
+      var dd = Math.abs(DG.x - DG.x0) + Math.abs(DG.y - DG.y0);
+      if (DG.touch) { if (dd > 10) dgFin(false); return; }   // le doigt part avant la fin de l'appui long : il fait défiler la page
+      if (dd < 6) return;
+      dgDebut();
+      if (!DG) return;
+    }
+    dgPlace(); dgVise();
+  });
+  document.addEventListener('pointerup', function (e) { if (DG && e.pointerId === DG.pid) dgFin(true); });
+  document.addEventListener('pointercancel', function (e) { if (DG && e.pointerId === DG.pid) dgFin(false); });
+  document.addEventListener('keydown', function (e) { if (DG && e.key === 'Escape') dgFin(false); });
+  window.addEventListener('blur', function () { dgFin(false); });
+  // le toucher (ou le clic) qui suit la fin d'un glisser ne choisit pas le joueur ; pas de menu pendant l'appui long
+  window.addEventListener('click', function (e) { if (Date.now() - dgSansClic < 450) { dgSansClic = 0; e.stopPropagation(); e.preventDefault(); } }, true);
+  document.addEventListener('contextmenu', function (e) { if (DG && DG.touch) e.preventDefault(); });
+  MC.act.cTri = function (b) {
+    if (!B || !editable()) return;
+    var v = Number(b.getAttribute('data-v')) || 0, tid = b.getAttribute('data-t');
+    change(function () { B.vs[v] = K.triAuto(B.vs[v], tid); });
+  };
+  var NOMP = { pilier: 'Pilier', talonneur: 'Talonneur', 'troisieme-ligne': '3e ligne', 'demi-de-melee': 'Demi de mêlée', ouvreur: 'Ouvreur', centre: 'Centre', ailier: 'Ailier', arriere: 'Arrière' };
 
   // ---------- (v35) la répartition des postes réglés sur les fiches : un graphique replié ----------
   // Barre pleine = poste principal, barre pâle = peut aussi jouer (comme le graphique de la mission « Choisis ton poste ») ;
@@ -1713,7 +1857,7 @@ window.MC = window.MC || {};
   // au C puis du meilleur plaqueur au moins bon (les absents en bas). Sur chaque ligne, un bouton par équipe (1 et 2 aux matchs,
   // A et B au plateau) : toucher met l'enfant dans l'équipe à ce poste, toucher encore l'enlève. On en prend autant qu'on veut
   // (« pour les piliers, j'en prends 5 »), puis « OK » passe au poste suivant. Pas de titulaires : la liste du poste.
-  var NOMPL = { pilier: 'Piliers', talonneur: 'Talonneurs', 'troisieme-ligne': '3es lignes', 'demi-de-melee': 'Demis de mêlée', ouvreur: 'Ouvreurs', centre: 'Centres', ailier: 'Ailiers' };
+  var NOMPL = { pilier: 'Piliers', talonneur: 'Talonneurs', 'troisieme-ligne': '3es lignes', 'demi-de-melee': 'Demis de mêlée', ouvreur: 'Ouvreurs', centre: 'Centres', ailier: 'Ailiers', arriere: 'Arrières' };
   // le nom court d'une équipe sur son bouton : « 1 », « 2 » aux matchs ; « A », « B » au plateau (« A1 », « A2 » s'il y en a deux)
   function eqCourt(d, t) {
     if (estMatch(t)) return String(K.nomEq(t)).replace(/^Équipe\s*/, '') || K.nomEq(t);
@@ -2531,7 +2675,7 @@ window.MC = window.MC || {};
     if (ok.indexOf(v) >= 0) ok = ok.filter(function (p) { return p !== v; }); else ok.push(v);
     postesSave(f, ok, pf, b);
   };
-  function typeTxt(t) { return t === 'av' ? 'Avant' : t === 'ar' ? 'Arrière' : t === 'les2' ? 'Avant et arrière (polyvalent)' : 'Avant ou arrière : pas encore de poste'; }
+  function typeTxt(t) { return t === 'av' ? 'Avant' : t === 'ar' ? 'Lignes arrières' : t === 'les2' ? 'Avant et lignes arrières (polyvalent)' : 'Avant ou lignes arrières : pas encore de poste'; }
   // (v43) le lien avec Spond, en bas de l'onglet Réglages de la fiche (on n'y touche presque jamais) : enregistré au changement
   MC.spondKid = function (g, id) {
     var cd = app.S.cache.compos, l = cd && cd.spond && cd.spond.membres;

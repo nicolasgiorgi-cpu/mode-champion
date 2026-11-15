@@ -1,6 +1,6 @@
 /* =========================================================
    Mode champion · M12 — la mission « Prépare le jeu à 10 »
-   Côté joueur : la carte sur Ma semaine, les 7 cartes postes, la fiche d'un poste,
+   Côté joueur : la carte sur Ma semaine, les 8 cartes postes, la fiche d'un poste,
    le test « Aide-moi à choisir », les copains (secret), la récompense.
    Côté éduc : la vue du groupe (postes demandés, copains, reprise de l'ancien formulaire)
    et la partie « Jeu à 10 » de la fiche d'un joueur. Côté parent : où en est son enfant.
@@ -19,7 +19,9 @@
     eclair: '<path d="M56 20L32 54h16l-6 28 26-38H52z" fill="currentColor" fill-opacity="0.25" stroke="currentColor" stroke-width="4.5" stroke-linejoin="round"/>',
     oeil: '<g fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M24 52C32 40 40 34 50 34S68 40 76 52C68 64 60 70 50 70S32 64 24 52z"/><circle cx="50" cy="52" r="9" fill="currentColor" fill-opacity="0.35"/><path d="M50 22v6M36 26l3 5M64 26l-3 5"/></g>',
     perce: '<g fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"><path d="M60 26v14M60 60v14"/><path d="M54 44l-4 6 4 6"/><path d="M26 50h44M60 38l12 12-12 12"/></g>',
-    aile: '<g fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M30 64C42 60 52 50 58 32C63 44 60 56 52 64"/><path d="M36 70C48 70 60 64 68 52"/><path d="M44 76C54 77 64 73 72 66"/></g>'
+    aile: '<g fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M30 64C42 60 52 50 58 32C63 44 60 56 52 64"/><path d="M36 70C48 70 60 64 68 52"/><path d="M44 76C54 77 64 73 72 66"/></g>',
+    // (v85) l'arrière : une tour de rempart
+    rempart: '<g fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M31 74V38h8v8h7v-8h8v8h7v-8h8v36z" fill="currentColor" fill-opacity="0.2"/><path d="M44 74V63a6 6 0 0 1 12 0v11"/><path d="M26 74h48"/></g>'
   };
   var Q_SYM = '<g fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><path d="M38 38c0-8 5.5-13 12-13s12 4.5 12 11c0 9-12 9.5-12 19"/></g><circle cx="50" cy="68" r="4.5" fill="currentColor"/>';
   function emblem(p) { return CREST + '<svg viewBox="0 0 100 100" aria-hidden="true">' + (SYM[p.emblem] || '') + '</svg>'; }
@@ -563,7 +565,7 @@
     var mots = players.filter(function (p) { return etatDe(p).message; }).length;
     return '<main class="screen">' + MC.educBar(g, 'Choisis ton poste', '#/educ/missions', 'Missions') +
       '<div class="head"><span class="kicker" style="color:var(--gold)">Mission spéciale · ' + players.length + ' joueurs</span><h1 class="big md">Choisis ton poste</h1>' +
-      '<p class="lead">Chaque enfant choisit 1 à 3 postes, dans l\'ordre, avec les 7 cartes ou le test « Aide-moi à choisir ». Ensuite, il peut faire « <a href="#/educ/mission/copains">Avec qui tu aimes jouer</a> ».</p></div>' +
+      '<p class="lead">Chaque enfant choisit 1 à 3 postes, dans l\'ordre, avec les 8 cartes ou le test « Aide-moi à choisir ». Ensuite, il peut faire « <a href="#/educ/mission/copains">Avec qui tu aimes jouer</a> ».</p></div>' +
       tuilesMission(n, players.length, 'ont choisi leur poste') +
       '<div class="cols2"><section class="sec"><h2 class="h2">Postes demandés</h2><p class="small" style="margin:0">Barre pleine = choix n°1, barre pâle = choix 2 ou 3. Touchez un poste pour voir les prénoms.</p><div class="pbars">' + bars + '</div></section>' +
       '<section class="sec"><h2 class="h2">Les joueurs</h2>' + filtresMission(players.length, players.length - n) +

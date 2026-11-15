@@ -1,5 +1,5 @@
 /* =========================================================
-   Mode champion · M12 — les 7 cartes postes de la mission « Prépare le jeu à 10 »
+   Mode champion · M12 — les 8 cartes postes de la mission « Prépare le jeu à 10 » (v85 : l'arrière en plus)
    (reprises du site « Choisis ton poste », dépôt nicolasgiorgi-cpu/choisis-ton-poste, fichier data.js)
    Contenu à modifier librement.
    - stats : 6 notes sur 100, converties en étoiles (90+ = 5, 75+ = 4, 60+ = 3, 45+ = 2, sinon 1)
@@ -14,7 +14,7 @@
 
 window.MC = window.MC || {};
 // Couleurs (29/10) : un dégradé du plus foncé (pilier, le marron orangé) au plus clair (ailier), dans l'ordre des postes.
-// (v46) couleurs : les avants en dégradé d'orange, les trois-quarts (du 9 à l'ailier) en dégradé de vert (décision de Nicolas, 04/11)
+// (v46) couleurs : les avants en dégradé d'orange, les trois-quarts (du 9 à l'arrière) en dégradé de vert (décision de Nicolas, 04/11)
 MC.POSTES = [
   {
     id: "pilier",
@@ -239,5 +239,39 @@ MC.POSTES = [
       { id: "O1TxLh2Xr7E", titre: "Le cadrage-débordement de l'ailier", source: "mobilesport" }
     ],
     highlight: { id: "B_FAC-UtVx4", titre: "Les 10 essais de Damian Penaud en Champions Cup", source: "Ailier du XV de France" }
+  },
+  {
+    // (v85, 15/11) l'arrière : ajouté au schéma de jeu du club (9, 10, centre, ailier, arrière). Contenu à valider par Nicolas.
+    // Pas de photo pour l'instant (silhouette) : mettre le nom d'un fichier de Wikimedia Commons dans « commons » et son crédit.
+    id: "arriere",
+    n: "15",
+    code: "ARR",
+    nom: "Arrière",
+    numeros: "N°15 · derrière tout le monde",
+    surnom: "Le Dernier Rempart",
+    cls: "Relanceur · jeu au pied",
+    groupe: "Trois-quarts",
+    color: "#33BFA8",
+    dark: "#0A4A40",
+    emblem: "rempart",
+    stats: [55, 85, 85, 70, 85, 85],
+    intro: "L'arrière joue derrière tous ses copains. Il rattrape les ballons tapés au pied, repart en courant pour relancer, et c'est le dernier à pouvoir plaquer avant la ligne d'essai.",
+    pouvoirs: [
+      { icon: "aimant", titre: "Mains sûres", texte: "Il attrape les ballons qui tombent du ciel sans les lâcher." },
+      { icon: "turbo", titre: "Relance", texte: "Ballon en main, il repart en courant et lance l'attaque de loin." }
+    ],
+    attaque: ["Relancer en courant", "Venir dans la ligne pour faire un joueur en plus", "Taper loin au pied"],
+    defense: ["Rattraper les coups de pied", "Plaquer le dernier attaquant", "Parler pour replacer ses copains"],
+    jeu10: "Au jeu à 10, tu es seul derrière la ligne : tu surveilles le fond du terrain, et tu viens dans la ligne pour attaquer.",
+    pourToi: ["tu attrapes bien les ballons hauts", "tu aimes relancer et courir", "tu restes calme quand tout le monde compte sur toi"],
+    heros: [
+      { nom: "Thomas Ramos", info: "Arrière · Stade Toulousain", photo: "", commons: "", credit: "" },
+      { nom: "Blair Kinghorn", info: "Arrière · Stade Toulousain", photo: "", commons: "", credit: "" }
+    ],
+    videos: [
+      { id: "zA2Up1ZSNyc", titre: "Jessy Trémoulière présente le poste d'arrière", source: "Ligue nationale de rugby" },
+      { id: "99Hh61tekmY", titre: "L'arrière attrape un ballon haut", source: "mobilesport" }
+    ],
+    highlight: { id: "-2G_fFjyWiM", titre: "Les grands moments de Thomas Ramos en Champions Cup", source: "Arrière du XV de France" }
   }
 ];

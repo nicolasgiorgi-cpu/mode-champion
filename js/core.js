@@ -600,7 +600,7 @@ var Core = (function () {
   // « jeu10 » : choisir ses postes (1 à 3, dans l'ordre) puis ses copains (secret, sans limite)
   // ---------------------------------------------------------
   var MISSIONS = {
-    jeu10: { postes: ['pilier', 'talonneur', 'troisieme-ligne', 'demi-de-melee', 'ouvreur', 'centre', 'ailier'], maxPostes: 3 }
+    jeu10: { postes: ['pilier', 'talonneur', 'troisieme-ligne', 'demi-de-melee', 'ouvreur', 'centre', 'ailier', 'arriere'], maxPostes: 3 }   // (v85) l'arrière (le 15)
   };
   function missionRow(ctx, joueurId, mission) {
     var rows = ctx.db.rows('missions');
@@ -686,7 +686,7 @@ var Core = (function () {
   }
   var NOMS_POSTES = {
     pilier: 'pilier', talonneur: 'talonneur', '3eligne': 'troisieme-ligne', '3emeligne': 'troisieme-ligne', troisiemeligne: 'troisieme-ligne', '3l': 'troisieme-ligne',
-    demidemelee: 'demi-de-melee', '9': 'demi-de-melee', demidouverture: 'ouvreur', ouvreur: 'ouvreur', '10': 'ouvreur', centre: 'centre', ailier: 'ailier'
+    demidemelee: 'demi-de-melee', '9': 'demi-de-melee', demidouverture: 'ouvreur', ouvreur: 'ouvreur', '10': 'ouvreur', centre: 'centre', ailier: 'ailier', arriere: 'arriere', '15': 'arriere'
   };
   function posteDuTexte(t) { return NOMS_POSTES[sansAccents(t).replace(/[^a-z0-9]/g, '')] || null; }
   function cleJoueur(prenom) {
@@ -2118,6 +2118,7 @@ var Core = (function () {
         js.push({ id: jid, poste: POSTES_ID.indexOf(x.poste) >= 0 ? x.poste : '', n: NIVS.indexOf(x.n) >= 0 ? x.n : '' });
       });
       var eq = { id: id, niveau: niv, joueurs: js };
+      if (t.tri === 'main') eq.tri = 'main';   // (v85) équipe rangée à la main (glisser-déposer) : l'ordre des joueurs est gardé tel quel
       for (var x in extra) eq[x] = extra[x];
       equipes.push(eq);
     });

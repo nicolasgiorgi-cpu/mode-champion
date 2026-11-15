@@ -2111,3 +2111,21 @@ section.rdj .lnk{min-height:44px}
 .eqj i{display:block;height:100%;background:var(--green)}
 .cpts{display:flex;flex-wrap:wrap;gap:6px 14px;font:500 14px/1.3 var(--f-body);color:var(--soft)}
 .cpts b{font:700 16px/1 var(--f-hud);color:var(--ink)}
+
+/* ---------- (v85) compo : un groupe par poste dans l'équipe, glisser-déposer des cartes ---------- */
+.cgrp{display:flex;flex-direction:column;gap:4px;min-width:0;border-left:3px solid var(--pc);padding-left:6px}
+.cgl{font:700 10px/1 var(--f-hud);letter-spacing:.06em;color:var(--pc)}
+@container (min-width:320px){.ccol .cgrp{display:grid;grid-template-columns:24px minmax(0,1fr);gap:5px;align-items:start}.ccol .cgrp .cgl{padding-top:8px}}
+/* le poste est dit par le groupe : plus d'étiquette de poste en haut à droite de la carte (sauf « absent ») */
+.cgrp .cpj>.cpo:not(.cabs){display:none}
+.cgrp .cpj:not(.cpo-l) .cpl1{padding-right:0}
+.ctri{align-self:flex-start;margin-top:2px}
+.cpj{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.cboard2.ed .cpj{cursor:grab}
+.cpj.cdg-src{opacity:.35}
+.cgrp.cdg-sur{background:color-mix(in srgb,var(--pc) 16%,transparent);outline:1.5px dashed var(--pc);outline-offset:2px}
+.ccol.cdg-sur{outline:2px dashed var(--lc);outline-offset:-2px}
+.cdg-ghost{position:fixed;left:0;top:0;z-index:300;pointer-events:none;margin:0;border-color:var(--cyan);box-shadow:0 10px 24px rgba(0,0,0,.6);opacity:.96;will-change:transform}
+.cdg-bar{position:fixed;z-index:301;display:none;background:var(--cyan);pointer-events:none}
+body.cdg-on{-webkit-user-select:none;user-select:none;cursor:grabbing}
+body.cdg-on .cpj{cursor:grabbing}

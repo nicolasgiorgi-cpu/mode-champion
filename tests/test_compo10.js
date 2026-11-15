@@ -13,7 +13,7 @@ function fiche(id, niveau, plaquage, postesOk, pref, passerelle) {
 }
 
 // ----- les places du jeu à 10 -----
-assert.deepStrictEqual(J(K.BESOIN), { pilier: 2, talonneur: 1, 'troisieme-ligne': 2, 'demi-de-melee': 1, ouvreur: 1, centre: 1, ailier: 2 });
+assert.deepStrictEqual(J(K.BESOIN), { pilier: 2, talonneur: 1, 'troisieme-ligne': 2, 'demi-de-melee': 1, ouvreur: 1, centre: 1, ailier: 1, arriere: 1 });   // (v85) 1 ailier et 1 arrière (avant : 2 ailiers)
 
 // ----- le vivier d'un poste : principal, puis peut aussi jouer, puis les autres ; niveau A → C, puis plaquage -----
 const F = {
@@ -58,7 +58,7 @@ assert.ok(K.eligible(F.a3, tM, []) && K.eligible(F.c2, tM, []), 'match d\'entra�
 
 // ----- un poste pour chacun, remplaçants compris -----
 const G = {};
-[['p', 'pilier', 5], ['t', 'talonneur', 2], ['l', 'troisieme-ligne', 3], ['m', 'demi-de-melee', 1], ['o', 'ouvreur', 1], ['c', 'centre', 1], ['a', 'ailier', 2]].forEach(([k, p, n]) => { for (let i = 0; i < n; i++) G[k + i] = fiche(k + i, 'B', 2, [p]); });
+[['p', 'pilier', 5], ['t', 'talonneur', 2], ['l', 'troisieme-ligne', 3], ['m', 'demi-de-melee', 1], ['o', 'ouvreur', 1], ['c', 'centre', 1], ['a', 'ailier', 1], ['r', 'arriere', 1]].forEach(([k, p, n]) => { for (let i = 0; i < n; i++) G[k + i] = fiche(k + i, 'B', 2, [p]); });
 G.z = fiche('z', 'B', 1, []);   // sans aucun poste
 G.y = fiche('y', 'B', 1, ['pilier', 'troisieme-ligne']);   // pilier ★, peut jouer 3e ligne
 let ids = Object.keys(G), po = K.postesEquipe(ids, G);
@@ -70,9 +70,9 @@ let st = K.stats({ joueurs: ids.map(id => ({ id, poste: po[id] })) }, G, 10);
 assert.strictEqual(st.av, 5); assert.strictEqual(st.ar, 5); assert.strictEqual(st.manquants.length, 0);
 assert.strictEqual(st.avTous, 11); assert.strictEqual(st.arTous, 5);
 assert.strictEqual(st.rempl, 6, '16 joueurs avec un poste : 10 sur le terrain, 6 remplaçants');
-assert.deepStrictEqual(J(st.parPoste), { pilier: 5, talonneur: 2, 'troisieme-ligne': 4, 'demi-de-melee': 1, ouvreur: 1, centre: 1, ailier: 2 });
+assert.deepStrictEqual(J(st.parPoste), { pilier: 5, talonneur: 2, 'troisieme-ligne': 4, 'demi-de-melee': 1, ouvreur: 1, centre: 1, ailier: 1, arriere: 1 });
 // il manque un talonneur : les places tenues le disent, même avec 5 piliers
-st = K.stats({ joueurs: ['p0', 'p1', 'p2', 'l0', 'l1', 'm0', 'o0', 'c0', 'a0', 'a1'].map(id => ({ id, poste: G[id].postesOk[0] })) }, G, 10);
+st = K.stats({ joueurs: ['p0', 'p1', 'p2', 'l0', 'l1', 'm0', 'o0', 'c0', 'a0', 'r0'].map(id => ({ id, poste: G[id].postesOk[0] })) }, G, 10);
 assert.strictEqual(st.av, 4); assert.deepStrictEqual(J(st.manquants), ['talonneur']); assert.strictEqual(st.rempl, 1);
 // arriver dans une équipe aux places prises : un de ses postes en plus
 const eq = { joueurs: ['p0', 'p1', 't0', 'l0', 'l1'].map(id => ({ id, poste: G[id].postesOk[0] })) };
