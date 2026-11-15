@@ -78,4 +78,10 @@ assert.ok(L.length === 1 && /^<b>Léo<\/b> ne vient plus/.test(L[0].txt) && L[0]
 // remplacé : plus de ligne
 cd.compos[0].equipes[0].joueurs = [{ id: 'j2' }, { id: 'j3' }];
 assert.strictEqual(N.events('e', { group: grp, compos: cd }).filter(x => /^ca:/.test(x.id)).length, 0);
+// (relecture) un événement fait à la main : un enfant placé qui n'est pas coché (alors que d'autres le sont) est absent, comme à l'écran
+cd.evenements.push({ id: 'e2', source: 'manuel', titre: 'Rassemblement', debut: '2026-12-12T08:00:00Z', sorte: 'plateau', presents: ['j2'], maj: '2026-11-15T10:00:00Z' });
+cd.compos.push({ id: 'c2', evenementId: 'e2', statut: 'publiee', auteur: 'ed1', partie: '', equipes: [{ id: 'A1', joueurs: [{ id: 'j1' }, { id: 'j2' }] }], cree: '2026-11-14T10:00:00Z', maj: '2026-11-14T10:00:00Z' });
+L = N.events('e', { group: grp, compos: cd }).filter(x => /^ca:c2/.test(x.id));
+assert.ok(L.length === 1 && /^<b>Léo<\/b> ne vient plus/.test(L[0].txt), JSON.stringify(L));
+assert.strictEqual(L[0].t, Date.parse('2026-11-14T10:00:00Z'), 'la date de la compo (pas celle de l\'événement, réécrite à chaque synchro)');
 console.log('test_presences_v89 : OK');

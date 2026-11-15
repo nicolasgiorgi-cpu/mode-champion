@@ -104,13 +104,14 @@ window.MC = window.MC || {};
   // (v89, demande de Nicolas du 15/11) on commence souvent les compos avant que Spond envoie les invitations : tant qu'elles ne
   // sont pas parties (heure d'envoi dans le futur, ou personne n'a encore de réponse), la compo se fait avec tout le groupe
   function invitPas(e) {
-    if (!e || e.source !== 'spond' || e.annule) return false;
+    if (!e || e.source !== 'spond' || e.annule || jour(e) < L.today()) return false;
     if (e.invitation && String(e.invitation) > new Date().toISOString()) return true;
-    return !(e.presents || []).length && !(e.absents || []).length && !(e.sansReponse || []).length && !(e.ajouts || []).length && !(e.retraits || []).length;
+    // (relecture v89) seules les réponses Spond comptent : un ajout ou un retrait à la main ne veut pas dire que Spond a envoyé
+    return !(e.presents || []).length && !(e.absents || []).length && !(e.sansReponse || []).length;
   }
   // les enfants à répartir : les présents ; tout le groupe tant que les invitations ne sont pas parties
-  function baseIds(C, e) { return invitPas(e) ? tousOf(C) : presentsOf(C, e); }
-  function effTxt(C, e) { if (invitPas(e)) return 'invitations Spond pas encore parties · ' + tousOf(C).length + ' enfants'; var n = presentsOf(C, e).length; return n + ' présent' + (n > 1 ? 's' : ''); }
+  function baseIds(C, e) { if (!invitPas(e)) return presentsOf(C, e); var p = presentsOf(C, e); return p.concat(attenteOf(C, e).filter(function (id) { return p.indexOf(id) < 0; })); }
+  function effTxt(C, e) { if (invitPas(e)) return 'invitations Spond pas encore parties · ' + baseIds(C, e).length + ' enfants'; var n = presentsOf(C, e).length; return n + ' présent' + (n > 1 ? 's' : ''); }
   // (v57, demande de Nicolas du 07/11) au jeu à 10 (plateau ou matchs), une compo part des présents (par défaut) ou de tout
   // le groupe : les absents et ceux qui n'ont pas répondu sur Spond y sont alors marqués, sans que l'appli touche aux équipes
   function tousOf(C) { return C.g.joueurs.filter(function (p) { return C.actifs[p.joueur.id] && !/^test$/i.test(p.joueur.prenom || ''); }).map(function (p) { return p.joueur.id; }); }   // sans l'enfant « Test » (comme la liste Enfants)
@@ -129,8 +130,8 @@ window.MC = window.MC || {};
   // (v57) partie de tout le groupe : seulement les vrais absents
   function partisDe(C, e, c) {
     if (!c || !c.equipes) return [];
-    var pres = presentsOf(C, e), att = attenteOf(C, e), abs = baseTous(c.reglages) ? absentsOf(C, e) : null, out = [];
-    c.equipes.forEach(function (t) { t.joueurs.forEach(function (j) { if (pres.indexOf(j.id) < 0 && att.indexOf(j.id) < 0 && (!abs || abs.indexOf(j.id) >= 0) && out.indexOf(j.id) < 0) out.push(j.id); }); });
+    var pres = presentsOf(C, e), att = attenteOf(C, e), abs = absentsOf(C, e), out = [];
+    c.equipes.forEach(function (t) { t.joueurs.forEach(function (j) { if (pres.indexOf(j.id) < 0 && att.indexOf(j.id) < 0 && abs.indexOf(j.id) >= 0 && out.indexOf(j.id) < 0) out.push(j.id); }); });
     return out;
   }
   function jour(e) { return String(e.debut || '').slice(0, 10); }
@@ -472,7 +473,9 @@ window.MC = window.MC || {};
   // (v57) hors du jeu : barré « absent » sur la compo et ne tient pas de place (effectif, places tenues, plaquage, alertes).
   // Compo des présents : un joueur placé qui n'est plus présent ni en attente de réponse ; tout le groupe : les vrais absents
   // la règle de la version d (chaque version a son « Avec qui ? »)
-  function horsJeu(id, d) { if (!ATT || ATT.pres[id] || ATT.att[id]) return false; return baseTous(d && d.reglages) ? !!ATT.abs[id] : true; }
+  // (relecture v89) que la compo parte des présents ou de tout le groupe : « absent » seulement pour un vrai absent ; un enfant qui
+  // n'est pas dans l'événement (compo faite avant les invitations, pas relié à Spond…) garde la marque neutre « hors Spond »
+  function horsJeu(id, d) { if (!ATT || ATT.pres[id] || ATT.att[id]) return false; return !!ATT.abs[id]; }
   function sansHorsJeu(t, d) {
     var js = t.joueurs.filter(function (j) { return !horsJeu(j.id, d); });
     return js.length === t.joueurs.length ? t : { id: t.id, niveau: t.niveau, bloc: t.bloc, nom: t.nom, joueurs: js };
@@ -910,15 +913,15 @@ window.MC = window.MC || {};
   }
   // (v57) « Avec qui ? » : les présents ou tout le groupe (jeu à 10) ; attr : l'attribut des deux boutons
   function baseHtml(C, e, reg, attr) {
-    var np = presentsOf(C, e).length, nt = tousOf(C).length, tous = baseTous(reg);
+    var np = baseIds(C, e).length, nt = tousOf(C).length, tous = baseTous(reg), invit = invitPas(e);
     return '<section class="sec"><h2 class="h2">Avec qui ?</h2><div class="cstyles c2">' + [
-      ['presents', 'Les présents', np + ' présent' + (np > 1 ? 's' : '')],
+      ['presents', invit ? 'Sans les absents' : 'Les présents', invit ? np + ' enfants (invitations pas parties)' : np + ' présent' + (np > 1 ? 's' : '')],
       ['tous', 'Tout le groupe', nt + ' enfants, absents marqués']
     ].map(function (o) {
       var on = (o[0] === 'tous') === tous;
       return '<button type="button" class="opt cstyle' + (on ? ' on' : '') + '" aria-pressed="' + on + '" ' + attr + '="' + o[0] + '"><b>' + o[1] + '</b><small>' + o[2] + '</small></button>';
     }).join('') + '</div>' +
-      (!tous && np < 2 && nt >= 2 ? '<p class="small cbaseh" style="margin:0;color:var(--orange)">Pas encore assez de présents' + (e.source === 'spond' ? ' sur Spond' : '') + ' : choisissez « Tout le groupe » pour préparer la compo dès maintenant.</p>' : '') + '</section>';
+      (!tous && !invit && np < 2 && nt >= 2 ? '<p class="small cbaseh" style="margin:0;color:var(--orange)">Pas encore assez de présents' + (e.source === 'spond' ? ' sur Spond' : '') + ' : choisissez « Tout le groupe » pour préparer la compo dès maintenant.</p>' : '') + '</section>';
   }
   // (v57) changer de base refait le nombre d'équipes conseillé (plateau) : sinon, parti de 0 présent, il restait à 0
   MC.act.cBase = function (b) {
@@ -1431,8 +1434,8 @@ window.MC = window.MC || {};
     var enAtt = placed.filter(function (id) { return presents.indexOf(id) < 0 && att.indexOf(id) >= 0; });
     var partis = placed.filter(function (id) { return presents.indexOf(id) < 0 && att.indexOf(id) < 0; });
     // (v57) tout le groupe : les absents ne tiennent pas de place (postes à couvrir, effectifs) ; ceux qui ne sont pas dans l'événement, à part
-    var tous = baseTous(d.reglages), hors = [];
-    if (tous) { hors = partis.filter(function (id) { return !horsJeu(id, d); }); partis = partis.filter(function (id) { return horsJeu(id, d); }); }
+    var tous = baseTous(d.reglages), hors = partis.filter(function (id) { return !horsJeu(id, d); });
+    partis = partis.filter(function (id) { return horsJeu(id, d); });
     var main = !!ATT && ATT.horsLab === 'pas coché';   // un événement fait à la main : « pas coché »
     var al = alertesOf(C, sansHorsJeuC(d), presents);
     function noms(l) { return l.map(function (id) { return nom(C, id); }).join(', '); }
@@ -1449,10 +1452,12 @@ window.MC = window.MC || {};
     var al = alertesFull(C, d, presents, att);
     // (v89) les réponses Spond arrivées depuis que la compo a été enregistrée
     var dep = v === 0 ? depuisCompo(C, compoOf(C.cd, B.evtId, B.partie), d) : null;
-    if (dep) al = [{ k: 'depuis', niveau: 'info', texte: dep }].concat(al);
+    // (relecture v89) hors de la liste numérotée : les boutons « Retirer », « Échanger »… gardent le numéro de leur alerte (cFix)
+    var depH = dep ? '<li class="li info">' + icon('info', 18, 'style="flex:none"') + '<span class="grow small" style="color:var(--soft)">' + esc(dep) + '</span></li>' : '';
+    if (!al.length && dep) return '<ul class="list calerts">' + depH + '</ul>';
     var head = nv > 1 ? vName(v) : 'À regarder';
     if (!al.length) return '<div class="empty" style="border-color:rgba(61,255,176,.4);color:var(--green)">' + icon('check', 16) + ' ' + (nv > 1 ? vName(v) + ' : rien' : 'Rien') + ' à signaler.</div>';
-    return '<details class="calertw"' + (nv > 1 ? '' : ' open') + '><summary class="between"><h2 class="h2">' + head + '</h2><span class="hud" style="color:var(--orange)">' + al.length + ' à regarder</span></summary><ul class="list calerts">' + al.map(function (a, i) {
+    return '<details class="calertw"' + (nv > 1 ? '' : ' open') + '><summary class="between"><h2 class="h2">' + head + '</h2><span class="hud" style="color:var(--orange)">' + al.length + ' à regarder</span></summary><ul class="list calerts">' + depH + al.map(function (a, i) {
       // (v89) un bouton « Remplacer » par absent placé : les enfants libres, confirmés d'abord
       var rem = a.rem && a.rem.length && editable() ? '<span class="cpres-abs">' + a.rem.map(function (id) {
         var w = K.where(d, id), t = w && w.t >= 0 ? d.equipes[w.t] : null, j = t ? t.joueurs[w.j] : null;
@@ -1515,7 +1520,7 @@ window.MC = window.MC || {};
     var ed = editable();
     var suite = P === 'ateliers' ? '<a class="btn2" href="' + lienCompo(esc(e.id), 'matchs') + '">' + icon('right', 16) + ' Ensuite : les matchs</a>' : '';
     return '<main class="screen cscreen">' + MC.educBar(C.g, (P ? (P === 'ateliers' ? 'Ateliers' : 'Matchs') : 'Compo') + ' · ' + e.titre, '#/educ/evt/' + e.id, e.titre) +
-      '<div class="head"><span class="kicker" style="color:var(--gold)">' + esc(quand(e)) + ' · ' + (ATT.tous ? tousOf(C).length + ' enfants · ' : '') + presents.length + ' présents' + (entB() ? '' : ' · jeu à ' + fmt) + '</span><h1 class="big sm">' + (P ? NOM_PARTIE[P] : 'La compo') + '</h1></div>' +
+      '<div class="head"><span class="kicker" style="color:var(--gold)">' + esc(quand(e)) + ' · ' + (ATT.tous ? tousOf(C).length + ' enfants · ' : '') + (invitPas(e) ? effTxt(C, e) : presents.length + ' présents') + (entB() ? '' : ' · jeu à ' + fmt) + '</span><h1 class="big sm">' + (P ? NOM_PARTIE[P] : 'La compo') + '</h1></div>' +
       (P ? stepsHtml(C, e, P) : '') + state + topHtml(C, e, c) + avBlock + cmp + spondHtml(C, e, c) +
       (ed && fmt === 10 && nv === 1 ? '<button type="button" class="btn2" data-act="cParPoste" data-v="0">' + icon('board', 16) + ' Poste par poste</button>' : '') +   // (v57)
       (communes ? '<p class="small" style="margin:0"><b style="color:var(--yellow)">Entourés</b> : placés autrement d\'une version à l\'autre.</p>' : '') +
@@ -1561,13 +1566,13 @@ window.MC = window.MC || {};
   // (v89) ce qui a changé dans les réponses depuis que la compo a été enregistrée (réponses gardées avec elle par le serveur)
   function depuisCompo(C, c, d) {
     var R = c && c.reponses;
-    if (!R || !ATT || B.dirty) return null;
+    if (!R || !ATT || B.dirty || invitPas(C.evts[c.evenementId])) return null;
     var placed = []; d.equipes.forEach(function (t) { t.joueurs.forEach(function (j) { placed.push(j.id); }); });
     var avant = function (id) { return R.pres.indexOf(id) >= 0 ? 'ok' : R.abs.indexOf(id) >= 0 ? 'no' : R.att.indexOf(id) >= 0 ? 'att' : ''; };
     var mtn = function (id) { return ATT.pres[id] ? 'ok' : ATT.abs[id] ? 'no' : ATT.att[id] ? 'att' : ''; };
     var ch = [], nouveaux = [];
     tousOf(C).forEach(function (id) {
-      var a = avant(id), m = mtn(id);
+      var a = avant(id) || 'att', m = mtn(id);   // (relecture v89) avant les invitations, personne n'avait de réponse : « en attente »
       if (a === m || !m) return;
       if (placed.indexOf(id) >= 0) ch.push({ id: id, m: m }); else if (m === 'ok') nouveaux.push(id);
     });
@@ -1607,7 +1612,7 @@ window.MC = window.MC || {};
           return { label: '<span class="crem-l">' + (ATT.pres[x] ? '<span class="cfl crep cok">' + icon('check', 10) + '</span>' : '<span class="cqatt">?</span>') + '<b>' + esc(nom(C, x)) + '</b>' + niveauTag(f.niveau, true) + '<span class="cpps">' + pillsPostes(f) + '</span></span>', value: x, cls: 'btn2 crem' };
         }).concat([{ label: 'Annuler', value: null, cls: 'btn2 grey' }]) }).then(function (x) {
         if (!x) return;
-        change(function () { B.vs[v] = K.swap(d, id, x, C.F); });
+        change(function () { B.vs[v] = K.retirer(K.swap(d, id, x, C.F), [id]); });   // l'absent ne reste pas dans « Pas placés » (comme « Retirer »)
         ui.toast(nom(C, x) + ' remplace ' + nom(C, id));
       });
     });

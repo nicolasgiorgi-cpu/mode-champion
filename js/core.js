@@ -2361,7 +2361,8 @@ var Core = (function () {
         if (Number(a.version) !== Number(cur.version)) proposee = rejouer(ctx, cur, a.changements);
         var v = (Number(cur.version) || 1) + 1;
         var hist = (cur.historique || []).concat([{ v: v, par: me.nom, quand: now, note: 'Contre-proposition de ' + a.auteurNom + ' acceptée', n: (a.changements || []).length }]).slice(-30);
-        ctx.db.update('compos', cur.id, { equipes: proposee.equipes, banc: proposee.banc, version: v, historique: hist, maj: now });
+        var evC = find(ctx.db.rows('evenements'), cur.evenementId);   // (relecture v89) les réponses du moment, avec les nouvelles équipes
+        ctx.db.update('compos', cur.id, { equipes: proposee.equipes, banc: proposee.banc, version: v, historique: hist, maj: now, reponses: evC ? reponsesDe(evC, now) : cur.reponses });
         ctx.db.update('avis', a.id, { statut: 'acceptee', reponse: rep, parQui: me.nom, maj: now });
       } else {
         ctx.db.update('avis', a.id, { statut: 'refusee', reponse: rep, parQui: me.nom, maj: now });

@@ -203,8 +203,10 @@ MC.notifs = (function () {
         if (ev && !ev.annule && String(ev.debut || '').slice(0, 10) >= hui && (c.statut === 'publiee' || c.statut === 'vote')) {
           var ret = ev.retraits || [], pres = (ev.presents || []).concat(ev.ajouts || []).filter(function (x) { return ret.indexOf(x) < 0; });
           var non = (ev.absents || []).concat(ret).filter(function (x) { return pres.indexOf(x) < 0; }), dans = [];
+          // un événement fait à la main : dès qu'un enfant est coché, ceux qui ne le sont pas sont absents (comme l'écran de la compo)
+          if (ev.source && ev.source !== 'spond' && pres.length) (c.equipes || []).forEach(function (t) { (t.joueurs || []).forEach(function (j) { if (pres.indexOf(j.id) < 0 && non.indexOf(j.id) < 0) non.push(j.id); }); });
           (c.equipes || []).forEach(function (t) { (t.joueurs || []).forEach(function (j) { if (non.indexOf(j.id) >= 0 && dans.indexOf(j.id) < 0 && prenoms[j.id]) dans.push(j.id); }); });
-          if (dans.length) out.push({ id: 'ca:' + c.id + ':' + dans.slice().sort().join(','), cat: 'compo', t: ms(ev.maj) || ms(c.maj),
+          if (dans.length) out.push({ id: 'ca:' + c.id + ':' + dans.slice().sort().join(','), cat: 'compo', t: ms(c.maj) || ms(c.cree),   // (relecture) pas maj de l'événement : la synchro la réécrit toutes les heures
             txt: dans.map(function (x) { return b(prenoms[x]); }).join(', ') + (dans.length > 1 ? ' ne viennent plus' : ' ne vient plus') + ' : à remplacer dans ' + dequoi(c) + '.', href: lien(c) });
         }
         if (c.auteur === me.id) Object.keys(c.votes || {}).forEach(function (eid) {
