@@ -1190,7 +1190,7 @@ window.MC = window.MC || {};
         var js = list.filter(function (j) { return j.poste === p; }), sl = (o.slots || []).filter(function (x) { return x === p; });
         var sep = false;   // (v88) un poste sans personne garde sa ligne (vide), pour rester en face de celui de l'autre équipe
         return '<div class="cgrp' + (!js.length && !sl.length ? ' vide' : '') + '" role="group" aria-label="' + NOMPL[p] + '" data-v="' + v + '" data-t="' + esc(t.id) + '" data-p="' + p + '" style="--pc:' + coulPoste(p) + '">' +
-          '<span class="cgl" title="' + NOMPL[p] + '">' + COURT[p] + '</span><ul class="cpl">' + js.map(function (j) {
+          '<span class="cgl">' + NOMG[p] + '</span><ul class="cpl">' + js.map(function (j) {
             var avant = '';
             if (!sep && !TIT[j.id] && !absentIci(j.id, d)) { sep = true; avant = '<li class="crsep" data-rsep="1"><span>Remplaçant' + (js.filter(function (x) { return !TIT[x.id] && !absentIci(x.id, d); }).length > 1 ? 's' : '') + '</span></li>'; }
             return avant + chip(C, t, j, v, d, moved[j.id], !TIT[j.id] && !absentIci(j.id, d));
@@ -1977,6 +1977,8 @@ window.MC = window.MC || {};
   // au C puis du meilleur plaqueur au moins bon (les absents en bas). Sur chaque ligne, un bouton par équipe (1 et 2 aux matchs,
   // A et B au plateau) : toucher met l'enfant dans l'équipe à ce poste, toucher encore l'enlève. On en prend autant qu'on veut
   // (« pour les piliers, j'en prends 5 »), puis « OK » passe au poste suivant. (v87) Qui démarre : les premiers du poste sur la compo.
+  // (v88, demande de Nicolas du 15/11) le nom du poste en entier, sur sa propre ligne en tête de chaque poste d'une équipe
+  var NOMG = { pilier: 'Piliers', talonneur: 'Talonneur', 'troisieme-ligne': '3es lignes', 'demi-de-melee': 'Demi de mêlée', ouvreur: 'Demi d\'ouverture', centre: 'Centre', ailier: 'Ailier', arriere: 'Arrière' };
   var NOMPL = { pilier: 'Piliers', talonneur: 'Talonneurs', 'troisieme-ligne': '3es lignes', 'demi-de-melee': 'Demis de mêlée', ouvreur: 'Ouvreurs', centre: 'Centres', ailier: 'Ailiers', arriere: 'Arrières' };
   // le nom court d'une équipe sur son bouton : « 1 », « 2 » aux matchs ; « A », « B » au plateau (« A1 », « A2 » s'il y en a deux)
   function eqCourt(d, t) {

@@ -73,7 +73,7 @@ with sync_playwright() as p:
     ORD = ['pilier', 'talonneur', 'troisieme-ligne', 'demi-de-melee', 'ouvreur', 'centre', 'ailier', 'arriere']
     check('compo : 8 groupes par équipe, dans l\'ordre des postes (l\'arrière en dernier)', len(g) >= 2 and all(x == ORD for x in g), g)
     lab = ev("[...document.querySelectorAll('.cboard2 .ccol[data-v=\"0\"]:not(.banc)')][0].querySelectorAll('.cgl')[7].textContent")
-    check('compo : le groupe de l\'arrière s\'appelle « 15 »', lab.strip() == '15', lab)
+    check('compo : le groupe de l\'arrière s\'appelle « Arrière » (v88 : nom en entier)', lab.strip() == 'Arrière', lab)
     vis = ev("[...document.querySelectorAll('.cgrp .cpj > .cpo:not(.cabs)')].filter(e => getComputedStyle(e).display !== 'none').length")
     check('compo : plus d\'étiquette de poste sur les cartes d\'un groupe', vis == 0, vis)
     def ou(nom, v=0):
