@@ -1218,7 +1218,7 @@ window.MC = window.MC || {};
     var att = ATT && ATT.att[j.id], nonP = ATT && (t || (baseTous(d.reglages) && d.equipes)) && !ATT.pres[j.id] && !att;
     var gone = nonP && horsJeu(j.id, d), hors = nonP && !gone, avecPoste = gone && t && d.reglages.format === 10;
     var large = (gone && !avecPoste) || / csp"/.test(tag || '');   // « absent » ou « Sans poste » en haut à droite : le prénom laisse plus de place
-    return '<li><button type="button" class="cpj' + (on ? ' sel' : '') + (moved ? ' moved' : '') + (gone ? ' gone' : '') + (remp ? ' remp' : '') + (att ? ' att' : '') + (large ? ' cpo-l' : '') + '" data-act="cPick" data-v="' + v + '" data-id="' + esc(j.id) + '" aria-pressed="' + !!on + '">' +
+    return '<li><button type="button" class="cpj' + (on ? ' sel' : '') + (moved ? ' moved' : '') + (gone ? ' gone' : '') + (att ? ' att' : '') + (large ? ' cpo-l' : '') + '" data-act="cPick" data-v="' + v + '" data-id="' + esc(j.id) + '" aria-pressed="' + !!on + '">' +
       // (v60, demande de Nicolas) « ? » doré (pas encore répondu sur Spond) collé à droite du prénom, au lieu du chrono
       '<span class="cpl1"><span class="cpn">' + esc(f.prenom) + '</span>' + (att ? '<span class="cfl catt" title="Pas encore répondu sur Spond"><span aria-hidden="true">?</span><span class="sr-only">pas encore répondu sur Spond</span></span>' : '') + '</span>' + (gone && !avecPoste ? '<span class="cpo cabs">absent</span>' : tag) + '<span class="row cfls"><span class="cflg">' + (avecPoste ? '<span class="cfl cabsf" title="Absent sur Spond (ou retiré des présents)">absent</span>' : '') + (hors ? '<span class="cfl chors" title="' + esc(ATT.horsT) + '">' + esc(ATT.horsLab) + '</span>' : '') + starsMini(f.plaquage, sousRep) + lv + heart + (f.niveau ? '' : '<span class="cfl cq" title="Niveau à renseigner">?</span>') + '</span>' +
       // (v60, demande de Nicolas) les postes de sa fiche sur la même ligne que le plaquage et les passerelles, à droite
@@ -1516,7 +1516,7 @@ window.MC = window.MC || {};
           };
           moves += '<div class="cmpos">' + ['av', 'ar'].map(function (ty) { return '<div class="cmpr cmpr-' + ty + '">' + K.ORDRE.filter(function (p) { return K.typePoste(p) === ty; }).map(bt).join('') + '</div>'; }).join('') + '</div>';   // (v57) plus de « Remp. » sans poste : un remplaçant a son poste
           // (v87) titulaire ou remplaçant à son poste : le titulaire passe en tête du poste, le remplaçant à la fin
-          if (cur) {
+          if (cur && B.mode !== 'counter' && !absentIci(sel.id, d)) {   // (relecture v87) ni dans une contre-proposition, ni pour un absent
             var titu = !!K.titulaires(t, C.F, function (id) { return absentIci(id, d); })[sel.id];
             // personne d'autre à ce poste pour prendre sa place : « Remplaçant » ne changerait rien
             var nP = t.joueurs.filter(function (j) { return j.poste === cur && !absentIci(j.id, d); }).length, seul = titu && nP <= (K.BESOIN[cur] || 1);
@@ -1884,7 +1884,7 @@ window.MC = window.MC || {};
   // ceux qui l'ont en poste principal, puis ceux qui peuvent le jouer, puis les autres (repliés) ; dans chaque groupe, du niveau A
   // au C puis du meilleur plaqueur au moins bon (les absents en bas). Sur chaque ligne, un bouton par équipe (1 et 2 aux matchs,
   // A et B au plateau) : toucher met l'enfant dans l'équipe à ce poste, toucher encore l'enlève. On en prend autant qu'on veut
-  // (« pour les piliers, j'en prends 5 »), puis « OK » passe au poste suivant. Pas de titulaires : la liste du poste.
+  // (« pour les piliers, j'en prends 5 »), puis « OK » passe au poste suivant. (v87) Qui démarre : les premiers du poste sur la compo.
   var NOMPL = { pilier: 'Piliers', talonneur: 'Talonneurs', 'troisieme-ligne': '3es lignes', 'demi-de-melee': 'Demis de mêlée', ouvreur: 'Ouvreurs', centre: 'Centres', ailier: 'Ailiers', arriere: 'Arrières' };
   // le nom court d'une équipe sur son bouton : « 1 », « 2 » aux matchs ; « A », « B » au plateau (« A1 », « A2 » s'il y en a deux)
   function eqCourt(d, t) {
@@ -2354,11 +2354,14 @@ window.MC = window.MC || {};
   }
   function avisAnswer(id, params, msg) {
     params.avisId = id;
+    // (relecture v87) seulement en acceptant : la compo de cette contre-proposition change de version, et des changements pas encore
+    // enregistrés sur cet appareil pour cette compo-là (et pour aucune autre) seraient effacés sans rien dire ; on les efface et on le dit
+    var cd = app.S.cache.compos || {}, a = (cd.avis || []).filter(function (x) { return x.id === id; })[0];
+    var c = a && (cd.compos || []).filter(function (x) { return x.id === a.compoId; })[0];
+    var perdu = !!(params.accepte && c && app.lsGet(draftKey(c.evenementId, c.partie || '')));
     return app.adultCall('repondreAvis', params).then(function () { return loadCompos(true); }).then(function () {
-      // (v86, relecture) la compo a changé de version : des changements pas encore enregistrés sur cet appareil sont effacés, on le dit
-      var perdu = B && B.dirty && B.mode === 'edit';
-      if (perdu) dropDraft(B.evtId, B.partie);
-      B = null; ui.toast(msg + (perdu ? ' · vos changements pas encore enregistrés sont effacés' : '')); app.rerender();
+      if (perdu) dropDraft(c.evenementId, c.partie || '');
+      B = null; ui.toast(msg + (perdu ? ' · vos changements pas encore enregistrés sur cette compo sont effacés' : '')); app.rerender();
     }).catch(function (e) { ui.toast(e.message, true); });
   }
   MC.act.aAccept = function (b) {

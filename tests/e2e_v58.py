@@ -176,9 +176,18 @@ with sync_playwright() as p:
     pg.click('.ctop [data-act="cDiscard"]'); pg.wait_for_timeout(400); pg.click('.modal .mbtns button[data-i="0"]'); pg.wait_for_timeout(900)
     pg.goto(BASE + '#/educ/evt/sp-demo-p3'); pg.wait_for_timeout(1200)
     check('« Annuler » : plus rien en attente sur la page du plateau', pg.query_selector('.cnonenr') is None)
-    # un autre éduc (pas le jour J) : la carte, et une contre-proposition depuis la compo
+    # un autre plateau (demo-r1, une compo publiée par Coach Nico) : la carte de la compo, pas de bouton « Modifier »
     pg.goto(BASE + '#/educ/evt/demo-r1'); pg.wait_for_timeout(1200)
-    check('page d\'un plateau d\'un autre éduc : la carte de la compo, pas de bouton « Modifier »', pg.query_selector('a.ccompo') is not None and pg.query_selector('[data-act="eEditer"]') is None)
+    check('page d\'un autre plateau : la carte de la compo, pas de bouton « Modifier »', pg.query_selector('a.ccompo') is not None and pg.query_selector('[data-act="eEditer"]') is None)
+    # la compo d'un autre éduc (les matchs de Julien, hors jour J) : toujours « Proposer des changements » (demande de Nicolas du 15/11)
+    pg.goto(BASE + '#/educ/compo/sp-demo-e0?p=matchs'); pg.wait_for_timeout(1300)
+    check('compo d\'un autre éduc : en lecture, « Proposer des changements » (contre-proposition)', pg.query_selector('[data-act="cCounter"]') is not None and pg.query_selector('.cboard2.ed') is None)
+    pg.click('[data-act="cCounter"]'); pg.wait_for_timeout(600)
+    j3 = ev("document.querySelector('.ccol:not(.banc) .cpj').getAttribute('data-id')")
+    pg.click('.ccol .cpj[data-id="%s"]' % j3); pg.wait_for_timeout(400)
+    check('contre-proposition : pas de « Titulaire / Remplaçant » (elle porte sur les équipes et les postes)', pg.query_selector('.cdock') is not None and pg.query_selector('.cdock .cmtit') is None)
+    pg.click('.cdock [data-act="cPick"]'); pg.wait_for_timeout(300)
+    pg.click('[data-act="cDiscard"]'); pg.wait_for_timeout(400); pg.click('.modal .mbtns button[data-i="0"]'); pg.wait_for_timeout(800)
 
     # ----- 7. les matchs d'un entraînement, une fois publiés -----
     pg.goto(BASE + '#/educ/compo/sp-demo-e1?p=matchs'); pg.wait_for_timeout(1200)

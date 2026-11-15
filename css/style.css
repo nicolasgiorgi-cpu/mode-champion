@@ -2145,8 +2145,8 @@ body.cdg-on .cpj{cursor:grabbing}
 .cmv.po.hors.here{opacity:1;border-style:solid}
 .cmtit{gap:6px}
 .cmtit .cmv{flex:1 1 0;--lc:var(--cyan)}
-.cmtit .cmv.here{opacity:1}
 /* (v87) dans un poste, la ligne « Remplaçants » avant ceux qui ne démarrent pas */
 .cpl>.crsep{grid-column:1/-1;display:flex;align-items:center;gap:6px;font:700 9.5px/1 var(--f-hud);letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin:2px 0 -1px}
 .cpl>.crsep::after{content:'';flex:1;border-top:1px dashed var(--line3)}
 .cmtit .cmv.here{background:color-mix(in srgb,var(--cyan) 22%,#0C1120);color:var(--cyan);border-color:var(--cyan)}
+.cdock .cselp{max-width:560px;margin-left:auto;margin-right:auto;width:100%}   /* (relecture v87) sur iPad, le panneau d'un joueur ne s'étale pas */

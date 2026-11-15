@@ -110,6 +110,63 @@ with sync_playwright() as p:
     if not pg.query_selector('.cdock'): pg.click('.cboard2 .cpj[data-id="%s"]' % pil[0]); pg.wait_for_timeout(500)
     check('pas placé : ni postes ni « Titulaire »', pg.query_selector('.cdock .cmtit') is None and pg.query_selector('.cdock .cmpos') is None)
 
+    # (relecture v87) un absent : ni « Titulaire » ni « Remplaçant » (il ne prend pas de place)
+    pg.click('.cdock [data-act="cPick"]'); pg.wait_for_timeout(300)
+    tit0 = [x for x in grp(t1, p1) if x != '|'][0]
+    pg.click('.cboard2 .cpj[data-id="%s"][data-v="0"]' % tit0); pg.wait_for_timeout(500)
+    if pg.query_selector('.cdock [data-act="cAbsent"][data-v="0"]'):
+        pg.click('.cdock [data-act="cAbsent"][data-v="0"]'); pg.wait_for_timeout(1300)
+        if pg.query_selector('.modal .mbtns button[data-i="0"]'): pg.click('.modal .mbtns button[data-i="0"]'); pg.wait_for_timeout(1300)
+        if not pg.query_selector('.cdock'): pg.click('.cboard2 .cpj[data-id="%s"][data-v="0"]' % tit0); pg.wait_for_timeout(500)
+        check('un absent : pas de « Titulaire / Remplaçant » dans son panneau', pg.query_selector('.cdock .cpj, .cdock .cselp') is not None and pg.query_selector('.cdock .cmtit') is None)
+        l = grp(t1, p1)
+        check('un absent : la ligne « Remplaçant » ne le compte pas (le suivant démarre)', '|' not in l[:2] or l.index('|') == BES[p1] + 1, [NOM.get(x, x) for x in l])
+        pg.click('.cdock [data-act="cAbsent"][data-v="1"]'); pg.wait_for_timeout(1300)
+        if pg.query_selector('.modal .mbtns button[data-i="0"]'): pg.click('.modal .mbtns button[data-i="0"]'); pg.wait_for_timeout(1300)
+    else: check('« Absent » dans le panneau (événement à venir)', False)
+
+    # (relecture v87) répondre à une contre-proposition : refuser garde les changements pas enregistrés ; accepter efface seulement
+    # ceux de cette compo, et le dit ; ceux d'un autre plateau ne bougent pas
+    def changer(evt):
+        pg.goto(BASE + '#/educ/compo/' + evt); pg.wait_for_timeout(1300)
+        j = ev("document.querySelector('.cboard2.ed .ccol:not(.banc) .cpj:not(.gone)').getAttribute('data-id')")
+        pg.click('.cboard2 .cpj[data-id="%s"]' % j); pg.wait_for_timeout(400)
+        pg.click('.cdock [data-act="cMove"][data-t="banc"]'); pg.wait_for_timeout(500)
+    brouillon = lambda evt: ev("e => Object.keys(localStorage).some(k => k.indexOf('mc-cdraft:') === 0 && k.endsWith(':' + e) && localStorage.getItem(k) !== 'null')", evt)
+    changer('sp-demo-p2'); changer('demo-r1')
+    check('deux brouillons : sp-demo-p2 et demo-r1 (deux compos publiées de Coach Nico)', brouillon('sp-demo-p2') and brouillon('demo-r1'))
+    av = ev("(() => { const cd = MC.app.S.cache.compos, c = cd.compos.find(c => c.evenementId === 'demo-r1' && !c.partie); const a = c && cd.avis.find(a => a.compoId === c.id && a.statut === 'attente'); return a ? a.id : null; })()")
+    if av:
+        pg.goto(BASE + '#/educ/avis/' + av); pg.wait_for_timeout(1000)
+        pg.click('[data-act="aRefuse"]'); pg.wait_for_timeout(400); pg.fill('#cjust', 'On garde comme ça.'); pg.click('.modal .mbtns button[data-i="0"]'); pg.wait_for_timeout(1500)
+        check('refuser une contre-proposition : les changements pas enregistrés restent (les deux plateaux)', brouillon('demo-r1') and brouillon('sp-demo-p2'))
+    else: check('une contre-proposition en attente sur demo-r1 (démo)', False)
+    # accepter : une contre-proposition de Cyril (envoyée par le serveur de démo, avec son code de démo) sur demo-r1
+    r = ev("""(async () => { const cd = MC.app.S.cache.compos, c = cd.compos.find(c => c.evenementId === 'demo-r1' && !c.partie);
+      const cy = cd.avis.find(a => a.auteurNom === 'Cyril'); const lg = await MC.api.call('adultLogin', { role: 'e', educId: cy && cy.auteur, code: '7001' }); if (!lg || !lg.token) return { err: 'login', lg };
+      const eq = JSON.parse(JSON.stringify(c.equipes)), b = eq.find(t => t.joueurs.length > 1), x = b.joueurs.pop();
+      const o = eq.find(t => t !== b); o.joueurs.push(x);
+      const rr = await MC.api.call('contreProposition', { token: lg.token, compoId: c.id, version: c.version, equipes: eq, banc: c.banc || [], justification: 'Essai du test' });
+      return { ok: !!(rr && rr.ok !== false), rr: JSON.stringify(rr).slice(0, 200) }; })()""")
+    if r.get('ok'):
+        pg.goto(BASE + '#/educ/plateaux'); pg.wait_for_timeout(600)
+        ev("MC.loadCompos ? MC.loadCompos(true) : null"); pg.wait_for_timeout(800)
+        pg.reload(); pg.wait_for_timeout(1500)
+        av = ev("(() => { const cd = MC.app.S.cache.compos, c = cd.compos.find(c => c.evenementId === 'demo-r1' && !c.partie); const a = c && cd.avis.find(a => a.compoId === c.id && a.statut === 'attente'); return a ? a.id : null; })()")
+        check('une nouvelle contre-proposition sur demo-r1', av is not None)
+        if av:
+            pg.goto(BASE + '#/educ/avis/' + av); pg.wait_for_timeout(1000)
+            pg.click('[data-act="aAccept"]'); pg.wait_for_timeout(400); pg.click('.modal .mbtns button[data-i="0"]'); pg.wait_for_timeout(300)
+            toast = ''
+            for k in range(15):
+                toast = ev("[...document.querySelectorAll('.toast')].map(t => t.textContent).join(' | ')")
+                if 'effacés' in toast or 'acceptée' in toast.lower(): break
+                pg.wait_for_timeout(150)
+            pg.wait_for_timeout(800)
+            check('accepter : les changements pas enregistrés de cette compo sont effacés, et on le dit', not brouillon('demo-r1') and 'effacés' in toast, toast)
+            check('accepter : ceux d\'un autre plateau ne bougent pas', brouillon('sp-demo-p2'))
+    else: check('créer une contre-proposition de Cyril (démo)', False, r)
+
     check('aucune erreur JavaScript', not errs, errs)
     b.close()
 bad = [n for n, c in res if not c]
