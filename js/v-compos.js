@@ -1090,11 +1090,18 @@ window.MC = window.MC || {};
     if (o.postes) {
       // (v85, demande de Nicolas du 15/11) jeu à 10 : un groupe par poste (piliers, talonneur, 3es lignes…), sur lequel on glisse
       // une carte pour donner ce poste ; les joueurs y sont dans l'ordre de K.sections ; les places vides (+) à la suite
+      // (v87, demande de Nicolas du 15/11) dans chaque poste, les premiers démarrent (K.titulaires) ; une ligne « Remplaçants » avant les autres
+      var TIT = K.titulaires(t, C.F, function (id) { return absentIci(id, d); });
       corps = o.postes.map(function (p) {
         var js = list.filter(function (j) { return j.poste === p; }), sl = (o.slots || []).filter(function (x) { return x === p; });
         if (!js.length && !sl.length) return '';
+        var sep = false;
         return '<div class="cgrp" role="group" aria-label="' + NOMPL[p] + '" data-v="' + v + '" data-t="' + esc(t.id) + '" data-p="' + p + '" style="--pc:' + coulPoste(p) + '">' +
-          '<span class="cgl" title="' + NOMPL[p] + '">' + COURT[p] + '</span><ul class="cpl">' + js.map(function (j) { return chip(C, t, j, v, d, moved[j.id]); }).join('') +
+          '<span class="cgl" title="' + NOMPL[p] + '">' + COURT[p] + '</span><ul class="cpl">' + js.map(function (j) {
+            var avant = '';
+            if (!sep && !TIT[j.id] && !absentIci(j.id, d)) { sep = true; avant = '<li class="crsep" data-rsep="1"><span>Remplaçant' + (js.filter(function (x) { return !TIT[x.id] && !absentIci(x.id, d); }).length > 1 ? 's' : '') + '</span></li>'; }
+            return avant + chip(C, t, j, v, d, moved[j.id], !TIT[j.id] && !absentIci(j.id, d));
+          }).join('') +
           sl.map(function () { return slotHtml(v, t, p, '+ ' + NOMP[p]); }).join('') + '</ul></div>';
       }).join('');
       // un poste inconnu (vieille compo) : à la suite, sans groupe
@@ -1184,7 +1191,9 @@ window.MC = window.MC || {};
       '<button type="button" class="opt' + (on ? ' on' : '') + '" aria-pressed="' + on + '" data-act="cCote" data-v="1">Côte à côte</button></div>';
   }
   MC.act.cCote = function (b) { app.lsSet('mc-ccote', b.getAttribute('data-v') === '1' ? 1 : 0); rerenderKeep(); };
-  function chip(C, t, j, v, d, moved) {
+  // (v87) un enfant qui ne vient pas (comme « absent » sur sa carte) : il ne prend pas de place
+  function absentIci(id, d) { return !!(ATT && !ATT.pres[id] && !ATT.att[id] && horsJeu(id, d)); }
+  function chip(C, t, j, v, d, moved, remp) {
     var f = C.F[j.id] || { prenom: '?', copains: [] }, ids = t ? sansHorsJeu(t, d).joueurs.map(function (x) { return x.id; }) : [];   // (v57) un copain absent ne compte pas
     var cps = (f.copains || []).filter(function (x) { return ids.indexOf(x) >= 0; });
     var heart = !(f.copains || []).length || sansCop(d) ? '' : cps.length ? '<span class="cfl cop-ok" title="Avec un copain">' + icon('heart', 12) + '</span>' : '<span class="cfl cop-no" title="Sans copain">' + icon('heart', 12) + '</span>';
@@ -1208,7 +1217,7 @@ window.MC = window.MC || {};
     var att = ATT && ATT.att[j.id], nonP = ATT && (t || (baseTous(d.reglages) && d.equipes)) && !ATT.pres[j.id] && !att;
     var gone = nonP && horsJeu(j.id, d), hors = nonP && !gone, avecPoste = gone && t && d.reglages.format === 10;
     var large = (gone && !avecPoste) || / csp"/.test(tag || '');   // « absent » ou « Sans poste » en haut à droite : le prénom laisse plus de place
-    return '<li><button type="button" class="cpj' + (on ? ' sel' : '') + (moved ? ' moved' : '') + (gone ? ' gone' : '') + (att ? ' att' : '') + (large ? ' cpo-l' : '') + '" data-act="cPick" data-v="' + v + '" data-id="' + esc(j.id) + '" aria-pressed="' + !!on + '">' +
+    return '<li><button type="button" class="cpj' + (on ? ' sel' : '') + (moved ? ' moved' : '') + (gone ? ' gone' : '') + (remp ? ' remp' : '') + (att ? ' att' : '') + (large ? ' cpo-l' : '') + '" data-act="cPick" data-v="' + v + '" data-id="' + esc(j.id) + '" aria-pressed="' + !!on + '">' +
       // (v60, demande de Nicolas) « ? » doré (pas encore répondu sur Spond) collé à droite du prénom, au lieu du chrono
       '<span class="cpl1"><span class="cpn">' + esc(f.prenom) + '</span>' + (att ? '<span class="cfl catt" title="Pas encore répondu sur Spond"><span aria-hidden="true">?</span><span class="sr-only">pas encore répondu sur Spond</span></span>' : '') + '</span>' + (gone && !avecPoste ? '<span class="cpo cabs">absent</span>' : tag) + '<span class="row cfls"><span class="cflg">' + (avecPoste ? '<span class="cfl cabsf" title="Absent sur Spond (ou retiré des présents)">absent</span>' : '') + (hors ? '<span class="cfl chors" title="' + esc(ATT.horsT) + '">' + esc(ATT.horsLab) + '</span>' : '') + starsMini(f.plaquage, sousRep) + lv + heart + (f.niveau ? '' : '<span class="cfl cq" title="Niveau à renseigner">?</span>') + '</span>' +
       // (v60, demande de Nicolas) les postes de sa fiche sur la même ligne que le plaquage et les passerelles, à droite
@@ -1486,18 +1495,10 @@ window.MC = window.MC || {};
   function dockHtml(C, e, c) {
     var html = '', sel = B.sel ? C.F[B.sel.id] : null, nv = B.vs.length;
     if (sel) {
-      var v = B.sel.v, d = B.vs[v], w = K.where(d, sel.id), t = w && w.t >= 0 ? d.equipes[w.t] : null, h = K.hOf(C.H, sel.id);
-      var cpsWhere = (sel.copains || []).map(function (id) {
-        var ww = K.where(d, id); if (!ww) return null;
-        return esc(nom(C, id)) + ' (' + (ww.t >= 0 ? esc(labelEq(d.equipes[ww.t])) : 'pas placé') + ')';
-      }).filter(Boolean);
+      var v = B.sel.v, d = B.vs[v], w = K.where(d, sel.id), t = w && w.t >= 0 ? d.equipes[w.t] : null;
       var ps = K.postesDe(sel);
-      var info = '<div class="row" style="gap:10px;align-items:flex-start">' + niveauTag(sel.niveau) + '<span class="grow"><b class="t1" style="display:block;font:700 15px/1.2 var(--f-hud)">' + esc(sel.prenom) + (nv > 1 ? ' <small style="color:var(--dim)">· ' + vName(v) + '</small>' : '') +
-        (K.pasDe(sel).length ? ' <small style="color:' + K.COUL_NIV[K.pasDe(sel)[0]] + '">passerelle' + (K.pasDe(sel).length > 1 ? 's' : '') + ' ' + sel.niveau + '↔' + K.pasDe(sel).join('/') + '</small>' : '') + '</b>' +
-        '<span class="small" style="display:block;margin-top:3px">' + starsMini(sel.plaquage) + ' · ' + (ps.length ? ps.map(K.nomPoste).join(', ') + (sel.postesOk.length ? '' : ' (vœux)') : 'pas encore de poste') +
-        ' · ' + h.plateaux + ' plateau' + (h.plateaux > 1 ? 'x' : '') + (h.entrainements ? ', ' + h.entrainements + ' groupe' + (h.entrainements > 1 ? 's' : '') + ' d\'entraînement' : '') + (h.autre ? ', ' + h.autre + ' hors niveau' : '') + '</span>' +
-        (cpsWhere.length ? '<span class="small" style="display:block;margin-top:3px;color:var(--soft)">' + icon('heart', 11) + ' ' + cpsWhere.join(', ') + '</span>' : '') +
-        (d.raisons && d.raisons[sel.id] ? '<span class="small" style="display:block;margin-top:3px;color:var(--gold)">' + esc(d.raisons[sel.id]) + '</span>' : '') + '</span>' +
+      // (v87, demande de Nicolas du 15/11) en tête : le prénom, le niveau et le plaquage, rien d'autre (le reste est sur sa fiche)
+      var info = '<div class="row cselh">' + niveauTag(sel.niveau) + '<b class="t1 grow">' + esc(sel.prenom) + (nv > 1 ? ' <small style="color:var(--dim)">· ' + vName(v) + '</small>' : '') + '</b>' + bouclier(sel.plaquage) +
         '<button type="button" class="ibtn" data-act="cPick" data-v="' + v + '" data-id="' + esc(sel.id) + '" aria-label="Fermer">' + icon('x', 18) + '</button></div>';
       var moves = '';
       if (editable()) {
@@ -1506,11 +1507,23 @@ window.MC = window.MC || {};
           return '<button type="button" class="cmv' + (here ? ' here' : '') + '" style="--lc:' + coulEq(x, d) + '" data-act="cMove" data-t="' + esc(x.id) + '"' + (here ? ' disabled' : '') + '>' + esc(labelEq(x)) + '</button>';
         }).join('') + '<button type="button" class="cmv' + (!t ? ' here' : '') + '" style="--lc:var(--dim)" data-act="cMove" data-t="banc"' + (!t ? ' disabled' : '') + '>Pas placé</button></div>';
         if (t && d.reglages.format === 10) {
-          var cur = (t.joueurs.filter(function (j) { return j.id === sel.id; })[0] || {}).poste || '';
-          moves += '<div class="cmoves">' + K.POSTES10.map(function (p) {
-            var r = ps.indexOf(p[0]);
-            return '<button type="button" class="cmv po' + (cur === p[0] ? ' here' : '') + '" data-act="cPoste" data-p="' + p[0] + '">' + COURT[p[0]] + (r === 0 ? '<sup>★</sup>' : r > 0 ? '<sup>' + (r + 1) + '</sup>' : '') + '</button>';
-          }).join('') + '</div>';   // (v57) plus de « Remp. » sans poste : un remplaçant a son poste
+          var cur = (t.joueurs.filter(function (j) { return j.id === sel.id; })[0] || {}).poste || '', pf = sel.postesOk.length ? K.prefDe(sel) : [];
+          // (v87, demande de Nicolas du 15/11) les postes sur 2 lignes : les avants en haut, les arrières dessous ; un poste qui
+          // n'est pas sur sa fiche (ni dans ses vœux) est atténué, mais on peut quand même le toucher ; ★ = poste préféré
+          var bt = function (p) {
+            var a = ps.indexOf(p) < 0;
+            return '<button type="button" class="cmv po' + (cur === p ? ' here' : '') + (a ? ' hors' : '') + '" data-act="cPoste" data-p="' + p + '"' + (a ? ' title="Pas sur sa fiche"' : '') + '>' + COURT[p] + (pf.indexOf(p) >= 0 ? '<sup>★</sup>' : '') + '</button>';
+          };
+          moves += '<div class="cmpos">' + ['av', 'ar'].map(function (ty) { return '<div class="cmpr cmpr-' + ty + '">' + K.ORDRE.filter(function (p) { return K.typePoste(p) === ty; }).map(bt).join('') + '</div>'; }).join('') + '</div>';   // (v57) plus de « Remp. » sans poste : un remplaçant a son poste
+          // (v87) titulaire ou remplaçant à son poste : le titulaire passe en tête du poste, le remplaçant à la fin
+          if (cur) {
+            var titu = !!K.titulaires(t, C.F, function (id) { return absentIci(id, d); })[sel.id];
+            // personne d'autre à ce poste pour prendre sa place : « Remplaçant » ne changerait rien
+            var nP = t.joueurs.filter(function (j) { return j.poste === cur && !absentIci(j.id, d); }).length, seul = titu && nP <= (K.BESOIN[cur] || 1);
+            moves += '<div class="row cmtit" role="group" aria-label="Titulaire ou remplaçant">' + [['t', 'Titulaire', titu, false], ['r', 'Remplaçant', !titu, seul]].map(function (x) {
+              return '<button type="button" class="cmv' + (x[2] ? ' here' : '') + '" data-act="cTitu" data-r="' + x[0] + '" aria-pressed="' + x[2] + '"' + (x[2] || x[3] ? ' disabled' : '') + (x[3] ? ' title="Personne d\'autre à ce poste pour le remplacer"' : '') + '>' + x[1] + '</button>';
+            }).join('') + '</div>';
+          }
         }
       }
       // (v66, accord de Nicolas du 10/11) l'absent de dernière minute, sans quitter la compo : la présence de l'événement (comme « Les présents »)
@@ -1733,6 +1746,17 @@ window.MC = window.MC || {};
   // le toucher (ou le clic) qui suit la fin d'un glisser ne choisit pas le joueur ; pas de menu pendant l'appui long
   window.addEventListener('click', function (e) { if (Date.now() - dgSansClic < 450) { dgSansClic = 0; e.stopPropagation(); e.preventDefault(); } }, true);
   document.addEventListener('contextmenu', function (e) { if (DG && DG.touch) e.preventDefault(); });
+  // (v87) titulaire : en tête de son poste ; remplaçant : à la fin de son poste (l'équipe passe en « ordre à la main » si ce n'est
+  // pas déjà l'ordre du tri)
+  MC.act.cTitu = function (b) {
+    if (!B || !B.sel || !editable()) return;
+    var v = B.sel.v, id = B.sel.id, d = B.vs[v], w = K.where(d, id), t = w && w.t >= 0 ? d.equipes[w.t] : null, F = K.fiches(app.S.cache.group);
+    if (!t) return;
+    var p = t.joueurs[w.j].poste;
+    if (!p) return;
+    var tete = K.ordonnes(t, F, 10).filter(function (j) { return j.poste === p && j.id !== id && !absentIci(j.id, d); })[0];
+    change(function () { B.vs[v] = K.ranger(B.vs[v], id, t.id, p, b.getAttribute('data-r') === 't' ? (tete ? tete.id : null) : null, F); });
+  };
   MC.act.cTri = function (b) {
     if (!B || !editable()) return;
     var v = Number(b.getAttribute('data-v')) || 0, tid = b.getAttribute('data-t');

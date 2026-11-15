@@ -798,6 +798,18 @@ MC.compos = (function () {
   }
   // (v85) les joueurs d'une équipe dans l'ordre affiché
   function ordonnes(t, F, format) { var sc = sections(t, F, format); return sc.av.concat(sc.ar, sc.rempl, sc.sans); }
+  // (v87, demande de Nicolas du 15/11) qui démarre à chaque poste (jeu à 10) : dans l'ordre affiché du poste, les premiers jusqu'au
+  // nombre de places (2 piliers, 1 talonneur, 2 3es lignes, 1 9, 1 10, 1 centre, 1 ailier, 1 arrière) ; les suivants sont remplaçants.
+  // absent(id) → vrai si l'enfant ne vient pas : il ne prend pas de place. Renvoie { id: true } pour les titulaires.
+  function titulaires(t, F, absent) {
+    var n = {}, out = {};
+    ordonnes(t, F, 10).forEach(function (j) {
+      if (!j.poste || BESOIN[j.poste] === undefined || (absent && absent(j.id))) return;
+      n[j.poste] = (n[j.poste] || 0) + 1;
+      if (n[j.poste] <= BESOIN[j.poste]) out[j.id] = true;
+    });
+    return out;
+  }
 
   // ---------- Indicateurs d'une équipe ----------
   // niveaux (v67) : dans des matchs, les niveaux qui ont une équipe ; un enfant dont le niveau n'en a pas n'est pas « hors niveau »
@@ -1085,7 +1097,9 @@ MC.compos = (function () {
       var rg = {}; ordonnes(t, F, 10).forEach(function (j, i) { rg[j.id] = i; });
       ORDRE.forEach(function (p) {
         var l = js.filter(function (j) { return j.poste === p; }).sort(function (a, b) { return rg[a.id] - rg[b.id]; });
-        if (l.length) L.push(POSTES_TXT[p][l.length > 1 ? 1 : 0] + ' : ' + l.map(prm).join(', '));
+        // (v87) les titulaires d'abord, puis « remplaçant(s) : … »
+        var tit = l.slice(0, BESOIN[p] || l.length), rem = l.slice(tit.length);
+        if (l.length) L.push(POSTES_TXT[p][tit.length > 1 ? 1 : 0] + ' : ' + tit.map(prm).join(', ') + (rem.length ? ' · remplaçant' + (rem.length > 1 ? 's' : '') + ' : ' + rem.map(prm).join(', ') : ''));
       });
       var sans = js.filter(function (j) { return ORDRE.indexOf(j.poste) < 0; });
       if (sans.length) L.push('Sans poste : ' + sans.map(prm).join(', '));
@@ -1381,7 +1395,7 @@ MC.compos = (function () {
     proposer: proposer, vide: vide, stats: stats, alertes: alertes, apparier: apparier, scoreNiveau: scoreNiveau,
     moveTo: moveTo, swap: swap, setPoste: setPoste, where: where, diff: diff, presents: presents, attente: attente, retirer: retirer, sorteDuTitre: sorteDuTitre,
     nomPoste: nomPoste, frDate: frDate,
-    STYLES: STYLES, AVANTS: AVANTS, BESOIN: BESOIN, postesEquipe: postesEquipe, posteEnPlus: posteEnPlus, eligible: eligible, vivier: vivier, rangVivier: rangVivier, postesDe: postesDe, posteDefaut: posteDefaut, prefDe: prefDe, lienPoste: lienPoste, rang: rang, repartition: repartition, placeLibre: placeLibre, typePoste: typePoste, typeDe: typeDe, sections: sections, ordonnes: ordonnes, ranger: ranger, triAuto: triAuto, ordreCompo: ordreCompo, ORDRE: ORDRE,
+    STYLES: STYLES, AVANTS: AVANTS, BESOIN: BESOIN, postesEquipe: postesEquipe, posteEnPlus: posteEnPlus, eligible: eligible, vivier: vivier, rangVivier: rangVivier, postesDe: postesDe, posteDefaut: posteDefaut, prefDe: prefDe, lienPoste: lienPoste, rang: rang, repartition: repartition, placeLibre: placeLibre, typePoste: typePoste, typeDe: typeDe, sections: sections, ordonnes: ordonnes, ranger: ranger, triAuto: triAuto, titulaires: titulaires, ordreCompo: ordreCompo, ORDRE: ORDRE,
     PARTIES: PARTIES, regEnt: regEnt, proposerEnt: proposerEnt, videEnt: videEnt, reprendre: reprendre, alertesEnt: alertesEnt,
     blocDe: blocDe, blocsDe: blocsDe, nomBloc: nomBloc, nomEq: nomEq, texteCompo: texteCompo,
     partsPoste: partsPoste, comptePostes: comptePostes, niveauxMatch: niveauxMatch

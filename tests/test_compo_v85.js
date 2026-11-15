@@ -56,7 +56,7 @@ assert.deepStrictEqual(ids(K.sections({ joueurs: [{ id: 'y', poste: 'centre' }, 
 // jeu à 5 : par poste de fiche, puis le même tri
 assert.deepStrictEqual(ids(K.sections(eq(), F, 5).av), ['a3', 'a1', 'b1p', 'b3', 'bx', 'c2', 'sn', 't1']);
 // le texte partagé suit l'ordre affiché
-assert.ok(K.texteCompo({ reglages: { format: 10 }, equipes: [eq()] }, Object.fromEntries(Object.keys(F).map(k => [k, { ...F[k], prenom: k.toUpperCase() }]))).indexOf('Piliers : A3, A1, B1P, B3, BX, C2, SN') > 0);
+assert.ok(K.texteCompo({ reglages: { format: 10 }, equipes: [eq()] }, Object.fromEntries(Object.keys(F).map(k => [k, { ...F[k], prenom: k.toUpperCase() }]))).indexOf('Piliers : A3, A1 · remplaçants : B1P, B3, BX, C2, SN') > 0)   // (v87) les 2 titulaires, puis les remplaçants, dans l'ordre affiché;
 
 // ----- rangé à la main : l'ordre posé est gardé -----
 const c0 = { reglages: { format: 10, nb: { A: 0, B: 2, C: 0 } }, banc: ['z'], equipes: [eq(), { id: 'B2', niveau: 'B', joueurs: [{ id: 'q', poste: 'pilier', n: 'B' }] }] };

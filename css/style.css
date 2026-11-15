@@ -2132,3 +2132,21 @@ section.rdj .lnk{min-height:44px}
 .cdg-bar{position:fixed;z-index:301;display:none;background:var(--cyan);pointer-events:none}
 body.cdg-on{-webkit-user-select:none;user-select:none;cursor:grabbing}
 body.cdg-on .cpj{cursor:grabbing}
+
+/* ---------- (v87) le panneau d'un joueur sur la compo : prénom, niveau, plaquage ; les postes sur 2 lignes ; titulaire / remplaçant ---------- */
+.cselh{gap:10px;align-items:center}
+.cselh .t1{font:700 16px/1.2 var(--f-hud);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cmpos{display:flex;flex-direction:column;gap:6px}
+.cmpr{display:grid;gap:6px}
+.cmpr-av{grid-template-columns:repeat(3,minmax(0,1fr))}
+.cmpr-ar{grid-template-columns:repeat(5,minmax(0,1fr))}
+.cmpr .cmv{min-width:0;padding:0 4px}
+.cmv.po.hors{opacity:.45;border-style:dashed}
+.cmv.po.hors.here{opacity:1;border-style:solid}
+.cmtit{gap:6px}
+.cmtit .cmv{flex:1 1 0;--lc:var(--cyan)}
+.cmtit .cmv.here{opacity:1}
+/* (v87) dans un poste, la ligne « Remplaçants » avant ceux qui ne démarrent pas */
+.cpl>.crsep{grid-column:1/-1;display:flex;align-items:center;gap:6px;font:700 9.5px/1 var(--f-hud);letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin:2px 0 -1px}
+.cpl>.crsep::after{content:'';flex:1;border-top:1px dashed var(--line3)}
+.cmtit .cmv.here{background:color-mix(in srgb,var(--cyan) 22%,#0C1120);color:var(--cyan);border-color:var(--cyan)}
