@@ -2035,12 +2035,18 @@ var Core = (function () {
     (Array.isArray(l) ? l : []).slice(0, max || 80).forEach(function (id) { id = String(id); if (find(joueurs, id) && out.indexOf(id) < 0) out.push(id); });
     return out;
   }
+  // (v88) les événements Spond annulés qu'un éduc a effacés : [{ id, debut }] (la synchro ne les recrée pas tant qu'ils restent annulés)
+  function evtsEffaces(ctx) {
+    var l; try { l = JSON.parse(ctx.db.getProp('evtsEffaces') || '[]'); } catch (x) { l = []; }
+    return Array.isArray(l) ? l.filter(function (x) { return x && x.id; }) : [];
+  }
   function dateEvt(s) {
     s = String(s || '');
     if (validDate(s.slice(0, 10)) && (s.length === 10 || /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s))) return s.length === 10 ? s + 'T09:00:00.000Z' : s.slice(0, 16) + ':00.000Z';
     return null;
   }
   // ajouter un événement à la main, corriger les présents (ajouts / retraits), supprimer un événement ajouté à la main
+  // (v88, demande de Nicolas du 15/11) ou un événement annulé (Spond) : effacé avec ses compos ; la synchro Spond ne le remet plus
   A.setEvenement = {
     auth: ['e'],
     run: function (req, ctx) {
@@ -2057,8 +2063,21 @@ var Core = (function () {
       var e = find(ctx.db.rows('evenements'), String(req.id));
       if (!e) fail('introuvable', 'Événement introuvable.');
       if (req.supprimer) {
-        if (e.source !== 'manuel') fail('interdit', 'Un événement Spond se supprime dans Spond.');
-        if (ctx.db.rows('compos').some(function (c) { return c.evenementId === e.id && (c.statut === 'publiee' || c.statut === 'vote'); })) fail('interdit', 'Il y a déjà une compo pour cet événement.');
+        if (!e.annule) {
+          if (e.source !== 'manuel') fail('interdit', 'Un événement Spond se supprime dans Spond.');
+          if (ctx.db.rows('compos').some(function (c) { return c.evenementId === e.id && (c.statut === 'publiee' || c.statut === 'vote'); })) fail('interdit', 'Il y a déjà une compo pour cet événement.');
+        } else {
+          // annulé : ses compos (et leurs contre-propositions) partent avec lui
+          var cs = ctx.db.rows('compos').filter(function (c) { return c.evenementId === e.id; }), cids = {};
+          cs.forEach(function (c) { cids[c.id] = true; });
+          ctx.db.rows('avis').filter(function (a) { return cids[a.compoId]; }).forEach(function (a) { ctx.db.remove('avis', a.id); });
+          cs.forEach(function (c) { ctx.db.remove('compos', c.id); });
+          if (e.source === 'spond') {
+            var ef = evtsEffaces(ctx).filter(function (x) { return x.id !== e.id; });
+            ef.push({ id: e.id, debut: String(e.debut).slice(0, 10) });
+            ctx.db.setProp('evtsEffaces', JSON.stringify(ef.slice(-200)));
+          }
+        }
         ctx.db.remove('evenements', e.id);
         return { supprime: true };
       }
@@ -2418,10 +2437,13 @@ var Core = (function () {
     var renommes = nommerJoueurs(ctx);
     liste.sort(function (a, b) { return a.nom.localeCompare(b.nom, 'fr'); });
     ctx.db.setProp('spondMembres', JSON.stringify(liste.slice(0, 120)));
-    var evts = 0, vus = {};
+    var evts = 0, vus = {}, effaces = {}, nEff = 0, efList = evtsEffaces(ctx);
+    efList.forEach(function (x) { effaces[x.id] = true; });
     (data.evenements || []).forEach(function (ev) {
       var id = 'sp-' + String(ev.id || '').slice(0, 60);
       if (id === 'sp-') return;
+      // (v88) effacé par un éduc : on ne le remet pas tant qu'il est annulé dans Spond ; rétabli dans Spond, il revient
+      if (effaces[id]) { if (ev.annule) { vus[id] = true; return; } delete effaces[id]; nEff++; }
       var inc = [];
       var row = { titre: cleanText(ev.titre, 80) || 'Événement', debut: dateEvt(ev.debut) || String(ev.debut || ''), fin: String(ev.fin || ''), lieu: cleanText(ev.lieu, 80),
         presents: map(ev.acceptes, inc), absents: map(ev.refuses), sansReponse: map((ev.sansReponse || []).concat(ev.attente || [])), inconnus: inc.slice(0, 40), annule: !!ev.annule,
@@ -2432,6 +2454,7 @@ var Core = (function () {
       else { row.id = id; row.source = 'spond'; row.sorte = sorteEvt(row.titre); row.ajouts = []; row.retraits = []; row.parQui = 'Spond'; ctx.db.insert('evenements', row); }
       evts++;
     });
+    if (nEff) ctx.db.setProp('evtsEffaces', JSON.stringify(efList.filter(function (x) { return effaces[x.id]; })));
     // un événement Spond de la période lue qui n'y est plus a été supprimé dans Spond ;
     // celui d'une catégorie que l'appli ne suit plus disparaît (sauf s'il a déjà des groupes : on le garde tel quel)
     if (Array.isArray(data.evenements)) {

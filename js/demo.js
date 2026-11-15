@@ -193,7 +193,7 @@ MC.demo = (function () {
     function sauf(noms) { var out = []; Object.keys(ids).forEach(function (n) { if (noms.indexOf(n) < 0) out.push(ids[n]); }); return out; }
     function evt(o) {
       var row = { id: o.id, source: o.source || 'spond', titre: o.titre, sorte: o.sorte || K.sorteDuTitre(o.titre), debut: o.debut, fin: '', lieu: o.lieu || '', presents: o.presents || [], absents: o.absents || [],
-        sansReponse: o.sansReponse || [], ajouts: [], retraits: [], inconnus: o.inconnus || [], annule: false, parQui: o.parQui || 'Spond', maj: nowIso };
+        sansReponse: o.sansReponse || [], ajouts: [], retraits: [], inconnus: o.inconnus || [], annule: !!o.annule, parQui: o.parQui || 'Spond', maj: nowIso };
       db.insert('evenements', row); return row;
     }
     // Coach Nico est aussi le papa de Tom : il confirme les résultats de Tom depuis son espace éduc
@@ -231,6 +231,8 @@ MC.demo = (function () {
       justification: tomIn ? 'Chloé n\'est pas encore montée en A cette saison : son tour avant Tom.' : 'Tom n\'est pas encore monté en A : c\'est son tour.', statut: 'attente', reponse: '', parQui: '', cree: nowIso, maj: nowIso });
     evt({ id: 'sp-demo-p3', titre: 'Plateau 3 - Muret', debut: L.addDays(today, 32) + 'T08:00:00.000Z', lieu: 'Muret', presents: sauf(['Rose', 'Nathan', 'Côme', 'Maël', 'Lucas']),
       absents: [ids['Maël']], sansReponse: [ids['Nathan'], ids['Côme'], ids['Lucas']], inconnus: ['Julien C.'] });
+    // (v88) un plateau annulé dans Spond (on peut l'effacer d'un glisser vers la gauche)
+    evt({ id: 'sp-demo-p5', titre: 'Plateau 3 bis - Revel', debut: L.addDays(today, 39) + 'T08:00:00.000Z', lieu: 'Revel', annule: true, presents: sauf(['Rose', 'Côme', 'Lucas', 'Hugo', 'Nathan']) });
     // plateau 4 : Cyril a proposé 2 versions au vote des éducs (il a voté pour la 2)
     var p4 = evt({ id: 'sp-demo-p4', titre: 'Plateau 4 - Saint-Gaudens', debut: L.addDays(today, 46) + 'T08:00:00.000Z', lieu: 'Saint-Gaudens', presents: sauf(['Rose', 'Côme', 'Lucas', 'Hugo']) });
     evts[p4.id] = p4;

@@ -174,8 +174,40 @@ window.MC = window.MC || {};
       // (v85) glisser-déposer au doigt : le tableau seul retient le défilement, et seulement pendant le geste (voir dgTouch)
       var b2 = root.querySelector('.cboard2');
       if (b2) b2.addEventListener('touchmove', dgTouch, { passive: false });
+      alignerPostes();
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(alignerPostes);
     };
   }
+  // (v88, demande de Nicolas du 15/11) équipes côte à côte : les lignes de postes en face d'une équipe à l'autre (les piliers en
+  // face des piliers…). Les colonnes d'une même rangée (même hauteur de départ) prennent, pour l'en-tête et pour chaque poste, la
+  // hauteur de la plus haute ; au téléphone, une équipe sous l'autre : rien à aligner.
+  function alignerPostes() {
+    var cols = Array.prototype.slice.call(document.querySelectorAll('.cboard2 .ccol:not(.banc)'));
+    if (!cols.length) return;
+    var cle = function (e) { return e.classList.contains('csech') ? 'h:' + e.textContent.replace(/\d+/g, '').trim() : 'p:' + e.getAttribute('data-p'); };
+    var parts = function (c) { return Array.prototype.slice.call(c.querySelectorAll('.csech, .cgrp[data-p]')); };
+    cols.forEach(function (c) { c.classList.remove('aligne'); parts(c).forEach(function (e) { e.style.marginTop = ''; }); });
+    var rangs = {};
+    cols.forEach(function (c) { if (!c.offsetParent) return; var y = Math.round(c.getBoundingClientRect().top + window.scrollY); (rangs[y] = rangs[y] || []).push(c); });
+    Object.keys(rangs).forEach(function (y) {
+      var r = rangs[y];
+      if (r.length < 2) return;
+      r.forEach(function (c) { c.classList.add('aligne'); });   // un poste vide n'apparaît qu'en face d'une autre équipe
+      // dans l'ordre : chaque titre de section puis chaque poste commence à la même hauteur dans toutes les colonnes de la rangée
+      var ordre = [];
+      r.forEach(function (c) { parts(c).forEach(function (e) { var k = cle(e); if (ordre.indexOf(k) < 0) ordre.push(k); }); });
+      ordre.forEach(function (k) {
+        var els = r.map(function (c) { return parts(c).filter(function (e) { return cle(e) === k && e.offsetParent; })[0]; }).filter(Boolean);
+        if (els.length < 2) return;
+        var tops = els.map(function (e) { return e.getBoundingClientRect().top; }), max = Math.max.apply(null, tops);
+        els.forEach(function (e, i) {
+          if (tops[i] < max - 0.5) e.style.marginTop = ((parseFloat(getComputedStyle(e).marginTop) || 0) + max - tops[i]) + 'px';
+        });
+      });
+    });
+  }
+  var alignTm = 0;
+  window.addEventListener('resize', function () { clearTimeout(alignTm); alignTm = setTimeout(alignerPostes, 120); });
 
   // ======================================================================
   // Onglet « Compos » : les événements
@@ -230,7 +262,9 @@ window.MC = window.MC || {};
     var partis = [];
     [compoOf(C.cd, e.id)].concat(K.PARTIES.map(function (x) { return compoOf(C.cd, e.id, x); })).forEach(function (cx) { partisDe(C, e, cx).forEach(function (id) { if (partis.indexOf(id) < 0) partis.push(id); }); });
     if (partis.length && !past) chip += '<span class="pill" style="--pc:var(--pink)">' + partis.length + ' absent' + (partis.length > 1 ? 's' : '') + ' dans ' + (trainC ? 'les groupes' : 'la compo') + '</span>';
-    return '<li' + (acts ? ' class="cevw' + (prochain ? ' cnext' : '') + '"' : '') + '><a class="li cev' + (past ? ' past' : '') + (prochain ? ' cnext' : '') + '" href="#/educ/evt/' + esc(e.id) + '">' +
+    // (v88) un événement annulé : glisser vers la gauche découvre « Effacer »
+    var eff = e.annule ? '<button type="button" class="cswipe-del" data-act="eEffacer" data-id="' + esc(e.id) + '" tabindex="-1">' + icon('trash', 18) + '<span>Effacer</span></button>' : '';
+    return '<li' + (acts ? ' class="cevw' + (prochain ? ' cnext' : '') + '"' : e.annule ? ' class="cswipe"' : '') + '>' + eff + '<a class="li cev' + (past ? ' past' : '') + (prochain ? ' cnext' : '') + '" href="#/educ/evt/' + esc(e.id) + '">' +
       '<span class="cdate' + (trainC && h ? ' h' : '') + '"><b>' + esc(String(new Date(jour(e) + 'T12:00:00').getDate())) + '</b><small>' + esc(ui.fmtDate(jour(e)).split(' ').slice(-1)[0]) + '</small>' + (trainC && h ? '<small class="ch">' + esc(h) + '</small>' : '') + '</span>' +
       '<span class="grow">' + (prochain ? '<span class="hud" style="color:var(--cyan);display:block;margin-bottom:4px">Le prochain</span>' : '') + '<span class="t1">' + esc(e.titre) + '</span>' + (trainC ? '' : '<span class="t2">' + esc(quand(e)) + (e.lieu ? ' · ' + esc(e.lieu) : '') + '</span>') +
       '<span class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap">' + chip +
@@ -493,7 +527,7 @@ window.MC = window.MC || {};
       (aCompo ? secCompo + presCard : presCard + secCompo) +
       pendant +
       (train ? '<button type="button" class="lnk" data-act="eSorte" data-v="plateau" style="align-self:flex-start">C\'est en fait un plateau</button>' : '') +
-      (e.source === 'manuel' && !c && !compoOf(C.cd, e.id, 'ateliers') && !compoOf(C.cd, e.id, 'matchs') ? '<button type="button" class="lnk" data-act="eDel" style="align-self:flex-start">Supprimer cet événement</button>' : '') +
+      (e.annule || (e.source === 'manuel' && !c && !compoOf(C.cd, e.id, 'ateliers') && !compoOf(C.cd, e.id, 'matchs')) ? '<button type="button" class="lnk" data-act="eDel" style="align-self:flex-start">Supprimer cet événement</button>' : '') +
       '</main>';
   }
 
@@ -599,10 +633,69 @@ window.MC = window.MC || {};
   MC.act.eSorte = function (b) {
     app.adultCall('setEvenement', { id: PR.evtId, sorte: b.getAttribute('data-v') }).then(function () { return loadCompos(true); }).then(function () { app.rerender(); }).catch(function (e) { ui.toast(e.message, true); });
   };
+  // (v88) un événement annulé s'efface avec ses compos ; la synchro Spond ne le remet pas
+  function confirmerEffacer(e) {
+    return ui.modal({ title: 'Supprimer l\'événement ?', body: '<p class="lead">' + (e && e.annule ? 'Il est annulé : il disparaît de l\'appli, avec ses compos.' : 'Il disparaît de la liste, avec ses présents.') + '</p>',
+      actions: [{ label: 'Supprimer', value: true, cls: 'btn pink' }, { label: 'Annuler', value: false, cls: 'btn2 grey' }] });
+  }
+  MC.act.eEffacer = function (b) {
+    var id = b.getAttribute('data-id'), e = (app.S.cache.compos.evenements || []).filter(function (x) { return x.id === id; })[0];
+    confirmerEffacer(e).then(function (ok) {
+      if (!ok) { fermerSwipe(); return; }
+      app.adultCall('setEvenement', { id: id, supprimer: true }).then(function () { return loadCompos(true); }).then(function () { ui.toast('Événement supprimé'); app.rerender(); }).catch(function (x) { ui.toast(x.message, true); });
+    });
+  };
+  // le glisser vers la gauche d'une ligne d'événement annulé (doigt, souris ou stylet) : au-delà de la moitié du bouton, il reste ouvert
+  var SW = null, SW_L = 92;
+  function fermerSwipe(sauf) {
+    Array.prototype.forEach.call(document.querySelectorAll('.cswipe.sw'), function (li) { if (li === sauf) return; li.classList.remove('sw'); var a = li.querySelector('.cev'); if (a) a.style.transform = ''; });
+  }
+  document.addEventListener('pointerdown', function (ev) {
+    var a = ev.target.closest && ev.target.closest('.cswipe > .cev');
+    if (!a) { if (!(ev.target.closest && ev.target.closest('.cswipe-del'))) fermerSwipe(); return; }
+    if (ev.pointerType === 'mouse' && ev.button !== 0) return;
+    var li = a.parentNode;
+    fermerSwipe(li);
+    SW = { a: a, li: li, x: ev.clientX, y: ev.clientY, base: li.classList.contains('sw') ? -SW_L : 0, dx: 0, parti: false, fini: false, id: ev.pointerId };
+  }, true);
+  document.addEventListener('pointermove', function (ev) {
+    if (!SW || ev.pointerId !== SW.id) return;
+    var dx = ev.clientX - SW.x, dy = ev.clientY - SW.y;
+    if (!SW.parti) {
+      if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) { SW = null; return; }   // la page défile
+      if (Math.abs(dx) < 8) return;
+      SW.parti = true; SW.li.classList.add('sw', 'glisse');
+      try { SW.a.setPointerCapture(ev.pointerId); } catch (x) { /* rien */ }
+    }
+    SW.dx = dx;
+    SW.a.style.transform = 'translateX(' + Math.max(-SW_L - 24, Math.min(0, SW.base + dx)) + 'px)';
+  }, true);
+  function finSwipe(ev) {
+    if (!SW || ev.pointerId !== SW.id) return;
+    var s = SW; SW = null;
+    if (!s.parti) return;
+    s.li.classList.remove('glisse');
+    var ouvert = s.base + s.dx < -SW_L / 2;
+    s.a.style.transform = ouvert ? 'translateX(' + -SW_L + 'px)' : '';
+    if (!ouvert) s.li.classList.remove('sw');
+    swClic = Date.now();
+  }
+  var swClic = 0;
+  // à la souris, le navigateur ne tire pas le lien (sinon le glisser s'arrête net)
+  document.addEventListener('dragstart', function (ev) { if (ev.target.closest && ev.target.closest('.cswipe > .cev')) ev.preventDefault(); }, true);
+  document.addEventListener('pointerup', finSwipe, true);
+  document.addEventListener('pointercancel', finSwipe, true);
+  // le clic qui suit un glisser n'ouvre pas l'événement ; une ligne ouverte se referme d'un toucher
+  document.addEventListener('click', function (ev) {
+    var a = ev.target.closest && ev.target.closest('.cswipe > .cev');
+    if (!a) return;
+    if (Date.now() - swClic < 400 || a.parentNode.classList.contains('sw')) { ev.preventDefault(); ev.stopPropagation(); if (Date.now() - swClic >= 400) fermerSwipe(); }
+  }, true);
   MC.act.eDel = function () {
-    ui.modal({ title: 'Supprimer l\'événement ?', body: '<p class="lead">Il disparaît de la liste, avec ses présents.</p>', actions: [{ label: 'Supprimer', value: true, cls: 'btn pink' }, { label: 'Annuler', value: false, cls: 'btn2 grey' }] }).then(function (ok) {
+    var e0 = (app.S.cache.compos.evenements || []).filter(function (x) { return x.id === PR.evtId; })[0];
+    confirmerEffacer(e0).then(function (ok) {
       if (!ok) return;
-      var back = listeDe((app.S.cache.compos.evenements || []).filter(function (x) { return x.id === PR.evtId; })[0]);
+      var back = listeDe(e0);
       app.adultCall('setEvenement', { id: PR.evtId, supprimer: true }).then(function () { return loadCompos(true); }).then(function () { ui.toast('Événement supprimé'); app.go(back, true); }).catch(function (e) { ui.toast(e.message, true); });
     });
   };
@@ -1095,9 +1188,8 @@ window.MC = window.MC || {};
       var TIT = K.titulaires(t, C.F, function (id) { return absentIci(id, d); });
       corps = o.postes.map(function (p) {
         var js = list.filter(function (j) { return j.poste === p; }), sl = (o.slots || []).filter(function (x) { return x === p; });
-        if (!js.length && !sl.length) return '';
-        var sep = false;
-        return '<div class="cgrp" role="group" aria-label="' + NOMPL[p] + '" data-v="' + v + '" data-t="' + esc(t.id) + '" data-p="' + p + '" style="--pc:' + coulPoste(p) + '">' +
+        var sep = false;   // (v88) un poste sans personne garde sa ligne (vide), pour rester en face de celui de l'autre équipe
+        return '<div class="cgrp' + (!js.length && !sl.length ? ' vide' : '') + '" role="group" aria-label="' + NOMPL[p] + '" data-v="' + v + '" data-t="' + esc(t.id) + '" data-p="' + p + '" style="--pc:' + coulPoste(p) + '">' +
           '<span class="cgl" title="' + NOMPL[p] + '">' + COURT[p] + '</span><ul class="cpl">' + js.map(function (j) {
             var avant = '';
             if (!sep && !TIT[j.id] && !absentIci(j.id, d)) { sep = true; avant = '<li class="crsep" data-rsep="1"><span>Remplaçant' + (js.filter(function (x) { return !TIT[x.id] && !absentIci(x.id, d); }).length > 1 ? 's' : '') + '</span></li>'; }

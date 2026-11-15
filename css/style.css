@@ -2150,3 +2150,14 @@ body.cdg-on .cpj{cursor:grabbing}
 .cpl>.crsep::after{content:'';flex:1;border-top:1px dashed var(--line3)}
 .cmtit .cmv.here{background:color-mix(in srgb,var(--cyan) 22%,#0C1120);color:var(--cyan);border-color:var(--cyan)}
 .cdock .cselp{max-width:560px;margin-left:auto;margin-right:auto;width:100%}   /* (relecture v87) sur iPad, le panneau d'un joueur ne s'étale pas */
+/* (v88) équipes côte à côte : un poste sans personne garde sa ligne, en face du même poste de l'autre équipe (hauteurs posées par alignerPostes) */
+.ccol:not(.aligne) .cgrp.vide{display:none}
+.cgrp.vide .cpl{min-height:1px}
+.cgrp.vide .cgl{opacity:.55}
+/* (v88) un événement annulé : glisser sa ligne vers la gauche découvre « Effacer » */
+.cswipe{position:relative}
+.cswipe>.cev{position:relative;z-index:1;touch-action:pan-y;transition:transform .2s ease;-webkit-user-drag:none;user-select:none;-webkit-user-select:none}
+.cswipe.glisse>.cev{transition:none}
+.cswipe.sw>.cev.past{opacity:1}
+.cswipe-del{position:absolute;top:0;right:0;bottom:0;width:92px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:0;background:var(--red);color:#fff;font:700 11px/1 var(--f-hud);letter-spacing:.06em;text-transform:uppercase;visibility:hidden;cursor:pointer}
+.cswipe.sw>.cswipe-del{visibility:visible}
