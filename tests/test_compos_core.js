@@ -302,12 +302,14 @@ assert.deepStrictEqual(ev1.inconnus, ['Julien C.'], 'un adulte du groupe qui a r
 assert.strictEqual(r.evenements.find(e => e.id === 'sp-EV3').sorte, 'entrainement');
 r = g.call({ action: 'group', token: nico });
 assert.strictEqual(r.joueurs.find(p => p.joueur.id === P['Baptiste D.']).terrain.spondId, 'm-bapd');
-// (v90, décision de Nicolas du 16/11) un événement Spond : plus de correction des présents à la main, Spond seul fait foi
-r = g.call({ action: 'setEvenement', token: nico, id: 'sp-EV1', ajouts: [P.Hugo], retraits: [P['Baptiste A.']] });
+// (v90, décision de Nicolas du 16/11) un événement Spond à partir du 16/11 : plus de correction des présents à la main
+r = g.call({ action: 'setEvenement', token: nico, id: 'sp-EV3', ajouts: [P.Hugo] });
 assert.strictEqual(r.error, 'interdit', JSON.stringify(r));
-r = g.call({ action: 'setEvenement', token: nico, id: 'sp-EV1', marques: { [P.Hugo]: true } });
+r = g.call({ action: 'setEvenement', token: nico, id: 'sp-EV3', marques: { [P.Hugo]: true } });
 assert.strictEqual(r.error, 'interdit', JSON.stringify(r));
-// nouvelle synchro : les réponses Spond se mettent à jour
+// (relecture v90) une séance d'avant le 16/11 garde l'ancien fonctionnement : correction à la main, puis nouvelle synchro :
+// la correction reste, les réponses Spond se mettent à jour
+g.call({ action: 'setEvenement', token: nico, id: 'sp-EV1', ajouts: [P.Hugo], retraits: [P['Baptiste A.']] });
 spondEvents[0].responses.acceptedIds.push('m-lea'); spondEvents[0].responses.declinedIds = [];
 r = g.call({ action: 'syncSpond', token: nico });
 assert.strictEqual(r.info.nouveauxLiens, 0);
@@ -315,7 +317,7 @@ r = g.call({ action: 'compos', token: nico });
 ev1 = r.evenements.find(e => e.id === 'sp-EV1');
 assert.strictEqual(r.evenements.length, 2, 'pas de doublon');
 assert.deepStrictEqual(ev1.presents, [P.Tom, P['Baptiste A.'], P['Léa']]);
-assert.deepStrictEqual(ev1.ajouts, []); assert.deepStrictEqual(ev1.retraits, [], 'aucune correction à la main');
+assert.deepStrictEqual(ev1.ajouts, [P.Hugo]); assert.deepStrictEqual(ev1.retraits, [P['Baptiste A.']], 'avant le 16/11 : la correction reste');
 // un lien posé à la main l'emporte : Hugo est en fait le membre « Paul Petit » (prénom d'usage différent)
 g.call({ action: 'setTerrain', token: nico, lignes: [{ joueurId: P.Hugo, spondId: 'm-m10' }] });
 members[5].subGroups = [SG]; spondEvents[0].responses.acceptedIds.push('m-m10');

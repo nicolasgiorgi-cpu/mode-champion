@@ -1091,7 +1091,7 @@ var Core = (function () {
       var auj = isoDate(ctx.now), ids = {};
       kids.forEach(function (k) { ids[k.id] = true; });
       // seulement les événements où l'un de ses enfants est invité (Spond) ou coché présent
-      function invite(e) { return [].concat(e.presents || [], e.absents || [], e.sansReponse || [], e.ajouts || []).some(function (id) { return ids[id]; }); }
+      function invite(e) { return [].concat(e.presents || [], e.absents || [], e.sansReponse || [], spondSeul(e) ? [] : e.ajouts || []).some(function (id) { return ids[id]; }); }
       var prochains = ctx.db.rows('evenements').filter(function (e) { return !e.annule && String(e.debut).slice(0, 10) >= auj && invite(e); })
         .sort(function (a, b) { return String(a.debut) < String(b.debut) ? -1 : 1; }).slice(0, 3)
         .map(function (e) { return { titre: e.titre, debut: e.debut, lieu: e.lieu || '', sorte: e.sorte || '', source: e.source || '' }; });
@@ -1985,9 +1985,12 @@ var Core = (function () {
     return { id: e.id, source: e.source, titre: e.titre, sorte: e.sorte, debut: e.debut, fin: e.fin, lieu: e.lieu, presents: e.presents || [], absents: e.absents || [],
       sansReponse: e.sansReponse || [], ajouts: e.ajouts || [], retraits: e.retraits || [], inconnus: e.inconnus || [], annule: !!e.annule, parQui: e.parQui || '', maj: e.maj, categorie: e.categorie || '', invitation: e.invitation || '' };
   }
+  // (v90, décision de Nicolas du 16/11) un événement Spond à partir du 16/11/2026 : ses présences viennent de Spond seulement
+  // (pas de correction à la main) ; les séances d'avant gardent leurs présences corrigées à la main (relecture v90)
+  function spondSeul(e) { return !!e && e.source === 'spond' && String(e.debut || '').slice(0, 10) >= '2026-11-16'; }
   // (v89) les réponses d'un événement à un moment : présents (oui + ajoutés à la main), absents (non + retirés), en attente (pas répondu)
   function reponsesDe(e, now) {
-    var sp = e.source === 'spond', ret = sp ? [] : e.retraits || [], pres = [], abs = [], att = [];   // (v90) Spond : ses réponses seulement
+    var sp = spondSeul(e), ret = sp ? [] : e.retraits || [], pres = [], abs = [], att = [];   // (v90) Spond : ses réponses seulement
     (e.presents || []).concat(sp ? [] : e.ajouts || []).forEach(function (id) { if (ret.indexOf(id) < 0 && pres.indexOf(id) < 0) pres.push(id); });
     (e.absents || []).concat(ret).forEach(function (id) { if (pres.indexOf(id) < 0 && abs.indexOf(id) < 0) abs.push(id); });
     (e.sansReponse || []).forEach(function (id) { if (pres.indexOf(id) < 0 && abs.indexOf(id) < 0 && att.indexOf(id) < 0) att.push(id); });
@@ -2098,7 +2101,7 @@ var Core = (function () {
       }
       var patch = { parQui: qui, maj: now };
       // (v90, décision de Nicolas du 16/11) un événement Spond : les présences viennent de Spond seulement, plus de correction à la main
-      if (e.source === 'spond' && (req.marques || req.ajouts !== undefined || req.retraits !== undefined)) fail('interdit', 'Les présents viennent de Spond : chaque famille répond dans Spond.');
+      if (spondSeul(e) && (req.marques || req.ajouts !== undefined || req.retraits !== undefined)) fail('interdit', 'Les présents viennent de Spond : chaque famille répond dans Spond.');
       // marques = { idJoueur: true (présent) | false (absent) } : appliquées sur l'état actuel (deux éducs peuvent corriger en même temps)
       if (req.marques && typeof req.marques === 'object') {
         var aj = (e.ajouts || []).slice(), re = (e.retraits || []).slice(), pr = (e.presents || []).slice(), ok = idList(ctx, Object.keys(req.marques), 120);
@@ -2465,8 +2468,10 @@ var Core = (function () {
       var inc = [];
       var row = { titre: cleanText(ev.titre, 80) || 'Événement', debut: dateEvt(ev.debut) || String(ev.debut || ''), fin: String(ev.fin || ''), lieu: cleanText(ev.lieu, 80),
         presents: map(ev.acceptes, inc), absents: map(ev.refuses), sansReponse: map((ev.sansReponse || []).concat(ev.attente || [])), inconnus: inc.slice(0, 40), annule: !!ev.annule,
-        categorie: cleanText(ev.categorie, 40), invitation: cleanText(ev.invitation, 40), maj: now,
-        ajouts: [], retraits: [] };   // (v90, décision de Nicolas du 16/11) les présences d'un événement Spond viennent de Spond seulement
+        categorie: cleanText(ev.categorie, 40), invitation: cleanText(ev.invitation, 40), maj: now };
+      // (v90, décision de Nicolas du 16/11) les présences d'un événement Spond viennent de Spond seulement : ses anciennes corrections à
+      // la main sont effacées, mais pas celles des séances d'avant le 16/11 (l'historique des compos s'en sert)
+      if (spondSeul({ source: 'spond', debut: row.debut })) { row.ajouts = []; row.retraits = []; }
       vus[id] = true;
       var cur = find(ctx.db.rows('evenements'), id);
       if (cur) ctx.db.update('evenements', id, row);

@@ -225,7 +225,7 @@ MC.compos = (function () {
   // les présents, et dans une compo des présents, ceux placés en attendant leur réponse ; un enfant décoché ou pas dans
   // l'événement n'a pas joué. Rien du tout : la compo fait foi.
   function aJoue(c, e) {
-    var ret = e.retraits || [], aj = e.ajouts || [], abs = e.absents || [];
+    var ret = retraitsDe(e), aj = ajoutsDe(e), abs = e.absents || [];   // (relecture v90) comme K.presents
     var tous = c.reglages && c.reglages.base === 'tous', p = presents(e), att = attente(e);
     var info = p.length + abs.length + ret.length > 0;
     return function (id) {
@@ -1362,8 +1362,11 @@ MC.compos = (function () {
   }
   // (v90, décision de Nicolas du 16/11) un événement Spond : les présences viennent de Spond seulement (plus de corrections à la main,
   // les anciennes sont ignorées) ; un événement fait à la main garde ses cochés
-  function ajoutsDe(e) { return e.source === 'spond' ? [] : e.ajouts || []; }
-  function retraitsDe(e) { return e.source === 'spond' ? [] : e.retraits || []; }
+  // (relecture v90) seulement à partir du 16/11/2026 (mise en ligne) : les séances d'avant gardent leurs présences corrigées à la main
+  var SPOND_SEUL = '2026-11-16';
+  function spondSeul(e) { return !!e && e.source === 'spond' && String(e.debut || '').slice(0, 10) >= SPOND_SEUL; }
+  function ajoutsDe(e) { return spondSeul(e) ? [] : e.ajouts || []; }
+  function retraitsDe(e) { return spondSeul(e) ? [] : e.retraits || []; }
   // les présents d'un événement : réponses Spond (ou cochés, à la main) + ajouts à la main − retraits
   function presents(e) {
     var out = [], ret = retraitsDe(e);
@@ -1397,7 +1400,7 @@ MC.compos = (function () {
     fiches: fiches, historique: historique, hOf: hOf, suggestNb: suggestNb, teamIds: teamIds, nomsCourts: nomsCourts, idsEquipes: idsEquipes, OPTS: OPTS, optsDe: optsDe, styleDe: styleDe, tailles: tailles, taillesDefaut: taillesDefaut, nbAForte: nbAForte, nbOf: nbOf, fmt: fmt,
     pasDe: pasDe, lettresPas: lettresPas, joueEn: joueEn,
     proposer: proposer, vide: vide, stats: stats, alertes: alertes, apparier: apparier, scoreNiveau: scoreNiveau,
-    moveTo: moveTo, swap: swap, setPoste: setPoste, where: where, diff: diff, presents: presents, ajoutsDe: ajoutsDe, retraitsDe: retraitsDe, attente: attente, retirer: retirer, sorteDuTitre: sorteDuTitre,
+    moveTo: moveTo, swap: swap, setPoste: setPoste, where: where, diff: diff, presents: presents, ajoutsDe: ajoutsDe, retraitsDe: retraitsDe, spondSeul: spondSeul, attente: attente, retirer: retirer, sorteDuTitre: sorteDuTitre,
     nomPoste: nomPoste, frDate: frDate,
     STYLES: STYLES, AVANTS: AVANTS, BESOIN: BESOIN, postesEquipe: postesEquipe, posteEnPlus: posteEnPlus, eligible: eligible, vivier: vivier, rangVivier: rangVivier, postesDe: postesDe, posteDefaut: posteDefaut, prefDe: prefDe, lienPoste: lienPoste, rang: rang, repartition: repartition, placeLibre: placeLibre, typePoste: typePoste, typeDe: typeDe, sections: sections, ordonnes: ordonnes, ranger: ranger, triAuto: triAuto, titulaires: titulaires, ordreCompo: ordreCompo, ORDRE: ORDRE,
     PARTIES: PARTIES, regEnt: regEnt, proposerEnt: proposerEnt, videEnt: videEnt, reprendre: reprendre, alertesEnt: alertesEnt,

@@ -569,7 +569,7 @@ window.MC = window.MC || {};
     function chip(f) {
       var on = isPresent(e, f.id), changed = PR.chg[f.id] !== undefined;
       // (v90, décision de Nicolas du 16/11) un événement Spond : les présences viennent de Spond, à lire seulement (✓ oui, ? pas répondu, ✗ non)
-      if (e.source === 'spond') {
+      if (K.spondSeul(e)) {
         var nsp = !on && (e.sansReponse || []).indexOf(f.id) >= 0, non = !on && (e.absents || []).indexOf(f.id) >= 0;
         return '<span class="cop cpres lu' + (on ? ' on' : '') + '">' + niveauTag(f.niveau, true) + '<span class="nm">' + esc(f.prenom) + '</span>' +
           (on ? '<span class="cfl crep cok">' + icon('check', 10) + '<span class="sr-only">a confirmé</span></span>' : nsp ? '<span class="cqatt" aria-hidden="true">?</span><span class="sr-only">pas encore répondu</span>' :
@@ -612,7 +612,7 @@ window.MC = window.MC || {};
       '<div class="head"><span class="kicker" style="color:var(--gold)">' + esc(quand(e)) + (e.lieu ? ' · ' + esc(e.lieu) : '') + '</span><h1 class="big sm">' + esc(e.titre) + '</h1>' +
       (e.source === 'spond' ? (e.annule ? '<p class="small" style="margin:0"><b style="color:var(--red)">Annulé dans Spond</b></p>' : '') : '<p class="small" style="margin:0">Ajouté à la main par ' + esc(e.parQui || 'un éduc') + '</p>') + '</div>' +
       '<section class="sec"><div class="between"><h2 class="h2">Présents</h2><span class="hud" style="color:var(--green)">' + groups.oui.length + '</span></div>' +
-      '<p class="small" style="margin:0">' + (e.source === 'spond' ? 'D\'après Spond : chaque famille répond dans Spond.' : 'Touchez les présents.') + '</p>' +
+      '<p class="small" style="margin:0">' + (K.spondSeul(e) ? 'D\'après Spond : chaque famille répond dans Spond.' : e.source === 'spond' ? 'D\'après Spond. Touchez un prénom pour corriger.' : 'Touchez les présents.') + '</p>' +
       '<div class="cop-list">' + groups.oui.map(chip).join('') + '</div>' +
       (groups.nsp.length ? '<h3 class="mlab" style="margin-top:6px">Pas de réponse (' + groups.nsp.length + ')</h3><div class="cop-list">' + groups.nsp.map(chip).join('') + '</div>' : '') +
       '<details' + (e.source !== 'spond' ? ' open' : '') + '><summary class="mlab" style="cursor:pointer;margin-top:6px">' + (e.source === 'spond' ? 'Absents ou pas inscrits' : 'Les autres') + ' (' + groups.non.length + ')</summary><div class="cop-list" style="margin-top:8px">' + groups.non.map(chip).join('') + '</div></details>' +
@@ -1581,6 +1581,8 @@ window.MC = window.MC || {};
     tousOf(C).forEach(function (id) {
       var a = avant(id) || 'att', m = mtn(id);   // (relecture v89) avant les invitations, personne n'avait de réponse : « en attente »
       if (a === m || !m) return;
+      // (relecture v90) un « oui » Spond ne redevient pas « pas répondu » : c'était un coché à la main d'avant la v90, pas un changement
+      if (a === 'ok' && m === 'att' && K.spondSeul(C.evts[c.evenementId])) return;
       if (placed.indexOf(id) >= 0) ch.push({ id: id, m: m }); else if (m === 'ok') nouveaux.push(id);
     });
     if (!ch.length && !nouveaux.length) return null;
@@ -1739,12 +1741,12 @@ window.MC = window.MC || {};
       }
       // (v66, accord de Nicolas du 10/11) l'absent de dernière minute, sans quitter la compo : la présence de l'événement (comme « Les présents »)
       var evt = C.evts[B.evtId], pres = '';
-      if (evt && evt.source !== 'spond' && jour(evt) >= L.today() && B.mode !== 'vote') {   // (v90) Spond : les présences viennent de Spond
+      if (evt && !K.spondSeul(evt) && jour(evt) >= L.today() && B.mode !== 'vote') {   // (v90) Spond : les présences viennent de Spond
         // (relecture v66) « Absent » seulement pour un présent : le serveur ne retire que des présents (pas un « sans réponse » Spond) ;
         // « Présent » pour remettre un enfant, sauf s'il serait le seul coché d'un événement fait à la main (tous les autres deviendraient absents)
         var estP = K.presents(evt).indexOf(sel.id) >= 0, nPres = K.presents(evt).length, nomS = esc(sel.prenom);
         pres = '<span class="row cpres-b">' + (estP ? '<button type="button" class="btn2 sm grey" data-act="cAbsent" data-id="' + esc(sel.id) + '" data-v="0" aria-label="Marquer ' + nomS + ' absent">' + icon('x', 14) + ' Absent</button>' :
-          evt.source === 'spond' || nPres ? '<button type="button" class="btn2 sm grey" data-act="cAbsent" data-id="' + esc(sel.id) + '" data-v="1" aria-label="Marquer ' + nomS + ' présent">' + icon('check', 14) + ' Présent</button>' : '') + '</span>';
+          nPres ? '<button type="button" class="btn2 sm grey" data-act="cAbsent" data-id="' + esc(sel.id) + '" data-v="1" aria-label="Marquer ' + nomS + ' présent">' + icon('check', 14) + ' Présent</button>' : '') + '</span>';
       }
       html += '<div class="cselp">' + info + moves + '<div class="row cselp-f"><a class="lnk" href="#/educ/joueur/' + esc(sel.id) + '" style="min-height:32px">Sa fiche</a>' + pres + '</div></div>';
     }
