@@ -15,6 +15,15 @@ def noscroll(pg): return pg.evaluate('document.scrollingElement.scrollWidth <= d
 def ev(pg, js): return pg.evaluate(js)
 def nbp(pg): return pg.evaluate("(function(){var a=document.querySelectorAll('#nav a')[1];var n=a&&a.querySelector('.nb');return n?n.textContent:''})()")
 
+# (v90) simule une réponse Spond dans la démo (oui / non / pas répondu), puis recharge l'écran
+def spondRepond(pg, evt, jid, rep):
+    ok = pg.evaluate("""(([evt, id, rep]) => { const k = Object.keys(localStorage).find(k => /^mc-demo-v/.test(k)); if (!k) return false;
+      const d = JSON.parse(localStorage.getItem(k)), e = (d.tables.evenements || []).find(x => x.id === evt); if (!e) return false;
+      ['presents', 'absents', 'sansReponse'].forEach(c => { e[c] = (e[c] || []).filter(x => x !== id); });
+      e[rep === 'oui' ? 'presents' : rep === 'non' ? 'absents' : 'sansReponse'].push(id);
+      localStorage.setItem(k, JSON.stringify(d)); localStorage.removeItem('mc-compos'); return true; })""", [evt, jid, rep])
+    pg.reload(); pg.wait_for_timeout(1800)
+    return ok
 def ouvrirAuto(pg):
     # (v65) sur la page de préparation, les options et « Générer » sont dans « Créer automatiquement » : l'ouvrir s'il est fermé
     b = pg.query_selector('[data-act="cAuto"][aria-expanded="false"]')
@@ -64,15 +73,16 @@ with sync_playwright() as p:
     t = ev(pg, "MC.api.call('group',{token:MC.app.S.adult.token}).then(g=>JSON.stringify(g.joueurs.find(p=>p.joueur.prenom==='Côme').terrain))")
     check('fiche terrain enregistrée au serveur (B, passerelle C)', '"niveau":"B"' in t and '"passerelle":"C"' in t, t)
     # ----- un événement : les présents -----
+    # (v90, décision de Nicolas du 16/11) un événement Spond : les présents de Spond, à lire seulement (✓ oui, ? pas répondu, ✗ non)
     pg.goto(BASE + '#/educ/evt/sp-demo-p3/presents'); pg.wait_for_timeout(800)
-    n0 = len(pg.query_selector_all('.cpres.on'))
     mid = ev(pg, "MC.app.S.cache.group.joueurs.find(p=>p.joueur.prenom==='Maël').joueur.id")
+    npres = ev(pg, "MC.compos.presents(MC.app.S.cache.compos.evenements.find(e=>e.id==='sp-demo-p3')).length")
+    check('(v90) présents Spond à lire seulement : plus de prénom à toucher, pas de « Enregistrer »', pg.query_selector('[data-act="prToggle"]') is None and pg.query_selector('[data-act="prSave"]') is None)
+    check('(v90) ✓ sur chaque présent Spond (%d)' % npres, len(pg.query_selector_all('.cop.lu.on .cok')) == npres, len(pg.query_selector_all('.cop.lu.on .cok')))
     pg.click('main details > summary'); pg.wait_for_timeout(200)   # les absents sont repliés
-    pg.click('[data-act="prToggle"][data-id="%s"]' % mid); pg.wait_for_timeout(300)
-    check('Maël coché présent (ajouté à la main)', len(pg.query_selector_all('.cpres.on')) == n0 + 1 and 'ajouté' in pg.inner_text('[data-act="prToggle"][data-id="%s"]' % mid))
+    check('(v90) Maël (non sur Spond) : ✗ rouge', pg.query_selector('main details .cop.lu .cno') is not None and 'Maël' in pg.inner_text('main details'))
+    check('(v90) la phrase dit que les familles répondent dans Spond', 'chaque famille répond dans Spond' in pg.inner_text('main'))
     shot(pg, 'k03-evt')
-    pg.click('[data-act="prSave"]'); pg.wait_for_timeout(700)
-    check('présents enregistrés (ajouts)', ev(pg, "MC.app.S.cache.compos.evenements.find(e=>e.id==='sp-demo-p3').ajouts.length") == 1)
     check('pas de défilement horizontal (événement)', noscroll(pg))
     # ----- la page du plateau : présents, conseil, préparer la compo -----
     pg.click('a.btn2[href="#/educ/evt/sp-demo-p3"]'); pg.wait_for_timeout(700)
@@ -251,12 +261,10 @@ with sync_playwright() as p:
     check('version 2 enregistrée', ev(pg, "MC.app.S.cache.compos.compos.find(c=>c.evenementId==='sp-demo-p3').version") == 2)
     check('alerte : présent pas placé', 'pas encore placé' in pg.inner_text('main') or 'Pas placés' in pg.inner_text('main'))
     shot(pg, 'k07-publiee', True)
-    # un enfant venu sans répondre : coché présent après la compo, il apparaît dans « Pas placés » et se place d'un geste
+    # un enfant qui répond « oui » sur Spond après la compo : il apparaît dans « Pas placés » et se place d'un geste
     nid = ev(pg, "MC.app.S.cache.group.joueurs.find(p=>p.joueur.prenom==='Nathan').joueur.id")
-    pg.goto(BASE + '#/educ/evt/sp-demo-p3/presents'); pg.wait_for_timeout(700)
-    pg.click('[data-act="prToggle"][data-id="%s"]' % nid); pg.wait_for_timeout(300)
-    pg.click('[data-act="prSave"]'); pg.wait_for_timeout(700)
     pg.goto(BASE + '#/educ/compo/sp-demo-p3'); pg.wait_for_timeout(800)
+    spondRepond(pg, 'sp-demo-p3', nid, 'oui')
     check('présent arrivé après la compo : dans « Pas placés »', pg.query_selector('.ccol.banc .cpj[data-id="%s"]' % nid) is not None)
     pg.click('.cpj[data-id="%s"]' % nid); pg.wait_for_timeout(300)
     pg.click('.cselp [data-act="cMove"][data-t="B1"]'); pg.wait_for_timeout(500)

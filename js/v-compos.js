@@ -98,7 +98,7 @@ window.MC = window.MC || {};
   // pas encore répondu sur Spond : plaçables en attendant leur réponse
   function attenteOf(C, e) {
     // (v89) invitations Spond pas encore parties : tout le groupe attend (sauf ceux déjà marqués à la main)
-    if (invitPas(e)) { var p = K.presents(e), non = (e.absents || []).concat(e.retraits || []); return tousOf(C).filter(function (id) { return p.indexOf(id) < 0 && non.indexOf(id) < 0; }); }
+    if (invitPas(e)) { var p = K.presents(e), non = (e.absents || []).concat(K.retraitsDe(e)); return tousOf(C).filter(function (id) { return p.indexOf(id) < 0 && non.indexOf(id) < 0; }); }
     return K.attente(e).filter(function (id) { return C.actifs[id]; });
   }
   // (v89, demande de Nicolas du 15/11) on commence souvent les compos avant que Spond envoie les invitations : tant qu'elles ne
@@ -121,7 +121,7 @@ window.MC = window.MC || {};
   // dans l'événement (pas relié à Spond, autre catégorie, pas coché) n'est pas « absent »
   function absentsOf(C, e) {
     var p = K.presents(e), out = [];
-    (e.absents || []).concat(e.retraits || []).forEach(function (id) { if (C.actifs[id] && p.indexOf(id) < 0 && out.indexOf(id) < 0) out.push(id); });
+    (e.absents || []).concat(K.retraitsDe(e)).forEach(function (id) { if (C.actifs[id] && p.indexOf(id) < 0 && out.indexOf(id) < 0) out.push(id); });
     // un événement fait à la main : dès qu'un enfant est coché, ceux qui ne le sont pas sont absents
     if (e.source !== 'spond' && p.length) tousOf(C).forEach(function (id) { if (p.indexOf(id) < 0 && out.indexOf(id) < 0) out.push(id); });
     return out;
@@ -562,12 +562,19 @@ window.MC = window.MC || {};
     var groups = { oui: [], nsp: [], non: [] };
     players.forEach(function (f) {
       if (isPresent(e, f.id)) groups.oui.push(f);
-      else if ((e.absents || []).indexOf(f.id) >= 0 || (e.retraits || []).indexOf(f.id) >= 0 && PR.chg[f.id] === undefined) groups.non.push(f);
+      else if ((e.absents || []).indexOf(f.id) >= 0 || K.retraitsDe(e).indexOf(f.id) >= 0 && PR.chg[f.id] === undefined) groups.non.push(f);
       else if ((e.sansReponse || []).indexOf(f.id) >= 0) groups.nsp.push(f);
       else groups.non.push(f);
     });
     function chip(f) {
       var on = isPresent(e, f.id), changed = PR.chg[f.id] !== undefined;
+      // (v90, décision de Nicolas du 16/11) un événement Spond : les présences viennent de Spond, à lire seulement (✓ oui, ? pas répondu, ✗ non)
+      if (e.source === 'spond') {
+        var nsp = !on && (e.sansReponse || []).indexOf(f.id) >= 0, non = !on && (e.absents || []).indexOf(f.id) >= 0;
+        return '<span class="cop cpres lu' + (on ? ' on' : '') + '">' + niveauTag(f.niveau, true) + '<span class="nm">' + esc(f.prenom) + '</span>' +
+          (on ? '<span class="cfl crep cok">' + icon('check', 10) + '<span class="sr-only">a confirmé</span></span>' : nsp ? '<span class="cqatt" aria-hidden="true">?</span><span class="sr-only">pas encore répondu</span>' :
+            non ? '<span class="cfl crep cno">' + icon('x', 10) + '<span class="sr-only">absent</span></span>' : '') + '</span>';
+      }
       var sp = (e.presents || []).indexOf(f.id) >= 0;
       // une correction à la main par rapport à Spond se voit sous le prénom
       var note = e.source !== 'spond' ? '' : on && !sp ? 'ajouté à la main' : !on && sp ? 'retiré à la main' : (e.absents || []).indexOf(f.id) >= 0 ? 'non sur Spond' : '';
@@ -605,7 +612,7 @@ window.MC = window.MC || {};
       '<div class="head"><span class="kicker" style="color:var(--gold)">' + esc(quand(e)) + (e.lieu ? ' · ' + esc(e.lieu) : '') + '</span><h1 class="big sm">' + esc(e.titre) + '</h1>' +
       (e.source === 'spond' ? (e.annule ? '<p class="small" style="margin:0"><b style="color:var(--red)">Annulé dans Spond</b></p>' : '') : '<p class="small" style="margin:0">Ajouté à la main par ' + esc(e.parQui || 'un éduc') + '</p>') + '</div>' +
       '<section class="sec"><div class="between"><h2 class="h2">Présents</h2><span class="hud" style="color:var(--green)">' + groups.oui.length + '</span></div>' +
-      '<p class="small" style="margin:0">' + (e.source === 'spond' ? 'D\'après Spond. Touchez un prénom pour corriger.' : 'Touchez les présents.') + '</p>' +
+      '<p class="small" style="margin:0">' + (e.source === 'spond' ? 'D\'après Spond : chaque famille répond dans Spond.' : 'Touchez les présents.') + '</p>' +
       '<div class="cop-list">' + groups.oui.map(chip).join('') + '</div>' +
       (groups.nsp.length ? '<h3 class="mlab" style="margin-top:6px">Pas de réponse (' + groups.nsp.length + ')</h3><div class="cop-list">' + groups.nsp.map(chip).join('') + '</div>' : '') +
       '<details' + (e.source !== 'spond' ? ' open' : '') + '><summary class="mlab" style="cursor:pointer;margin-top:6px">' + (e.source === 'spond' ? 'Absents ou pas inscrits' : 'Les autres') + ' (' + groups.non.length + ')</summary><div class="cop-list" style="margin-top:8px">' + groups.non.map(chip).join('') + '</div></details>' +
@@ -1732,7 +1739,7 @@ window.MC = window.MC || {};
       }
       // (v66, accord de Nicolas du 10/11) l'absent de dernière minute, sans quitter la compo : la présence de l'événement (comme « Les présents »)
       var evt = C.evts[B.evtId], pres = '';
-      if (evt && jour(evt) >= L.today() && B.mode !== 'vote') {
+      if (evt && evt.source !== 'spond' && jour(evt) >= L.today() && B.mode !== 'vote') {   // (v90) Spond : les présences viennent de Spond
         // (relecture v66) « Absent » seulement pour un présent : le serveur ne retire que des présents (pas un « sans réponse » Spond) ;
         // « Présent » pour remettre un enfant, sauf s'il serait le seul coché d'un événement fait à la main (tous les autres deviendraient absents)
         var estP = K.presents(evt).indexOf(sel.id) >= 0, nPres = K.presents(evt).length, nomS = esc(sel.prenom);

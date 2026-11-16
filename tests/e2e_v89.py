@@ -90,19 +90,17 @@ with sync_playwright() as p:
     # ----- 3. invitations Spond pas encore parties : tout le groupe, chacun en « ? » -----
     pg.goto(BASE + '#/educ/evt/sp-demo-e2'); pg.wait_for_timeout(1200)
     check('page de l\'entraînement : « Invitations Spond pas encore parties »', 'Invitations Spond pas encore parties' in pg.inner_text('main'))
-    # (relecture) Léo retiré à la main avant les invitations : ça ne veut pas dire que Spond a envoyé (tout le monde resterait absent)
-    ev("(id => MC.app.adultCall('setEvenement', { id: 'sp-demo-e2', retraits: [id] }))", IDS['Léo']); pg.wait_for_timeout(800)
-    pg.goto(BASE + '#/educ/plateaux'); pg.wait_for_timeout(300); pg.reload(); pg.wait_for_timeout(1500)
+    # (v90) un événement Spond ne se corrige plus à la main : le serveur refuse
+    rf = ev("(id => MC.app.adultCall('setEvenement', { id: 'sp-demo-e2', retraits: [id] }).then(() => 'ok', e => e.code || e.message))", IDS['Léo'])
+    check('(v90) retirer un enfant à la main d\'un événement Spond : refusé', rf != 'ok', rf)
     pg.goto(BASE + '#/educ/compo/sp-demo-e2?p=ateliers'); pg.wait_for_timeout(1300)
-    ntous = ev("MC.app.S.cache.group.joueurs.filter(p => p.joueur.actif && !/^test$/i.test(p.joueur.prenom)).length") - 1   # sans Léo, retiré
+    ntous = ev("MC.app.S.cache.group.joueurs.filter(p => p.joueur.actif && !/^test$/i.test(p.joueur.prenom)).length")
     check('ateliers : « invitations Spond pas encore parties · %d enfants » en haut' % ntous, ('invitations spond pas encore parties · %d enfants' % ntous) in pg.inner_text('.head').lower(), pg.inner_text('.head'))
     if pg.query_selector('[data-act="cAuto"][aria-expanded="false"]'): pg.click('[data-act="cAuto"]'); pg.wait_for_timeout(600)
     pg.click('#cauto [data-act="cPropose"]'); pg.wait_for_timeout(1500)
     d = ev("(() => { const d = JSON.parse(localStorage.getItem(Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0 && k.indexOf('sp-demo-e2') > 0))).vs[0]; return d.equipes.reduce((n, t) => n + t.joueurs.length, 0) + d.banc.length; })()")
     check('les groupes se font avec tout le groupe (%d enfants)' % ntous, d == ntous, d)
     t = pg.inner_text('.cpres')
-    q0 = ev("(id => !!document.querySelector('.cpj[data-id=\"' + id + '\"]'))", IDS['Léo'])
-    check('(relecture) Léo, retiré à la main avant les invitations, n\'est pas dans les groupes', q0 is False, q0)
     check('la ligne : « Invitations Spond pas encore parties (envoi prévu le …) »', 'Invitations Spond pas encore parties' in t and 'envoi prévu le' in t, t)
     q = ev("(() => { const c = [...document.querySelectorAll('.ccol:not(.banc) .cpj')]; return { n: c.length, q: c.filter(x => x.querySelector('.catt')).length, ok: c.filter(x => x.querySelector('.cok, .cno')).length, gone: c.filter(x => x.classList.contains('gone')).length }; })()")
     check('chaque enfant en « ? », aucun ✓ ni ✗, personne barré', q['n'] > 10 and q['q'] == q['n'] and q['ok'] == 0 and q['gone'] == 0, q)

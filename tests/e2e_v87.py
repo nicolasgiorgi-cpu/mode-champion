@@ -38,6 +38,15 @@ with sync_playwright() as p:
     if pg.query_selector('[data-act="cAuto"][aria-expanded="false"]'): pg.click('[data-act="cAuto"]'); pg.wait_for_timeout(500)
     pg.click('#cauto [data-act="cPropose"]'); pg.wait_for_timeout(1600)
     BES = {'pilier': 2, 'talonneur': 1, 'troisieme-ligne': 2, 'demi-de-melee': 1, 'ouvreur': 1, 'centre': 1, 'ailier': 1, 'arriere': 1}
+    # (v90) simule une réponse Spond dans la démo (oui / non / pas répondu), puis recharge l'écran
+    def spondRepond(evt, jid, rep):
+        ok = ev("""(([evt, id, rep]) => { const k = Object.keys(localStorage).find(k => /^mc-demo-v/.test(k)); if (!k) return false;
+          const d = JSON.parse(localStorage.getItem(k)), e = (d.tables.evenements || []).find(x => x.id === evt); if (!e) return false;
+          ['presents', 'absents', 'sansReponse'].forEach(c => { e[c] = (e[c] || []).filter(x => x !== id); });
+          e[rep === 'oui' ? 'presents' : rep === 'non' ? 'absents' : 'sansReponse'].push(id);
+          localStorage.setItem(k, JSON.stringify(d)); localStorage.removeItem('mc-compos'); return true; })""", [evt, jid, rep])
+        pg.reload(); pg.wait_for_timeout(1800)
+        return ok
     def grp(t, p):
         return ev("""(([t, p]) => [...document.querySelectorAll('.cboard2 .ccol[data-v="0"][data-t="' + t + '"] .cgrp[data-p="' + p + '"] .cpl > li')].filter(li => li.classList.contains('crsep') || li.querySelector('.cpj')).map(li => li.classList.contains('crsep') ? '|' : li.querySelector('.cpj').getAttribute('data-id')))""", [t, p])
     teams = ev("[...document.querySelectorAll('.cboard2 .ccol[data-v=\"0\"]:not(.banc)')].map(c => c.getAttribute('data-t'))")
@@ -114,16 +123,15 @@ with sync_playwright() as p:
     pg.click('.cdock [data-act="cPick"]'); pg.wait_for_timeout(300)
     tit0 = [x for x in grp(t1, p1) if x != '|'][0]
     pg.click('.cboard2 .cpj[data-id="%s"][data-v="0"]' % tit0); pg.wait_for_timeout(500)
-    if pg.query_selector('.cdock [data-act="cAbsent"][data-v="0"]'):
-        pg.click('.cdock [data-act="cAbsent"][data-v="0"]'); pg.wait_for_timeout(1300)
-        if pg.query_selector('.modal .mbtns button[data-i="0"]'): pg.click('.modal .mbtns button[data-i="0"]'); pg.wait_for_timeout(1300)
-        if not pg.query_selector('.cdock'): pg.click('.cboard2 .cpj[data-id="%s"][data-v="0"]' % tit0); pg.wait_for_timeout(500)
+    # (v90) un événement Spond : plus de bouton « Absent » ; l'enfant répond « non » dans Spond (simulé dans la démo)
+    check('(v90) événement Spond : pas de bouton « Absent » dans le panneau', pg.query_selector('.cdock [data-act="cAbsent"]') is None)
+    if spondRepond('sp-demo-p3', tit0, 'non'):
+        pg.click('.cboard2 .cpj[data-id="%s"][data-v="0"]' % tit0); pg.wait_for_timeout(500)
         check('un absent : pas de « Titulaire / Remplaçant » dans son panneau', pg.query_selector('.cdock .cpj, .cdock .cselp') is not None and pg.query_selector('.cdock .cmtit') is None)
         l = grp(t1, p1)
         check('un absent : la ligne « Remplaçant » ne le compte pas (le suivant démarre)', '|' not in l[:2] or l.index('|') == BES[p1] + 1, [NOM.get(x, x) for x in l])
-        pg.click('.cdock [data-act="cAbsent"][data-v="1"]'); pg.wait_for_timeout(1300)
-        if pg.query_selector('.modal .mbtns button[data-i="0"]'): pg.click('.modal .mbtns button[data-i="0"]'); pg.wait_for_timeout(1300)
-    else: check('« Absent » dans le panneau (événement à venir)', False)
+        spondRepond('sp-demo-p3', tit0, 'oui')
+    else: check('réponse Spond simulée dans la démo', False)
 
     # (relecture v87) répondre à une contre-proposition : refuser garde les changements pas enregistrés ; accepter efface seulement
     # ceux de cette compo, et le dit ; ceux d'un autre plateau ne bougent pas

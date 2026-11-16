@@ -1360,16 +1360,20 @@ MC.compos = (function () {
   function vide(ids, reglages) {
     return { equipes: idsEquipes(reglages).map(function (id) { return { id: id, niveau: id.charAt(0), joueurs: [] }; }), banc: ids.slice(), raisons: {} };
   }
-  // les présents d'un événement : réponses Spond + ajouts à la main − retraits
+  // (v90, décision de Nicolas du 16/11) un événement Spond : les présences viennent de Spond seulement (plus de corrections à la main,
+  // les anciennes sont ignorées) ; un événement fait à la main garde ses cochés
+  function ajoutsDe(e) { return e.source === 'spond' ? [] : e.ajouts || []; }
+  function retraitsDe(e) { return e.source === 'spond' ? [] : e.retraits || []; }
+  // les présents d'un événement : réponses Spond (ou cochés, à la main) + ajouts à la main − retraits
   function presents(e) {
-    var out = [], ret = e.retraits || [];
-    (e.presents || []).concat(e.ajouts || []).forEach(function (id) { if (ret.indexOf(id) < 0 && out.indexOf(id) < 0) out.push(id); });
+    var out = [], ret = retraitsDe(e);
+    (e.presents || []).concat(ajoutsDe(e)).forEach(function (id) { if (ret.indexOf(id) < 0 && out.indexOf(id) < 0) out.push(id); });
     return out;
   }
   // les enfants qui n'ont pas encore répondu sur Spond (ni présents, ni absents, ni retirés à la main) :
   // on peut les placer en attendant ; s'ils répondent « non », la compo le signale
   function attente(e) {
-    var p = presents(e), non = (e.absents || []).concat(e.retraits || []), out = [];
+    var p = presents(e), non = (e.absents || []).concat(retraitsDe(e)), out = [];
     (e.sansReponse || []).forEach(function (id) { if (p.indexOf(id) < 0 && non.indexOf(id) < 0 && out.indexOf(id) < 0) out.push(id); });
     return out;
   }
@@ -1393,7 +1397,7 @@ MC.compos = (function () {
     fiches: fiches, historique: historique, hOf: hOf, suggestNb: suggestNb, teamIds: teamIds, nomsCourts: nomsCourts, idsEquipes: idsEquipes, OPTS: OPTS, optsDe: optsDe, styleDe: styleDe, tailles: tailles, taillesDefaut: taillesDefaut, nbAForte: nbAForte, nbOf: nbOf, fmt: fmt,
     pasDe: pasDe, lettresPas: lettresPas, joueEn: joueEn,
     proposer: proposer, vide: vide, stats: stats, alertes: alertes, apparier: apparier, scoreNiveau: scoreNiveau,
-    moveTo: moveTo, swap: swap, setPoste: setPoste, where: where, diff: diff, presents: presents, attente: attente, retirer: retirer, sorteDuTitre: sorteDuTitre,
+    moveTo: moveTo, swap: swap, setPoste: setPoste, where: where, diff: diff, presents: presents, ajoutsDe: ajoutsDe, retraitsDe: retraitsDe, attente: attente, retirer: retirer, sorteDuTitre: sorteDuTitre,
     nomPoste: nomPoste, frDate: frDate,
     STYLES: STYLES, AVANTS: AVANTS, BESOIN: BESOIN, postesEquipe: postesEquipe, posteEnPlus: posteEnPlus, eligible: eligible, vivier: vivier, rangVivier: rangVivier, postesDe: postesDe, posteDefaut: posteDefaut, prefDe: prefDe, lienPoste: lienPoste, rang: rang, repartition: repartition, placeLibre: placeLibre, typePoste: typePoste, typeDe: typeDe, sections: sections, ordonnes: ordonnes, ranger: ranger, triAuto: triAuto, titulaires: titulaires, ordreCompo: ordreCompo, ORDRE: ORDRE,
     PARTIES: PARTIES, regEnt: regEnt, proposerEnt: proposerEnt, videEnt: videEnt, reprendre: reprendre, alertesEnt: alertesEnt,

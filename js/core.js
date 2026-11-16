@@ -1987,8 +1987,8 @@ var Core = (function () {
   }
   // (v89) les réponses d'un événement à un moment : présents (oui + ajoutés à la main), absents (non + retirés), en attente (pas répondu)
   function reponsesDe(e, now) {
-    var ret = e.retraits || [], pres = [], abs = [], att = [];
-    (e.presents || []).concat(e.ajouts || []).forEach(function (id) { if (ret.indexOf(id) < 0 && pres.indexOf(id) < 0) pres.push(id); });
+    var sp = e.source === 'spond', ret = sp ? [] : e.retraits || [], pres = [], abs = [], att = [];   // (v90) Spond : ses réponses seulement
+    (e.presents || []).concat(sp ? [] : e.ajouts || []).forEach(function (id) { if (ret.indexOf(id) < 0 && pres.indexOf(id) < 0) pres.push(id); });
     (e.absents || []).concat(ret).forEach(function (id) { if (pres.indexOf(id) < 0 && abs.indexOf(id) < 0) abs.push(id); });
     (e.sansReponse || []).forEach(function (id) { if (pres.indexOf(id) < 0 && abs.indexOf(id) < 0 && att.indexOf(id) < 0) att.push(id); });
     return { quand: now, pres: pres, att: att, abs: abs };
@@ -2097,6 +2097,8 @@ var Core = (function () {
         return { supprime: true };
       }
       var patch = { parQui: qui, maj: now };
+      // (v90, décision de Nicolas du 16/11) un événement Spond : les présences viennent de Spond seulement, plus de correction à la main
+      if (e.source === 'spond' && (req.marques || req.ajouts !== undefined || req.retraits !== undefined)) fail('interdit', 'Les présents viennent de Spond : chaque famille répond dans Spond.');
       // marques = { idJoueur: true (présent) | false (absent) } : appliquées sur l'état actuel (deux éducs peuvent corriger en même temps)
       if (req.marques && typeof req.marques === 'object') {
         var aj = (e.ajouts || []).slice(), re = (e.retraits || []).slice(), pr = (e.presents || []).slice(), ok = idList(ctx, Object.keys(req.marques), 120);
@@ -2463,7 +2465,8 @@ var Core = (function () {
       var inc = [];
       var row = { titre: cleanText(ev.titre, 80) || 'Événement', debut: dateEvt(ev.debut) || String(ev.debut || ''), fin: String(ev.fin || ''), lieu: cleanText(ev.lieu, 80),
         presents: map(ev.acceptes, inc), absents: map(ev.refuses), sansReponse: map((ev.sansReponse || []).concat(ev.attente || [])), inconnus: inc.slice(0, 40), annule: !!ev.annule,
-        categorie: cleanText(ev.categorie, 40), invitation: cleanText(ev.invitation, 40), maj: now };
+        categorie: cleanText(ev.categorie, 40), invitation: cleanText(ev.invitation, 40), maj: now,
+        ajouts: [], retraits: [] };   // (v90, décision de Nicolas du 16/11) les présences d'un événement Spond viennent de Spond seulement
       vus[id] = true;
       var cur = find(ctx.db.rows('evenements'), id);
       if (cur) ctx.db.update('evenements', id, row);

@@ -48,9 +48,12 @@ r = g.call({ action: 'saveCompo', token: nico, evenementId: 'sp-EV1', compoId: c
 assert.ok(r.ok, JSON.stringify(r));
 assert.deepStrictEqual(r.compo.reponses.pres.slice().sort(), [P.Tom, P.Malo].sort());
 assert.deepStrictEqual(r.compo.reponses.abs, [P['Léa']]); assert.deepStrictEqual(r.compo.reponses.att, [P['Zoé']]);
-// une correction à la main compte : Zoé retirée des présents = absente
-g.call({ action: 'setEvenement', token: nico, id: 'sp-EV1', retraits: [P['Zoé']] });
-c = r.compo;
+// (v90) un événement Spond ne se corrige plus à la main : Zoé répond « non » dans Spond, c'est ce qui compte
+r = g.call({ action: 'setEvenement', token: nico, id: 'sp-EV1', retraits: [P['Zoé']] });
+assert.strictEqual(r.error, 'interdit');
+spondEvents[0].responses = { acceptedIds: ['m-Tom', 'm-Malo'], declinedIds: ['m-Léa', 'm-Zoé'], unansweredIds: [] };
+g.call({ action: 'syncSpond', token: nico });
+c = g.call({ action: 'compos', token: nico }).compos.find(x => x.evenementId === 'sp-EV1');
 r = g.call({ action: 'saveCompo', token: nico, evenementId: 'sp-EV1', compoId: c.id, version: c.version, banc: [P['Léa'], P['Zoé']], reglages: c.reglages,
   equipes: [{ id: 'B1', niveau: 'B', joueurs: ['Tom', 'Malo'].map(p => ({ id: P[p], poste: '' })) }] });
 assert.deepStrictEqual(r.compo.reponses.abs.slice().sort(), [P['Léa'], P['Zoé']].sort());

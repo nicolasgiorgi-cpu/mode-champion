@@ -2188,3 +2188,10 @@ a.cpres-n{text-decoration:underline;text-underline-offset:2px}
 .crem-l{display:flex;align-items:center;gap:6px;width:100%;min-width:0;font:600 14px/1.2 var(--f-body)}
 .crem-l .cpps{margin-left:auto;display:inline-flex;gap:3px}
 .crem-l .cfl.crep{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:color-mix(in srgb,var(--green) 18%,transparent);border:1.5px solid var(--green);color:var(--green)}
+/* (v90) les présents d'un événement Spond, à lire seulement : ✓ / ? / ✗ à droite du prénom */
+.cop.lu{cursor:default}
+.cop.lu .nm{flex:1;min-width:0}
+.cop.lu .cfl.crep{flex:none;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%}
+.cop.lu .cfl.cok{background:color-mix(in srgb,var(--green) 18%,transparent);border:1.5px solid var(--green);color:var(--green)}
+.cop.lu .cfl.cno{background:var(--red);border:1.5px solid var(--red);color:#070A12}
+.cop.lu .cqatt{flex:none;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border:1.5px solid var(--gold);border-radius:50%;color:var(--gold);font:700 11px/1 var(--f-hud)}

@@ -201,7 +201,7 @@ MC.notifs = (function () {
         // présents) : à remplacer. Une ligne par compo et par liste d'absents (un nouvel absent : une nouvelle ligne)
         var ev = evts[c.evenementId];
         if (ev && !ev.annule && String(ev.debut || '').slice(0, 10) >= hui && (c.statut === 'publiee' || c.statut === 'vote')) {
-          var ret = ev.retraits || [], pres = (ev.presents || []).concat(ev.ajouts || []).filter(function (x) { return ret.indexOf(x) < 0; });
+          var sp = ev.source === 'spond', ret = sp ? [] : ev.retraits || [], pres = (ev.presents || []).concat(sp ? [] : ev.ajouts || []).filter(function (x) { return ret.indexOf(x) < 0; });   // (v90) Spond seul
           var non = (ev.absents || []).concat(ret).filter(function (x) { return pres.indexOf(x) < 0; }), dans = [];
           // un événement fait à la main : dès qu'un enfant est coché, ceux qui ne le sont pas sont absents (comme l'écran de la compo)
           if (ev.source && ev.source !== 'spond' && pres.length) (c.equipes || []).forEach(function (t) { (t.joueurs || []).forEach(function (j) { if (pres.indexOf(j.id) < 0 && non.indexOf(j.id) < 0) non.push(j.id); }); });

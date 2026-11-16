@@ -43,7 +43,8 @@ with sync_playwright() as p:
     t = txt()
     check('entraînement : ateliers et matchs « À préparer », sans paragraphe', t.count('À préparer') == 2 and 'D\'abord les groupes' not in t, t[:500])
     pg.goto(BASE + '#/educ/evt/sp-demo-p3/presents'); pg.wait_for_timeout(800)
-    check('présents : une consigne courte', 'Touchez un prénom pour corriger.' in txt() and 'la correction reste' not in txt())
+    # (v90) un événement Spond : plus de correction à la main, la consigne dit où répondre
+    check('présents : une consigne courte', 'D\'après Spond : chaque famille répond dans Spond.' in txt() and 'la correction reste' not in txt() and 'Touchez un prénom' not in txt())
 
     # ----- 2. préparer la compo : les réglages sans leurs paragraphes -----
     pg.goto(BASE + '#/educ/compo/sp-demo-p3'); pg.wait_for_timeout(1200)

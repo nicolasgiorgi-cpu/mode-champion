@@ -56,35 +56,30 @@ with sync_playwright() as p:
     check('compo : toucher la puce descend à « À regarder », ouvert, sous la barre du haut', r['ouvert'] and r['haut'] >= r['tBas'] - 2 and r['haut'] < r['vh'] / 2, r)
 
     # ----- 3. le panneau d'un joueur : « Absent », sans quitter la compo -----
+    # (v90, décision de Nicolas du 16/11) seulement pour un événement fait à la main : un événement Spond suit Spond, sans « Absent »
     ev('window.scrollTo(0, 0)'); pg.wait_for_timeout(300)
     j = ev("document.querySelector('.ccol:not(.banc) .cpj:not(.gone):not(.att)[data-id]').getAttribute('data-id')")
     pg.click('.ccol:not(.banc) .cpj[data-id="%s"]' % j); pg.wait_for_timeout(500)
-    check('panneau : « Absent » pour un enfant présent, à côté de « Sa fiche »', pg.query_selector('.cselp [data-act="cAbsent"][data-v="0"]') is not None and pg.query_selector('.cselp [data-act="cAbsent"][data-v="1"]') is None)
+    check('(v90) événement Spond : ni « Absent » ni « Présent » dans le panneau (les présences viennent de Spond)', pg.query_selector('.cselp [data-act="cAbsent"]') is None)
+    if pg.query_selector('.cselp [aria-label="Fermer"]'): pg.click('.cselp [aria-label="Fermer"]'); pg.wait_for_timeout(300)
+    pg.goto(BASE + '#/educ/compo/demo-r1'); pg.wait_for_timeout(1300)
+    j = ev("document.querySelector('.ccol:not(.banc) .cpj:not(.gone):not(.att)[data-id]').getAttribute('data-id')")
+    pg.click('.ccol:not(.banc) .cpj[data-id="%s"]' % j); pg.wait_for_timeout(500)
+    check('événement fait à la main : « Absent » pour un enfant présent, à côté de « Sa fiche »', pg.query_selector('.cselp [data-act="cAbsent"][data-v="0"]') is not None and pg.query_selector('.cselp [data-act="cAbsent"][data-v="1"]') is None)
     h = ev("Math.round(document.querySelector('.cselp [data-act=cAbsent]').getBoundingClientRect().height)")
     check('panneau : le bouton fait 44 px au moins', h >= 44, h)
     pg.click('.cselp [data-act="cAbsent"][data-v="0"]'); pg.wait_for_timeout(1200)
-    r = ev("(id => { const e = MC.app.S.cache.compos.evenements.find(x => x.id === 'sp-demo-p3'); const c = document.querySelector('.ccol .cpj[data-id=\"' + id + '\"]'); return { present: MC.compos.presents(e).indexOf(id) >= 0, barre: !!(c && c.classList.contains('gone')), toast: (document.querySelector('.toast') || {}).innerText || '' }; })('%s')" % j)
+    r = ev("(id => { const e = MC.app.S.cache.compos.evenements.find(x => x.id === 'demo-r1'); const c = document.querySelector('.ccol .cpj[data-id=\"' + id + '\"]'); return { present: MC.compos.presents(e).indexOf(id) >= 0, barre: !!(c && c.classList.contains('gone')), toast: (document.querySelector('.toast') || {}).innerText || '' }; })('%s')" % j)
     check('« Absent » : retiré des présents de l\'événement, barré dans la compo, un message le dit', not r['present'] and r['barre'] and 'absent' in r['toast'], r)
     if not pg.query_selector('.cselp'):
         pg.click('.ccol .cpj[data-id="%s"]' % j); pg.wait_for_timeout(500)
     check('panneau : pour un absent, « Présent »', pg.query_selector('.cselp [data-act="cAbsent"][data-v="1"]') is not None)
+    lab = ev("document.querySelector('.cselp [data-act=cAbsent]').getAttribute('aria-label')")
+    check('panneau : le bouton dit au lecteur d\'écran qui il marque', lab and lab.startswith('Marquer ') and lab.endswith(' présent'), lab)
     pg.click('.cselp [data-act="cAbsent"][data-v="1"]'); pg.wait_for_timeout(1200)
-    r = ev("(id => { const e = MC.app.S.cache.compos.evenements.find(x => x.id === 'sp-demo-p3'); const c = document.querySelector('.ccol .cpj[data-id=\"' + id + '\"]'); return { present: MC.compos.presents(e).indexOf(id) >= 0, barre: !!(c && c.classList.contains('gone')) }; })('%s')" % j)
+    r = ev("(id => { const e = MC.app.S.cache.compos.evenements.find(x => x.id === 'demo-r1'); const c = document.querySelector('.ccol .cpj[data-id=\"' + id + '\"]'); return { present: MC.compos.presents(e).indexOf(id) >= 0, barre: !!(c && c.classList.contains('gone')) }; })('%s')" % j)
     check('« Présent » : de nouveau présent, plus barré', r['present'] and not r['barre'], r)
-    # (relecture) un enfant qui n'a pas répondu sur Spond : pas de « Absent » (le serveur ne retire que des présents), « Présent » oui
-    if pg.query_selector('.cselp [aria-label="Fermer"]'): pg.click('.cselp [aria-label="Fermer"]'); pg.wait_for_timeout(300)   # sinon toucher un autre enfant les échange
-    pg.goto(BASE + '#/educ/compo/sp-demo-p3'); pg.wait_for_timeout(1200)
-    if pg.query_selector('.catt-sec .cpj[data-id]'):
-        a = ev("document.querySelector('.catt-sec .cpj[data-id]').getAttribute('data-id')")
-        pg.click('.catt-sec .cpj[data-id="%s"]' % a); pg.wait_for_timeout(500)
-        check('panneau, sans réponse Spond : pas de « Absent », un « Présent »', pg.query_selector('.cselp [data-act="cAbsent"][data-v="0"]') is None and pg.query_selector('.cselp [data-act="cAbsent"][data-v="1"]') is not None)
-        lab = ev("document.querySelector('.cselp [data-act=cAbsent]').getAttribute('aria-label')")
-        check('panneau : le bouton dit au lecteur d\'écran qui il marque', lab and lab.startswith('Marquer ') and lab.endswith(' présent'), lab)
-        pg.click('.cselp [data-act="cAbsent"][data-v="1"]'); pg.wait_for_timeout(1200)
-        r = ev("(id => { const e = MC.app.S.cache.compos.evenements.find(x => x.id === 'sp-demo-p3'); return MC.compos.presents(e).indexOf(id) >= 0; })('%s')" % a)
-        check('panneau, sans réponse Spond : « Présent » le met dans les présents', r, r)
-    else:
-        check('compo : la section « En attente de réponse » (enfants sans réponse Spond) est là', False)
+    if pg.query_selector('.cselp [aria-label="Fermer"]'): pg.click('.cselp [aria-label="Fermer"]'); pg.wait_for_timeout(300)
     check('compo : pas de défilement de côté', noscroll())
 
     # ----- 4. côte à côte par défaut à partir de 900 px ; le choix fait sur l'appareil reste -----
