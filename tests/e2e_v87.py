@@ -29,6 +29,9 @@ with sync_playwright() as p:
         for i in range(2): pg.click('[data-act="obNext"]'); pg.wait_for_timeout(300)
         pg.click('[data-act="obPick"] >> nth=0'); pg.wait_for_timeout(200)
         pg.click('[data-act="obEducDone"]'); pg.wait_for_timeout(1000)
+    # (v91) iPad en paysage : « côte à côte » est devenu le tableau des postes (vérifié par e2e_v91) ; ce scénario vérifie
+    # l'affichage des équipes l'une sous l'autre, toujours là sur l'iPad (« Équipes l'une sous l'autre » dans « Légende et gestes »)
+    if W >= 1000 and W > H: pg.evaluate("localStorage.setItem('mc-ccote', '0')")
     IDS = ev("(() => { const F = MC.compos.fiches(MC.app.S.cache.group), o = {}; Object.keys(F).forEach(id => o[F[id].prenom] = id); return o; })()")
     NOM = {v: k for k, v in IDS.items()}
     pg.goto(BASE + '#/educ/compo/sp-demo-p3'); pg.wait_for_timeout(1300)

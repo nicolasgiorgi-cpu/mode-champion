@@ -2195,3 +2195,129 @@ a.cpres-n{text-decoration:underline;text-underline-offset:2px}
 .cop.lu .cfl.cok{background:color-mix(in srgb,var(--green) 18%,transparent);border:1.5px solid var(--green);color:var(--green)}
 .cop.lu .cfl.cno{background:var(--red);border:1.5px solid var(--red);color:#070A12}
 .cop.lu .cqatt{flex:none;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border:1.5px solid var(--gold);border-radius:50%;color:var(--gold);font:700 11px/1 var(--f-hud)}
+
+/* ======================================================================
+   (v91) LE TABLEAU DES POSTES — compo au jeu à 10, équipes côte à côte, iPad en paysage (maquette validée le 18/11/2026)
+   Une ligne par poste, une colonne par équipe, alignées par une grille (sous-grilles) ; la colonne de droite collée en haut.
+   ====================================================================== */
+.ctabm{--ctop:calc(var(--vvt) + var(--safe-t) + 62px);--ctbh:58px}
+@media (min-width:1000px) and (orientation:landscape){
+  .has-nav .screen.cscreen.ctabm{margin-right:0;padding-left:16px;padding-right:16px;gap:12px}
+  .ctabm .topbar{margin-left:-16px;margin-right:-16px}
+}
+/* la barre d'outils, sur une ligne, collée sous la barre du haut */
+.ctb{position:sticky;top:var(--ctop);z-index:14;display:flex;align-items:center;gap:8px;min-height:var(--ctbh);margin:-6px -16px 0;padding:6px 16px;background:#070A12;border-bottom:1px solid var(--line);overflow-x:auto;white-space:nowrap;scrollbar-width:none}
+.ctb::-webkit-scrollbar{display:none}
+.ctb .grow{flex:1;min-width:4px}
+.ctb .cact{display:flex;gap:8px;flex:none}
+.ctb .ctl0{gap:6px;flex:none}
+.ctbs{flex:none;padding:5px 10px;border:1px solid var(--line3);color:var(--soft);font:700 11px/1 var(--f-hud);letter-spacing:.06em;text-transform:uppercase}
+.ctbs.draft,.ctbs.dirty{border-color:var(--yellow);color:var(--yellow)}
+.ctbs.counter{border-color:var(--pink);color:var(--pink)}
+.ctbs.vote{border-color:var(--violet);color:var(--violet)}
+.ctbs.pub{border-color:rgba(61,255,176,.5);color:var(--green)}
+.ctbo{flex:none;display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 10px;border:1px solid var(--line2);background:transparent;color:var(--soft);font:600 13px/1.1 var(--f-body)}
+.ctbo.nu{border-color:transparent;padding:0 2px}
+.ctbo[aria-expanded="true"]{border-color:var(--cyan);color:var(--ink)}
+.ctbo[aria-expanded="true"] svg{transform:rotate(180deg)}
+.ctb .btn2.sm,.ctb .btn.sm,.ctb .cnreg{flex:none;min-height:44px}
+.ctbp[aria-pressed="true"],.ctb .cnreg[aria-pressed="true"]{background:color-mix(in srgb,var(--cyan) 14%,transparent);border-color:var(--cyan);color:var(--cyan)}
+.ctb .cnreg[aria-pressed="true"]{background:color-mix(in srgb,var(--orange) 14%,transparent);border-color:var(--orange);color:var(--orange)}
+.ctabm .cbopt{margin-top:-4px}
+
+/* le tableau et la colonne de droite */
+.ctab{display:grid;grid-template-columns:minmax(0,1fr) 272px;gap:12px;align-items:start}
+.ctab.nv2{grid-template-columns:minmax(0,1fr) 64px}
+.ctgrid{display:grid;grid-template-columns:40px repeat(var(--n),minmax(0,1fr));column-gap:8px;row-gap:6px;align-items:start;min-width:0}
+.ctlab,.ctab .ccol.ctcol{display:grid;grid-template-rows:subgrid;row-gap:6px;align-content:start}
+.ctlab{grid-column:1}
+.ctab .ccol.ctcol{gap:0;row-gap:6px;padding:0 6px 6px;min-width:0;container-type:normal}   /* une conteneur de requêtes ne peut pas être une sous-grille */
+.ctab .ccol.ctcol>*{min-width:0}
+/* l'en-tête d'une équipe, collé sous la barre d'outils pendant le défilement */
+.ctab .cthd,.ctab .cthl{position:sticky;top:calc(var(--ctop) + var(--ctbh));z-index:4}
+.ctab .cthl{background:#070A12;align-self:stretch;margin:-1px 0 0}
+.ctab .chd.cthd{margin:0 -6px;padding:6px 8px 7px;gap:4px;background:#0A0F1F;border-bottom:1px solid var(--line);align-items:stretch}
+.ctab .cth1{gap:8px;align-items:baseline;width:100%}
+.ctab .cth1 .cn{margin-left:auto}
+.ctab .cth1 .cdest{margin-left:6px}
+.ctv{font:700 11px/1 var(--f-hud);color:var(--dim);letter-spacing:.06em}
+.ctab .cind{flex-wrap:nowrap;overflow:hidden}
+.ctsp{align-self:center;height:1px;background:var(--line2)}
+/* le nom court d'un poste, à gauche : le toucher place poste par poste */
+.ctlb{width:40px;height:40px;padding:0;border:1px solid transparent;background:transparent;color:var(--pc,var(--dim));font:700 13px/1 var(--f-hud);letter-spacing:.02em}
+.ctlb.on{border-color:var(--cyan)}
+.ctlb.pm{background:var(--pc);color:#070A12}
+.ctlb.pc{border-color:var(--pc)}
+.ctlb.pn{opacity:.3}
+.ctlb-s{display:flex;align-items:center;justify-content:center;color:var(--orange)}
+.ctlb[disabled]{opacity:1;cursor:default}
+/* une case : la répartition de l'équipe pour ce poste, puis les cartes (titulaires, « Remp. », places vides) */
+.ctab .cgrp.ctc,.ctc{display:grid;grid-template-columns:48px minmax(0,1fr);gap:6px;align-items:start;border-left:0;padding:0;min-height:40px}
+.ctc.ctact{background:color-mix(in srgb,var(--cyan) 6%,transparent);outline:1px solid color-mix(in srgb,var(--cyan) 40%,transparent);outline-offset:2px}
+.ctrep{display:flex;align-items:center;gap:4px;height:40px;min-width:0}
+.ctrep .tr{flex:none;width:28px;height:8px;display:flex;overflow:hidden;background:rgba(255,255,255,.07)}
+.ctrep .tr i{display:block;height:100%}
+.ctrep .n{font:700 10.5px/1 var(--f-hud);font-variant-numeric:tabular-nums;letter-spacing:0}
+.ctab .ctc .cpl,.ctab .ccol .ctc .cpl{display:flex;flex-direction:column;gap:4px;min-width:0;container-type:inline-size}
+.ctab .ctc .cpl>.crsep{margin:1px 0 -1px}
+.ctab .ctc .cslot{min-height:40px;border-color:var(--red);color:var(--red);background:color-mix(in srgb,var(--red) 8%,transparent)}
+.ctfoot{min-height:0}
+/* la carte d'un enfant sur une ligne (40 px) */
+.ctab .cpj.ct1{flex-direction:row;align-items:center;justify-content:flex-start;gap:5px;height:40px;min-height:40px;padding:0 6px}
+.ct1 .cpn{flex:0 1 auto;min-width:0;font-size:14px}
+.ct1 .cniv{flex:none}
+.ct1 .ctr1{margin-left:auto;display:flex;align-items:center;gap:5px;flex:none}
+.ct1 .ctpps{flex:none;margin:0;display:flex;flex-wrap:nowrap;gap:3px;padding:0}
+.ct1 .ctpps.ctvx .tpp{border-style:dashed}
+.ctplus{font:700 10px/1 var(--f-hud);color:var(--dim)}
+.ctst{flex:none;color:var(--gold);font-size:13px;line-height:1}
+.cpj.ct1.ctoff{border-style:dashed;border-color:#8D98BC;background:transparent}
+.ct1 .cfl.chors{font-size:9.5px}
+@container (max-width:250px){.ct1 .cths{display:none}}
+@container (max-width:200px){.ct1 .ctpps{display:none}}
+@container (max-width:150px){.ct1 .cniv{display:none}}
+
+/* la colonne de droite : collée en haut, elle défile toute seule */
+.ctside{position:sticky;top:calc(var(--ctop) + var(--ctbh) + 6px);z-index:6;max-height:calc(100vh - var(--ctop) - var(--ctbh) - 18px - var(--safe-b) + var(--vvb));max-height:calc(100dvh - var(--ctop) - var(--ctbh) - 18px - var(--safe-b) + var(--vvb));overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:10px;padding:8px;background:#0A0F1F;border:1px solid var(--line2)}
+.ctab.nv2 .ctside.ouv{width:300px;margin-left:-236px;box-shadow:-14px 0 28px rgba(0,0,0,.55)}
+.ctside.ferme{padding:0;border:0;background:transparent}
+.ctso{width:64px;min-height:120px;display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 4px;border:1px dashed var(--line3);background:#0A0F1F;color:var(--soft);font:700 10px/1.2 var(--f-hud);letter-spacing:.04em;text-align:center}
+.ctso b{color:var(--ink);font-size:11px}
+.ctso-a{display:inline-flex;align-items:center;gap:3px;color:var(--gold)}
+.ctsh{gap:8px;align-items:center}
+.ctsh b,.ctsh3{font:700 12px/1.2 var(--f-hud);letter-spacing:.08em;text-transform:uppercase;color:var(--soft)}
+.ctsh .cn{margin-left:auto;font:700 11px/1 var(--f-hud);color:var(--dim)}
+.ctside .cspond{flex-wrap:wrap;gap:6px}
+.ctside .cselp{padding:8px;border:1px solid var(--cyan);background:#0C1120}
+.ctside .cmoves .cmv{flex:1 1 52px}
+.ctside .ccol.banc{padding:6px}
+.ctside .ccol .cpl{display:flex;flex-direction:column;gap:5px}
+.ctvide{margin:2px 4px;color:var(--dim)}
+.ctatt{display:flex;flex-direction:column;gap:6px}
+.ctatt .ctsh3{display:flex;align-items:center;gap:6px}
+.ctatt .cn{margin-left:auto;color:var(--dim)}
+.ctal .calertw summary{display:none}
+.ctal .calerts .li{flex-wrap:wrap}
+.ctpp{display:flex;flex-direction:column;gap:6px}
+.ctpps-n{justify-content:space-between;align-items:center}
+.ctpps-n b{font:700 16px/1.1 var(--f-body)}
+.ctppc{gap:10px;flex-wrap:wrap;margin:0;font:600 12px/1.2 var(--f-hud);color:var(--soft)}
+.ctppc span b{color:var(--lc)}
+.ctppc .bad{color:var(--orange)}
+.ctppg{margin:6px 2px 0;font:700 11px/1.2 var(--f-hud);letter-spacing:.06em;color:var(--dim);text-transform:uppercase}
+.ctppr{display:flex;align-items:center;gap:6px}
+.ctppr>.cpj{flex:1;min-width:0}
+.ctppr.many{flex-wrap:wrap}
+.ctppr.many .ppbs{width:100%}
+.ctppr.many .ppb{flex:1}
+.ctaide{margin:0;padding-left:18px;font-size:14px;line-height:1.5;color:var(--soft)}
+.ctaide li{margin-bottom:4px}
+.ctaide svg{vertical-align:-2px}
+.ctb .btn2.sm.ceff{width:44px;min-width:44px;padding:0;justify-content:center}
+.ctb .ceff .ceff-t{display:none}
+.ctab .cpj.ct1>.cpo.csp{display:inline;position:static;flex:none;font:700 10px/1 var(--f-hud);color:var(--orange)}
+.ctab .cind .csp{color:var(--orange);font-weight:700}
+.ctlb-s{font-size:11px}
+.ctab .cind{flex-wrap:wrap;row-gap:2px}
+.ctab .cind>*{white-space:nowrap}
+@container (max-width:250px){.ct1>.cpo.csp{display:none}}

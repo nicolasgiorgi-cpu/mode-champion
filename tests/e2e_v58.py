@@ -29,6 +29,9 @@ with sync_playwright() as p:
         for i in range(2): pg.click('[data-act="obNext"]'); pg.wait_for_timeout(300)
         pg.click('[data-act="obPick"] >> nth=0'); pg.wait_for_timeout(200)
         pg.click('[data-act="obEducDone"]'); pg.wait_for_timeout(1000)
+    # (v91) iPad en paysage : « côte à côte » est devenu le tableau des postes (vérifié par e2e_v91) ; ce scénario vérifie
+    # l'affichage des équipes l'une sous l'autre, toujours là sur l'iPad (« Équipes l'une sous l'autre » dans « Légende et gestes »)
+    if W >= 1000 and W > H: pg.evaluate("localStorage.setItem('mc-ccote', '0')")
     def draft(evt):
         return ev("""(e) => { const k = Object.keys(localStorage).find(k => k.indexOf('mc-cdraft:') === 0 && k.endsWith(':' + e) && localStorage.getItem(k) !== 'null'); return k ? JSON.parse(localStorage.getItem(k)).vs[0] : null; }""", evt)
 
@@ -59,17 +62,29 @@ with sync_playwright() as p:
 
     # ----- 3. affichage côte à côte (au choix, gardé sur l'appareil) -----
     # (v66, accord de Nicolas du 10/11) sans choix sur l'appareil : côte à côte à partir de 900 px de large, sinon l'une sous l'autre
-    if W >= 900:
+    TAB = W >= 1000 and W > H
+    if TAB:
+        # (v91) iPad en paysage : côte à côte par défaut, c'est le tableau des postes ; « Équipes l'une sous l'autre » dans « Légende et gestes »
+        ev("localStorage.removeItem('mc-ccote')"); pg.reload(); pg.wait_for_timeout(1500)
+        check('(v91) « Affichage » : côte à côte par défaut sur l\'iPad en paysage, en tableau des postes', pg.query_selector('.ctab') is not None and pg.query_selector('.cvue') is None)
+        pg.click('.ctb [data-act="cTabAide"]'); pg.wait_for_timeout(400); pg.click('.modal button[data-i="1"]'); pg.wait_for_timeout(600)
+    elif W >= 900:
         check('« Affichage » : côte à côte par défaut à partir de 900 px', pg.query_selector('[data-act="cCote"][data-v="1"].on') is not None and pg.query_selector('.ccote') is not None)
         pg.click('[data-act="cCote"][data-v="0"]'); pg.wait_for_timeout(500)
     check('« Affichage » : l\'une sous l\'autre' + (' une fois choisie' if W >= 900 else ' par défaut'), pg.query_selector('[data-act="cCote"][data-v="0"].on') is not None and pg.query_selector('.ccote') is None)
     pg.click('[data-act="cCote"][data-v="1"]'); pg.wait_for_timeout(500)
-    pos = ev("""[...document.querySelectorAll('.ccote .ccol')].map(c => { const r = c.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top), Math.round(r.width)]; })""")
-    check('côte à côte : A1 et B1 sur la même ligne, l\'une à côté de l\'autre', len(pos) == 2 and pos[0][1] == pos[1][1] and pos[0][0] < pos[1][0], pos)
-    check('côte à côte : plus de titres de niveau, « Les équipes »', pg.query_selector('.ccote .clvh') is not None and 'Les équipes' in ev("document.querySelector('.ccote .clvh').textContent") and pg.query_selector('.clevel:not(.ccote):not(.banc) .clvh') is None)
-    check('côte à côte : les lignes des postes tiennent (noms courts en colonne étroite), rien ne déborde', noscroll() and ev("[...document.querySelectorAll('.cpgl')].every(c => c.scrollWidth <= c.clientWidth + 1 && [...c.children].every(x => x.scrollWidth <= x.clientWidth + 1))"))
-    pg.reload(); pg.wait_for_timeout(1500)
-    check('côte à côte : gardé après rechargement', pg.query_selector('.ccote') is not None and pg.query_selector('[data-act="cCote"][data-v="1"].on') is not None)
+    if TAB:
+        check('(v91) « Côte à côte » : le tableau des postes revient (vérifié en détail par e2e_v91)', pg.query_selector('.ctab') is not None)
+        pg.reload(); pg.wait_for_timeout(1500)
+        check('(v91) le tableau gardé après rechargement', pg.query_selector('.ctab') is not None)
+        ev("localStorage.setItem('mc-ccote', '0')"); pg.reload(); pg.wait_for_timeout(1500)
+    if not TAB:   # (v91) l'ancien côte à côte n'existe plus sur l'iPad en paysage (il reste en portrait, au choix)
+        pos = ev("""[...document.querySelectorAll('.ccote .ccol')].map(c => { const r = c.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top), Math.round(r.width)]; })""")
+        check('côte à côte : A1 et B1 sur la même ligne, l\'une à côté de l\'autre', len(pos) == 2 and pos[0][1] == pos[1][1] and pos[0][0] < pos[1][0], pos)
+        check('côte à côte : plus de titres de niveau, « Les équipes »', pg.query_selector('.ccote .clvh') is not None and 'Les équipes' in ev("document.querySelector('.ccote .clvh').textContent") and pg.query_selector('.clevel:not(.ccote):not(.banc) .clvh') is None)
+        check('côte à côte : les lignes des postes tiennent (noms courts en colonne étroite), rien ne déborde', noscroll() and ev("[...document.querySelectorAll('.cpgl')].every(c => c.scrollWidth <= c.clientWidth + 1 && [...c.children].every(x => x.scrollWidth <= x.clientWidth + 1))"))
+        pg.reload(); pg.wait_for_timeout(1500)
+        check('côte à côte : gardé après rechargement', pg.query_selector('.ccote') is not None and pg.query_selector('[data-act="cCote"][data-v="1"].on') is not None)
     pg.click('[data-act="cCote"][data-v="0"]'); pg.wait_for_timeout(500)
     check('retour à l\'une sous l\'autre', pg.query_selector('.ccote') is None and len(pg.query_selector_all('.clevel:not(.banc) .clvh')) >= 2)
 

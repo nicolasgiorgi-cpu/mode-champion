@@ -23,6 +23,9 @@ with sync_playwright() as p:
         for i in range(2): pg.click('[data-act="obNext"]'); pg.wait_for_timeout(300)
         pg.click('[data-act="obPick"] >> nth=0'); pg.wait_for_timeout(200)
         pg.click('[data-act="obEducDone"]'); pg.wait_for_timeout(1000)
+    # (v91) iPad en paysage : « côte à côte » est devenu le tableau des postes (vérifié par e2e_v91) ; ce scénario vérifie
+    # l'affichage des équipes l'une sous l'autre, toujours là sur l'iPad (« Équipes l'une sous l'autre » dans « Légende et gestes »)
+    if W >= 1000 and W > H: pg.evaluate("localStorage.setItem('mc-ccote', '0')")
 
     # ----- 1. la barre du haut des 4 onglets : plus de sur-titre, le titre entier -----
     for url in ('#/educ/entrainements', '#/educ/plateaux', '#/educ/progres', '#/educ/joueurs'):
@@ -84,8 +87,17 @@ with sync_playwright() as p:
 
     # ----- 4. côte à côte par défaut à partir de 900 px ; le choix fait sur l'appareil reste -----
     pg.goto(BASE + '#/educ/compo/sp-demo-p3'); pg.wait_for_timeout(1200)
-    cote = ev("document.querySelector('[data-act=cCote][data-v=\"1\"]') ? document.querySelector('[data-act=cCote][data-v=\"1\"]').classList.contains('on') : null")
-    if cote is None:
+    if W >= 1000 and W > H:
+        # (v91) iPad en paysage : côte à côte par défaut, en tableau des postes ; le choix « l'une sous l'autre » est dans « Légende et gestes »
+        ev("localStorage.removeItem('mc-ccote')"); pg.reload(); pg.wait_for_timeout(1500)
+    cote = ev("document.querySelector('.ctab') ? true : document.querySelector('[data-act=cCote][data-v=\"1\"]') ? document.querySelector('[data-act=cCote][data-v=\"1\"]').classList.contains('on') : null")
+    if W >= 1000 and W > H:
+        check('(v91) affichage : côte à côte par défaut sur l\'iPad en paysage (le tableau des postes)', cote is True, cote)
+        pg.click('.ctb [data-act="cTabAide"]'); pg.wait_for_timeout(400); pg.click('.modal button[data-i="1"]'); pg.wait_for_timeout(600)
+        pg.reload(); pg.wait_for_timeout(1500)
+        on = ev("!document.querySelector('.ctab') && !!document.querySelector('[data-act=cCote][data-v=\"0\"].on')")
+        check('affichage : le choix fait sur l\'appareil est gardé, même contre le défaut', on, on)
+    elif cote is None:
         check('affichage : le choix « l\'une sous l\'autre / côte à côte » est là', False)
     else:
         check('affichage : côte à côte par défaut %s 900 px de large' % ('à partir de' if W >= 900 else 'pas sous'), cote == (W >= 900), cote)

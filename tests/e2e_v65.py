@@ -24,6 +24,9 @@ with sync_playwright() as p:
         for i in range(2): pg.click('[data-act="obNext"]'); pg.wait_for_timeout(300)
         pg.click('[data-act="obPick"] >> nth=0'); pg.wait_for_timeout(200)
         pg.click('[data-act="obEducDone"]'); pg.wait_for_timeout(1000)
+    # (v91) iPad en paysage : « côte à côte » est devenu le tableau des postes (vérifié par e2e_v91) ; ce scénario vérifie
+    # l'affichage des équipes l'une sous l'autre, toujours là sur l'iPad (« Équipes l'une sous l'autre » dans « Légende et gestes »)
+    if W >= 1000 and W > H: pg.evaluate("localStorage.setItem('mc-ccote', '0')")
     # l'ordre des sections de la page, par leur titre
     titres = lambda: ev("[...document.querySelectorAll('main section.sec > h2.h2')].map(h => h.textContent.trim().toUpperCase())")
     # les deux boutons de création : mêmes classes, même largeur, l'un sous l'autre, « manuellement » d'abord

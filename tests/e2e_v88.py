@@ -55,9 +55,19 @@ with sync_playwright() as p:
       return out; })()"""
     def cote(on):
         ev('MC.app.lsSet ? MC.app.lsSet("mc-ccote", %d) : localStorage.setItem("mc-ccote", "%d")' % (on, on)); pg.reload(); pg.wait_for_timeout(1500)
+    # (v91) iPad en paysage : les équipes côte à côte forment le tableau des postes (une grille) : chaque poste en face de son nom
+    TAB = W >= 1000 and W > H
+    MESURE_T = """(() => { const out = { rangees: document.querySelectorAll('.ctab .ctgrid').length, ecarts: [], postes: 0 };
+      ['pilier', 'talonneur', 'troisieme-ligne', 'demi-de-melee', 'ouvreur', 'centre', 'ailier', 'arriere'].forEach(p => {
+        const els = [document.querySelector('.ctlab .ctlb[data-p="' + p + '"]')].concat([...document.querySelectorAll('.ctab .ctc[data-p="' + p + '"]')]);
+        if (els.length < 3 || els.some(e => !e)) { out.ecarts.push(p + ' absent'); return; }
+        const tops = els.map(e => e.getBoundingClientRect().top); out.postes++;
+        if (Math.max(...tops) - Math.min(...tops) > 1) out.ecarts.push(p + ' ' + tops.map(Math.round).join('/')); });
+      return out; })()"""
+    if TAB: MESURE = MESURE_T
     if W >= 900:
         m = ev(MESURE)
-        check('côte à côte (par défaut sur iPad paysage) : chaque poste en face du même poste de l\'autre équipe', m['rangees'] >= 1 and not m['ecarts'] and m['postes'] >= 10, m)
+        check('côte à côte (par défaut sur iPad paysage) : chaque poste en face du même poste de l\'autre équipe', m['rangees'] >= 1 and not m['ecarts'] and m['postes'] >= (8 if TAB else 10), m)
         shot('aligne')
         # un joueur touché (le panneau s'ouvre, l'écran se redessine) : toujours en face
         pg.click('.cboard2 .cpj[data-v="0"] >> nth=0'); pg.wait_for_timeout(600)

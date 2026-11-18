@@ -33,6 +33,9 @@ with sync_playwright() as p:
     codes = pg.evaluate('MC.demo.CODES')
     pg.click('[data-act="adultWho"][data-w="e"]'); pg.wait_for_timeout(400)
     pg.click('[data-act="adultPick"][data-nom="Coach Nico"]'); pg.wait_for_timeout(300); pin(pg, codes['educ']); pg.wait_for_timeout(1500)
+    # (v91) iPad en paysage : « côte à côte » est devenu le tableau des postes (vérifié par e2e_v91) ; ce scénario vérifie
+    # l'affichage des équipes l'une sous l'autre, toujours là sur l'iPad (« Équipes l'une sous l'autre » dans « Légende et gestes »)
+    if W >= 1000 and W > H: pg.evaluate("localStorage.setItem('mc-ccote', '0')")
     # ----- 1. Enfants (la fiche terrain) : les filtres sur une ligne -----
     pg.goto(BASE + '#/educ/joueurs'); pg.wait_for_timeout(1200)
     n0, att0, sans0 = attendu(pg, 'all')
