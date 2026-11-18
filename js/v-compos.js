@@ -1432,11 +1432,20 @@ window.MC = window.MC || {};
   var MQ_TAB = window.matchMedia ? window.matchMedia('(min-width:1000px) and (orientation:landscape)') : null;
   function tabActif() {
     if (!B || !B.vs || !B.vs.length || B.mode === 'reglages' || !platB() || !MQ_TAB || !MQ_TAB.matches || !coteOn()) return false;
-    return B.vs.every(function (d) { return d.reglages && d.reglages.format === 10; });
+    if (!B.vs.every(function (d) { return d.reglages && d.reglages.format === 10; })) return false;
+    // (relecture v91) au-delà de 4 colonnes (2 versions de 3 équipes…), les cartes deviennent illisibles : l'affichage d'avant
+    var n = 0; B.vs.forEach(function (d) { n += d.equipes.length; });
+    return n <= 4;
   }
   MC.tabActif = tabActif;
   // passer de paysage à portrait (ou l'inverse) : l'écran se redessine (pas pendant un geste ni avec une fenêtre ouverte)
-  function tabBascule() { if (B && B.vs && B.vs.length && /^#\/educ\/compo\//.test(location.hash) && !DG && !document.querySelector('.modal')) rerenderKeep(); }
+  function tabBascule() {
+    if (!B || !B.vs || !B.vs.length || !/^#\/educ\/compo\//.test(location.hash)) return;
+    // (relecture v91) une fenêtre ouverte ou un geste en cours : on réessaie un peu plus tard
+    if (DG || document.querySelector('.modal')) { clearTimeout(tabTm); tabTm = setTimeout(tabBascule, 600); return; }
+    if (!!document.querySelector('.ctab') !== tabActif()) rerenderKeep();
+  }
+  var tabTm = 0;
   if (MQ_TAB) { if (MQ_TAB.addEventListener) MQ_TAB.addEventListener('change', tabBascule); else if (MQ_TAB.addListener) MQ_TAB.addListener(tabBascule); }
   var LIGNES_AV = null, LIGNES_AR = null;
   function lignesPostes() {
@@ -1496,7 +1505,7 @@ window.MC = window.MC || {};
     });
     if (cols.some(function (x) { return x.sans.length; })) rows = rows.concat(['sans']);
     if (o.ed && cols.some(function (x) { return x.t.tri === 'main'; })) rows = rows.concat(['f']);
-    var u = 28 / max, nR = rows.length, sel = B.sel ? F[B.sel.id] : null, vP = B.pppV || 0;
+    var u = 28 / max, nR = rows.length, sel = B.sel ? F[B.sel.id] : null, vP = Math.min(B.pppV || 0, nv - 1);
     function lien(p) { if (!sel || !K.postesDe(sel).length) return ''; var l = K.lienPoste(sel, p); return l === 'pref' ? ' pm' : l === 'sec' ? ' pc' : ' pn'; }
     var lab = '<div class="ctlab" style="grid-row:1/span ' + nR + '">' + rows.map(function (r, i) {
       var gr = 'grid-row:' + (i + 1);
@@ -1536,22 +1545,25 @@ window.MC = window.MC || {};
       return '<section class="ccol ctcol" data-v="' + v + '" data-t="' + esc(t.id) + '" style="--lc:' + coulEq(t, d) + ';grid-row:1/span ' + nR + '" aria-label="' + (estMatch(t) ? esc(nomT) : 'Équipe ' + esc(nomT)) + (nv > 1 ? ', ' + vName(v) : '') + '">' + cells + '</section>';
     }).join('');
     var ouv = nv === 1 || !!B.colOuv || !!B.sel || !!B.ppp || B.col === 'al';
-    return '<div class="cboard2 ctab nv' + nv + (o.ed ? ' ed' : '') + '"><div class="ctgrid" style="--n:' + cols.length + '">' + lab + colsH + '</div>' + tabSide(C, e, o, ouv) + '</div>';
+    return '<div class="cboard2 ctab nv' + nv + (ouv ? ' ouvc' : '') + (o.ed ? ' ed' : '') + '"><div class="ctgrid" style="--n:' + cols.length + '">' + lab + colsH + '</div>' + tabSide(C, e, o, ouv) + '</div>';
   }
   // la colonne de droite : ce qui reste à placer, la carte de l'enfant touché, « À regarder », « Poste par poste »
   function tabSide(C, e, o, ouv) {
     var vs = o.vs, nv = vs.length, h = '';
     var bancs = vs.map(function (d) { return bancOf(d, o.presents); });
     var atts = vs.map(function (d) { return (o.attente || []).filter(function (id) { return !K.where(d, id) && (d.banc || []).indexOf(id) < 0; }); });
+    var nAtt = 0, vuA = {}; atts.forEach(function (a) { a.forEach(function (id) { if (!vuA[id]) { vuA[id] = 1; nAtt++; } }); });
     if (!ouv) {
       // 2 versions : la colonne repliée, un bouton pour l'ouvrir
-      return '<aside class="ctside ferme" data-noptr aria-label="Enfants à placer"><button type="button" class="ctso" data-act="cTabCol" aria-expanded="false">' + icon('group', 18) + '<span>Pas placés</span>' +
-        vs.map(function (d, v) { return '<b>V' + (v + 1) + ' · ' + bancs[v].length + '</b>'; }).join('') + (atts[0].length ? '<span class="ctso-a"><span class="cqatt" aria-hidden="true">?</span> ' + atts[0].length + '</span>' : '') + '</button></aside>';
+      // (relecture v91) chaque version garde sa zone « Pas placés » où lâcher une carte
+      return '<aside class="ctside ferme" data-noptr aria-label="Enfants à placer"><button type="button" class="ctso" data-act="cTabCol" aria-expanded="false">' + icon('group', 18) + '<span>Pas placés</span></button>' +
+        vs.map(function (d, v) { return '<section class="ccol banc ctso-v" data-v="' + v + '" data-t="banc"><button type="button" class="chd" data-act="cTabCol" aria-label="Pas placés, ' + vName(v) + ' : ' + bancs[v].length + '"><b>V' + (v + 1) + '</b><span class="cn">' + bancs[v].length + '</span></button></section>'; }).join('') +
+        (nAtt ? '<span class="ctso-a" title="En attente"><span class="cqatt" aria-hidden="true">?</span> ' + nAtt + '</span>' : '') + '</aside>';
     }
     if (nv > 1) h += '<div class="between ctsh"><b>Pas placés</b><button type="button" class="ibtn" data-act="cTabCol" aria-label="Replier la colonne" aria-expanded="true">' + icon('right', 18) + '</button></div>';
     h += spondHtml(C, e, curC());
     if (B.sel) h += selpHtml(C, e, curC());
-    if (B.col === 'al') h += '<section class="sec ctal" id="calertes" tabindex="-1"><div class="between"><b class="ctsh3">À regarder</b><button type="button" class="ibtn" data-act="cVoirAlertes" aria-label="Fermer « À regarder »">' + icon('x', 16) + '</button></div>' + vs.map(function (d, v) { return alertesHtml(C, d, v, o.presents, nv, o.attente); }).join('') + '</section>';
+    if (B.col === 'al') h += '<section class="sec ctal" id="calertes" tabindex="-1"><div class="between"><b class="ctsh3">À regarder</b><button type="button" class="ibtn" data-act="cVoirAlertes" aria-label="Fermer « À regarder »">' + icon('x', 16) + '</button></div>' + vs.map(function (d, v) { return alertesHtml(C, d, v, o.presents, nv, o.attente).replace('<details class="calertw"', '<details class="calertw" open'); }).join('') + '</section>';
     if (B.ppp && o.ed) h += pppHtml(C, e, o);
     else {
       vs.forEach(function (d, v) {
@@ -1560,7 +1572,7 @@ window.MC = window.MC || {};
           (bdest ? '<span class="cdest">' + icon('down', 12) + ' Ici</span>' : '') + '</button>' +
           (banc.length ? '<ul class="cpl">' + banc.map(function (id) { return chip(C, null, { id: id }, v, d, moved[id]); }).join('') + '</ul>' : '<p class="small ctvide">Tous les présents sont placés.</p>') + '</section>';
       });
-      if (atts.some(function (a) { return a.length; })) h += '<section class="ctatt"><b class="ctsh3"><span class="cqatt" aria-hidden="true">?</span> En attente <span class="cn">' + atts[0].length + '</span></b>' +
+      if (atts.some(function (a) { return a.length; })) h += '<section class="ctatt"><b class="ctsh3"><span class="cqatt" aria-hidden="true">?</span> En attente <span class="cn">' + nAtt + '</span></b>' +
         atts.map(function (a, v) { return a.length ? (nv > 1 ? '<span class="cvlab">' + vName(v) + '</span>' : '') + '<ul class="cpl">' + a.map(function (id) { return chip(C, null, { id: id }, v, vs[v], false); }).join('') + '</ul>' : ''; }).join('') + '</section>';
     }
     return '<aside class="ctside' + (nv > 1 ? ' ouv' : '') + '" data-noptr aria-label="Enfants à placer">' + h + '</aside>';
@@ -1598,12 +1610,19 @@ window.MC = window.MC || {};
       B.dirty ? ['Pas enregistré', 'dirty'] : [(c && c.auteur === C.moi.id ? 'Publiée' : 'Compo de ' + (c ? c.auteurNom : '')) + (c ? ' · v' + c.version : ''), 'pub'];
     var d0 = B.vs[0], eqs = d0.equipes.map(function (t) { return K.nomEq(t); }).join(' + ');
     var res = 'Jeu à 10 · ' + eqs + ' · ' + (ATT && ATT.tous ? tousOf(C).length + ' enfants' : invitPas(e) ? baseIds(C, e).length + ' enfants' : presentsOf(C, e).length + ' présents');
-    var opt = x.opts ? '<button type="button" class="ctbo" data-act="cOptT" aria-expanded="' + !!B.optOuvert + '" title="Options">' + esc(res) + icon('down', 14) + '</button>' : '<span class="ctbo nu">' + esc(res) + '</span>';
+    var opt = x.opts ? '<button type="button" class="ctbo" data-act="cOptT" aria-expanded="' + !!B.optOuvert + '" title="Options">' + '<span class="ctbo-t">' + esc(res) + '</span>' + icon('down', 14) + '</button>' : '<span class="ctbo nu"><span class="ctbo-t">' + esc(res) + '</span></span>';
     var ppp = ed && nv === 1 ? '<button type="button" class="btn2 sm ctbp" data-act="cTabPPP" aria-pressed="' + !!B.ppp + '">' + icon('board', 16) + ' Poste par poste</button>' : '';
+    // (relecture v91) ce que disait le bandeau d'état : le mot de l'auteur, le jour J ; une ligne sous la barre
+    var info = [];
+    if (c && c.justification && B.mode !== 'vote') info.push('« ' + esc(c.justification) + ' »');
+    if (B.mode === 'edit' && c && c.auteur !== C.moi.id) info.push(B.dirty ? 'Jour J : changements pas encore enregistrés' : 'Jour J : vous pouvez la modifier');
+    if (B.mode === 'counter' && c) info.push('Votre contre-proposition sur la compo de ' + esc(c.auteurNom));
+    var ppTxt = '<span class="ctbp-t">Poste par poste</span>';
+    ppp = ppp.replace(' Poste par poste</button>', ' ' + ppTxt + '</button>').replace('data-act="cTabPPP"', 'data-act="cTabPPP" aria-label="Poste par poste"');
     return '<div class="ctb" role="toolbar" aria-label="La compo"><span class="ctbs ' + et[1] + '">' + esc(et[0]) + '</span>' + opt +
       (x.tl ? '<span class="row ctl0">' + x.tl + '</span>' : '') + ppp + x.areg + '<span class="grow"></span><span class="row cact">' + x.act + '</span>' +
       '<button type="button" class="ibtn" data-act="cTabAide" aria-label="Légende et gestes" title="Légende et gestes">' + icon('info', 18) + '</button></div>' +
-      (x.opts && B.optOuvert ? x.opts : '');
+      (info.length ? '<p class="small ctbinfo">' + info.join(' · ') + '</p>' : '') + (x.opts && B.optOuvert ? x.opts : '');
   }
   MC.act.cOptT = function () { if (!B) return; B.optOuvert = !B.optOuvert; rerenderKeep(); };
   MC.act.cTabCol = function () { if (!B) return; var o = !(B.colOuv || B.sel || B.ppp || B.col === 'al'); B.colOuv = o; if (!o) { B.sel = null; B.ppp = null; B.col = ''; } rerenderKeep(); };
@@ -1950,7 +1969,7 @@ window.MC = window.MC || {};
       (B.vs[0].reglages.format === 10 ? '<button type="button" class="ibtn" data-act="cPostes" aria-label="Postes d\'après les fiches" title="Postes d\'après les fiches">' + icon('spark', 18) + '</button>' : '') : '';
     // (v66, accord de Nicolas du 10/11) « N à regarder » en haut, qui descend à la liste (elle est tout en bas)
     // (v91) sur le tableau de l'iPad, 2 versions : la somme des deux (la liste montre chaque version)
-    var nAl = 0; B.vs.forEach(function (d, i) { if (i === 0 || tabActif()) nAl += alertesFull(C, d, presentsOf(C, e), attenteOf(C, e)).length; });
+    var nAl = 0; B.vs.forEach(function (d, i) { if ((nv === 1 && i === 0) || tabActif()) nAl += alertesFull(C, d, presentsOf(C, e), attenteOf(C, e)).length; });
     var tab = tabActif(), alOn = tab && B.col === 'al';
     var areg = nAl ? '<button type="button" class="cnreg" data-act="cVoirAlertes" aria-label="' + nAl + ' à regarder" title="' + nAl + ' à regarder"' + (tab ? ' aria-pressed="' + alOn + '"' : '') + '>' + icon('warn', 14) + '<b>' + nAl + '</b><span class="cnreg-t">à regarder</span>' + (tab ? '' : icon('down', 14)) + '</button>' : '';
     return { opts: html, tl: tl, act: act, areg: areg };
@@ -2036,7 +2055,7 @@ window.MC = window.MC || {};
     if (!B || !B.vs.length) return;
     var id = b.getAttribute('data-id'), v = Number(b.getAttribute('data-v')) || 0;
     if (B.sel && B.sel.v === v && B.sel.id === id) { B.sel = null; rerenderKeep(); return; }
-    if (B.sel && B.sel.v === v && editable()) {
+    if (B.sel && B.sel.v === v && editable() && !B.sel.garde) {
       var d = B.vs[v], wa = K.where(d, B.sel.id), wb = K.where(d, id), ta = wa ? wa.t : -1, tb = wb ? wb.t : -1;
       if (ta !== tb) {
         var a = B.sel.id, nA = nameOf(a), nB = nameOf(id);
@@ -2053,7 +2072,7 @@ window.MC = window.MC || {};
     if (!B || !B.sel || !editable()) return;
     var id = B.sel.id, v = B.sel.v, F = K.fiches(app.S.cache.group);
     // (v91) sur le tableau de l'iPad, la carte de l'enfant reste ouverte après le choix de son équipe (pas après « Pas placé »)
-    if (!(tabActif() && dest !== 'banc')) B.sel = null;
+    if (!(tabActif() && dest !== 'banc')) B.sel = null; else B.sel.garde = 1;   // (relecture v91) le toucher suivant choisit un autre enfant, sans échange
     change(function () {
       B.vs[v] = placerDans(B.vs[v], id, dest, F);
     });
@@ -2514,7 +2533,7 @@ window.MC = window.MC || {};
   MC.act.cPoste = function (b) { if (!B || !B.sel) return; var id = B.sel.id, v = B.sel.v, p = b.getAttribute('data-p'); change(function () { B.vs[v] = K.setPoste(B.vs[v], id, p); }); };
   MC.act.cUndo = function () {
     if (!B || !B.undo.length) return;
-    B.vs = JSON.parse(B.undo.pop()); B.sel = null;
+    B.vs = JSON.parse(B.undo.pop()); B.sel = null; if ((B.pppV || 0) >= B.vs.length) B.pppV = 0;
     var c = curC();
     B.dirty = !c || B.mode === 'draft' || B.vs.length > 1 || K.diff(c, B.vs[0]).length > 0 || JSON.stringify(c.reglages) !== JSON.stringify(B.vs[0].reglages) || K.ordreCompo(c) !== K.ordreCompo(B.vs[0]);
     if (B.dirty) saveDraft(); else dropDraft(B.evtId, B.partie);
@@ -2580,7 +2599,7 @@ window.MC = window.MC || {};
     if (!B || B.vs.length < 2) return;
     ui.modal({ title: 'Supprimer la ' + vName(v).toLowerCase() + ' ?', body: '<p class="lead">On garde l\'autre version seule.</p>', actions: [{ label: 'Supprimer', value: true, cls: 'btn pink' }, { label: 'Annuler', value: false, cls: 'btn2 grey' }] }).then(function (ok) {
       if (!ok) return;
-      B.sel = null;
+      B.sel = null; B.pppV = 0;
       change(function () { B.vs.splice(v, 1); if (platB()) B.reg = null; });   // (v50) le panneau des options repart de la version gardée
     });
   };

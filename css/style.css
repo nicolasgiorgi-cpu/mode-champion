@@ -2279,7 +2279,7 @@ a.cpres-n{text-decoration:underline;text-underline-offset:2px}
 
 /* la colonne de droite : collée en haut, elle défile toute seule */
 .ctside{position:sticky;top:calc(var(--ctop) + var(--ctbh) + 6px);z-index:6;max-height:calc(100vh - var(--ctop) - var(--ctbh) - 18px - var(--safe-b) + var(--vvb));max-height:calc(100dvh - var(--ctop) - var(--ctbh) - 18px - var(--safe-b) + var(--vvb));overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:10px;padding:8px;background:#0A0F1F;border:1px solid var(--line2)}
-.ctab.nv2 .ctside.ouv{width:300px;margin-left:-236px;box-shadow:-14px 0 28px rgba(0,0,0,.55)}
+.ctab.nv2.ouvc{grid-template-columns:minmax(0,1fr) 272px}   /* (relecture v91) la colonne ouverte ne recouvre pas la dernière équipe */
 .ctside.ferme{padding:0;border:0;background:transparent}
 .ctso{width:64px;min-height:120px;display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 4px;border:1px dashed var(--line3);background:#0A0F1F;color:var(--soft);font:700 10px/1.2 var(--f-hud);letter-spacing:.04em;text-align:center}
 .ctso b{color:var(--ink);font-size:11px}
@@ -2296,7 +2296,7 @@ a.cpres-n{text-decoration:underline;text-underline-offset:2px}
 .ctatt{display:flex;flex-direction:column;gap:6px}
 .ctatt .ctsh3{display:flex;align-items:center;gap:6px}
 .ctatt .cn{margin-left:auto;color:var(--dim)}
-.ctal .calertw summary{display:none}
+.ctab.nv1 .ctal .calertw summary{display:none}
 .ctal .calerts .li{flex-wrap:wrap}
 .ctpp{display:flex;flex-direction:column;gap:6px}
 .ctpps-n{justify-content:space-between;align-items:center}
@@ -2321,3 +2321,16 @@ a.cpres-n{text-decoration:underline;text-underline-offset:2px}
 .ctab .cind{flex-wrap:wrap;row-gap:2px}
 .ctab .cind>*{white-space:nowrap}
 @container (max-width:250px){.ct1>.cpo.csp{display:none}}
+/* (relecture v91) colonne repliée : une zone « Pas placés » par version, où lâcher une carte */
+.ctside.ferme{gap:6px}
+.ctside .ccol.banc.ctso-v{padding:0}
+.ctso-v .chd{width:100%;min-height:52px;padding:6px 4px;display:flex;flex-direction:column;align-items:center;gap:2px;font:700 11px/1 var(--f-hud)}
+.ctside.ferme>.ctso-a{justify-content:center;font:700 11px/1 var(--f-hud)}
+/* (relecture v91) cartes étroites (4 équipes, 2 versions) : le prénom d'abord */
+@container (max-width:190px){.ctab .cpj.ct1 .cfl.cok{display:none}}
+@container (max-width:160px){.ct1 .ctr1{display:none}}
+.ctab .ctc .cslot{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;min-width:0}
+/* (relecture v91) iPad de 1024 à 1100 px : la barre d'outils tient sur l'écran */
+@media (max-width:1099px){.ctbp .ctbp-t,.ctb .cnreg-t{display:none}.ctbo{max-width:190px}.ctb{gap:6px}}
+.ctbinfo{margin:-4px 0 0;color:var(--soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ctbo-t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
