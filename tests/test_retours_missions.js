@@ -59,6 +59,7 @@ assert.ok(r.ok && r.retour.situation === 0, JSON.stringify(r));
 // entrées vérifiées
 const bad = (p, msg) => { const x = g.call(Object.assign({ action: 'retourMission', token: nico, poste: 'pil', situation: 1, avis: 'juste' }, p)); assert.strictEqual(x.error, 'invalide', msg + ' ' + JSON.stringify(x)); };
 bad({ poste: 'pilier' }, 'poste inconnu'); bad({ poste: '' }, 'poste vide');
+bad({ situation: '' }, 'situation vide'); bad({ situation: null }, 'situation null'); bad({ situation: true }, 'situation true'); bad({ situation: '3' }, 'situation en texte « 3 »'); bad({ situation: [] }, 'situation tableau');
 bad({ situation: 5 }, 'situation 5'); bad({ situation: -1 }, 'situation -1'); bad({ situation: 1.5 }, 'situation pas entière'); bad({ situation: 'deux' }, 'situation en texte');
 bad({ avis: 'bof' }, 'avis inconnu'); bad({ avis: '' }, 'avis vide');
 bad({ episode: 'ep2' }, 'épisode inconnu');

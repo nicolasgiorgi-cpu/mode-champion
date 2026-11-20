@@ -919,7 +919,7 @@ function demanderAvis(){
   o.mp='avis'; o.posteNom=P.name;
   o.titre=P.name+' · '+(o.situation?'situation '+o.situation+(o.variante?' (variante)':''):'fin de l’épisode');
   o.sous=sc?sc.tag:'Épisode 1 · Dans le jeu';
-  if(!versAppli(o)) toast('Ouvre cette page depuis l’appli pour donner ton avis.');
+  if(!versAppli(o)) toast('Ouvrez cette page depuis l’appli pour donner votre avis.');
 }
 function fermer(){ if(!(EDUC&&versAppli({mp:'fermer'}))) toast(MQL+'\u00a0: retour à l’onglet Missions.'); }
 
@@ -941,7 +941,7 @@ function shuf(n){ var a=[],i,j,t; for(i=0;i<n;i++) a.push(i); for(i=n-1;i>0;i--)
 
 function vPick(){
   var h=top('Missions de poste · épisode 1',MQL);
-  h+='<main class="scr pick"><p class="k rose">'+MQL+'</p><h1 class="h1">Quel poste&nbsp;?</h1><p class="job">'+(EDUC?'Chaque enfant arrivera directement sur son poste. Ici, essaie-les tous et donne ton avis.':'Dans l’appli, chaque enfant arrivera directement sur son poste. Ici, tu peux les essayer tous.')+'</p><div class="pg">';
+  h+='<main class="scr pick"><p class="k rose">'+MQL+'</p><h1 class="h1">Quel poste&nbsp;?</h1><p class="job">'+(EDUC?'Chaque enfant arrivera directement sur son poste. Ici, essayez-les tous et donnez votre avis.':'Dans l’appli, chaque enfant arrivera directement sur son poste. Ici, tu peux les essayer tous.')+'</p><div class="pg">';
   ORDER.forEach(function(id){ var p=POSTS[id]; h+='<button class="pt" type="button" data-act="post" data-p="'+id+'" style="--c:'+p.col+'"><span class="pa">'+p.lab+'</span><span class="pn"><b>'+p.name+'</b><span>'+p.nick+'</span></span></button>'; });
   return h+'</div></main>';
 }

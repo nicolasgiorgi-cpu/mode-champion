@@ -1908,7 +1908,7 @@ var Core = (function () {
   A.retourMission = {
     auth: ['e'],
     run: function (req, ctx) {
-      var ep = String(req.episode || 'ep1'), po = String(req.poste || ''), si = Number(req.situation), av = String(req.avis || '');
+      var ep = String(req.episode || 'ep1'), po = String(req.poste || ''), si = typeof req.situation === 'number' ? req.situation : NaN, av = String(req.avis || '');
       if (MP_EPISODES.indexOf(ep) < 0 || MP_POSTES.indexOf(po) < 0) fail('invalide', 'Mission introuvable.');
       if (!(si >= 0 && si <= 4 && Math.floor(si) === si)) fail('invalide', 'Situation introuvable.');
       if (MP_AVIS.indexOf(av) < 0) fail('invalide', 'Choisissez « C\'est juste » ou « À revoir ».');

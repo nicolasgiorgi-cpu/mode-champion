@@ -639,9 +639,9 @@ window.MC = window.MC || {};
   // Progrès › Missions
   // ======================================================================
   app.route('/educ/missions', function () {
-    // (v92) et les avis des éducs sur les missions de poste (essai) : sans eux (réseau, serveur d'avant), la page s'affiche quand même
-    var rp = MC.mpRetours ? MC.mpRetours().catch(function () { return null; }) : null;
-    return Promise.all([both(), rp]).then(function (r) { app.refreshNav(); return paintMissions(r[0][0], r[1]); });
+    // (v92) et les avis des éducs sur les missions de poste (essai) : jamais attendus (la copie gardée, ou rien ; les avis frais
+    // redessinent l'écran en arrivant) ; sans eux (réseau, serveur d'avant), la page s'affiche pareil
+    return both().then(function (r) { app.refreshNav(); return paintMissions(r[0], MC.mpRetours ? MC.mpRetours() : null); });
   }, { adult: 'e', nav: 'e:progres', bg: '#33122A' });
   function statsGroupe(gr, m) {
     var kids = actifs(gr), faits = 0, vus = 0, somme = 0, nq = (m.questions || []).length;

@@ -40,6 +40,7 @@ with sync_playwright() as p:
     check('l\'adresse de l\'écran', pg.url.endswith('#/educ/missions/postes'), pg.url)
     f = pg.query_selector('#mpframe')
     bb = f.bounding_box() if f else None
+    check('l\'enveloppe est posée dans <body>, hors de la page de l\'écran', ev("document.getElementById('mpwrap') && document.getElementById('mpwrap').parentNode === document.body && !document.getElementById('app').contains(document.getElementById('mpframe'))"))
     check('l\'iframe prend tout l\'écran', bb is not None and abs(bb['x']) < 1 and abs(bb['y']) < 1 and abs(bb['width'] - W) < 1 and abs(bb['height'] - H) < 1, bb)
     check('sans les onglets du bas (ni le rail de l\'iPad)', ev("!document.querySelector('.nav') || document.querySelector('.nav').hidden || getComputedStyle(document.querySelector('.nav')).display === 'none'"))
     vv = ev("/[?&]v=(\\d+)/.exec(document.querySelector('link[href*=\"style.css\"]').getAttribute('href'))[1]")
@@ -134,7 +135,7 @@ with sync_playwright() as p:
     # ----- « Missions » à la fin : retour à l'appli ; les retours, par poste puis par situation -----
     fl.locator('[data-act="quit"]').click(); pg.wait_for_timeout(1600)
     check('« Missions » : retour à Progrès › Missions', pg.url.endswith('#/educ/missions'), pg.url)
-    ev('MC.mpRetours(true).then(() => MC.app.rerender())'); pg.wait_for_timeout(900)
+    ev('MC.app.pullRefresh()'); pg.wait_for_timeout(1200)   # tirer pour actualiser : les avis frais
     a = pg.query_selector('a[href="#/educ/missions/postes"]')
     check('l\'entrée compte les retours', a is not None and '4 retours · 2 à revoir' in a.inner_text(), a.inner_text() if a else None)
     d = pg.query_selector('details.mpret')
@@ -177,6 +178,49 @@ with sync_playwright() as p:
     # ----- pas pendant l'épisode : tirer pour actualiser, ni rechargement pour une nouvelle version -----
     pg.goto(BASE + '#/educ/missions/postes'); pg.wait_for_timeout(1500)
     check('l\'écran de l\'épisode n\'est pas « à actualiser »', ev('MC.app.pullable()') is False)
+
+    # ----- la page ne se charge pas (pas de réseau, page introuvable) : un message et « Retour » -----
+    pg.goto(BASE + '#/educ/missions'); pg.wait_for_timeout(1000)
+    for mode in ('reseau', '404'):
+        pg.route('**/missions-postes/**', (lambda r: r.abort()) if mode == 'reseau' else (lambda r: r.fulfill(status=404, body='Introuvable')))
+        pg.click('a[href="#/educ/missions/postes"]'); pg.wait_for_timeout(1800)
+        ko = pg.query_selector('#mpko')
+        check('page de l\'épisode qui ne se charge pas (%s) : le message' % mode, ko is not None and ko.is_visible() and 'NE S\'OUVRE PAS' in ko.inner_text().upper(), ko.inner_text() if ko else None)
+        rb = pg.query_selector('#mpko [data-mp="retour"]').bounding_box()
+        check('… « Retour » visible et assez grand', rb['height'] >= 44 and rb['y'] >= 0 and rb['y'] + rb['height'] <= H, rb)
+        pg.click('#mpko [data-mp="retour"]'); pg.wait_for_timeout(1300)
+        check('… « Retour » ramène à Progrès › Missions', pg.url.endswith('#/educ/missions') and pg.query_selector('#mpwrap') is None, pg.url)
+        pg.unroute('**/missions-postes/**')
+    # le réseau revient : « Réessayer »
+    pg.route('**/missions-postes/**', lambda r: r.abort())
+    pg.click('a[href="#/educ/missions/postes"]'); pg.wait_for_timeout(1500)
+    pg.unroute('**/missions-postes/**')
+    pg.click('#mpko [data-mp="ressayer"]'); pg.wait_for_timeout(2000)
+    check('« Réessayer » : l\'épisode s\'ouvre, le message part', not pg.query_selector('#mpko').is_visible() and pg.query_selector('#mpframe').content_frame().evaluate('!!window.MQ'))
+    # une page qui répond lentement mais finit par arriver : pas de message à tort
+    pg.goto(BASE + '#/educ/missions'); pg.wait_for_timeout(900)
+    pg.click('a[href="#/educ/missions/postes"]'); pg.wait_for_timeout(7000)
+    check('l\'épisode bien ouvert : pas de message au bout de 7 s', not pg.query_selector('#mpko').is_visible())
+
+    # ----- les avis ne retardent jamais Progrès › Missions (serveur lent, ou d'avant la v92) -----
+    pg.goto(BASE + '#/educ/missions'); pg.wait_for_timeout(900)
+    ev("""(() => { localStorage.removeItem('mc-retoursmp'); MC.app.S.cache.retoursMP = null;
+      const o = MC.api.call; window.__apiCall = o;
+      MC.api.call = function (a, p, x) { if (a === 'retoursMissions') return new Promise(r => setTimeout(r, 6000)).then(() => o(a, p, x)); return o(a, p, x); }; })()""")
+    pg.goto(BASE + '#/educ/progres'); pg.wait_for_timeout(600)
+    pg.goto(BASE + '#/educ/missions'); pg.wait_for_timeout(1500)
+    a = pg.query_selector('a[href="#/educ/missions/postes"]')
+    check('serveur lent : Progrès › Missions s\'affiche tout de suite, sans les avis', a is not None and 'Éducs seulement' in a.inner_text() and 'retour' not in a.inner_text() and pg.query_selector('section .h2') is not None, a.inner_text() if a else None)
+    pg.wait_for_timeout(6500)
+    a = pg.query_selector('a[href="#/educ/missions/postes"]')
+    check('… puis les avis arrivent et l\'écran se redessine', a is not None and '4 retours' in a.inner_text(), a.inner_text() if a else None)
+    ev("""(() => { localStorage.removeItem('mc-retoursmp'); MC.app.S.cache.retoursMP = null; const o = window.__apiCall;
+      MC.api.call = function (a, p, x) { if (a === 'retoursMissions') return Promise.reject(new MC.api.ApiError({ error: 'invalide', message: 'Action inconnue.' })); return o(a, p, x); }; })()""")
+    pg.goto(BASE + '#/educ/progres'); pg.wait_for_timeout(600)
+    pg.goto(BASE + '#/educ/missions'); pg.wait_for_timeout(1500)
+    a = pg.query_selector('a[href="#/educ/missions/postes"]')
+    check('serveur d\'avant la v92 : Progrès › Missions s\'affiche quand même, sans message d\'erreur', a is not None and pg.query_selector('.toast.on.err') is None and 'POUR LE GROUPE' in pg.inner_text('main').upper(), (pg.query_selector('.toast.on.err') and pg.inner_text('.toast'), pg.inner_text('main')[:200]))
+    ev('(() => { MC.api.call = window.__apiCall; return true; })()')
 
     # ----- seul un éduc : le parent et l'enfant ne lisent pas les avis -----
     ref = ev("""(async () => { try { await MC.api.call('retoursMissions', { token: 'x' }); return 'ok'; } catch (e) { return e.code; } })()""")
