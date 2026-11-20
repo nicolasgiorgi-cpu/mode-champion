@@ -163,6 +163,10 @@ var Core = (function () {
       ['etoile', 's'], ['xp', 'n'], ['debut', 's'], ['fin', 's'], ['statut', 's'], ['parQui', 's'], ['parNom', 's'], ['faiteLe', 's'], ['cree', 's'], ['maj', 's'],
       // (25/10, mission principale) 1 à 3 étoiles d'une même carte ; vide = l'ancienne mission d'une étoile (colonne etoile)
       ['etoiles', 'j']],
+    // (v92) missions de poste, épisode 1 (essai pour les éducs) : l'avis d'un éduc sur une situation (1 à 4) ou sur la fin
+    // de l'épisode (0) ; un avis par éduc, poste, situation et variante (le dernier envoyé remplace le précédent)
+    retoursMissions: [['id', 's'], ['episode', 's'], ['poste', 's'], ['situation', 'n'], ['variante', 'b'], ['avis', 's'], ['texte', 's'],
+      ['parQui', 's'], ['parNom', 's'], ['date', 's'], ['cree', 's'], ['maj', 's']],
     // (v34) alertes sur le téléphone : un appareil abonné pour un profil (role p, f ou e ; qui = son id), les sortes qu'il veut recevoir.
     // jeton = l'adresse Firebase Cloud Messaging de l'appareil (jamais renvoyée au site)
     push: [['id', 's'], ['role', 's'], ['qui', 's'], ['jeton', 's'], ['cats', 'j'], ['appareil', 's'], ['cree', 's'], ['vu', 's'], ['actif', 'b'], ['v', 's']]
@@ -1888,6 +1892,48 @@ var Core = (function () {
         ctx.db.update('missions', row.id, patch);
       } else ctx.db.insert('missions', { id: genId(ctx.env), joueurId: me.id, mission: def.id, reponses: r, faite: faite, date: faite ? isoDate(ctx.now) : '', source: 'appli', cree: now, maj: now });
       return dossier(ctx, find(ctx.db.rows('joueurs'), me.id), true);
+    }
+  };
+
+  // ---------------------------------------------------------
+  // (v92) Missions de poste, épisode 1 : essai pour les éducs (les enfants ne la voient pas encore). Chaque éduc donne son
+  // avis sur une situation (1 à 4) ou sur la fin de l'épisode (0) : « C'est juste » ou « À revoir », avec un mot (obligatoire
+  // pour « À revoir »). Un avis par éduc, poste, situation et variante : le renvoyer le remplace. Tous les éducs lisent tout.
+  // ---------------------------------------------------------
+  var MP_EPISODES = ['ep1'], MP_POSTES = ['pil', 'tal', 'l3', 'm9', 'o10', 'ctr', 'ail', 'arr'], MP_AVIS = ['juste', 'revoir'], MP_TEXTE = 600;
+  function pubRetourMP(x, me) {
+    return { id: x.id, episode: x.episode, poste: x.poste, situation: Number(x.situation) || 0, variante: !!x.variante, avis: x.avis, texte: x.texte || '',
+      parQui: x.parQui, parNom: x.parNom || '', date: x.date || '', maj: x.maj || x.cree || '', moi: x.parQui === me };
+  }
+  A.retourMission = {
+    auth: ['e'],
+    run: function (req, ctx) {
+      var ep = String(req.episode || 'ep1'), po = String(req.poste || ''), si = Number(req.situation), av = String(req.avis || '');
+      if (MP_EPISODES.indexOf(ep) < 0 || MP_POSTES.indexOf(po) < 0) fail('invalide', 'Mission introuvable.');
+      if (!(si >= 0 && si <= 4 && Math.floor(si) === si)) fail('invalide', 'Situation introuvable.');
+      if (MP_AVIS.indexOf(av) < 0) fail('invalide', 'Choisissez « C\'est juste » ou « À revoir ».');
+      var tx = cleanText(req.texte, MP_TEXTE), va = si === 4 && req.variante === true;   // seule la situation 4 a une variante
+      if (av === 'revoir' && !tx) fail('invalide', 'Dites en quelques mots ce qui est à revoir.');
+      var me = ctx.auth.row, now = isoNow(ctx.now), ex = null;
+      ctx.db.rows('retoursMissions').forEach(function (x) {
+        if (x.parQui === me.id && x.episode === ep && x.poste === po && Number(x.situation) === si && !!x.variante === va) ex = x;
+      });
+      if (ex) {
+        ctx.db.update('retoursMissions', ex.id, { avis: av, texte: tx, parNom: educNom(ctx), date: isoDate(ctx.now), maj: now });
+        return { retour: pubRetourMP(find(ctx.db.rows('retoursMissions'), ex.id), me.id), nouveau: false };
+      }
+      var row = { id: genId(ctx.env), episode: ep, poste: po, situation: si, variante: va, avis: av, texte: tx, parQui: me.id, parNom: educNom(ctx),
+        date: isoDate(ctx.now), cree: now, maj: now };
+      ctx.db.insert('retoursMissions', row);
+      return { retour: pubRetourMP(row, me.id), nouveau: true };
+    }
+  };
+  A.retoursMissions = {
+    auth: ['e'],
+    run: function (req, ctx) {
+      var me = ctx.auth.row.id;
+      return { retours: ctx.db.rows('retoursMissions').map(function (x) { return pubRetourMP(x, me); })
+        .sort(function (a, b) { return a.maj < b.maj ? 1 : a.maj > b.maj ? -1 : 0; }) };
     }
   };
 

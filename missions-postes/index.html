@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<!-- Mode champion · M12 — Missions de poste, épisode 1 « Dans le jeu » (v92)
+     Page autonome reprise de la maquette jouable validée par Nicolas (20/11/2026) : 8 postes, 4 situations chacun,
+     variante de la situation 4, bulles de parole, vignettes « Sur le terrain ». Toutes les données sont dans l'objet POSTS ;
+     le crochet de test est window.MQ.
+     - Dans l'appli (?educ=1, dans une iframe de l'espace éduc, essai : les enfants ne la voient pas encore) : choix du poste,
+       menu « ? » et « Mon avis » sur chaque situation et sur la fin ; l'avis part par l'appli, avec la session de l'éduc
+       (postMessage, même site seulement). Retour sur le choix du poste, ou « Missions » à la fin : l'appli reprend la main.
+     - ?p=pil&s=2&alt=1 : ouvrir directement une situation (s = 1 à 4 ; 0 = la fin de l'épisode ; alt=1 : la variante).
+     - Aucun prénom d'enfant ici (dépôt public) : celui de l'appli (?prenom= ou message « init »), sinon « Champion ».
+     Contenu (vocabulaire du club, règles de placement, réponses des QCM) : ne rien changer sans Nicolas. -->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Missions de poste · épisode 1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@1,800;1,900&family=Barlow:wght@400;500;600;700&family=Chakra+Petch:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Un seul thème, celui de l'appli : sombre. Téléphone d'abord, une colonne ; iPad paysage : terrain à gauche, texte à droite. */
+  color-scheme:dark;
+  --bg:#070A12; --p1:#0A0F1F; --p2:#0C1120; --p3:#0E1428;
+  --l1:#1E2740; --l2:#2A3557; --l3:#34405F;
+  --ink:#E8ECF7; --ink2:#C7CEDF; --ink3:#AEB6CC; --dim:#8A93AD;
+  --cyan:#38E8FF; --rose:#FF4FA3; --gold:#FFC23D; --green:#3DFFB0; --violet:#B48CFF; --orange:#FF8A3D; --red:#FF4F6D; --blue:#4D9BFF;
+  --poste:#F2AA06; --pitch:#0B231E;
+  --ft:'Barlow Condensed','Arial Narrow','Helvetica Neue',Arial,sans-serif;
+  --fh:'Chakra Petch','Trebuchet MS',Verdana,sans-serif;
+  --fb:'Barlow',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
+  --bev:polygon(0 0,calc(100% - 14px) 0,100% 14px,100% 100%,14px 100%,0 calc(100% - 14px));
+  --bevs:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,10px 100%,0 calc(100% - 10px));
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font:400 16px/1.42 var(--fb);-webkit-text-size-adjust:100%;touch-action:manipulation;overflow-x:hidden}
+button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;text-align:inherit}
+p,h1,h2,ol{margin:0;padding:0}
+ol{list-style:none}
+:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+[hidden]{display:none!important}
+.app{max-width:520px;margin:0 auto;min-height:100%;display:flex;flex-direction:column}
+
+/* Barre du haut : Retour à gauche, aide à droite, fond uni */
+.top{position:sticky;top:0;z-index:6;display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--bg);border-bottom:1px solid var(--l1)}
+.bv{position:relative;flex:none;width:48px;height:44px;border:0;padding:0;background:var(--b,var(--cyan));clip-path:var(--bevs);display:grid;place-items:center}
+.bv::before{content:"";position:absolute;inset:1.5px;background:var(--p2);clip-path:var(--bevs)}
+.bv>*{position:relative}
+.bv svg{width:20px;height:20px;fill:none;stroke:var(--b,var(--cyan));stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.bv.hp{--b:var(--l3);font:700 18px var(--fh);color:var(--ink)}
+.tt{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.k{font:600 12px/1.3 var(--fh);letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+.tt b{font:600 15px/1.25 var(--fh);letter-spacing:.12em;text-transform:uppercase;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.scr{flex:1;padding:16px 16px 20px;display:flex;flex-direction:column;gap:14px}
+.h1,.h2,.q{text-wrap:balance}
+.h1{font:italic 900 46px/.92 var(--ft);text-transform:uppercase;color:#fff;text-shadow:3px 3px 0 var(--rose);letter-spacing:.005em}
+.h2{font:italic 800 26px/1 var(--ft);text-transform:uppercase;color:#fff;margin-top:6px}
+.rose{color:var(--rose)}
+
+/* Boutons */
+.pri{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:56px;padding:8px 18px;border:0;background:var(--cyan);color:#04222A;font:700 17px/1.1 var(--fh);letter-spacing:.14em;text-transform:uppercase;text-align:center;clip-path:var(--bev)}
+.pri[disabled]{background:var(--l1);color:var(--dim);cursor:default}
+.pri svg{width:16px;height:16px;fill:currentColor}
+.sec{display:flex;align-items:center;justify-content:center;gap:8px;min-height:56px;padding:8px 14px;border:1.5px solid var(--cyan);background:transparent;color:var(--cyan);font:700 15px/1.1 var(--fh);letter-spacing:.12em;text-transform:uppercase;text-align:center}
+.sec svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.cta{position:sticky;bottom:0;z-index:5;padding:12px 16px 16px;background:var(--bg);border-top:1px solid var(--l1)}
+.row{display:flex;gap:10px}
+.row .sec{flex:0 0 40%}
+.row .pri{flex:1}
+
+/* Accroche */
+.hero{display:flex;align-items:center;gap:14px}
+.emb{flex:none;width:84px;height:84px;background:var(--poste);clip-path:var(--bev);position:relative;display:grid;place-items:center}
+.emb::before{content:"";position:absolute;inset:2px;background:#0E1428;clip-path:var(--bev)}
+.emb svg{position:relative;width:60px;height:60px}
+.pp{display:inline-block;margin-top:10px;padding:3px 10px;background:var(--poste);color:#2A1D00;font:700 13px/1.4 var(--fh);letter-spacing:.14em;text-transform:uppercase}
+.job{font-size:18px;line-height:1.38;color:var(--ink)}
+.stats{display:grid;grid-template-columns:.8fr 1.1fr 1.25fr;gap:8px}
+.stat .k{letter-spacing:.09em;white-space:nowrap}
+.stat{border:1px solid var(--l2);background:var(--p3);padding:10px 12px 9px}
+.stat b{display:block;font:700 26px/1.1 var(--fh);color:var(--ink)}
+.stat.g{border-color:#7A5F1C}.stat.g b{color:var(--gold)}
+.mi{border:1px solid var(--l2);border-left:4px solid var(--c);background:var(--p3);padding:12px 14px 13px}
+.mi .k{color:var(--c)}
+.mi b{display:block;font:600 20px/1.25 var(--fb);margin:3px 0 3px}
+.mi p:last-child{color:var(--ink2)}
+.mi.def{--c:var(--blue)}.mi.att{--c:var(--green)}
+.par{position:relative;display:flex;flex-direction:column;gap:14px;padding:4px 0 2px}
+.par::before{content:"";position:absolute;left:13px;top:14px;bottom:14px;width:2px;background:var(--l2)}
+.par li{position:relative;display:flex;align-items:center;gap:14px;min-height:36px}
+.dm{flex:none;width:28px;height:28px;display:grid;place-items:center;background:var(--l2);color:var(--ink3);font:700 13px var(--fh);transform:rotate(45deg)}
+.dm i{font-style:normal;transform:rotate(-45deg)}
+.par li.on .dm{background:var(--rose);color:#2B0618}
+.par li div{display:flex;flex-direction:column}
+.par li b{font:600 17px/1.25 var(--fb)}
+.par li span{font-size:14px;color:var(--dim)}
+.par li.on span{color:var(--rose)}
+
+/* Écran de jeu */
+.play{flex:1;padding:12px 16px 18px;display:grid;grid-template-columns:minmax(0,1fr);grid-auto-rows:max-content;gap:10px;align-content:start}
+.prog{display:flex;gap:6px}
+.prog i{flex:1;height:5px;background:var(--l2)}
+.prog i.cur{background:var(--rose)}
+.prog i.ok{background:var(--gold)}
+.prog i.done{background:var(--dim)}
+.tag{margin-top:8px;color:var(--c)}
+.tag.def{--c:var(--blue)}.tag.att{--c:var(--green)}
+.ctx{font-size:17px;line-height:1.35;color:var(--ink)}
+.q{font:700 21px/1.2 var(--fb);color:#fff;margin-top:3px}
+.pl-q{min-height:78px}
+.brief{display:flex;align-items:center;width:100%;min-height:min(54vh,430px);padding:10px 0 30px;border:0;background:none}
+.brief .bt{display:flex;flex-direction:column;gap:18px}
+.brief .ctx{font:500 25px/1.3 var(--fb);color:var(--ink)}
+.brief .q{font:700 38px/1.08 var(--fb);color:#fff;margin:0}
+.play.enter .hint,.play.enter .stage,.play.enter .chs{animation:rise .5s .22s both}
+@keyframes rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+.hint{min-height:44px;display:flex;align-items:center;gap:10px;font:600 18px/1.25 var(--fb);color:var(--ink)}
+.hint .tp{flex:none;width:26px;height:26px;fill:none;stroke:var(--cyan);stroke-width:1.8;color:var(--cyan)}
+.lg{display:flex;align-items:center;gap:6px;white-space:nowrap;color:var(--ink3)}
+.lg i{display:inline-block;width:12px;height:12px;border-radius:50%;border:2px solid var(--poste)}
+.lg em{font:700 15px var(--fh);font-style:normal;color:var(--red);margin-left:6px}
+.tabs{display:flex;gap:8px}
+.tab{flex:1;min-height:44px;padding:4px 8px;border:1px solid var(--l2);background:var(--p3);color:var(--ink3);font:600 13px/1.15 var(--fh);letter-spacing:.1em;text-transform:uppercase;text-align:center}
+.tab[aria-pressed="true"]{border-color:var(--cyan);color:var(--cyan);background:#0B1D2B}
+.tab[disabled]{opacity:.45;cursor:default}
+.pass{position:absolute;left:6px;top:6px;display:flex;align-items:center;gap:6px;padding:3px 7px 3px 3px;background:rgba(7,10,18,.86);border:1px solid var(--l2);font:600 12px/1.3 var(--fh);letter-spacing:.05em;text-transform:uppercase;color:var(--ink)}
+.pass b{display:inline-grid;place-items:center;width:20px;height:20px;background:var(--cyan);color:#06121F;font:700 12px var(--fh);letter-spacing:0}
+.pass:not(:has(b)){padding-left:9px}
+.tab b{display:inline-grid;place-items:center;width:20px;height:20px;margin-right:8px;background:var(--l3);color:var(--ink);font:700 12px var(--fh);letter-spacing:0;vertical-align:1px}
+.tab[aria-pressed="true"] b{background:var(--cyan);color:#06121F}
+.pri.wt{position:relative;overflow:hidden}
+.pri.wt i{position:absolute;left:0;bottom:0;height:5px;width:100%;background:var(--cyan);transform-origin:0 50%;animation:fill linear both}
+@keyframes fill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.stage{position:relative;width:100%;aspect-ratio:100/90;background:var(--pitch);border:1px solid var(--l2);overflow:hidden}
+.stage.zm{aspect-ratio:100/70}
+.stage svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.lb{font-family:var(--fh);font-weight:700}
+.tv.ask{cursor:pointer}
+.en .in{transform-box:fill-box;transform-origin:center;transition:transform .2s,opacity .2s}
+.en.gr .in{transform:scale(1,.58);opacity:.62}
+.toi,.toi *{touch-action:none}
+.toi{cursor:grab}
+.halo{transform-box:fill-box;transform-origin:center;opacity:0}
+.tv.ask .halo{animation:halo 1.5s ease-out infinite}
+@keyframes halo{0%{transform:scale(.75);opacity:.95}100%{transform:scale(1.5);opacity:0}}
+.zone{transition:opacity .35s}
+.vcap{position:absolute;left:8px;right:8px;bottom:8px;display:flex;align-items:center;gap:10px;padding:7px 10px;background:rgba(7,10,18,.9);border:1px solid var(--l2);font:500 15px/1.25 var(--fb);color:var(--ink)}
+.vcap b{flex:none;width:24px;height:24px;display:grid;place-items:center;background:var(--poste);color:#2A1D00;font:700 13px var(--fh)}
+.vleg{position:absolute;left:8px;top:8px;display:flex;gap:10px;padding:4px 8px;background:rgba(7,10,18,.82);font:600 12px/1.3 var(--fh);letter-spacing:.06em;color:var(--ink2)}
+.vleg i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;background:var(--c)}
+
+.vd{min-height:82px;display:flex;flex-direction:column;gap:6px}
+.vd .l1{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.chip{padding:4px 10px;font:700 13px/1.3 var(--fh);letter-spacing:.14em;text-transform:uppercase;background:var(--c);color:var(--t)}
+.vd.ok{--c:var(--green);--t:#04261B}.vd.near{--c:var(--gold);--t:#2A1D00}.vd.no{--c:var(--red);--t:#2B0610}
+.xp{font:700 14px var(--fh);letter-spacing:.08em;color:var(--gold)}
+.vd p{font-size:16px;line-height:1.38;color:var(--ink)}
+.vd .fbk{color:var(--c);font-weight:700}
+.sph{display:flex;align-items:center;gap:8px;margin:6px 0 0;font-size:14px;color:var(--ink3)}
+.sph i{flex:none;width:18px;height:13px;background:#F4F6FC;border-radius:5px;position:relative}
+.sph i::after{content:"";position:absolute;left:4px;bottom:-4px;border:4px solid transparent;border-top-color:#F4F6FC;border-bottom:0}
+.q3{border:1px solid var(--l2);border-left:4px solid var(--c);background:var(--p3);padding:10px 12px 12px}
+.q3.def{--c:var(--blue)}.q3.att{--c:var(--green)}
+.q3 .k{color:var(--c);margin-bottom:7px}
+.q3 ol{display:flex;flex-direction:column;gap:8px}
+.q3 li{display:flex;gap:10px;align-items:flex-start}
+.q3 li i{flex:none;width:24px;height:24px;display:grid;place-items:center;font:700 12px var(--fh);font-style:normal;background:var(--c);color:#06121F}
+.q3 li p{font-size:15px;line-height:1.35;color:var(--ink2)}
+.q3 li b{color:var(--ink);font-weight:600}
+.q3n{font-size:16px;font-weight:600;color:var(--poste)}
+.stars .sc.rj{font-size:15px;color:var(--ink3)}
+.les{border:1px solid var(--l2);border-left:4px solid var(--poste);background:var(--p3);padding:10px 14px 12px}
+.les .k{color:var(--poste)}
+.les p:last-child{margin-top:3px;font-size:16px;color:var(--ink)}
+.chs{display:flex;flex-direction:column;gap:8px}
+.ch{display:flex;align-items:center;gap:12px;width:100%;min-height:79px;padding:6px 12px 6px 6px;border:1px solid var(--l2);background:var(--p3)}
+.ch:active{border-color:var(--cyan)}
+.ch .th{flex:none;width:90px;height:65px;background:var(--pitch);border:1px solid var(--l1);display:block}
+.ch .th svg{width:100%;height:100%;display:block}
+.ch .tx{display:flex;flex-direction:column;min-width:0}
+.ch b{font:600 17px/1.25 var(--fb)}
+.ch .tx span{font-size:14px;color:var(--ink3)}
+
+/* Fin */
+.stars{display:flex;gap:8px;align-items:center}
+.stars svg{width:38px;height:38px}
+.stars .sc{margin-left:8px;font:700 22px var(--fh);color:var(--gold)}
+.rep{display:flex;flex-direction:column;gap:8px}
+.rep li{display:flex;gap:12px;align-items:flex-start;border:1px solid var(--l2);background:var(--p3);padding:10px 12px}
+.rep li i{flex:none;width:26px;height:26px;display:grid;place-items:center;font:700 13px var(--fh);font-style:normal;background:var(--c);color:#06121F}
+.rep li b{color:var(--c);font-weight:600}
+.defi{border:1px solid #7A5F1C;background:#141004;padding:12px 14px 14px;display:flex;flex-direction:column;gap:8px}
+.defi .k{color:var(--gold)}
+.defi b{font:600 19px/1.3 var(--fb)}
+.defi p{color:var(--ink2)}
+.tog{align-self:flex-start;min-height:44px;padding:6px 14px;border:1.5px solid var(--gold);background:transparent;color:var(--gold);font:700 14px var(--fh);letter-spacing:.12em;text-transform:uppercase}
+.tog[aria-pressed="true"]{background:var(--gold);color:#2A1D00}
+.pw{display:flex;align-items:center;gap:12px;border:1px solid var(--l2);background:var(--p3);padding:10px 12px}
+.pw svg{flex:none;width:44px;height:44px}
+.pw div{display:flex;flex-direction:column}
+.pw b{font:600 17px/1.25 var(--fb)}
+.pw span{font-size:14px;color:var(--ink3)}
+.nx{display:flex;align-items:center;gap:12px;border:1px dashed var(--l3);padding:10px 12px;color:var(--ink3)}
+.nx svg{flex:none;width:22px;height:22px;fill:none;stroke:var(--dim);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.nx b{display:block;color:var(--ink);font-weight:600}
+
+/* Choix du poste (maquette seulement) */
+.pg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pt{display:flex;align-items:center;gap:10px;min-height:66px;padding:8px 10px;border:1px solid var(--l2);border-left:4px solid var(--c);background:var(--p3)}
+.pa{flex:none;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:#101A2C;border:2px solid var(--c);color:var(--c);font:700 13px var(--fh)}
+.pn{display:flex;flex-direction:column;min-width:0}
+.pn b{font:600 16px/1.2 var(--fb)}
+.pn span{font-size:13px;line-height:1.25;color:var(--ink3)}
+/* Menu de la maquette, message */
+.ov{position:fixed;inset:0;z-index:20;background:rgba(3,5,10,.78);display:flex;align-items:flex-end;justify-content:center}
+.sheet{width:min(520px,100%);max-height:88vh;overflow:auto;background:var(--p2);border-top:1px solid var(--l3);padding:16px 16px 20px;display:flex;flex-direction:column;gap:8px}
+.sheet p{color:var(--ink3);font-size:14px;margin-bottom:4px}
+.mn{min-height:48px;padding:6px 14px;border:1px solid var(--l2);background:var(--p3);font:600 16px var(--fb)}
+.mn.on{border-color:var(--cyan);color:var(--cyan)}
+.toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);z-index:30;max-width:calc(100% - 32px);background:var(--l1);border:1px solid var(--l3);padding:10px 14px;font-size:15px;text-align:center}
+
+/* (v92) Essai éducs : une barre sous la barre du haut, « Mon avis » sur chaque situation et sur la fin */
+.hdw{position:sticky;top:0;z-index:6}
+.hdw>.top{position:relative}
+.eb{display:flex;align-items:center;gap:10px;min-height:52px;padding:4px 16px;background:var(--p2);border-bottom:1px solid var(--l1)}
+.eb .k{flex:none;color:var(--gold)}
+.ebs{flex:1;min-width:0;font:600 14px/1.2 var(--fb);color:var(--dim);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.ebs.juste{color:var(--green)}.ebs.revoir{color:var(--orange)}
+.ebb{flex:none;min-height:44px;padding:4px 14px;border:1.5px solid var(--gold);background:transparent;color:var(--gold);font:700 13px/1.1 var(--fh);letter-spacing:.12em;text-transform:uppercase;text-align:center}
+.ebb:active{background:#1C1606}
+@media (max-width:359px){ .eb{gap:8px;padding:4px 12px} .eb .k{display:none} }
+
+/* iPad en paysage : le terrain à gauche, le reste à droite */
+@media (min-width:900px) and (orientation:landscape){
+  .app{max-width:1060px}
+  .play{grid-template-columns:minmax(0,1fr) 400px;column-gap:22px;padding-top:18px}
+  .play>*{grid-column:2}
+  .play.brf{grid-template-columns:minmax(0,620px);justify-content:center}
+  .play.brf>*{grid-column:1}
+  .play>.stage{grid-column:1;grid-row:1/span 6;align-self:start;margin:0 auto}
+  .play>.stage:not(.zm){max-width:calc((100vh - 100px)*1.111)}
+  .play>.stage.zm{max-width:calc((100vh - 100px)*1.428)}
+  .scr.intro,.scr.end,.scr.pick{max-width:620px;margin:0 auto;width:100%}
+  .cta{max-width:620px;margin:0 auto;width:100%}
+  .cta.pl{max-width:none;display:flex;justify-content:flex-end;border-top:0;padding-top:0}
+  .cta.pl>*{width:400px}
+}
+@media (max-width:359px){ .h1{font-size:40px} .brief .q{font-size:32px} .brief .ctx{font-size:22px} .hint{font-size:16px} .pri{letter-spacing:.1em} }
+@media (prefers-reduced-motion:reduce){ .tv.ask .halo{animation:none;opacity:.8} .en .in,.zone{transition:none} .play.enter .hint,.play.enter .stage,.play.enter .chs,.pri.wt i{animation:none} }
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+<div class="ov" id="menu" hidden></div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+(function(){
+'use strict';
+var RM = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+var PC = {pil:'#FF6A3D',tal:'#FE8A00',l3:'#F2AA06',m9:'#CAE268',o10:'#A6E06A',ctr:'#7FD67A',ail:'#57C98A',arr:'#33BFA8'};
+var COL = {me:'#FFC23D', us:'#38E8FF', them:'#FF4F6D'};
+var XP = 15;
+
+/* (v92) Dans l'appli : le mode éduc, le prénom, ouvrir une situation précise */
+var QS = {}; (location.search||'').replace(/^\?/,'').split('&').forEach(function(kv){ if(!kv) return; var i=kv.indexOf('='), k=i<0?kv:kv.slice(0,i), v=i<0?'':kv.slice(i+1); try{ QS[decodeURIComponent(k)]=decodeURIComponent(v.replace(/\+/g,' ')); }catch(e){} });
+var DANS_APPLI = window.parent!==window;
+var EDUC = QS.educ==='1' && DANS_APPLI;
+var MQL = EDUC?'Essai éducs':'Maquette';
+function escH(t){ return String(t).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function nomOk(t){ t=String(t||'').replace(/\s+/g,' ').trim(); return t&&t.length<=30?t:''; }
+var PRENOM = nomOk(QS.prenom)||'Champion';
+var MES = {};   /* mes avis déjà envoyés (mode éduc) : clé poste|situation|variante -> 'juste' ou 'revoir' */
+function versAppli(m){ if(!DANS_APPLI) return false; try{ window.parent.postMessage(m,location.origin); return true; }catch(e){ return false; } }
+
+function U(id,po,lab,x,y,gr){ return {id:id,k:'u',po:po,lab:lab,x:x,y:y,gr:!!gr}; }
+function T(id,x,y,gr){ return {id:id,k:'t',x:x,y:y,gr:!!gr}; }
+
+/* ------------------------------------------------------------------ */
+/* Les 8 postes et leurs 4 situations (terrain de 100 × 90, on attaque vers le haut).
+   Les scènes partent de quelques dispositions communes ; seul le joueur « TOI » change. */
+function ex(list,omit,ov){
+  var o=[]; list.forEach(function(e){ if(omit.indexOf(e.id)>=0) return; var c={id:e.id,k:e.k,po:e.po,lab:e.lab,x:e.x,y:e.y,gr:e.gr}; if(ov&&ov[e.id]){ c.x=ov[e.id][0]; c.y=ov[e.id][1]; if(ov[e.id].length>2) c.gr=!!ov[e.id][2]; } o.push(c); });
+  return o;
+}
+function mg(){ var o={}; for(var i=0;i<arguments.length;i++){ var a=arguments[i]; for(var k in a) o[k]=a[k]; } return o; }
+function foc(tr,id){ var o=mg(tr); o.toi=o[id]; delete o[id]; return o; }
+var Q_OU='Où te places-tu&nbsp;?', Q_QUOI='Tu fais quoi&nbsp;?';
+var HJ='Hors-jeu&nbsp;! Tu restes derrière le dernier copain du ruck.', RK='Pas dans le ruck&nbsp;: il est perdu, et tes copains ont besoin de toi dans la ligne.';
+var V_PLQ=['Je reste bas, prêt','Oreille collée, cercle de fer','Je me relève tout de suite'];
+
+/* ---------- Défense : ruck pour eux ---------- */
+var D_E=[ T('xg',40,36.4,1), T('xr1',37.2,33.2), T('xr2',43,33), T('x9',40.6,27.2), T('x10',56,23.5), T('xc',68,21), T('xa',80,19), T('xf',91,17.5), T('xs1',24,24.5), T('xs2',11,22.5),
+  U('l2','l3','3L',42.8,39.6,1), U('tal','tal','Tal',33.5,51), U('pil2','pil','Pil',46.5,51), U('pil1','pil','Pil',22,51), U('l3','l3','3L',57.5,51.2), U('o10','o10','10',69,51), U('ctr','ctr','Ctr',80,51.3), U('ail','ail','Ail',91,52.5), U('m9','m9','9',40.4,58.5), U('arr','arr','15',40,74) ];
+var D_RUCK=[40.3,37,7.4,7.6,31.2,38.4,'end'], D_OFF=45.6, D_BALL={p:[40.5,30.4]}, D_START=[52,81];
+var UP={ pil2:[[.8,46.5,51],[1.9,47,47.6]], l3:[[.75,57.5,51.2],[1.9,57.2,44.2]], o10:[[.8,69,51],[1.9,69,43.5]], ctr:[[.8,80,51.3],[1.9,80,43.5]], ail:[[.8,91,52.5],[1.9,91,46]] };
+var XUP={ x10:[[.7,56,23.5],[1.9,56.8,40.2]], xc:[[.7,68,21],[1.9,71,31]], xa:[[.7,80,19],[1.9,81,29]], xf:[[.7,91,17.5],[1.9,91,27]] };
+var B_A1=[[0,{p:[40.5,30.4]}],[.4,{on:'x9'}],[.6,{on:'x9'}],[1.05,{on:'x10'}],[3.3,{on:'x10'}]];
+function jLine(z,t){ return function(x,y){
+  if(y<D_OFF){ if(Math.hypot(x-40.3,y-37)<9.5) return ['no',RK]; return ['no',HJ]; }
+  if(y>z[1]+z[3]) return ['no',t.deep||'Trop loin derrière&nbsp;: de là, tu arrives trop tard pour plaquer.'];
+  if(x>=z[0]&&x<=z[0]+z[2]) return ['ok',t.ok];
+  var m=x<z[0]?t.left:t.right; return ['near',typeof m==='function'?m(x):m];
+}; }
+function defPlace(o){ return mg({kind:'place',side:'def',tag:'Défense · ils ont le ballon',ctx:'Ruck pour eux. Leur 9 va sortir le ballon.',q:Q_OU,win:[0,0,100,90],ruck:D_RUCK,off:D_OFF,ball:D_BALL,start:D_START},o); }
+
+/* ---------- Attaque : mouvement général (un centre porte le ballon) ---------- */
+var A1_T=[ T('xd1',38,36), T('xd2',50,35.2), T('xd3',62,34.6), T('xd4',74,35.2), T('xd5',87,36.2), T('xd6',25,37), T('xd7',11,38), T('xb1',31,23), T('xb2',57,13.5), T('xb3',83,22) ];
+var A1_U=[ U('ctr','ctr','Ctr',62,50), U('o10','o10','10',49,56), U('ail','ail','Ail',88,55), U('arr','arr','15',76,65.5), U('m9','m9','9',37,61.5), U('pil1','pil','Pil',15.5,60.5), U('tal','tal','Tal',26.5,54.5), U('pil2','pil','Pil',31.5,71.5), U('l2','l3','3L',47.5,70.5) ];
+
+/* ---------- Attaque : ruck gagné au centre ---------- */
+var A2_T=[ T('xg',46.6,36.6,1), T('xk1',38.6,36.6), T('xk2',53,36.2), T('xl1',62,35), T('xl2',72,35.5), T('xl3',83,36), T('xl4',93,37), T('xs1',26,36), T('xs2',13,37), T('xb',52,19) ];
+var A2_U=[ U('ctr','ctr','Ctr',45,40.2,1), U('l3','l3','3L',45,44), U('m9','m9','9',44,52.6), U('pil1','pil','Pil',38,60), U('l2','l3','3L',32,67), U('pil2','pil','Pil',50,60.5), U('tal','tal','Tal',57,66), U('o10','o10','10',67,57), U('ail','ail','Ail',89,60), U('arr','arr','15',77,67) ];
+var A2_RUCK=[45,40.6,6.6,6.4,37.2,43.6,'end'], A2_BALL={p:[45,47.3]};
+var A2_GO={ xk2:[[1.0,53,36.2],[1.6,55,37.5],[2.6,56,32]], xl1:[[1.0,62,35],[1.7,59.5,36.8],[2.6,60,31.5]], tal:[[.6,57,66],[1.8,57.5,52],[2.8,57.5,42]] };
+
+/* ---------- Attaque : lancement des arrières (ruck à gauche) ---------- */
+var A3_T=[ T('xg',31.6,40,1), T('xk1',24.4,39.4), T('xk2',37.2,39), T('xl1',47,37.6), T('xl2',59,37), T('xl3',71,37.6), T('xl4',85,38.8), T('xs',11,40), T('xb1',40,21), T('xb2',67,19.5) ];
+var A3_U=[ U('pil1','pil','Pil',30,43.4,1), U('l3','l3','3L',30,47), U('tal','tal','Tal',18,57), U('m9','m9','9',29.4,55.4), U('pil2','pil','Pil',24,63), U('l2','l3','3L',35,64), U('o10','o10','10',46,58.5), U('ctr','ctr','Ctr',61,63), U('ail','ail','Ail',88,66.5), U('arr','arr','15',74,73) ];
+var A3_RUCK=[30,43.6,6.6,6.6,21.6,45.6,'end'], A3_BALL={p:[30.2,50.2]};
+function attPlace(o){ return mg({kind:'place',side:'att',win:[0,0,100,90],q:Q_OU},o); }
+
+var POSTS={};
+
+/* ============================ PILIER ============================ */
+POSTS.pil={ name:'Pilier', nick:'Le Roc', col:'#FF6A3D', lab:'Pil', emb:'colonne', power:'Bélier',
+  job:'Tu tiens la mêlée et le bord des rucks. Avec le ballon, tu avances tout près, debout, pour faire reculer la défense.',
+  def:['Gardien du ruck','Un bord du ruck est vide et tu es le plus près : « J’ai ! », tu le gardes. Si ça vient au ras, c’est pour toi.'],
+  att:['Bélier, debout','En retrait, dans l’axe de ton 9. Il crie « Axe ! » : tu arrives lancé, tu prends le ballon et tu avances debout.'],
+  reps:[['d','Un bord du ruck est vide.','« J’ai ! » : tu le gardes.'],['d','Ça vient au ras.','Tu avances et tu plaques : oreille collée.'],['a','On a le ballon.','En retrait, dans l’axe de ton 9. « Axe ! » : tu arrives lancé et tu avances debout.']],
+  defi:'Au prochain plateau, prends 3 ballons lancé, tout près du ruck.',
+  note:'Toi, avant : en retrait dans l’axe de ton 9, jamais entre le 9 et le 10. Il crie « Axe ! » ? Tu arrives lancé.',
+  sc:[
+   defPlace({ ctx:'Ruck pour eux. Ton talonneur garde déjà un bord du ruck.', ents:ex(D_E,['pil2']), ideal:[46.5,51], zone:[41.5,45.6,9,10.8],
+     judge:jLine([41.5,45.6,9,10.8],{ok:'Le bord vide, juste derrière la ligne : « J’ai ! ». Personne ne passe au ras.', left:function(x){ return x>=29?'Ce bord-là, ton talonneur le garde déjà. Le bord vide est de l’autre côté du ruck.':'De ce côté, ton talonneur et ton pilier sont déjà là. Le bord vide est de l’autre côté du ruck.'; }, right:'Tu es en ligne, mais trop loin du ruck : le bord est ouvert. Colle-toi au ruck.'}),
+     anim:{dur:3.9, tr:{x10:[[.6,56,23.5],[1.75,55.5,37.5]], x9:[[.5,40.6,27.2],[1.0,45,29.5],[1.75,50.5,34.5],[2.5,47,42.5],[2.65,47,43.6]], xc:[[.6,68,21],[1.9,69,28]], xa:[[.6,80,19],[1.9,81,27]], xf:[[.6,91,17.5],[1.9,91,25]], o10:[[.8,69,51],[1.9,69,40]], ctr:[[.8,80,51.3],[1.9,80,40]], ail:[[.8,91,52.5],[1.9,91,41]], l3:[[.8,57.5,51.2],[1.85,55.8,40]], toi:[[.8,46.5,51],[1.8,47,46.6],[2.6,47,45.4]]}, ball:[[0,{p:[40.5,30.4]}],[.45,{on:'x9'}],[.75,{on:'x9'}],[1.05,{on:'x10'}],[1.75,{on:'x10'}],[1.95,{on:'x9'}],[3.9,{on:'x9'}]], ev:[[1.9,'x10','gr'],[2.65,'x9','gr']], sp:[[.05,.75,'m9','Ligne !','d'],[.8,1.5,'m9','Jeu !','d'],[1.15,1.8,'l3','J’ai !'],[1.95,2.6,'toi','J’ai !']], fl:[[1.95,3.9,55,31,'PLAQUÉ !'],[2.7,3.9,27,44.5,'PLAQUÉ !']]},
+     lesson:'Ton 3e ligne plaque le premier. Si le ballon revient au ras, c’est pour toi : tu gardes ton bord et tu plaques.', vig:null }),
+   { kind:'choice', side:'def', tag:'Défense · au ras du ruck', ctx:'Leur 9 part au ras du ruck avec le ballon, de ton côté.', q:Q_QUOI, win:[22,18,56,39.2], ruck:D_RUCK,
+     ents:[ T('xg',40,36.4,1), T('xr1',37.2,33.2), T('xr2',43,33), T('x9',45.4,29.6), T('x10',56,23.5), T('xc',68,22), T('xs1',27,24.5), U('l2','l3','3L',42.8,39.6,1), U('tal','tal','Tal',33.5,51), U('pil1','pil','Pil',22,51), U('l3','l3','3L',57.5,51.2), U('o10','o10','10',69,51), U('m9','m9','9',40.4,58.5), U('toi','pil','Pil',46.5,51) ],
+     ball:{on:'x9'},
+     choices:[{k:'a', t:'Je le plaque', s:'J’avance, oreille collée', v:'ok', th:[['x',36,9],['b',40.5,11.5],['m',36,40],['a',36,31,36,19]], fb:'C’est ton bord : « J’ai ! », tu avances et tu le plaques.'},{k:'b', t:'J’appelle mon 3e ligne', s:'Il plaque mieux que moi', v:'no', th:[['x',36,9],['b',40.5,11.5],['m',28,40],['o',58,40,'#F2AA06'],['t',44,30,'?']], fb:['Ton 3e ligne est trop loin : le temps qu’il arrive, leur 9 est passé.','C’est ton bord : c’est toi qui plaques.']},{k:'c', t:'Je vais sur leur 10', s:'Je quitte le bord du ruck', v:'no', th:[['x',24,9],['b',28.5,11.5],['x',58,9],['m',24,40],['a',31,35,51,17]], fb:['Si tu pars, le bord du ruck est ouvert : leur 9 passe tout droit.','Reste sur ton bord : il vient sur toi, tu le plaques.']}],
+     anim:{dur:2.5, tr:{ x9:[[0,45.4,29.6],[1.1,46,43.6]], toi:[[.2,46.5,51],[1.1,46.2,46.6]], l3:[[.6,57.5,51.2],[2.0,50.4,45.6]] }, ball:[[0,{on:'x9'}],[2.5,{on:'x9'}]], ev:[[1.1,'x9','gr']], sp:[[.3,1.0,'toi','J’ai !']], fl:[[1.15,2.5,32,44,'PLAQUÉ !']]},
+     lesson:'Au bord du ruck, c’est toi le premier défenseur : tu avances, oreille collée, cercle de fer.', vig:'v1', vsteps:V_PLQ },
+   attPlace({ tag:'Attaque · ruck gagné', ctx:'Ruck gagné. Ton 9 va sortir le ballon.', q:'Où te places-tu pour être lancé par ton 9 ?', ruck:A2_RUCK,
+     ents:A2_T.concat(ex(A2_U,['pil2'])), ball:A2_BALL, start:[14,76], ideal:[50,61], zone:[36,56,18,10],
+     judge:function(x,y){
+       if(y<47.3){ if(Math.hypot(x-45,y-40.6)<8.5) return ['no','Pas dans le ruck : ton 3e ligne protège déjà le ballon.']; return ['no','Devant le ballon, ton 9 ne peut pas te le donner : tu es hors-jeu.']; }
+       if(x>46&&x<=67&&y<52.6+(x-44)*.19+4) return ['near','Entre ton 9 et ton 10, tu gênes la passe au large. Mets-toi en retrait, dans l’axe de ton 9.'];
+       if(y>67) return ['no','Trop loin : tu n’arriveras pas à temps.'];
+       if(Math.abs(x-44)>10) return ['near','Trop sur le côté : reste dans l’axe de ton 9, en retrait.'];
+       if(y<56) return ['near','Trop près de ton 9 : recule de 2 ou 3 mètres pour arriver lancé.'];
+       return ['ok','En retrait, dans l’axe de ton 9 : s’il crie « Axe ! », tu arrives lancé.'];
+     },
+     anim:{dur:3.2, tr:mg(A2_GO,{m9:[[.3,44,52.6],[.55,44.5,50.5]], toi:[[.4,50,61],[1.0,53.5,51.5],[1.4,55.5,46],[1.8,57.3,39.5],[2.3,57.6,36.5],[3.0,57.8,30]]}), ball:[[0,{p:[45,47.3]}],[.35,{on:'m9'}],[.6,{on:'m9'}],[1.1,{on:'toi'}],[3.2,{on:'toi'}]], sp:[[.15,.8,'m9','Axe !'],[.75,1.3,'toi','Axe !']], fl:[[1.8,3.2,75,45,'DROIT → AVANCE']]},
+     lesson:'En retrait, dans l’axe de ton 9 : s’il crie « Axe ! », tu arrives lancé et tu avances debout. Jamais entre le 9 et le 10.', vig:'v4' }),
+   { kind:'choice', side:'att', tag:'Attaque · un copain est plaqué', ctx:'Ton 3e ligne se fait plaquer juste devant toi. Personne ne protège le ballon.', q:Q_QUOI, win:[26,24,56,39.2],
+     ents:[ T('xt',57.6,38,1), T('xs',62.5,30.5), T('xs2',49.5,31.5), T('xw',73,33.5), T('xv',39,33.5),
+            U('l3','l3','3L',56,41.6,1), U('m9','m9','9',43.5,56), U('tal','tal','Tal',60,64), U('o10','o10','10',76,59.5), U('toi','pil','Pil',54,54) ],
+     ball:{p:[56,45.6]},
+     choices:[{k:'a', t:'J’arrive vite et je protège', s:'Sur mes pieds, au-dessus du ballon', v:'ok', th:[['o',36,12,'#F2AA06'],['b',36,21],['m',36,42],['a',36,33.5,36,27]], fb:'Personne ne protège et tu es le plus près : tu arrives le premier, le ballon est à l’abri.'},{k:'b', t:'Je m’arrête pour regarder', s:'J’attends de voir', v:'no', th:[['o',36,12,'#F2AA06'],['b',36,21],['m',36,42],['t',52,45,'…']], fb:['Si personne n’arrive, ils prennent le ballon.','Personne ne protège et tu es le plus près : fonce.']},{k:'c', t:'Je pars à l’aile', s:'Je vais me placer au large', v:'no', th:[['o',22,12,'#F2AA06'],['b',22,21],['m',26,40],['a',35,40,58,40]], fb:['Au large, c’est la place des arrières.','Personne ne protège : le ballon d’abord.']}],
+     anim:{dur:2.6, tr:{toi:[[0,54,54],[.9,56,44.2]], xs:[[.2,62.5,30.5],[1.2,59.8,37.2]], m9:[[.3,43.5,56],[1.2,54,49.6]]}, ball:[[0,{p:[56,45.6]}],[1.5,{p:[56,45.6]}],[1.7,{on:'m9'}],[2.6,{on:'m9'}]], fl:[[1.0,2.6,38.5,45,'TU PROTÈGES']]},
+     lesson:'Personne ne protège ? Le premier arrivé, c’est toi : sur tes pieds, au-dessus du ballon. Ton 9 arrive juste derrière.', vig:null,
+     alt:{ctx:'Ton 3e ligne est plaqué. Ton talonneur protège déjà le ballon, et il tient bon.', ruck:[56.2,42.4,6.4,6.4,48.6,41,'end'], ents:[ T('xt',57.6,38,1), T('xs',62.5,30.5), T('xs2',49.5,31.5), T('xw',73,33.5), T('xv',39,33.5), U('l3','l3','3L',56,41.6,1), U('tal','tal','Tal',56.4,44.4), U('m9','m9','9',43.5,56), U('o10','o10','10',76,59.5), U('toi','pil','Pil',54,54) ], choices:[{k:'a', t:'J’entre aussi dans le ruck', s:'On sera deux dessus', v:'no', th:[['x',24,8],['x',48,8],['r',36,22],['o',36,20,'#FE8A00'],['b',36,31],['m',58,42],['a',52,38,45,31]], fb:['Ton talonneur tient bon tout seul. À deux dessus, vous êtes un de moins pour attaquer.','Reste debout près du ruck : ton 9 peut te lancer au près.']},{k:'b', t:'Je me place près du ruck', s:'Prêt à être lancé : « Axe ! »', v:'ok', th:[['x',24,8],['x',48,8],['r',36,22],['o',36,20,'#FE8A00'],['b',36,31],['m',32,44],['t',54,48,'Axe']], fb:'Ton talonneur tient bon : tu restes debout, prêt. « Axe ! », et c’est toi qui repars.'},{k:'c', t:'Je pars à l’aile', s:'Je vais me placer au large', v:'no', th:[['x',24,8],['x',48,8],['r',36,22],['o',36,20,'#FE8A00'],['b',36,31],['m',16,42],['a',23,42,58,42]], fb:['Au large, c’est la place des arrières.','Reste près du ruck : tu seras lancé au près.']}], anim:{dur:2.8, tr:{toi:[[0,54,54],[.7,49,53],[1.8,49,52],[2.8,45.5,40]], m9:[[.3,43.5,56],[1.4,55,49.6]], xs:[[.2,62.5,30.5],[1.2,60,36.5]]}, ball:[[0,{p:[56,45.6]}],[1.45,{p:[56,45.6]}],[1.65,{on:'m9'}],[1.8,{on:'m9'}],[2.1,{on:'toi'}],[2.8,{on:'toi'}]], sp:[[1.3,1.8,'m9','Axe !'],[1.75,2.3,'toi','Axe !']], fl:[[.2,1.4,37,46,'IL TIENT BON']]}, lesson:'Ton copain protège et tient bon : tu n’y vas pas. Tu restes debout près du ruck, prêt : « Axe ! ».'} }
+  ] };
+
+/* ============================ TALONNEUR ============================ */
+var TAL_E=ex(D_E,['tal','l2','pil2']).concat([U('pil2','pil','Pil',42.8,39.6,1),U('l2','l3','3L',46.5,51)]);
+POSTS.tal={ name:'Talonneur', nick:'Le Lanceur', col:'#FE8A00', lab:'Tal', emb:'cible', power:'Démarrage éclair',
+  job:'Tu lances en touche et tu talonnes en mêlée. Dans le jeu, tu es toujours près du ruck : pour le garder ou pour soutenir.',
+  def:['Gardien du ruck','Un bord du ruck est vide et tu es le plus près : « J’ai ! », tu le gardes.'],
+  att:['Le plus près soutient','Tu es le plus près du porteur ? Dans son Axe : « Axe ! ». Au ruck, tu aides seulement si ça pousse.'],
+  reps:[['d','Un bord du ruck est vide.','« J’ai ! » : tu le gardes.'],['d','Ça vient de ton côté.','Tu avances et tu plaques : oreille collée.'],['a','On a le ballon.','Le plus près soutient : « Axe ! ». Au ruck, tu aides seulement si ça pousse.']],
+  defi:'Au prochain plateau, garde 3 fois un bord du ruck.',
+  note:'Toi, avant : en retrait dans l’axe de ton 9, jamais entre le 9 et le 10. Il crie « Axe ! » ? Tu arrives lancé.',
+  sc:[
+   defPlace({ ctx:'Ruck pour eux. Ton pilier vient de plaquer : il est au sol.', ents:TAL_E, ideal:[33.5,51], zone:[29,45.6,9,10.8],
+     judge:jLine([29,45.6,9,10.8],{ok:'Ton pilier est au sol, ce bord était vide : « J’ai ! », c’est toi le gardien.', left:'Trop loin du ruck : le bord est ouvert. Colle-toi au ruck.', right:function(x){ return x<=51?'Ce bord-là, ton 3e ligne le garde déjà : « J’ai ! ». Le bord vide est de l’autre côté du ruck.':'Là, c’est la ligne. Mais regarde : un bord du ruck est vide, et tu es le plus près.'; }}),
+     anim:{dur:3.9, tr:{xs1:[[.6,24,24.5],[1.75,25.5,37.5]], x9:[[.5,40.6,27.2],[1.0,36,29.5],[1.75,30.5,34.5],[2.5,33.6,42.5],[2.65,33.6,43.6]], xs2:[[.6,11,22.5],[1.9,12,29]], x10:[[.6,56,23.5],[1.9,56.5,31]], xc:[[.6,68,21],[1.9,69,28]], xa:[[.6,80,19],[1.9,81,27]], xf:[[.6,91,17.5],[1.9,91,25]], pil1:[[.8,22,51],[1.85,25.2,40]], l2:[[.8,46.5,51],[1.8,47,46.6]], l3:[[.8,57.5,51.2],[1.9,57.5,42]], toi:[[.8,33.5,51],[1.8,33.6,46.6],[2.6,33.6,45.4]], o10:[[.8,69,51],[1.9,69,40]], ctr:[[.8,80,51.3],[1.9,80,40]], ail:[[.8,91,52.5],[1.9,91,41]]}, ball:[[0,{p:[40.5,30.4]}],[.45,{on:'x9'}],[.75,{on:'x9'}],[1.05,{on:'xs1'}],[1.75,{on:'xs1'}],[1.95,{on:'x9'}],[3.9,{on:'x9'}]], ev:[[1.9,'xs1','gr'],[2.65,'x9','gr']], sp:[[.05,.75,'m9','Ligne !','d'],[.8,1.5,'m9','Jeu !','d'],[1.15,1.8,'pil1','J’ai !'],[1.95,2.6,'toi','J’ai !']], fl:[[2.7,3.9,14,47.5,'PLAQUÉ !']]},
+     lesson:'Ton pilier est au sol : le bord vide est pour le plus près, toi. « J’ai ! » : si le ballon revient au ras, c’est pour toi.', vig:null }),
+   { kind:'choice', side:'def', tag:'Défense · au ras du ruck', ctx:'Le ballon ressort de ton côté : leur joueur fonce au ras du ruck.', q:Q_QUOI, win:[4,21,56,39.2], ruck:D_RUCK,
+     ents:[ T('xg',40,36.4,1), T('xr1',37.2,33.2), T('xr2',43,33), T('x9',38.6,27.4), T('xs1',26,24.5), T('xs2',12,23), T('x10',55,24), U('l2','l3','3L',42.8,39.6,1), U('pil1','pil','Pil',22,51), U('pil2','pil','Pil',46.5,51), U('l3','l3','3L',56,51.2), U('m9','m9','9',45,55.5), U('toi','tal','Tal',33.5,51) ],
+     ball:{on:'x9'},
+     choices:[{k:'a', t:'Je le plaque', s:'J’avance, oreille collée', v:'ok', th:[['x',36,9],['b',40.5,11.5],['m',36,40],['a',36,31,36,19]], fb:'C’est ton bord : « J’ai ! », tu avances et tu le plaques.'},{k:'b', t:'Je le laisse à mon 9', s:'Il est derrière le ruck', v:'near', th:[['x',36,9],['b',40.5,11.5],['m',26,34],['o',44,46,'#CAE268'],['t',58,40,'…']], fb:['Ton 9 est derrière : le temps qu’il arrive, leur joueur a déjà avancé.','Le bord, c’est toi. Ton 9, c’est le filet si ça passe.']},{k:'c', t:'Je recule', s:'Je le laisse venir', v:'no', th:[['x',36,9],['b',40.5,11.5],['m',36,29],['a',36,38,36,48]], fb:['En reculant, tu lui laisses de la place et de la vitesse.','Avance sur lui : c’est toi qui le plaques, pas l’inverse.']}],
+     anim:{dur:2.5, tr:{ xs1:[[.3,26,24.5],[1.3,31.8,43.4]], toi:[[.4,33.5,51],[1.3,33,46.6]], m9:[[.5,45,55.5],[1.5,38,53]] }, ball:[[0,{on:'x9'}],[.2,{on:'x9'}],[.6,{on:'xs1'}],[2.5,{on:'xs1'}]], ev:[[1.3,'xs1','gr']], sp:[[.4,1.1,'toi','J’ai !']], fl:[[1.35,2.5,47.5,46.4,'PLAQUÉ !']]},
+     lesson:'De ton côté du ruck, c’est toi le premier défenseur. Ton 9, derrière, c’est le filet si ça passe.', vig:'v1', vsteps:V_PLQ },
+   attPlace({ tag:'Attaque · on a le ballon', ctx:'Ton centre attaque tout droit. Tes 3es lignes sont loin : c’est toi le plus près.', q:'Où te places-tu pour continuer l’attaque ?', dir:[62,44.2,62,39.4], tagBelow:true,
+     ents:A1_T.concat(ex(A1_U,['tal','l2'],{o10:[40,57]}),[U('l2','l3','3L',22,74),U('l3b','l3','3L',12,68)]), ball:{on:'ctr'}, start:[54,67], ideal:[62,58.8], zone:[56,53.6,12,10.8],
+     judge:function(x,y){
+       if(y<49.5) return ['no','Devant le porteur, il ne peut pas te donner le ballon : tu es hors-jeu.'];
+       if(y>64.4) return ['no','Trop loin : il ne peut pas te donner le ballon, et s’il est plaqué, les adversaires arrivent avant toi.'];
+       if(Math.abs(x-62)>6) return ['near','À côté, c’est la place des arrières. Le soutien, c’est dans son Axe, juste derrière lui.'];
+       if(y<53.6) return ['near','Tu es collé à lui. Laisse 2 mètres : tu prendras le ballon lancé.'];
+       return ['ok','Tu es le plus près : dans son Axe, 2 mètres derrière. « Axe ! », il peut te donner le ballon.'];
+     },
+     anim:{dur:3.6, tr:{ctr:[[0,62,50],[1.0,62,40.6]], xd3:[[.3,62,34.6],[1.0,62.4,37.4]], toi:[[0,62,58.8],[1.0,63.6,47.6],[1.3,65.2,43.8],[2.5,67.2,30.5],[3.4,67.6,24.5]], xd4:[[1.2,74,35.2],[2.4,72.5,33.5],[3.4,72.8,30]], xd2:[[1.2,50,35.2],[2.2,56,36]], xb2:[[1.6,57,13.5],[3.4,60,14]], xb3:[[1.6,83,22],[3.4,79.5,17]], l2:[[.2,22,74],[1.6,48,58],[2.8,60,46],[3.4,63,40]], m9:[[.6,37,61.5],[2.6,56,50.5]], o10:[[.2,40,57],[2.6,46,53.5]], arr:[[.3,76,65.5],[3.0,75,51]], ail:[[.3,88,55],[3.0,89,43]]}, ball:[[0,{on:'ctr'}],[.95,{on:'ctr'}],[1.3,{on:'toi'}],[3.6,{on:'toi'}]], ev:[[1.25,'ctr','gr'],[1.25,'xd3','gr']], sp:[[.6,1.3,'toi','Axe !']], fl:[[1.6,3.6,84,27.6,'TU AVANCES !']]},
+     lesson:'Le plus près du porteur, c’est le soutien, quel que soit son poste : dans son Axe, 2 mètres derrière. « Axe ! »', vig:'v3' }),
+   { kind:'choice', side:'att', tag:'Attaque · ton copain protège', tagBelow:true, ctx:'Ton centre est plaqué. Ton 3e ligne protège le ballon… et il se fait pousser : il recule.', q:Q_QUOI, win:[34,25.5,56,39.2], ruck:[62,40.4,6.4,6.2,53.6,37.2,'end'], ents:[ T('xgd',63.6,35.4,1), T('x1',60.5,35.6), T('x2',74,33.4), T('x3',82,35), T('x4',44,34), T('x5',88,31), U('ctr','ctr','Ctr',62,38.8,1), U('l3','l3','3L',61.4,42.8), U('m9','m9','9',57,51.5), U('pil2','pil','Pil',66,58), U('o10','o10','10',44,53), U('toi','tal','Tal',48,57) ], ball:{p:[61.9,46.4]}, choices:[{k:'a', t:'Je viens l’aider', s:'Je me lie à lui et je pousse', v:'ok', th:[['x',24,8],['x',48,8],['r',36,22],['o',36,20,'#F2AA06'],['b',36,31],['m',58,42],['a',52,38,45,31]], fb:'Ça pousse, il recule : tu viens l’aider. À deux, le ballon est sauvé.'},{k:'b', t:'Je me replace', s:'En retrait, dans l’axe du 9', v:'no', th:[['x',24,8],['x',48,8],['r',36,22],['o',36,20,'#F2AA06'],['b',36,31],['m',60,44],['a',46,36,54,41]], fb:['Il recule : seul, il va perdre le ballon.','Quand ça pousse, le plus près vient aider.']},{k:'c', t:'Je reste à côté du ruck', s:'Au cas où', v:'near', th:[['x',24,8],['x',48,8],['r',36,22],['o',36,20,'#F2AA06'],['b',36,31],['m',56,24],['t',66,30,'…']], fb:['À côté, tu regardes ton copain reculer.','Il se fait pousser : lie-toi à lui tout de suite.']}], anim:{tr:{toi:[[.3,48,57],[1.1,60.2,47.6],[1.9,60.4,45.6]], l3:[[.2,61.4,42.8],[.9,61.2,44.8],[1.9,61.3,43]], x1:[[.2,60.5,35.6],[.9,60.8,38],[1.9,60.6,35.8]], m9:[[1.9,57,51.5],[2.1,58.5,48.5]], pil2:[[2.2,66,58],[2.7,69.5,49],[3.2,71.2,41],[3.7,71.5,37],[4.2,71.6,31]], x2:[[2.6,74,33.4],[3.2,73,38.5],[4.2,73,33]]}, ball:[[0,{p:[61.9,46.4]}],[2.0,{p:[61.9,46.4]}],[2.2,{on:'m9'}],[2.45,{on:'m9'}],[2.75,{on:'pil2'}],[4.3,{on:'pil2'}]], sp:[[2.35,2.9,'pil2','Axe !']], fl:[[.3,1.1,62,29,'ÇA POUSSE !'],[1.2,2.0,80,47,'TU AIDES'],[3.3,4.3,84,40,'AVANCE']], dur:4.3}, lesson:'Ton copain se fait pousser : le plus près vient l’aider. S’il tient bon, tu n’y vas pas.', vig:null, alt:{ctx:'Ton centre est plaqué. Ton 3e ligne protège le ballon, et il tient bon.', choices:[{k:'a', t:'Je viens l’aider', s:'Je me lie à lui et je pousse', v:'no', th:[['x',24,8],['x',48,8],['r',36,22],['o',36,20,'#F2AA06'],['b',36,31],['m',58,42],['a',52,38,45,31]], fb:['Il tient bon tout seul. À deux dessus, vous êtes un de moins pour attaquer.','Replace-toi en retrait, dans l’axe de ton 9.']},{k:'b', t:'Je me replace', s:'En retrait, dans l’axe du 9', v:'ok', th:[['x',24,8],['x',48,8],['r',36,22],['o',36,20,'#F2AA06'],['b',36,31],['m',60,44],['a',46,36,54,41]], fb:'Il tient bon : tu ne restes pas là. Tu te replaces en retrait, prêt pour la suite.'},{k:'c', t:'Je reste à côté du ruck', s:'Au cas où', v:'near', th:[['x',24,8],['x',48,8],['r',36,22],['o',36,20,'#F2AA06'],['b',36,31],['m',56,24],['t',66,30,'…']], fb:['À côté du ruck, tu ne sers à rien.','Replace-toi en retrait, dans l’axe de ton 9.']}], anim:{tr:{toi:[[.3,48,57],[1.2,51.5,60]], m9:[[.6,57,51.5],[.8,58.5,48.5]], pil2:[[.8,66,58],[1.3,69.5,49],[1.8,71.2,41],[2.3,71.5,37],[2.8,71.6,31]], x2:[[1.2,74,33.4],[1.8,73,38.5],[2.8,73,33]]}, ball:[[0,{p:[61.9,46.4]}],[.75,{p:[61.9,46.4]}],[.85,{on:'m9'}],[1.05,{on:'m9'}],[1.35,{on:'pil2'}],[3.0,{on:'pil2'}]], sp:[[.95,1.5,'pil2','Axe !']], fl:[[.1,.8,62,29,'IL TIENT BON'],[1.3,2.6,45,46,'TU TE REPLACES']], dur:3.0}, lesson:'Il tient bon tout seul : tu n’y vas pas. Tu te replaces en retrait, dans l’axe de ton 9.'}}
+  ] };
+
+/* ============================ 3E LIGNE ============================ */
+POSTS.l3={ name:'3e ligne', nick:'Le Gratteur', col:'#F2AA06', lab:'3L', emb:'griffe', power:'Plaquage radar',
+  job:'Tu plaques, tu te relèves, tu grattes. Et quand on a le ballon, tu colles au porteur pour continuer l’attaque.',
+  def:['Chasseur-plaqueur','Tu montes avec la ligne et tu plaques. Puis tu te relèves : ballon libre, tu grattes.'],
+  att:['Premier soutien','Dans l’Axe du porteur : « Axe ! ». Il te donne le ballon : tu attaques. Il est plaqué : tu protèges.'],
+  reps:[['d','Ils ont le ballon.','En ligne, tu montes et tu plaques : « J’ai ! ».'],['d','Ballon libre au sol.','Tu te relèves, par la porte : tu grattes.'],['a','On a le ballon.','Dans l’Axe du porteur : « Axe ! ». Au ruck, un seul protège : tu aides si ça pousse.']],
+  defi:'Au prochain plateau, sois 3 fois le premier soutien.',
+  note:'Toi, avant : en retrait dans l’axe de ton 9, jamais entre le 9 et le 10. Il crie « Axe ! » ? Tu arrives lancé.',
+  sc:[
+   defPlace({ ctx:'Ruck pour eux. Les deux bords du ruck sont déjà gardés.', ents:ex(D_E,['l3']), ideal:[57.5,51.2], zone:[51.2,45.6,12.8,10.8],
+     judge:jLine([51.2,45.6,12.8,10.8],{ok:'Les bords sont gardés : tu vas dans la ligne, en face d’un attaquant libre.', right:'Tu es bien en ligne, mais là c’est la place des arrières. Toi, tu te mets juste à côté de ton pilier.', left:function(x){ return x>=41.5?'Ce bord est déjà gardé par ton pilier : « J’ai ! ». Décale-toi, en face d’un attaquant libre.':'De ce côté, ton talonneur et ton pilier sont déjà là. Le trou est de l’autre côté, là où ils sont nombreux.'; }}),
+     anim:{dur:4.6, tr:{x10:[[.6,56,23.5],[1.75,55.5,37.5]], x9:[[.5,40.6,27.2],[1.0,45,29.5],[1.75,50.5,34.5],[2.5,47,42.5],[2.65,47,43.6]], xc:[[.6,68,21],[1.9,69,28]], xa:[[.6,80,19],[1.9,81,27]], xf:[[.6,91,17.5],[1.9,91,25]], o10:[[.8,69,51],[1.9,69,40]], ctr:[[.8,80,51.3],[1.9,80,40]], ail:[[.8,91,52.5],[1.9,91,41]], pil2:[[.8,46.5,51],[1.8,47,46.6],[2.6,47,45.4]], toi:[[.8,57.5,51.2],[1.85,55.8,40],[2.75,55.8,40.5],[3.4,49.8,41.6]]}, ball:[[0,{p:[40.5,30.4]}],[.45,{on:'x9'}],[.75,{on:'x9'}],[1.05,{on:'x10'}],[1.75,{on:'x10'}],[1.95,{on:'x9'}],[3.45,{on:'x9'}],[3.65,{on:'toi'}],[4.6,{on:'toi'}]], ev:[[1.9,'x10','gr'],[2.65,'x9','gr']], sp:[[.05,.75,'m9','Ligne !','d'],[.8,1.5,'m9','Jeu !','d'],[1.15,1.8,'toi','J’ai !'],[1.95,2.6,'pil2','J’ai !'],[3.0,3.6,'toi','J’ai !']], fl:[[1.95,2.9,55,31,'PLAQUÉ !'],[3.65,4.6,63,58,'BALLON GRATTÉ !']]},
+     lesson:'Tu montes et tu plaques le premier : « J’ai ! ». Puis tu te relèves tout de suite : ballon libre au sol, tu grattes.', vig:'v7' }),
+   { kind:'choice', side:'def', tag:'Défense · après le plaquage', ctx:'Ton copain vient de plaquer. Le porteur est au sol, personne sur le ballon. Tu arrives le premier.', q:Q_QUOI, win:[32,17.5,56,39.2],
+     ents:[ T('xg',60,38.2,1), T('xs',67.5,25.5), T('xs2',50,24.5), T('x9',42,27.5), T('xw',81,25),
+            U('o10','o10','10',63.4,40.6,1), U('pil2','pil','Pil',43.5,47.5), U('ctr','ctr','Ctr',74,45.8), U('ail','ail','Ail',84.5,47.5), U('toi','l3','3L',54.6,45.2) ],
+     ball:{p:[59.4,35.3]},
+     choices:[{k:'a', t:'Je gratte', s:'Debout, par la porte', v:'ok', th:'jackal', fb:'Premier arrivé, ballon libre : « J’ai ! ». Tu restes debout, le ballon est à toi.'},{k:'b', t:'J’attends un copain', s:'Pour gratter à deux', v:'no', th:'wait', fb:['Pendant que tu attends, leur soutien arrive et protège le ballon.','Premier arrivé, ballon libre : tu grattes tout de suite.']},{k:'c', t:'Je me remets en ligne', s:'Je laisse le ballon', v:'near', th:'away', fb:['Bon réflexe si leur soutien est déjà là. Mais là, le ballon est libre.','Tu es le premier : gratte.']}],
+     anim:{dur:2.7, tr:{ toi:[[0,54.6,45.2],[.5,57.6,43.6],[.95,59.2,39.6]], xs:[[.2,67.5,25.5],[1.6,63.8,32.2]], xs2:[[.3,50,24.5],[1.7,54.4,31.4]], pil2:[[.4,43.5,47.5],[1.7,49.5,44.4]], ctr:[[.4,74,45.8],[1.7,69,43.6]] },
+       ball:[[0,{p:[59.4,35.3]}],[1.0,{p:[59.4,35.3]}],[1.4,{on:'toi'}],[2.7,{on:'toi'}]], sp:[[.5,1.2,'toi','J’ai !']], fl:[[1.4,2.7,58.5,50,'BALLON GRATTÉ !']]},
+     lesson:'La porte, c’est arriver de ton côté, derrière le plaqué. Premier arrivé, ballon libre : tu grattes, debout.', vig:'v2' },
+   attPlace({ tag:'Attaque · on a le ballon', ctx:'Ton centre attaque tout droit avec le ballon.', q:'Où te places-tu pour continuer l’attaque&nbsp;?', dir:[62,44.2,62,39.4], tagBelow:true,
+     ents:A1_T.concat(A1_U), ball:{on:'ctr'}, start:[14,74.5], ideal:[62,58.8], zone:[56,53.6,12,10.8],
+     judge:function(x,y){
+       if(y<49.5) return ['no','Devant le porteur, il ne peut pas te donner le ballon&nbsp;: tu es hors-jeu.'];
+       if(y>64.2) return ['no','Trop loin&nbsp;: il ne peut pas te donner le ballon, et s’il est plaqué les adversaires arrivent avant toi.'];
+       if(Math.abs(x-62)>6) return ['near','À côté, c’est la place des arrières. Toi, tu colles au porteur&nbsp;: dans son Axe, juste derrière.'];
+       if(y<53.6) return ['near','Tu es collé à lui. Laisse 2&nbsp;mètres&nbsp;: tu prendras le ballon lancé.'];
+       return ['ok','Dans l’Axe, 2 mètres derrière : « Axe ! », il peut te donner le ballon.'];
+     },
+     anim:{dur:3.6,
+       tr:{ ctr:[[0,62,50],[1.0,62,40.6]], xd3:[[.3,62,34.6],[1.0,62.4,37.4]], toi:[[0,62,58.8],[1.0,63.6,47.6],[1.3,65.2,43.8],[2.5,67.2,30.5],[3.4,67.6,24.5]],
+            xd4:[[1.2,74,35.2],[2.4,72.5,33.5],[3.4,72.8,30]], xd2:[[1.2,50,35.2],[2.2,56,36]], xb2:[[1.6,57,13.5],[3.4,60,14]], xb3:[[1.6,83,22],[3.4,79.5,17]],
+            l2:[[.2,47.5,70.5],[1.3,56,55],[2.6,62.5,44.5],[3.4,64.5,36.5]], m9:[[.6,37,61.5],[2.6,56,50.5]], o10:[[.2,49,56],[2.6,49,53.5]], arr:[[.3,76,65.5],[3.0,75,51]], ail:[[.3,88,55],[3.0,89,43]] },
+       ball:[[0,{on:'ctr'}],[.95,{on:'ctr'}],[1.3,{on:'toi'}],[3.6,{on:'toi'}]], ev:[[1.25,'ctr','gr'],[1.25,'xd3','gr']],
+       sp:[[.6,1.3,'toi','Axe !']], fl:[[1.6,3.6,84,27.6,'TU AVANCES !']] },
+     lesson:'Le plus près du porteur : dans son Axe, 2 mètres derrière, « Axe ! ». Il te donne le ballon : tu attaques. Il est plaqué : tu protèges.', vig:'v3' }),
+   { kind:'choice', side:'att', tag:'Attaque · ton copain protège', tagBelow:true, ctx:'Ton centre est plaqué. Ton autre 3e ligne protège le ballon, et il tient bon.', q:Q_QUOI, win:[34,25.5,56,39.2], ruck:[62,40.4,6.4,6.2,53.6,37.2,'end'], ents:[ T('xgd',63.6,35.4,1), T('x1',60.5,35.6), T('x2',74,33.4), T('x3',82,35), T('x4',44,34), T('x5',88,31), U('ctr','ctr','Ctr',62,38.8,1), U('l2','l3','3L',61.4,42.8), U('tal','tal','Tal',40,62), U('m9','m9','9',57,51.5), U('pil2','pil','Pil',66,58), U('o10','o10','10',44,53), U('toi','l3','3L',48,57) ], ball:{p:[61.9,46.4]}, choices:[{k:'a', t:'J’entre aussi dans le ruck', s:'On sera deux dessus', v:'no', th:[['x',24,8],['x',48,8],['r',36,22],['o',36,20,'#F2AA06'],['b',36,31],['m',58,42],['a',52,38,45,31]], fb:['Il tient bon tout seul. À deux dessus, vous êtes un de moins pour attaquer.','Replace-toi en retrait, puis suis ton pilier.']},{k:'b', t:'Je me replace', s:'En retrait, dans l’axe du 9', v:'ok', th:[['x',24,8],['x',48,8],['r',36,22],['o',36,20,'#F2AA06'],['b',36,31],['m',60,44],['a',46,36,54,41]], fb:'Il tient bon : tu te replaces en retrait. Ton pilier va au contact, et c’est toi qui continues.'},{k:'c', t:'Je reste à côté du ruck', s:'Au cas où', v:'near', th:[['x',24,8],['x',48,8],['r',36,22],['o',36,20,'#F2AA06'],['b',36,31],['m',56,24],['t',66,30,'…']], fb:['À côté du ruck, tu ne sers à rien.','Replace-toi en retrait, dans l’axe de ton 9.']}], anim:{dur:4.2, tr:{toi:[[.3,48,57],[1.0,52,60],[1.6,62,53],[2.3,67.5,45],[2.7,67.5,41.5],[3.6,66.5,32],[4.2,66,27]], m9:[[.6,57,51.5],[.8,58.5,48.5]], pil2:[[.8,66,58],[1.3,69.5,49],[1.9,71.2,41],[2.5,71.4,39]], x2:[[1.0,74,33.4],[1.9,73,38.5],[2.6,73.2,37.5]], x3:[[1.4,82,35],[2.6,77,33]]}, ball:[[0,{p:[61.9,46.4]}],[.75,{p:[61.9,46.4]}],[.85,{on:'m9'}],[1.05,{on:'m9'}],[1.35,{on:'pil2'}],[2.5,{on:'pil2'}],[2.7,{on:'toi'}],[4.2,{on:'toi'}]], sp:[[.95,1.5,'pil2','Axe !'],[2.0,2.6,'toi','Axe !']], fl:[[.1,.8,62,29,'IL TIENT BON'],[1.9,2.6,84,44,'AVANCE'],[2.8,4.2,80,28,'TU AVANCES !']]}, lesson:'Ton copain tient bon : tu n’y vas pas. Tu te replaces en retrait, puis tu suis ton pilier : « Axe ! », c’est toi qui continues.', vig:null, alt:{ctx:'Ton centre est plaqué. Ton autre 3e ligne protège le ballon… et il se fait pousser : il recule.', choices:[{k:'a', t:'J’entre aussi dans le ruck', s:'Je me lie à lui et je pousse', v:'ok', th:[['x',24,8],['x',48,8],['r',36,22],['o',36,20,'#F2AA06'],['b',36,31],['m',58,42],['a',52,38,45,31]], fb:'Ça pousse, il recule : tu viens l’aider. À deux, le ballon est sauvé.'},{k:'b', t:'Je me replace', s:'En retrait, dans l’axe du 9', v:'no', th:[['x',24,8],['x',48,8],['r',36,22],['o',36,20,'#F2AA06'],['b',36,31],['m',60,44],['a',46,36,54,41]], fb:['Il recule : seul, il va perdre le ballon.','Quand ça pousse, le plus près vient aider.']},{k:'c', t:'Je reste à côté du ruck', s:'Au cas où', v:'near', th:[['x',24,8],['x',48,8],['r',36,22],['o',36,20,'#F2AA06'],['b',36,31],['m',56,24],['t',66,30,'…']], fb:['À côté, tu regardes ton copain reculer.','Il se fait pousser : lie-toi à lui tout de suite.']}], anim:{dur:4.3, tr:{toi:[[.3,48,57],[1.1,60.2,47.6],[1.9,60.4,45.6]], l2:[[.2,61.4,42.8],[.9,61.2,44.8],[1.9,61.3,43]], x1:[[.2,60.5,35.6],[.9,60.8,38],[1.9,60.6,35.8]], m9:[[1.9,57,51.5],[2.1,58.5,48.5]], pil2:[[2.2,66,58],[2.7,69.5,49],[3.2,71.2,41],[3.7,71.5,37],[4.2,71.6,31]], x2:[[2.6,74,33.4],[3.2,73,38.5],[4.2,73,33]]}, ball:[[0,{p:[61.9,46.4]}],[2.0,{p:[61.9,46.4]}],[2.2,{on:'m9'}],[2.45,{on:'m9'}],[2.75,{on:'pil2'}],[4.3,{on:'pil2'}]], sp:[[2.35,2.9,'pil2','Axe !']], fl:[[.3,1.1,62,29,'ÇA POUSSE !'],[1.2,2.0,80,47,'TU AIDES']]}, lesson:'Il se fait pousser, il recule : le plus près vient l’aider. À deux, le ballon est sauvé.'}}
+  ] };
+
+/* ============================ DEMI DE MÊLÉE ============================ */
+POSTS.m9={ name:'Demi de mêlée', nick:'L’Éclair', col:'#CAE268', lab:'9', emb:'eclair', power:'Colle au ballon',
+  job:'Tu es collé au ballon : tu le sors vite. En défense, tu gardes l’axe derrière le ruck et tu parles.',
+  def:['Gardien de l’axe','Derrière le ruck, dans l’axe : si ça passe au ras, c’est pour toi. Et tu parles à tes copains.'],
+  att:['Collé au ballon','À chaque ruck, tu sors le ballon vite : au copain qui crie « Axe ! », ou au large.'],
+  reps:[['d','Ils ont le ballon.','Derrière le ruck, dans l’axe.'],['d','Ça passe au ras.','C’est pour toi : tu plaques.'],['a','On a le ballon.','Collé au ruck : tu sors le ballon vite, au copain qui crie « Axe ! » ou au large.']],
+  defi:'Au prochain plateau, sors 5 ballons sans attendre.',
+  note:'Toi, en défense : derrière le ruck, dans l’axe. Tu ne vas pas dans la ligne.',
+  sc:[
+   defPlace({ ents:ex(D_E,['m9'],{xs2:[50,11.5]}), ideal:[40.4,58.5], zone:[34.5,54,12,9.6],
+     judge:function(x,y){
+       if(y<D_OFF){ if(Math.hypot(x-40.3,y-37)<9.5) return ['no','Pas dans le ruck : il est perdu. Toi, tu gardes l’axe, derrière.']; return ['no',HJ]; }
+       if(y>63.6) return ['no','Trop loin : si ça passe au ras, tu arrives trop tard.'];
+       if(y<54) return ['near','Dans la ligne, tu fais comme les autres. Toi, tu te mets juste derrière le ruck : si ça passe au ras, c’est pour toi.'];
+       if(x<34.5||x>46.5) return ['near','Derrière la ligne, oui. Mais reste dans l’axe du ruck : c’est là que ça peut passer au ras.'];
+       return ['ok','Derrière le ruck, dans l’axe : si ça passe au ras, c’est pour toi.'];
+     },
+     anim:{dur:4.0, tr:{x10:[[.6,56,23.5],[1.75,55.5,37.5]], x9:[[.5,40.6,27.2],[1.0,45,29.5],[1.75,50.5,34.5],[2.4,45,44],[2.9,42.5,52.5],[3.0,42.2,53.4]], xc:[[.6,68,21],[1.9,69,28]], xa:[[.6,80,19],[1.9,81,27]], xf:[[.6,91,17.5],[1.9,91,25]], o10:[[.8,69,51],[1.9,69,40]], ctr:[[.8,80,51.3],[1.9,80,40]], ail:[[.8,91,52.5],[1.9,91,41]], l3:[[.8,57.5,51.2],[1.85,55.8,40]], pil2:[[.8,46.5,51],[1.8,47,46.6],[2.35,50.5,45]], toi:[[.8,40.4,58.5],[2.0,40.6,57.4],[2.95,42,55.4]]}, ball:[[0,{p:[40.5,30.4]}],[.45,{on:'x9'}],[.75,{on:'x9'}],[1.05,{on:'x10'}],[1.75,{on:'x10'}],[1.95,{on:'x9'}],[3.9,{on:'x9'}]], ev:[[1.9,'x10','gr'],[3.0,'x9','gr']], sp:[[.05,.75,'toi','Ligne !','d'],[.8,1.5,'toi','Jeu !','d'],[1.15,1.8,'l3','J’ai !'],[2.35,2.95,'toi','J’ai !','d']], fl:[[1.95,2.9,55,31,'PLAQUÉ !'],[2.2,2.95,66,58,'ÇA PASSE AU RAS'],[3.0,4.0,62,64,'PLAQUÉ !']]},
+     lesson:'Tu appelles la ligne : « Ligne ! », puis « Jeu ! ». Et tu restes derrière le ruck, dans l’axe : si ça passe au ras, c’est pour toi.', vig:'v1', vsteps:V_PLQ }),
+   { kind:'choice', side:'def', tag:'Défense · tu diriges', ctx:'Ils ont le ballon. Il y a un trou dans ta ligne, entre le pilier et le 10.', q:Q_QUOI, win:[26,21.5,56,39.2], ruck:D_RUCK,
+     ents:[ T('xg',40,36.4,1), T('xr1',37.2,33.2), T('xr2',43,33), T('x9',40.6,27.2), T('x10',56,26), T('xc',68,25.5), T('xa',79,26),
+            U('l2','l3','3L',42.8,39.6,1), U('tal','tal','Tal',33.5,51), U('pil1','pil','Pil',22,51), U('pil2','pil','Pil',46,51), U('l3','l3','3L',63.4,56.4), U('o10','o10','10',69,51), U('ctr','ctr','Ctr',79,51.3), U('toi','m9','9',39.5,57.6) ],
+     ball:{p:[40.5,30.4]},
+     choices:[{k:'a', t:'Je parle', s:'J’appelle un copain dans le trou', v:'ok', th:[['o',12,16,'#FF6A3D'],['o',60,16,'#A6E06A'],['o',52,34,'#F2AA06'],['a',47,30,39,20],['m',26,40],['t',38,45,'!']], fb:'Tu vois le trou, tu parles fort : ton 3e ligne le bouche.'},{k:'b', t:'Je vais dans le ruck', s:'Je pousse avec les avants', v:'no', th:[['r',36,22],['o',31,24,'#FE8A00'],['m',41.5,26]], fb:['Le ruck est perdu : personne n’y va.','Ton travail : voir les trous et parler.']},{k:'c', t:'Je bouche le trou moi-même', s:'Je quitte l’axe du ruck', v:'near', th:[['o',12,16,'#FF6A3D'],['o',60,16,'#A6E06A'],['o',52,34,'#F2AA06'],['m',26,40],['a',31,36,36,20]], fb:['Si tu quittes l’axe, plus personne derrière le ruck si ça passe au ras.','Parle : ton 3e ligne est plus près du trou.']}],
+     anim:{dur:2.8, tr:{ l3:[[.7,63.4,56.4],[1.7,57.5,51.2]] }, ball:[[0,{p:[40.5,30.4]}],[2.8,{p:[40.5,30.4]}]], sp:[[.2,1.4,'toi','Ligne !']], fl:[[1.8,2.8,57.5,57.6,'TROU BOUCHÉ']]},
+     lesson:'Tu es le seul à tout voir. Un trou ? Tu le dis tout de suite, et fort. Et tu restes dans l’axe.', vig:null },
+   attPlace({ tag:'Attaque · ruck gagné', ctx:'Ruck gagné : le ballon est au sol, derrière tes avants.', ruck:A2_RUCK, tagBelow:true,
+     ents:A2_T.concat(ex(A2_U,['m9'])), ball:A2_BALL, start:[14,76], ideal:[44,52.6], zone:[39.5,47.4,11,7.8],
+     judge:function(x,y){
+       if(y<47.3){ if(Math.hypot(x-45,y-40.6)<8.5) return ['no','Pas dans le ruck : tes avants s’en occupent. Toi, tu attends le ballon juste derrière.']; return ['no','Devant le ballon, tu es hors-jeu.']; }
+       if(x>=39.5&&x<=50.5&&y<=55.2) return ['ok','Collé au ruck, juste derrière le ballon : tu peux le sortir tout de suite.'];
+       if(y<=63&&x>=28&&x<=63) return ['near','Rapproche-toi encore : le 9 est collé au ballon.'];
+       return ['no','Trop loin du ballon : le 9 est toujours au ruck.'];
+     },
+     anim:{dur:3.2, tr:mg(A2_GO,{pil2:[[.4,50,61],[1.0,53.5,51.5],[1.4,55.5,46],[1.8,57.3,39.5],[2.3,57.6,36.5],[3.0,57.8,30]], toi:[[.3,44,52.6],[.55,44.5,50.5],[1.3,46,50],[2.8,54,44]]}), ball:[[0,{p:[45,47.3]}],[.35,{on:'toi'}],[.6,{on:'toi'}],[1.1,{on:'pil2'}],[3.2,{on:'pil2'}]], sp:[[.15,.8,'toi','Axe !'],[.75,1.3,'pil2','Axe !']], fl:[[2.0,3.2,26,50,'TU SUIS LE BALLON']]},
+     lesson:'Collé au ruck, tu sors le ballon vite. « Axe ! » : un avant arrive lancé au ras. « Plus ! » : le ballon part au large.', vig:'v5' }),
+   { kind:'choice', side:'att', tag:'Attaque · tu choisis', ctx:'Tu sors le ballon. Ton pilier arrive lancé tout près : « Axe ! ». Ton 10 est loin, avec un défenseur sur lui.', q:Q_QUOI, win:[26,26,56,39.2], ruck:A2_RUCK, tagBelow:true,
+     ents:[ T('xg',46.6,36.6,1), T('xk1',38.6,36.6), T('xk2',53,36.2), T('xl1',62,35.5), T('xm',71.5,50),
+            U('ctr','ctr','Ctr',45,40.2,1), U('l3','l3','3L',45,44), U('tal','tal','Tal',34,49), U('pil2','pil','Pil',50,60), U('o10','o10','10',73,57.5), U('toi','m9','9',44,52.6) ],
+     ball:{on:'toi'},
+     choices:[{k:'a', t:'Je donne au pilier', s:'Tout près, lancé', v:'ok', th:[['r',20,16],['m',20,36],['o',40,40,'#FF6A3D'],['a',27.5,37,34,39]], fb:'Il arrive lancé, tout près, et il crie « Axe ! » : c’est lui. Tu sors le ballon vite.'},{k:'b', t:'Je passe au 10', s:'Une longue passe', v:'near', th:[['r',16,16],['m',16,36],['o',60,42,'#A6E06A'],['x',60,29],['a',24,37,53,41]], fb:['Ton 10 a un défenseur sur lui : il serait plaqué tout de suite.','Ton pilier est lancé, tout près : donne-lui.']},{k:'c', t:'Je garde le ballon', s:'J’attends de voir', v:'no', th:[['r',30,16],['m',30,36],['b',35,32.5],['t',46,41,'…']], fb:['Chaque seconde, la défense se replace.','Sors le ballon vite, au copain lancé.']}],
+     anim:{dur:2.6, tr:{pil2:[[.1,50,60],[.6,53,50],[1.3,54,40],[2.3,54,34]], xk2:[[.7,53,36.2],[1.3,53.6,36.8],[2.3,53.4,31.2]], toi:[[.8,44,52.6],[2.3,50,45.4]]}, ball:[[0,{on:'toi'}],[.25,{on:'toi'}],[.65,{on:'pil2'}],[2.6,{on:'pil2'}]], sp:[[0,.55,'pil2','Axe !']], fl:[]},
+     lesson:'Avant de ramasser, tu regardes : qui crie « Axe ! », qui est libre. Tu donnes au copain qui peut avancer.', vig:null,
+     alt:{ctx:'Tu sors le ballon. Ton pilier est à côté du ruck, à l’arrêt. Ton 10 est seul, sans défenseur.', ents:[ T('xg',46.6,36.6,1), T('xk1',38.6,36.6), T('xk2',53,36.2), T('xl1',62,35.5), U('ctr','ctr','Ctr',45,40.2,1), U('l3','l3','3L',45,44), U('tal','tal','Tal',34,49), U('pil2','pil','Pil',51,50), U('o10','o10','10',71,57), U('toi','m9','9',44,52.6) ], choices:[{k:'a', t:'Je donne au pilier', s:'Tout près de moi', v:'no', th:[['r',20,16],['m',20,36],['o',40,40,'#FF6A3D'],['a',27.5,37,34,39]], fb:['Ton pilier est à l’arrêt, sans élan : il serait plaqué tout de suite.','Ton 10 est seul : donne-lui vite.']},{k:'b', t:'Je passe au 10', s:'Une longue passe', v:'ok', th:[['r',16,16],['m',16,36],['o',60,42,'#A6E06A'],['a',24,37,53,41]], fb:'Personne n’est lancé au près, et ton 10 est seul : c’est lui.'},{k:'c', t:'Je garde le ballon', s:'J’attends de voir', v:'no', th:[['r',30,16],['m',30,36],['b',35,32.5],['t',46,41,'…']], fb:['Chaque seconde, la défense se replace.','Ton 10 est seul : donne-lui vite.']}], anim:{dur:2.6, tr:{o10:[[.1,71,57],[.8,69.5,55],[1.6,68.5,47],[2.6,68,38]], toi:[[.6,44,52.6],[2.0,46,47]]}, ball:[[0,{on:'toi'}],[.3,{on:'toi'}],[.9,{on:'o10'}],[2.6,{on:'o10'}]], sp:[[.05,.7,'toi','Plus !']], fl:[]}, lesson:'Tu regardes avant de ramasser. Personne n’est lancé au près ? Le copain libre, c’est ton 10.'} }
+  ] };
+
+/* ============================ DEMI D'OUVERTURE ============================ */
+var BK_E=[ T('xr2',43.6,33), T('x10',56,27), T('xc',68,25), T('xa',80,23.5), T('xf',91,23),
+           U('pil2','pil','Pil',46,51), U('l3','l3','3L',57.5,51.2), U('o10','o10','10',69,51), U('ctr','ctr','Ctr',80,51.3), U('ail','ail','Ail',91,52.5) ];
+var BK_TR={ l3:[[.3,57.5,51.2],[1.5,57.2,40.6]], x10:[[.2,56,27],[1.5,56.8,36.8]], o10:[[.3,69,51],[1.5,69,40.8]], ctr:[[.3,80,51.3],[1.5,80,40.8]], ail:[[.3,91,52.5],[1.5,91,43]], pil2:[[.3,46,51],[1.5,46.4,45.5]], xc:[[.2,68,25],[1.5,68.6,33.6]], xa:[[.2,80,23.5],[1.5,80.4,32.4]], xf:[[.2,91,23],[1.5,91,32]] };
+POSTS.o10={ name:'Demi d’ouverture', nick:'Le Stratège', col:'#A6E06A', lab:'10', emb:'oeil', power:'Lecture du jeu',
+  job:'Tu reçois le ballon de ton 9 et tu choisis où va le jeu.',
+  def:['En ligne','Tu montes avec les copains (Ligne → Jeu) et tu plaques le joueur en face de toi.'],
+  att:['Tu décides','Tu reçois en profondeur, lancé. Puis tu choisis : Plus, Droit ou le pied.'],
+  reps:[['d','Ils ont le ballon.','En ligne, à côté de ton 3e ligne.'],['d','Leur 10 reçoit.','On monte ensemble : Ligne → Jeu.'],['a','On a le ballon.','En profondeur, lancé. Puis tu décides : Plus, Droit ou le pied.']],
+  defi:'Au prochain plateau, reçois 3 ballons en profondeur, lancé.',
+  sc:[
+   defPlace({ ents:ex(D_E,['o10']), ideal:[69,51], zone:[63.2,45.6,11.6,10.8],
+     judge:jLine([63.2,45.6,11.6,10.8],{ok:'En ligne, entre ton 3e ligne et ton centre.',left:'Là, c’est la place des avants. Toi, tu es le premier des arrières dans la ligne.',right:'Tu es en ligne, mais trop loin&nbsp;: il y a un trou à côté de ton 3e ligne.'}),
+     anim:{dur:3.4, tr:{pil2:[[.8,46.5,51],[1.8,47,46.6]], l3:[[.7,57.5,51.2],[1.8,57.2,40]], x10:[[.7,56,23.5],[1.5,56.6,30]], xc:[[.7,68,21],[1.3,68.4,26],[2.1,68.8,32.5]], toi:[[.7,69,51],[2.1,69,36]], ctr:[[.7,80,51.3],[2.1,80,36]], ail:[[.7,91,52.5],[2.1,91,38]], xa:[[.7,80,19],[2.1,81,26]], xf:[[.7,91,17.5],[2.1,91,24]]}, ball:[[0,{p:[40.5,30.4]}],[.4,{on:'x9'}],[.6,{on:'x9'}],[1.05,{on:'x10'}],[1.3,{on:'x10'}],[1.7,{on:'xc'}],[3.4,{on:'xc'}]], ev:[[2.15,'xc','gr']], sp:[[.05,.75,'m9','Ligne !','d'],[.8,1.5,'m9','Jeu !','d'],[1.5,2.1,'toi','J’ai !']], fl:[[2.2,3.4,62,22,'PLAQUÉ !']]},
+     lesson:'En défense, tu montes vite avec la ligne : « Ligne ! », puis « Jeu ! ». Tu ne les attends pas, tu plaques le joueur en face de toi.', vig:'v1', vsteps:['Je monte en ligne, avec les copains','Oreille collée, cercle de fer','Je me relève tout de suite'] }),
+   { kind:'choice', side:'def', tag:'Défense · leur 10 reçoit', ctx:'Leur 10 reçoit le ballon. Tes copains sont en ligne.', q:Q_QUOI, win:[40,17,56,39.2],
+     ents:ex(BK_E,['o10']).concat([U('toi','o10','10',69,51)]), ball:{on:'x10'},
+     choices:[{k:'a', t:'Je monte avec la ligne', s:'Tous ensemble : Ligne → Jeu', v:'ok', th:[['o',12,36,'#F2AA06'],['o',28,36,'#7FD67A'],['m',46,36],['o',62,36,'#57C98A'],['a',12,28,12,20],['a',28,28,28,20],['a',46,27,46,18],['a',62,28,62,20]], fb:'Vous montez ensemble : pas de trou, leur 10 n’a pas le temps.'},{k:'b', t:'Je fonce tout seul', s:'Je pars avant les copains', v:'no', th:[['o',12,40,'#F2AA06'],['o',28,40,'#7FD67A'],['o',62,40,'#57C98A'],['m',46,16],['a',46,36,46,27]], fb:['Tout seul devant, tu laisses un trou derrière toi.','On monte ensemble : Ligne → Jeu.']},{k:'c', t:'Je recule pour couvrir', s:'Au cas où ça passe', v:'no', th:[['o',12,20,'#F2AA06'],['o',28,20,'#7FD67A'],['o',62,20,'#57C98A'],['m',46,32],['a',46,39,46,47]], fb:['Derrière, c’est l’arrière. Si tu recules, il y a un trou dans la ligne.','Monte avec la ligne : Ligne → Jeu.']}],
+     anim:{dur:2.6, tr:foc(BK_TR,'o10'), ball:[[0,{on:'x10'}],[2.6,{on:'x10'}]], ev:[[1.5,'x10','gr']], sp:[[.2,.9,'toi','Jeu !']], fl:[]},
+     lesson:'La défense, c’est une ligne&nbsp;: on monte tous ensemble, à la même hauteur. Personne devant, personne derrière.', vig:null },
+   attPlace({ tag:'Attaque · ruck gagné', ctx:'Ruck gagné. Ton 9 va te donner le ballon.', q:'Où te places-tu pour le recevoir&nbsp;?', ruck:A3_RUCK,
+     ents:A3_T.concat(ex(A3_U,['o10'])), ball:A3_BALL, start:[57,77.5], ideal:[46,58.5], zone:[40,54.6,12,8.8],
+     judge:function(x,y){
+       if(y<50.2) return ['no','Devant le ballon, ton 9 ne peut pas te le donner&nbsp;: tu es hors-jeu.'];
+       if(y>63.6) return ['no','Trop loin derrière&nbsp;: tu reçois le ballon, mais la défense a tout le temps de monter.'];
+       if(x<40) return ['near','Trop près du ruck&nbsp;: laisse de la place à ton 9 pour faire sa passe.'];
+       if(x>52) return ['near','Trop loin&nbsp;: la passe est trop longue pour ton 9. Rapproche-toi.'];
+       if(y<54.6) return ['near','Trop à plat&nbsp;: tu recevrais le ballon à l’arrêt, avec la défense sur toi. Recule de 2&nbsp;mètres.'];
+       return ['ok','Pas trop près, et en profondeur&nbsp;: tu reçois le ballon lancé.'];
+     },
+     anim:{dur:3.6,
+       tr:{ toi:[[.4,46,58.5],[1.5,49.5,50.5],[2.6,51,46]], ctr:[[.9,61,63],[1.95,64,53],[2.4,65.5,49.5],[3.4,66.5,45]], ail:[[1.4,88,66.5],[2.85,89.5,52],[3.6,90.5,40]], arr:[[1.2,74,73],[3.4,77,59]],
+            xl1:[[1.0,47,37.6],[1.6,49,41.5]], xl2:[[1.7,59,37],[2.4,63.6,42.6]], xl3:[[2.0,71,37.6],[3.2,78,40]], xl4:[[2.6,85,38.8],[3.6,87.4,36]] },
+       ball:[[0,{p:[30.2,50.2]}],[.3,{on:'m9'}],[.5,{on:'m9'}],[.95,{on:'toi'}],[1.5,{on:'toi'}],[1.95,{on:'ctr'}],[2.4,{on:'ctr'}],[2.85,{on:'ail'}],[3.6,{on:'ail'}]],
+       sp:[[.05,.55,'m9','Plus !'],[1.3,1.9,'toi','Plus !']], fl:[] },
+     lesson:'En attaque, tu te places en profondeur, pas à plat&nbsp;: tu reçois le ballon lancé. Puis tu décides&nbsp;: Plus pour écarter, Droit pour attaquer, ou le pied.', vig:null }),
+   { kind:'choice', side:'att', tag:'Attaque · tu décides', ctx:'Tu reçois le ballon. Devant toi, la défense est serrée. Au large, ton ailier est seul.', q:Q_QUOI, win:[0,20,100,70],
+     ents:[ T('xa',31,43), T('xb',40,42), T('xc',49,43), T('xd',58,45), T('xe',22,45.5), T('xf',70,31),
+            U('m9','m9','9',26,64), U('l3','l3','3L',33,71), U('ctr','ctr','Ctr',58,67), U('ail','ail','Ail',87,69), U('arr','arr','15',72,77), U('toi','o10','10',41,60) ],
+     ball:{on:'toi'},
+     choices:[{k:'a', t:'Plus', s:'J’écarte vers le large', v:'ok', th:[['x',14,10],['x',26,10],['x',38,10],['m',24,38],['o',62,42,'#57C98A'],['a',32,39,54,41.5]], fb:'L’espace est au large : tu écartes, ton ailier a le champ libre.'},{k:'b', t:'Droit', s:'Je redresse vers le milieu', v:'no', th:[['x',24,10],['x',36,10],['x',48,10],['m',36,40],['a',36,31,36,20]], fb:['Au milieu, ils sont quatre devant toi : tu seras plaqué.','L’espace est au large : Plus.']},{k:'c', t:'Je tape par-dessus', s:'Un coup de pied derrière eux', v:'near', th:[['m',30,42],['a',35,34,48,14],['b',52,10]], fb:['Derrière eux, leur arrière récupère le ballon.','Ton ailier est seul au large : Plus.']}],
+     anim:{dur:3.0, tr:{ toi:[[.1,41,60],[.7,43,56]], ctr:[[.2,58,67],[.8,60,61.5],[1.4,62,58]], ail:[[.6,87,69],[1.5,88.5,59],[2.8,90,36]], xd:[[.9,58,45],[1.6,63,50]], xc:[[.9,49,43],[1.8,56,47]], arr:[[.8,72,77],[2.6,78,60]] },
+       ball:[[0,{on:'toi'}],[.3,{on:'toi'}],[.75,{on:'ctr'}],[1.05,{on:'ctr'}],[1.5,{on:'ail'}],[3.0,{on:'ail'}]], sp:[[.1,.75,'toi','Plus !']], fl:[]},
+     lesson:'Tu regardes avant de recevoir. Serré devant toi, de la place au large&nbsp;: Plus. Un trou devant&nbsp;: Droit.', vig:null,
+     alt:{ctx:'Tu reçois le ballon. Juste devant toi, un trou entre deux défenseurs. Au large, ils sont nombreux.', ents:[ T('xa',27,44), T('xb',33,43), T('xc',51,42), T('xd',60,43), T('xe',70,44), T('xf',81,43), U('m9','m9','9',26,64), U('l3','l3','3L',33,71), U('ctr','ctr','Ctr',58,67), U('ail','ail','Ail',87,69), U('arr','arr','15',72,77), U('toi','o10','10',41,60) ], choices:[{k:'a', t:'Plus', s:'J’écarte vers le large', v:'no', th:[['x',46,10],['x',58,10],['m',24,38],['o',62,42,'#57C98A'],['a',32,39,54,41.5]], fb:['Au large, ils sont nombreux : ta passe arrive sur un défenseur.','Il y a un trou juste devant toi : Droit !']},{k:'b', t:'Droit', s:'Je redresse ma course', v:'ok', th:[['x',14,10],['x',58,10],['m',36,40],['a',36,31,36,14]], fb:'Il y a un trou devant toi : tu redresses ta course et tu passes.'},{k:'c', t:'Je tape par-dessus', s:'Un coup de pied derrière eux', v:'near', th:[['m',30,42],['a',35,34,48,14],['b',52,10]], fb:['Le trou est devant toi : tu donnerais le ballon pour rien.','Droit : tu redresses ta course dans le trou.']}], anim:{dur:2.6, tr:{toi:[[.1,41,60],[.8,42,52],[1.6,42.5,40],[2.6,43,34]], xb:[[.5,33,43],[1.4,36.5,44]], xc:[[.5,51,42],[1.4,48,43]], l3:[[.4,33,71],[2.4,40,50]]}, ball:[[0,{on:'toi'}],[2.6,{on:'toi'}]], fl:[[.8,2.6,60,54,'DROIT']]}, lesson:'Un trou devant toi ? Droit, tu redresses ta course. Serré devant, de la place au large ? Plus.'} }
+  ] };
+
+/* ============================ CENTRE ============================ */
+POSTS.ctr={ name:'Centre', nick:'Le Perforateur', col:'#7FD67A', lab:'Ctr', emb:'perce', power:'Perce',
+  job:'Tu attaques la ligne tout droit et tu fais jouer tes copains autour de toi.',
+  def:['Avec ton 10','Tu montes à sa hauteur, épaule contre épaule, et tu plaques.'],
+  att:['Fixer ou percer','Tu cours Droit pour fixer ton défenseur, puis tu Cherches un copain. S’il glisse, tu Perces.'],
+  reps:[['d','Ils ont le ballon.','En ligne, entre ton 10 et ton ailier.'],['d','Ton 10 monte.','Tu montes à sa hauteur.'],['a','On a le ballon.','Droit pour fixer, puis Cherche. Il glisse ? Perce.']],
+  defi:'Au prochain plateau, cours 3 fois Droit avant de donner.',
+  sc:[
+   defPlace({ ents:ex(D_E,['ctr']), ideal:[80,51.3], zone:[74.4,45.6,11.2,10.8],
+     judge:jLine([74.4,45.6,11.2,10.8],{ok:'En ligne, entre ton 10 et ton ailier.',left:'Tu es en ligne, mais ton 10 est déjà là. Décale-toi vers l’extérieur.',right:'Là, c’est le couloir de ton ailier. Toi, tu es entre le 10 et lui.'}),
+     anim:{dur:4.1, tr:{pil2:[[.8,46.5,51],[1.8,47,46.6]], l3:[[.75,57.5,51.2],[1.8,57.2,40]], x10:[[.7,56,23.5],[1.5,56.6,30]], xc:[[.7,68,21],[1.9,67.4,29]], xa:[[.7,80,19],[1.7,80.4,26],[2.6,80.6,32.5]], xf:[[.7,91,17.5],[2.6,91,27]], o10:[[.8,69,51],[2.4,69,36.5]], toi:[[.8,80,51.3],[2.6,80.5,36]], ail:[[.8,91,52.5],[2.6,91,38]]}, ball:[[0,{p:[40.5,30.4]}],[.4,{on:'x9'}],[.6,{on:'x9'}],[1.05,{on:'x10'}],[1.3,{on:'x10'}],[1.65,{on:'xc'}],[1.9,{on:'xc'}],[2.25,{on:'xa'}],[4.1,{on:'xa'}]], ev:[[2.65,'xa','gr']], sp:[[.05,.75,'m9','Ligne !','d'],[.8,1.5,'m9','Jeu !','d'],[2.0,2.6,'toi','J’ai !']], fl:[[2.7,4.1,66,20,'PLAQUÉ !']]},
+     lesson:'En défense, tu montes vite à la hauteur de ton 10, épaule contre épaule. Tu ne les attends pas : tu plaques le joueur en face de toi.', vig:'v1', vsteps:['Je monte à la hauteur de mon 10','Oreille collée, cercle de fer','Je me relève tout de suite'] }),
+   { kind:'choice', side:'def', tag:'Défense · ton 10 monte', ctx:'Leur 10 reçoit le ballon. Ton 10 monte avec la ligne.', q:Q_QUOI, win:[40,17,56,39.2],
+     ents:ex(BK_E,['ctr']).concat([U('toi','ctr','Ctr',80,51.3)]), ball:{on:'x10'},
+     choices:[{k:'a', t:'Je monte avec lui', s:'À sa hauteur, épaule contre épaule', v:'ok', th:[['o',12,36,'#F2AA06'],['o',28,36,'#A6E06A'],['m',46,36],['o',62,36,'#57C98A'],['a',12,28,12,20],['a',28,28,28,20],['a',46,27,46,18],['a',62,28,62,20]], fb:'À la même hauteur que ton 10 : pas de trou entre vous.'},{k:'b', t:'Je reste derrière', s:'Au cas où il rate', v:'no', th:[['o',12,20,'#F2AA06'],['o',28,20,'#A6E06A'],['o',62,20,'#57C98A'],['m',46,40],['t',58,45,'…']], fb:['Derrière, c’est l’arrière. En restant derrière, tu laisses un trou à côté de ton 10.','Monte avec lui, épaule contre épaule.']},{k:'c', t:'Je me rapproche du ruck', s:'Je vais aider les avants', v:'no', th:[['r',12,28],['o',34,28,'#A6E06A'],['m',56,28],['a',48,28,42,28]], fb:['Près du ruck, il y a déjà les gardiens et ton 9.','Garde ta place dans la ligne, à côté de ton 10.']}],
+     anim:{dur:2.6, tr:foc(BK_TR,'ctr'), ball:[[0,{on:'x10'}],[2.6,{on:'x10'}]], ev:[[1.5,'x10','gr']], fl:[[.9,2.6,72,51.6,'ENSEMBLE']]},
+     lesson:'Tu défends avec ton 10 : même hauteur, même vitesse. Personne ne passe entre vous.', vig:null },
+   attPlace({ tag:'Attaque · ruck gagné', ctx:'Ruck gagné. Le ballon va partir vers ton 10.', ruck:A3_RUCK,
+     ents:A3_T.concat(ex(A3_U,['ctr'])), ball:A3_BALL, start:[46,77.5], ideal:[61,63], zone:[55.5,58.8,11.5,8.8],
+     judge:function(x,y){
+       if(y<50.2) return ['no','Devant le ballon, personne ne peut te le donner&nbsp;: tu es hors-jeu.'];
+       if(y>67.8) return ['no','Trop loin derrière&nbsp;: tu arrives trop tard.'];
+       if(x<55.5) return ['near','Trop près de ton 10&nbsp;: vous vous gênez. Écarte-toi.'];
+       if(x>67) return ['near','Trop loin de ton 10&nbsp;: la passe est longue. Rapproche-toi.'];
+       if(y<58.8) return ['near','Trop à plat&nbsp;: ton 10 ne peut pas te servir lancé. Recule un peu.'];
+       return ['ok','À côté de ton 10, un peu derrière lui&nbsp;: tu arrives lancé.'];
+     },
+     anim:{dur:3.6,
+       tr:{ o10:[[.5,46,58.5],[1.2,48.5,52]], toi:[[.8,61,63],[1.6,63,54],[2.5,63.6,44.8]], xl2:[[1.6,59,37],[2.5,62.6,41]], xl3:[[1.8,71,37.6],[2.6,67.4,41.4]], ail:[[1.4,88,66.5],[2.6,79,50],[3.6,82,33]], xl4:[[2.8,85,38.8],[3.6,86,36.5]], arr:[[1.2,74,73],[2.4,78,58],[3.6,80.5,40]] },
+       ball:[[0,{p:[30.2,50.2]}],[.3,{on:'m9'}],[.45,{on:'m9'}],[.8,{on:'o10'}],[1.2,{on:'o10'}],[1.6,{on:'toi'}],[2.5,{on:'toi'}],[2.95,{on:'ail'}],[3.6,{on:'ail'}]],
+       sp:[[.05,.55,'m9','Plus !'],[2.7,3.4,'arr','Axe !']], fl:[[1.6,2.5,49,44.6,'DROIT'],[2.5,3.6,48,65,'CHERCHE']] },
+     lesson:'En attaque, tu cours Droit pour fixer ton défenseur, puis tu Cherches ton soutien&nbsp;: le ballon arrive à un copain lancé, avec de la place.', vig:null }),
+   { kind:'choice', side:'att', tag:'Attaque · à deux contre un', ctx:'Tu as le ballon. Un défenseur monte sur toi, ton ailier est à côté.', q:Q_QUOI, win:[36,26,56,39.2],
+     ents:[ T('xd',60,39.5), T('xi',48,41), T('xj',41,45.5), U('ail','ail','Ail',75,58), U('o10','o10','10',47,58), U('toi','ctr','Ctr',60,54) ],
+     ball:{on:'toi'},
+     choices:[{k:'a', t:'Droit, puis je donne', s:'Je le fixe, et Cherche', v:'ok', th:[['x',28,9],['m',28,42],['o',54,44,'#57C98A'],['a',28,33.5,28,21],['a',35,23,49,36]], fb:'Tu cours sur lui : il est obligé de te prendre. Ton ailier est libre.'},{k:'b', t:'Je donne tout de suite', s:'De loin, sans courir', v:'near', th:[['x',28,9],['m',28,42],['o',54,44,'#57C98A'],['a',36,42.5,46.5,43.5]], fb:['Si tu donnes trop tôt, ton défenseur glisse sur ton ailier.','Cours Droit d’abord, pour le fixer.']},{k:'c', t:'Je cours vers la touche', s:'Je garde le ballon', v:'no', th:[['x',28,9],['m',24,42],['o',56,44,'#57C98A'],['a',31,37,50,20]], fb:['En courant vers la touche, tu fermes le couloir de ton ailier.','Cours Droit, puis Cherche.']}],
+     anim:{dur:2.6, tr:{ toi:[[.1,60,54],[.9,60.4,46.6]], xd:[[.1,60,39.5],[.9,60.6,43.4]], ail:[[.3,75,58],[1.3,74,48],[2.4,74.5,32]], xi:[[.5,48,41],[1.6,54,44]] },
+       ball:[[0,{on:'toi'}],[.9,{on:'toi'}],[1.3,{on:'ail'}],[2.6,{on:'ail'}]], fl:[[.2,.95,49.5,50,'DROIT'],[1.0,2.6,62,60.6,'CHERCHE']]},
+     lesson:'Droit → Cherche&nbsp;: d’abord tu fixes ton défenseur en courant sur lui, ensuite tu donnes.', vig:null,
+     alt:{ctx:'Tu as le ballon. Le défenseur en face de toi glisse vers ton ailier.', ents:[ T('xd',70,42), T('xi',48,41), T('xj',41,45.5), U('ail','ail','Ail',75,58), U('o10','o10','10',47,58), U('toi','ctr','Ctr',60,54) ], choices:[{k:'a', t:'Droit, puis je donne', s:'Je le fixe, et Cherche', v:'near', th:[['x',28,9],['m',28,42],['o',54,44,'#57C98A'],['a',28,33.5,28,21],['a',35,23,49,36]], fb:['Le défenseur est déjà parti sur ton ailier : ta passe arrive sur lui.','Le trou est devant toi : Perce !']},{k:'b', t:'Perce', s:'Je garde et je passe dans le trou', v:'ok', th:[['x',56,12],['m',28,42],['o',56,44,'#57C98A'],['a',28,33.5,28,10]], fb:'Le défenseur a glissé sur ton ailier : le trou est devant toi, tu passes.'},{k:'c', t:'Je donne tout de suite', s:'De loin, sans courir', v:'no', th:[['x',28,9],['m',28,42],['o',54,44,'#57C98A'],['a',36,42.5,46.5,43.5]], fb:['Ton ailier a un défenseur sur lui : il serait plaqué tout de suite.','Le trou est devant toi : Perce !']}], anim:{dur:2.6, tr:{toi:[[.1,60,54],[.8,60.4,46],[1.8,61,33],[2.6,61.5,31]], xd:[[.1,70,42],[.8,72.5,45]], ail:[[.3,75,58],[1.3,76,49]], xi:[[.5,48,41],[1.6,53,40]]}, ball:[[0,{on:'toi'}],[2.6,{on:'toi'}]], fl:[[.8,2.6,49,49,'PERCE']]}, lesson:'Ton défenseur reste sur toi ? Droit → Cherche. Il glisse sur ton ailier ? Le trou est pour toi : Perce.'} }
+  ] };
+
+/* ============================ AILIER ============================ */
+POSTS.ail={ name:'Ailier', nick:'La Flèche', col:'#57C98A', lab:'Ail', emb:'aile', power:'Finisseur',
+  job:'Tu es le plus rapide : large, au bout de la ligne, et tu termines les actions.',
+  def:['Ton couloir','Au bout de la ligne, tu montes vite avec elle. Le jeu part de l’autre côté ? Tu restes là, un peu en retrait.'],
+  att:['Finisseur','Large et en profondeur, tu reçois lancé. Jamais vers la touche : tu reviens vers tes soutiens.'],
+  reps:[['d','Ils ont le ballon.','Au bout de la ligne, tu montes vite : on les presse.'],['d','Le jeu part de l’autre côté.','Tu restes de ton côté, un peu en retrait.'],['a','On a le ballon.','Large et en profondeur. Enfermé ? Tu reviens vers tes soutiens.']],
+  defi:'Au prochain plateau, reçois 2 ballons large et lancé.',
+  note:'Toi : au bout de la ligne. Le jeu part de l’autre côté ? Tu restes de ton côté, un peu en retrait.',
+  sc:[
+   defPlace({ ents:ex(D_E,['ail']), ideal:[91,52.5], zone:[85.6,45.6,8.6,12.4],
+     judge:jLine([85.6,45.6,8.6,12.4],{ok:'En ligne, au bout, côté ouvert : personne ne passe à l’extérieur.',left:'Trop serré&nbsp;: ton couloir, le long de la touche, est ouvert.',right:'Reste sur le terrain&nbsp;: en ligne, juste à l’intérieur de la touche.'}),
+     anim:{dur:4.0, tr:{pil2:[[.6,46.5,51],[1.6,47,46.6]], l3:[[.6,57.5,51.2],[1.8,57,37]], o10:[[.6,69,51],[2.0,69,34]], ctr:[[.6,80,51.3],[2.2,80,32]], toi:[[.6,91,52.5],[2.8,91.2,30.5]], x10:[[.7,56,23.5],[1.3,56.2,27]], xc:[[.7,68,21],[1.6,68,25]], xa:[[.7,80,19],[2.0,80.4,23.5]], xf:[[.7,91,17.5],[2.3,91,22],[2.8,91.2,26.5]]}, ball:[[0,{p:[40.5,30.4]}],[.35,{on:'x9'}],[.5,{on:'x9'}],[.85,{on:'x10'}],[1.05,{on:'x10'}],[1.4,{on:'xc'}],[1.6,{on:'xc'}],[1.95,{on:'xa'}],[2.15,{on:'xa'}],[2.45,{on:'xf'}],[4.0,{on:'xf'}]], ev:[[2.85,'xf','gr']], sp:[[.05,.7,'m9','Ligne !','d'],[.75,1.4,'m9','Jeu !','d'],[2.2,2.85,'toi','J’ai !','d']], fl:[[2.9,4.0,82,13,'PLAQUÉ !']]},
+     lesson:'En défense, tu es au bout de la ligne et tu montes vite avec elle : on ne les attend pas, on les presse.', vig:'v1', vsteps:['Je monte vite, je ne les attends pas','Oreille collée, cercle de fer','Je me relève tout de suite'] }),
+   { kind:'choice', side:'def', tag:'Défense · le ballon s’éloigne', ctx:'Ruck pour eux. Le ballon part de l’autre côté du terrain.', q:Q_QUOI, win:[0,10,100,70], ruck:[58.3,37,7.4,7.6,67.4,38.4,'start'], ents:[ T('xg',58,36.4,1), T('xr1',55.2,33.2), T('xr2',61,33), T('x9',57.4,27.2), T('x10',42,23.5), T('xc',30,21), T('xa',18,19.5), T('xs',79,24.5), U('l2','l3','3L',60.6,39.6,1), U('pil2','pil','Pil',52,51), U('pil1','pil','Pil',65,51), U('tal','tal','Tal',76,51.5), U('l3','l3','3L',41.5,51.2), U('o10','o10','10',30,51), U('ctr','ctr','Ctr',19,51.3), U('m9','m9','9',58,59), U('arr','arr','15',58,70), U('toi','ail','Ail',88,52.5) ], ball:{p:[57.8,30.4]}, choices:[{k:'a', t:'Je reste de mon côté', s:'Large, un peu en retrait', v:'ok', th:[['r',36,18],['o',22,34,'#A6E06A'],['m',62,30],['a',62,38,62,46]], fb:'Tu gardes ton côté, un peu en retrait : si le ballon revient, ou s’ils tapent au pied, tu es là.'},{k:'b', t:'Je traverse le terrain', s:'Pour aller aider de l’autre côté', v:'no', th:[['r',36,18],['o',22,34,'#A6E06A'],['m',62,34],['a',55,40,14,42]], fb:['Si le ballon revient, ton côté est vide : ils marquent là où tu n’es plus.','Reste de ton côté, un peu en retrait.']},{k:'c', t:'Je me rapproche du ruck', s:'Je vais aider les avants', v:'no', th:[['r',36,18],['o',22,34,'#A6E06A'],['m',64,36],['a',58,32,50,26]], fb:['Près du ruck, il y a déjà les gardiens et ton 9.','Reste de ton côté, un peu en retrait.']}], anim:{dur:2.8, tr:{x10:[[.5,42,23.5],[1.9,42.6,36]], xc:[[.5,30,21],[1.9,30,31]], xa:[[.5,18,19.5],[1.9,18,29]], pil2:[[.7,52,51],[1.9,51.5,47.5]], l3:[[.7,41.5,51.2],[1.9,42,40]], o10:[[.7,30,51],[1.9,30,39]], ctr:[[.7,19,51.3],[1.9,19,38]], toi:[[.6,88,52.5],[1.9,86,58]], arr:[[.8,58,70],[2.0,52,68]]}, ball:[[0,{p:[57.8,30.4]}],[.35,{on:'x9'}],[.5,{on:'x9'}],[.95,{on:'x10'}],[2.8,{on:'x10'}]], sp:[[.05,.7,'m9','Ligne !','d'],[.75,1.4,'m9','Jeu !','d']], fl:[[1.2,2.8,82,67,'TON CÔTÉ']]}, lesson:'Le ballon part de l’autre côté ? Tu restes de ton côté, un peu en retrait : s’il revient, tu es là.', vig:null},
+   attPlace({ tag:'Attaque · ruck gagné', ctx:'Ruck gagné. Tes arrières vont lancer le jeu vers toi.', ruck:A3_RUCK,
+     ents:A3_T.concat(ex(A3_U,['ail'])), ball:A3_BALL, start:[50,77.5], ideal:[88,66.5], zone:[82,61.6,11.4,10.4],
+     judge:function(x,y){
+       if(y<50.2) return ['no','Devant le ballon, personne ne peut te le donner&nbsp;: tu es hors-jeu.'];
+       if(y>72.4) return ['no','Trop loin derrière&nbsp;: la passe n’arrivera jamais jusqu’à toi.'];
+       if(x<82) return ['near','Trop serré&nbsp;: reste large, près de la touche, pour avoir de la place.'];
+       if(y<61.6) return ['near','Trop à plat&nbsp;: recule un peu, tu recevras le ballon lancé.'];
+       return ['ok','Large et en profondeur&nbsp;: tu auras de la place et de la vitesse.'];
+     },
+     anim:{dur:4.5, tr:{o10:[[.5,46,58.5],[1.1,48.5,52.5]], ctr:[[.8,61,63],[1.5,63.5,55],[2.0,65,51]], xl2:[[1.2,59,37],[2.0,62.6,45]], xl3:[[1.6,71,37.6],[2.6,74,43]], xl4:[[2.0,85,38.8],[2.7,88,42]], toi:[[1.3,88,66.5],[2.2,89.6,54],[3.2,90.5,32]], xb2:[[2.2,67,19.5],[3.2,89,28.5]], arr:[[1.2,74,73],[2.4,83,58],[3.2,86.5,37],[4.3,86,13]]}, ball:[[0,{p:[30.2,50.2]}],[.3,{on:'m9'}],[.4,{on:'m9'}],[.75,{on:'o10'}],[1.05,{on:'o10'}],[1.45,{on:'ctr'}],[1.75,{on:'ctr'}],[2.2,{on:'toi'}],[3.15,{on:'toi'}],[3.4,{on:'arr'}],[4.5,{on:'arr'}]], ev:[[3.25,'toi','gr'],[3.25,'xb2','gr']], sp:[[.05,.55,'m9','Plus !'],[2.5,3.15,'arr','Axe !']], fl:[[3.3,4.0,70,32,'PLAQUÉ'],[4.1,4.5,76,10.4,'ESSAI !']]},
+     lesson:'Large et en profondeur, tu reçois lancé. Plaqué ? Ton arrière te suit : donne-lui le ballon.', vig:'v6' }),
+   { kind:'choice', side:'att', tag:'Attaque · le long de la touche', ctx:'Tu reçois le ballon près de la touche. Un défenseur arrive de l’intérieur pour te pousser dehors. Tes soutiens arrivent.', q:Q_QUOI, win:[44,13,56,39.2], ents:[ T('xi',80,31), T('xj',57,38.5), T('xk',70,20), U('ctr','ctr','Ctr',74,49), U('arr','arr','15',65,47), U('toi','ail','Ail',88,45) ], ball:{on:'toi'}, choices:[{k:'a', t:'J’accélère tout droit', s:'Le long de la touche', v:'no', th:[['x',44,16],['m',60,40],['a',60,32,60,12]], fb:['Le défenseur arrive de l’intérieur et te pousse dehors : un pas de trop, et c’est la touche.','Reviens vers l’intérieur, vers tes soutiens.']},{k:'b', t:'Je reviens vers l’intérieur', s:'Vers mes soutiens', v:'ok', th:[['x',58,12],['m',60,40],['o',30,44,'#7FD67A'],['a',54,37,38,40]], fb:'Tu ne te laisses pas enfermer : tu reviens vers le terrain et tes soutiens. Ils sont là pour continuer.'},{k:'c', t:'Je m’arrête', s:'J’attends qu’il arrive', v:'no', th:[['x',44,16],['m',60,40],['t',46,46,'…']], fb:['À l’arrêt, il te plaque ou te pousse en touche.','Reviens vers l’intérieur, vers tes soutiens.']}], anim:{dur:2.6, tr:{toi:[[.1,88,45],[.8,85.5,38.5],[1.7,79,33]], xi:[[.1,80,31],[.8,86,36.5],[1.4,87.5,37.5]], ctr:[[.3,74,49],[1.7,76.5,40]], arr:[[.3,65,47],[1.7,70,40]]}, ball:[[0,{on:'toi'}],[2.6,{on:'toi'}]], sp:[[.6,1.3,'ctr','Axe !']], fl:[[1.2,2.6,60,24,'VERS TES SOUTIENS']]}, lesson:'Ne va jamais vers la touche : un défenseur t’y pousse et le ballon est perdu. Reviens vers le terrain et tes soutiens.', vig:null, alt:{ctx:'Tu reçois le ballon lancé près de la touche. Devant toi, c’est ouvert.', ents:[ T('xi',66,33), T('xj',57,38.5), T('xk',72,20), U('ctr','ctr','Ctr',73,47.5), U('arr','arr','15',64,48.5), U('toi','ail','Ail',88,45) ], choices:[{k:'a', t:'J’accélère tout droit', s:'Le long de la touche', v:'ok', th:[['x',16,22],['m',52,42],['a',52,33,52,10]], fb:'Tu es lancé et c’est ouvert : tu fonces, tu finis.'},{k:'b', t:'Je reviens vers l’intérieur', s:'Vers mes soutiens', v:'near', th:[['x',58,12],['m',60,40],['o',30,44,'#7FD67A'],['a',54,37,38,40]], fb:['C’est ouvert devant toi : en revenant, tu laisses les défenseurs revenir.','Ton couloir est libre : accélère, tu finis.']},{k:'c', t:'Je m’arrête', s:'J’attends qu’il arrive', v:'no', th:[['x',44,16],['m',60,40],['t',46,46,'…']], fb:['À l’arrêt, les défenseurs reviennent sur toi.','C’est ouvert : accélère, tu finis.']}], anim:{dur:2.4, tr:{toi:[[0,88,45],[1.7,90,17.5]], xi:[[.2,66,33],[1.7,80,22]], xk:[[.3,72,20],[1.7,84,16]], ctr:[[.3,73,47.5],[1.8,78,30]], arr:[[.3,64,48.5],[1.8,68,36]]}, ball:[[0,{on:'toi'}],[2.4,{on:'toi'}]], fl:[[1.6,2.4,72,40.4,'TU FINIS !']]}, lesson:'Couloir libre : tu accélères et tu finis. Un défenseur t’enferme vers la touche ? Tu reviens vers tes soutiens.'}}
+  ] };
+
+/* ============================ ARRIÈRE ============================ */
+POSTS.arr={ name:'Arrière', nick:'Le Dernier Rempart', col:'#33BFA8', lab:'15', emb:'rempart', power:'Relance',
+  job:'Tu es derrière, dans l’axe du ruck, pour rattraper ce qui passe. Et en attaque, tu viens faire un joueur en plus.',
+  def:['Dans l’axe, 2e rideau','Derrière la ligne, dans l’axe du ruck : tu couvres le petit côté et tout ce qui passe.'],
+  att:['Un joueur en plus','Tu entres dans la ligne, lancé, pour faire un de plus. Ballon récupéré : tu retrouves tes soutiens.'],
+  reps:[['d','Ils ont le ballon.','Derrière, dans l’axe du ruck.'],['d','Un joueur perce.','Tu avances face à lui et tu plaques.'],['a','On a le ballon.','Entre ton centre et ton ailier, en profondeur. Ballon récupéré : vers tes soutiens.']],
+  defi:'Au prochain plateau, entre 2 fois dans la ligne d’attaque.',
+  note:'Toi : toujours derrière, dans l’axe du ruck.',
+  sc:[
+   defPlace({ ents:ex(D_E,['arr']), start:[74,81], ideal:[40,73], zone:[24,62,34,21],
+     judge:function(x,y){
+       if(y<D_OFF){ if(Math.hypot(x-40.3,y-37)<9.5) return ['no',RK]; return ['no',HJ]; }
+       if(y<62) return ['near','Dans la ligne, il n’y a plus personne derrière : un coup de pied, et c’est fini. Toi, tu restes derrière.'];
+       if(x<24||x>58) return ['near','Derrière, oui. Mais reviens dans l’axe du ruck : de là, tu couvres les deux côtés.'];
+       return ['ok','Derrière, dans l’axe du ruck : tu couvres le petit côté et tout ce qui passe.'];
+     },
+     anim:{dur:3.6, tr:{pil2:[[.8,46.5,51],[1.8,47,46.6]], l3:[[.8,57.5,51.2],[1.9,57.2,42]], o10:[[.8,69,51],[1.9,69,40]], ctr:[[.8,80,51.3],[1.9,80,40]], ail:[[.8,91,52.5],[1.9,91,41]], x10:[[.7,56,23.5],[1.3,56.4,31]], xc:[[.7,68,21],[1.9,69,29]], xa:[[.7,80,19],[1.9,81,29]], xf:[[.7,91,17.5],[1.9,91,25]], toi:[[.7,40,73],[1.6,25,67.6],[3.2,16,60]]}, ball:[[0,{p:[40.5,30.4]}],[.4,{on:'x9'}],[.7,{on:'x9'}],[1.6,{p:[25,65.6]}],[1.8,{on:'toi'}],[3.6,{on:'toi'}]], fl:[[.75,1.6,16,40,'COUP DE PIED'],[1.8,3.6,30,81,'TU RELANCES']]},
+     lesson:'En défense, tu es derrière, dans l’axe du ruck : tu couvres le petit côté et tout ce qui passe, coups de pied et percées.', vig:null }),
+   { kind:'choice', side:'def', tag:'Défense · il a percé', ctx:'Leur porteur a percé la ligne. Il arrive sur toi.', q:Q_QUOI, win:[34,31.5,56,39.2],
+     ents:[ T('xp',66,45.5), T('xq',51.5,38.5), T('xr',78,38), U('o10','o10','10',58,41.5), U('ctr','ctr','Ctr',73,41), U('l3','l3','3L',47.5,42.5), U('toi','arr','15',62,66) ],
+     ball:{on:'xp'},
+     choices:[{k:'a', t:'J’avance et je le plaque', s:'J’avance face à lui, je lui ferme le passage', v:'ok', th:[['x',36,9],['b',40.5,11.5],['m',36,40],['a',36,31,36,19]], fb:'Tu avances face à lui, il n’a plus de place pour passer : tu le plaques, l’essai est sauvé.'},{k:'b', t:'Je recule', s:'Pour attendre les copains', v:'no', th:[['x',36,9],['b',40.5,11.5],['m',36,29],['a',36,38,36,48]], fb:['En reculant, tu lui donnes de la place et de la vitesse : il te déborde.','Avance face à lui pour lui fermer le passage, puis plaque.']},{k:'c', t:'J’attends sans bouger', s:'Je le laisse venir', v:'no', th:[['x',36,9],['b',40.5,11.5],['m',36,38],['t',50,43,'…']], fb:['À l’arrêt, il te déborde facilement.','Avance face à lui pour lui fermer le passage.']}],
+     anim:{dur:2.5, tr:{ xp:[[0,66,45.5],[1.2,64.2,58.4]], toi:[[.1,62,66],[1.2,63.4,61.4]], o10:[[.2,58,41.5],[2.0,60,53]], ctr:[[.2,73,41],[2.0,70,53]], l3:[[.2,47.5,42.5],[2.0,54,54]] },
+       ball:[[0,{on:'xp'}],[2.5,{on:'xp'}]], ev:[[1.2,'xp','gr']], sp:[[.3,1.0,'toi','J’ai !']], fl:[[1.25,2.5,78,62.6,'PLAQUÉ !']]},
+     lesson:'Un joueur perce : tu ne recules pas. Tu avances face à lui pour lui fermer le passage, puis tu plaques.', vig:'v1', vsteps:['J’avance face à lui : je ferme le passage','Oreille collée, cercle de fer','Je me relève tout de suite'] },
+   attPlace({ tag:'Attaque · ruck gagné', ctx:'Ruck gagné. Tes arrières vont lancer le jeu.', q:'Où entres-tu dans la ligne&nbsp;?', ruck:A3_RUCK,
+     ents:A3_T.concat(ex(A3_U,['arr'],{ail:[90,67]})), ball:A3_BALL, start:[44,77.5], ideal:[75,69], zone:[64,63,23,13.5],
+     judge:function(x,y){
+       if(y<50.2) return ['no','Devant le ballon, personne ne peut te le donner : tu es hors-jeu.'];
+       if(y>76.5) return ['no','Trop loin derrière : tu arrives quand l’action est finie.'];
+       if(x<64) return ['near','Par là, c’est serré. Il y a plus de place entre ton centre et ton ailier.'];
+       if(x>87) return ['near','Là, tu es sur ton ailier. Viens entre lui et ton centre.'];
+       if(y<63) return ['near','Trop à plat : recule un peu, pour arriver lancé.'];
+       return ['ok','Entre ton centre et ton ailier, en profondeur : tu arrives lancé, tu fais un joueur en plus.'];
+     },
+     anim:{dur:4.4,
+       tr:{ o10:[[.5,46,58.5],[1.1,48.5,52.5]], ctr:[[.8,61,63],[1.5,63.5,55],[2.0,65,50.5]], toi:[[1.2,75,67],[2.2,76.5,54],[2.9,77.6,46.4]], xl4:[[2.2,85,38.8],[2.9,80.6,42.4]], xl3:[[1.5,71,37.6],[2.2,67.5,44]], xl2:[[1.2,59,37],[2.0,62.6,45]],
+            ail:[[1.6,90,67],[2.9,90,52],[4.2,91,13]], xb2:[[2.9,67,19.5],[4.2,80,14.5]] },
+       ball:[[0,{p:[30.2,50.2]}],[.3,{on:'m9'}],[.4,{on:'m9'}],[.75,{on:'o10'}],[1.05,{on:'o10'}],[1.45,{on:'ctr'}],[1.8,{on:'ctr'}],[2.2,{on:'toi'}],[2.9,{on:'toi'}],[3.3,{on:'ail'}],[4.4,{on:'ail'}]],
+       sp:[[.05,.55,'m9','Plus !']], fl:[[2.2,3.5,48,70,'UN JOUEUR EN PLUS'],[4.0,4.4,76,10.4,'ESSAI !']] },
+     lesson:'En attaque, tu entres dans la ligne, lancé, entre ton centre et ton ailier&nbsp;: avec toi, vous êtes un de plus que les défenseurs.', vig:null }),
+   { kind:'choice', side:'att', tag:'Attaque · ballon récupéré', ctx:'Tu rattrapes un coup de pied. Un défenseur monte sur toi. Tes copains reviennent vers toi, sur ta gauche.', q:Q_QUOI, win:[22,38,56,39.2], ents:[ T('xa',52,44), T('xb',70,41), U('o10','o10','10',34,62), U('ctr','ctr','Ctr',38,70), U('l3','l3','3L',28,55), U('ail','ail','Ail',72,62), U('toi','arr','15',54,71) ], ball:{on:'toi'}, choices:[{k:'a', t:'Je vais vers mes soutiens', s:'Je me fais plaquer près d’eux', v:'ok', th:[['o',16,30,'#A6E06A'],['o',24,40,'#7FD67A'],['x',46,10],['m',46,42],['a',41,38,30,32]], fb:'Tu cours vers tes copains : plaqué près d’eux, ils arrivent tout de suite pour protéger le ballon.'},{k:'b', t:'Je fonce tout droit', s:'Seul, vers le défenseur', v:'no', th:[['o',16,30,'#A6E06A'],['o',24,40,'#7FD67A'],['x',46,10],['m',46,42],['a',46,34,46,18]], fb:['Plaqué loin de tes copains, tu es seul : ils récupèrent le ballon.','Va vers tes soutiens : fais-toi plaquer près d’eux.']},{k:'c', t:'Je tape loin', s:'Je rends le ballon au pied', v:'near', th:[['m',30,42],['a',35,34,48,14],['b',52,10]], fb:['Tes copains sont tout près : taper, c’est rendre le ballon.','Va vers tes soutiens et garde le ballon.']}], anim:{dur:2.8, tr:{toi:[[0,54,71],[1.2,45,62.5]], xa:[[0,52,44],[1.25,46.5,58.5]], o10:[[.2,34,62],[1.5,41,63]], ctr:[[.2,38,70],[1.6,43,67]], xb:[[.3,70,41],[1.6,62,52]]}, ball:[[0,{on:'toi'}],[1.3,{on:'toi'}],[1.55,{p:[43,64.5]}],[2.8,{p:[43,64.5]}]], ev:[[1.3,'toi','gr'],[1.3,'xa','gr']], sp:[[.3,1.0,'o10','Axe !']], fl:[[1.4,2.8,62,75,'PRÈS DES SOUTIENS']]}, lesson:'Ballon récupéré : tu retrouves tes soutiens. Plaqué près d’eux, ils arrivent tout de suite pour protéger le ballon.', vig:null, alt:{ctx:'Tu rattrapes un coup de pied, loin derrière. Trois défenseurs montent vite sur toi, tes copains sont loin.', ents:[ T('xa',44,58), T('xb',52,55), T('xc',60,58), U('o10','o10','10',30,44), U('ctr','ctr','Ctr',68,43), U('ail','ail','Ail',76,46), U('l3','l3','3L',24,46), U('toi','arr','15',50,70) ], choices:[{k:'a', t:'Je vais vers mes soutiens', s:'Je me fais plaquer près d’eux', v:'no', th:[['o',16,30,'#A6E06A'],['o',24,40,'#7FD67A'],['x',46,10],['m',46,42],['a',41,38,30,32]], fb:['Tes copains sont loin, et ils sont trois sur toi : tu seras plaqué tout seul.','Tape loin, derrière eux : tes copains auront le temps de se replacer.']},{k:'b', t:'Je fonce tout droit', s:'Seul, vers le défenseur', v:'no', th:[['o',16,30,'#A6E06A'],['o',24,40,'#7FD67A'],['x',46,10],['m',46,42],['a',46,34,46,18]], fb:['Seul contre trois, tu perds le ballon.','Tape loin, tout de suite.']},{k:'c', t:'Je tape loin', s:'Je rends le ballon au pied', v:'ok', th:[['m',30,42],['a',35,34,48,14],['b',52,10]], fb:'Seul contre trois, tes copains loin : tu tapes loin, ils ont le temps de se replacer.'}], anim:{dur:2.6, tr:{toi:[[0,50,70],[.5,50,69]], xa:[[0,44,58],[1.0,47,65]], xb:[[0,52,55],[1.0,51,63]], xc:[[0,60,58],[1.0,56,65]]}, ball:[[0,{on:'toi'}],[.6,{on:'toi'}],[1.8,{p:[50,30]}],[2.6,{p:[50,30]}]], fl:[[.7,2.6,68,72,'TAPE LOIN']]}, lesson:'Seul contre plusieurs, tes copains loin : tu tapes loin. Avec des soutiens tout près : tu vas vers eux.'}}
+  ] };
+
+var ORDER=['pil','tal','l3','m9','o10','ctr','ail','arr'];
+var SC=POSTS.l3.sc;
+
+/* ------------------------------------------------------------------ */
+/* Bonhomme fil de fer, vue de 3/4 : poses dans le plan de la course, projetées */
+var LN = {th:.44,sh:.46,to:.52,nk:.07,hr:.115,ua:.27,fa:.26,hw:.12,sw:.2};
+function mir(p){ return {le:p.le,tL:p.tR,kL:p.kR,tR:p.tL,kR:p.kL,aL:p.aR,eL:p.eR,aR:p.aL,eR:p.eL,hd:p.hd}; }
+var PO = {
+  stand:{le:4,tL:8,kL:8,tR:-6,kR:6,aL:-10,eL:15,aR:10,eR:15,hd:0},
+  ready:{le:26,tL:40,kL:52,tR:14,kR:44,aL:32,eL:55,aR:22,eR:55,hd:-14},
+  run1:{le:16,tL:56,kL:72,tR:-30,kR:28,aL:-48,eL:85,aR:44,eR:85,hd:-8},
+  runb1:{le:16,tL:56,kL:72,tR:-30,kR:28,aL:-42,eL:85,aR:14,eR:108,hd:-8},
+  runb2:{le:16,tL:-30,kL:28,tR:56,kR:72,aL:38,eL:85,aR:14,eR:108,hd:-8},
+  tackle:{le:74,tL:72,kL:80,tR:-6,kR:54,aL:72,eL:4,aR:58,eR:12,hd:-42},
+  lieB:{le:-86,tL:88,kL:5,tR:80,kR:26,aL:92,eL:4,aR:104,eR:34,hd:8},
+  lieF:{le:86,tL:-86,kL:6,tR:-78,kR:24,aL:92,eL:6,aR:84,eR:18,hd:-8},
+  kneel:{le:42,tL:84,kL:108,tR:6,kR:96,aL:40,eL:38,aR:28,eR:40,hd:-24},
+  jackal:{le:98,tL:44,kL:30,tR:18,kR:22,aL:14,eL:6,aR:4,eR:8,hd:-46},
+  lift:{le:28,tL:30,kL:34,tR:6,kR:24,aL:28,eL:98,aR:22,eR:98,hd:-8},
+  guard:{le:76,tL:58,kL:68,tR:0,kR:42,aL:56,eL:34,aR:46,eR:34,hd:-50},
+  pick:{le:84,tL:56,kL:82,tR:14,kR:76,aL:22,eL:8,aR:12,eR:10,hd:-30},
+  give:{le:24,tL:42,kL:46,tR:-12,kR:26,aL:-48,eL:24,aR:-62,eR:18,hd:-4},
+  drive:{le:46,tL:62,kL:66,tR:-22,kR:30,aL:18,eL:104,aR:10,eR:112,hd:-24},
+  pass:{le:30,tL:36,kL:40,tR:-10,kR:30,aL:78,eL:4,aR:66,eR:8,hd:-12}
+};
+PO.run2 = mir(PO.run1);
+var PK = ['le','tL','kL','tR','kR','aL','eL','aR','eR','hd'];
+function lerpPose(a,b,u){ var o={}; for(var i=0;i<PK.length;i++){ var k=PK[i]; o[k]=a[k]+(b[k]-a[k])*u; } return o; }
+
+function figJoints(st){
+  var p=st.pose, r=Math.PI/180, le=p.le*r;
+  var sc=[LN.to*Math.sin(le), LN.to*Math.cos(le)];
+  function leg(t,k,s){ var a=t*r,b=(t-k)*r, kn=[LN.th*Math.sin(a),-LN.th*Math.cos(a)], ft=[kn[0]+LN.sh*Math.sin(b),kn[1]-LN.sh*Math.cos(b)]; return [[0,0,s],[kn[0],kn[1],s],[ft[0],ft[1],s]]; }
+  function arm(a,e,s){ var c=a*r,d=(a+e)*r, el=[sc[0]+LN.ua*Math.sin(c),sc[1]-LN.ua*Math.cos(c)], ha=[el[0]+LN.fa*Math.sin(d),el[1]-LN.fa*Math.cos(d)]; return [[sc[0],sc[1],s],[el[0],el[1],s],[ha[0],ha[1],s]]; }
+  var ha=(p.le+(p.hd||0))*r;
+  var J={ lL:leg(p.tL,p.kL,LN.hw), lR:leg(p.tR,p.kR,-LN.hw), aL:arm(p.aL,p.eL,LN.sw), aR:arm(p.aR,p.eR,-LN.sw),
+          hc:[[0,0,0]], sc:[[sc[0],sc[1],0]], hd:[[sc[0]+(LN.nk+LN.hr)*Math.sin(ha), sc[1]+(LN.nk+LN.hr)*Math.cos(ha), 0]] };
+  var mn=J.hd[0][1]-LN.hr, k, i;
+  for(k in J){ if(k==='hd')continue; for(i=0;i<J[k].length;i++) mn=Math.min(mn,J[k][i][1]); }
+  var dy=.03-mn, th=st.th*r, c=Math.cos(th), s=Math.sin(th), W={};
+  for(k in J){ W[k]=J[k].map(function(pt){ return [st.X+pt[0]*c-pt[2]*s, pt[1]+dy, st.Z+pt[0]*s+pt[2]*c]; }); }
+  return W;
+}
+function mkCam(w,h,S,cy,yaw,pitch){ var a=(yaw==null?-32:yaw)*Math.PI/180, b=(pitch==null?26:pitch)*Math.PI/180; return {w:w,h:h,S:S,cx:w/2,cy:cy,c:Math.cos(a),s:Math.sin(a),ca:Math.cos(b),sa:Math.sin(b)}; }
+function pr(P,cam){ var x1=P[0]*cam.c+P[2]*cam.s, z1=-P[0]*cam.s+P[2]*cam.c; return [cam.cx+cam.S*x1, cam.cy-cam.S*(P[1]*cam.ca+z1*cam.sa), z1]; }
+function f2(n){ return Math.round(n*100)/100; }
+function figMarkup(id,col,me,cam,bgc){
+  var w=f2((me?.08:.064)*cam.S);
+  return '<g id="'+id+'" class="fg" fill="none" stroke="'+col+'" stroke-linecap="round" stroke-linejoin="round">'+
+    '<ellipse class="shd" fill="#000" stroke="none" opacity=".3"/>'+
+    '<polyline class="f1" stroke-width="'+w+'" opacity=".5"/><polyline class="f2" stroke-width="'+w+'" opacity=".5"/>'+
+    '<path class="bd" stroke-width="'+w+'"/><polyline class="n1" stroke-width="'+w+'"/>'+
+    '<circle class="hd" stroke-width="'+w+'" fill="'+(me?col:(bgc||'#0B231E'))+'"/>'+
+    '<polyline class="n2" stroke-width="'+w+'"/>'+
+    (me&&cam.tag!==false?'<g class="tg" stroke="none"><rect fill="'+col+'"/><text text-anchor="middle" fill="#2A1D00" class="lb">TOI</text></g>':'')+'</g>';
+}
+function pts(a){ return a.map(function(p){ return f2(p[0])+','+f2(p[1]); }).join(' '); }
+function figUpdate(g,st,cam){
+  var W=figJoints(st), P={}, k;
+  for(k in W) P[k]=W[k].map(function(p){ return pr(p,cam); });
+  var legNear = P.lL[0][2] < P.lR[0][2] ? 'lL':'lR', legFar = legNear==='lL'?'lR':'lL';
+  var armNear = P.aL[0][2] < P.aR[0][2] ? 'aL':'aR', armFar = armNear==='aL'?'aR':'aL';
+  var q=function(c){ return g.querySelector(c); };
+  q('.f1').setAttribute('points',pts(P[legFar])); q('.f2').setAttribute('points',pts(P[armFar]));
+  q('.n1').setAttribute('points',pts(P[legNear])); q('.n2').setAttribute('points',pts(P[armNear]));
+  q('.bd').setAttribute('d','M'+pts([P.lL[0]])+'L'+pts([P.lR[0]])+'M'+pts([P.hc[0]])+'L'+pts([P.sc[0]])+'M'+pts([P.aL[0]])+'L'+pts([P.aR[0]]));
+  var h=q('.hd'); h.setAttribute('cx',f2(P.hd[0][0])); h.setAttribute('cy',f2(P.hd[0][1])); h.setAttribute('r',f2(LN.hr*cam.S));
+  var mid=[(W.hc[0][0]+W.sc[0][0])/2,0,(W.hc[0][2]+W.sc[0][2])/2], m=pr(mid,cam), flat=Math.abs(Math.sin(st.pose.le*Math.PI/180));
+  var sh=q('.shd'); sh.setAttribute('cx',f2(m[0])); sh.setAttribute('cy',f2(m[1])); sh.setAttribute('rx',f2(cam.S*(.3+.34*flat))); sh.setAttribute('ry',f2(cam.S*.11));
+  var tg=q('.tg');
+  if(tg){ var S=cam.S; tg.setAttribute('transform','translate('+f2(P.hd[0][0])+' '+f2(P.hd[0][1]-S*(LN.hr+.34))+')');
+    var rc=tg.firstChild; rc.setAttribute('x',f2(-S*.37)); rc.setAttribute('y',f2(-S*.17)); rc.setAttribute('width',f2(S*.74)); rc.setAttribute('height',f2(S*.31));
+    var tx=tg.lastChild; tx.setAttribute('font-size',f2(S*.245)); tx.setAttribute('y',f2(S*.075)); }
+  return {W:W,depth:m[2]};
+}
+/* Les 3 vignettes : images clés {t,X,Z,th,p}. X = dans le sens du jeu, Z = largeur. */
+function run(kf,t0,t1,x0,z0,x1,z1,th,ball){
+  var n=Math.max(2,Math.round((t1-t0)/.17));
+  for(var i=0;i<=n;i++){ var u=i/n; kf.push({t:t0+(t1-t0)*u,X:x0+(x1-x0)*u,Z:z0+(z1-z0)*u,th:th,p:(ball?(i%2?'runb2':'runb1'):(i%2?'run2':'run1'))}); }
+  return kf;
+}
+function K(t,X,Z,th,p){ return {t:t,X:X,Z:Z,th:th,p:p}; }
+var VG = {
+ v1:{ dur:3.5, key:1.22, ox:-.35, title:'Le chasseur-plaqueur, vu du terrain',
+   figs:[ {id:'A',c:'them',kf:run([],0,1.12,2.7,.28,.42,.28,180,true).concat([K(1.24,.44,.28,180,'runb1'),K(1.72,.72,.34,180,'lieB'),K(3.5,.72,.34,180,'lieB')])},
+          {id:'T',c:'me',kf:run([],0,.98,-2.7,-.12,-.6,.02,0,false).concat([K(1.2,-.3,.08,0,'tackle'),K(1.72,-.05,.1,0,'lieF'),K(1.95,-.05,.1,0,'lieF'),K(2.4,-.22,.06,0,'kneel'),K(2.85,-.3,.04,0,'ready'),K(3.5,-.3,.04,0,'ready')])} ],
+   ball:[[0,{on:'A'}],[1.3,{on:'A'}],[1.78,{p:[1.42,.07,.02]}],[3.5,{p:[1.42,.07,.02]}]],
+   steps:[[0,'Je monte vite, en ligne'],[1.0,'Oreille collée, cercle de fer'],[1.95,'Je me relève tout de suite']] },
+ v2:{ dur:3.3, key:1.9, ox:-.95, title:'Le gratteur, vu du terrain',
+   figs:[ {id:'A',c:'them',kf:[K(0,.45,.3,180,'lieB'),K(3.3,.45,.3,180,'lieB')]},
+          {id:'T',c:'me',kf:run([],0,.95,-2.9,-.36,.1,-.3,0,false).concat([K(1.35,.42,-.26,0,'jackal'),K(1.95,.42,-.26,0,'jackal'),K(2.5,.3,-.26,0,'lift'),K(3.3,.3,-.26,0,'lift')])},
+          {id:'B',c:'them',kf:[K(0,3.9,.9,180,'run1')].concat(run([],.9,2.3,3.9,.9,2.75,.85,180,false),[K(2.6,2.7,.85,180,'ready'),K(3.3,2.7,.85,180,'ready')])} ],
+   ball:[[0,{p:[1.2,.07,-.2]}],[1.45,{p:[1.2,.07,-.2]}],[1.6,{on:'T'}],[3.3,{on:'T'}]],
+   steps:[[0,'J’arrive par la porte : de mon côté'],[1.2,'Je reste debout sur mes pieds'],[1.9,'Mains sur le ballon&nbsp;: il est à nous']] },
+ v3:{ dur:3.4, key:1.32, ox:-.5, title:'Le soutien, vu du terrain',
+   figs:[ {id:'C',c:'us',kf:run([],0,.9,-1.5,.2,.5,.2,0,true).concat([K(1.02,.58,.2,0,'runb1'),K(1.26,.62,.2,0,'give'),K(1.75,.5,.24,0,'lieF'),K(3.4,.5,.24,0,'lieF')])},
+          {id:'D',c:'them',kf:[K(0,2.5,.34,180,'ready'),K(.3,2.5,.34,180,'ready')].concat(run([],.3,.86,2.5,.34,1.5,.32,180,false),[K(1.02,1.25,.32,180,'tackle'),K(1.75,1.5,.5,180,'lieF'),K(3.4,1.5,.5,180,'lieF')])},
+          {id:'T',c:'me',kf:run([],0,1.0,-3.3,-.3,-.75,-.36,0,false).concat(run([],1.0,1.32,-.75,-.36,.2,-.5,0,false),run([],1.32,2.6,.2,-.5,2.25,-.7,0,true),[K(3.4,2.25,-.7,0,'runb1')])} ],
+   ball:[[0,{on:'C'}],[1.08,{on:'C'}],[1.32,{on:'T'}],[3.4,{on:'T'}]],
+   steps:[[0,'Dans l’Axe, juste derrière&nbsp;: j’appelle'],[1.0,'Au contact, il me donne le ballon'],[1.55,'Je prends le ballon lancé et j’avance']] }
+,
+ v4:{ dur:3.4, key:1.7, ox:-.2, title:'Le bélier, vu du terrain',
+   figs:[ {id:'N',c:'us',kf:[K(0,-2.3,-.55,15,'pick'),K(.5,-2.3,-.55,15,'pick'),K(.8,-2.25,-.55,15,'pass'),K(1.3,-2.2,-.55,10,'stand')].concat(run([],1.5,2.8,-2.2,-.55,-.7,-.3,0,false),[K(3.4,-.7,-.3,0,'ready')])},
+          {id:'T',c:'me',kf:run([],0,.9,-3.4,.34,-1.3,.3,0,false).concat(run([],.9,1.5,-1.3,.3,.3,.3,0,true),run([],1.55,2.8,.32,.3,1.2,.3,0,true),[K(3.4,1.25,.3,0,'runb1')])},
+          {id:'D',c:'them',kf:[K(0,1.4,.32,180,'ready'),K(1.2,1.3,.32,180,'ready'),K(1.6,1.12,.32,180,'tackle'),K(2.8,1.84,.32,180,'tackle'),K(3.4,1.9,.32,180,'tackle')]},
+          {id:'S',c:'us',kf:[K(0,-3.9,.95,0,'run1'),K(1.2,-3.9,.95,0,'run1')].concat(run([],1.2,2.5,-3.9,.95,0,.5,0,false),[K(2.8,.45,.46,0,'guard'),K(3.4,.5,.46,0,'guard')])} ],
+   ball:[[0,{on:'N'}],[.7,{on:'N'}],[.95,{on:'T'}],[3.4,{on:'T'}]],
+   steps:[[0,'Je me propose tout près, lancé : « Axe ! »'],[.95,'Je prends le ballon et je cours Droit'],[1.6,'Au contact, je reste debout : petits pas, ballon protégé']] },
+ v5:{ dur:3.3, key:1.75, ox:-.2, title:'La passe du 9, vue du terrain',
+   figs:[ {id:'G',c:'us',kf:[K(0,.95,.25,0,'lieF'),K(3.3,.95,.25,0,'lieF')]},
+          {id:'C',c:'us',kf:[K(0,.4,.2,0,'guard'),K(3.3,.4,.2,0,'guard')]},
+          {id:'T',c:'me',kf:run([],0,.8,-2.6,-.5,-.45,-.3,0,false).concat([K(1.1,-.38,-.3,0,'pick'),K(1.35,-.38,-.3,0,'pick'),K(1.6,-.38,-.3,-55,'pass'),K(2.1,-.38,-.3,-55,'pass')],run([],2.2,3.2,-.38,-.3,.9,-1.2,-35,false),[K(3.3,.9,-1.2,-35,'run1')])},
+          {id:'R',c:'us',kf:run([],0,1.75,-3.2,-1.9,.35,-1.75,0,false).concat(run([],1.75,3.1,.35,-1.75,2.6,-1.6,0,true),[K(3.3,2.6,-1.6,0,'runb1')])} ],
+   ball:[[0,{p:[-.02,.07,-.12]}],[1.15,{p:[-.02,.07,-.12]}],[1.35,{on:'T'}],[1.5,{on:'T'}],[1.8,{on:'R'}],[3.3,{on:'R'}]],
+   steps:[[0,'Je cours au ruck, collé au ballon'],[1.1,'Mains sur le ballon, je regarde'],[1.5,'Je le sors vite pour le copain lancé']] },
+ v6:{ dur:3.4, key:2.55, ox:-.8, tryline:1.6, title:'Le finisseur, vu du terrain',
+   figs:[ {id:'P',c:'us',kf:run([],0,.5,-3.2,.95,-2.5,.95,0,true).concat([K(.65,-2.4,.95,-50,'pass'),K(1.3,-2.3,.95,-20,'stand'),K(3.4,-2.3,.95,-20,'stand')])},
+          {id:'T',c:'me',kf:run([],0,.85,-3.1,-.5,-1.25,-.5,0,false).concat(run([],.85,2.25,-1.25,-.5,1.5,-.5,0,true),[K(2.5,2.0,-.5,0,'lieF'),K(3.4,2.0,-.5,0,'lieF')])},
+          {id:'D',c:'them',kf:[K(0,-1.6,.75,0,'run1'),K(.6,-1.6,.75,0,'run1')].concat(run([],.6,2.3,-1.6,.75,1.1,.2,0,false),[K(2.6,1.3,.2,0,'ready'),K(3.4,1.3,.2,0,'ready')])} ],
+   ball:[[0,{on:'P'}],[.62,{on:'P'}],[.88,{on:'T'}],[3.4,{on:'T'}]],
+   steps:[[0,'Je reste large, lancé'],[.88,'Je reçois et j’accélère'],[2.3,'Je finis&nbsp;: essai&nbsp;!']] },
+ v7:{ dur:4.6, key:3.5, ox:-.35, title:'Plaquer, se relever, gratter',
+   figs:[ {id:'A',c:'them',kf:run([],0,1.12,2.7,.28,.42,.28,180,true).concat([K(1.24,.44,.28,180,'runb1'),K(1.72,.72,.34,180,'lieB'),K(4.6,.72,.34,180,'lieB')])},
+          {id:'T',c:'me',kf:run([],0,.98,-2.7,-.12,-.6,.02,0,false).concat([K(1.2,-.3,.08,0,'tackle'),K(1.72,-.05,.1,0,'lieF'),K(1.95,-.05,.1,0,'lieF'),K(2.4,-.22,.06,0,'kneel'),K(2.75,-.1,-.1,0,'ready'),K(3.05,.35,-.28,0,'ready'),K(3.3,.62,-.3,0,'jackal'),K(3.8,.62,-.3,0,'jackal'),K(4.2,.5,-.3,0,'lift'),K(4.6,.5,-.3,0,'lift')])} ],
+   ball:[[0,{on:'A'}],[1.3,{on:'A'}],[1.78,{p:[1.42,.07,.02]}],[3.6,{p:[1.42,.07,.02]}],[3.85,{on:'T'}],[4.6,{on:'T'}]],
+   steps:[[0,'Je monte vite, en ligne'],[1.0,'Oreille collée, cercle de fer'],[2.3,'Je me relève tout de suite'],[3.2,'Je gratte, debout : « J’ai ! »']] }
+};
+function figAt(fig,t){
+  var kf=fig.kf, a=kf[0], b=kf[kf.length-1], i;
+  if(t<=a.t) b=a; else if(t>=b.t) a=b; else for(i=1;i<kf.length;i++){ if(t<=kf[i].t){ a=kf[i-1]; b=kf[i]; break; } }
+  var u=(a===b||b.t===a.t)?0:(t-a.t)/(b.t-a.t);
+  return {X:a.X+(b.X-a.X)*u, Z:a.Z+(b.Z-a.Z)*u, th:a.th+(b.th-a.th)*u, pose:lerpPose(PO[a.p],PO[b.p],u)};
+}
+function vigSVG(v,cam){
+  var s='<svg class="vg" id="vg" viewBox="0 0 '+cam.w+' '+cam.h+'" role="img" aria-label="'+v.title+'">', x, i=0;
+  for(x=-12;x<12;x+=1.5,i++){ var q=[[x,0,-9],[x+1.5,0,-9],[x+1.5,0,9],[x,0,9]].map(function(p){ return pr(p,cam); }); s+='<polygon points="'+pts(q)+'" fill="'+(i%2?'#0C2620':'#0A211C')+'"/>'; }
+  [[-1.8],[3.2]].forEach(function(l){ var a=pr([l[0],0,-9],cam), b=pr([l[0],0,9],cam); s+='<path d="M'+pts([a])+'L'+pts([b])+'" stroke="rgba(232,236,247,.3)" stroke-width="'+f2(cam.S*.035)+'"/>'; });
+  if(v.tryline!=null){ var ta=pr([v.tryline+(v.ox||0),0,-9],cam), tb=pr([v.tryline+(v.ox||0),0,9],cam); s+='<path d="M'+pts([ta])+'L'+pts([tb])+'" stroke="rgba(255,255,255,.85)" stroke-width="'+f2(cam.S*.07)+'"/>'; }
+  s+='<g id="vg-f">'; v.figs.forEach(function(f){ s+=figMarkup('vf-'+f.id,COL[f.c],f.c==='me',cam); });
+  s+='<g id="vg-ball"><ellipse rx="'+f2(cam.S*.165)+'" ry="'+f2(cam.S*.105)+'" transform="rotate(-24)" fill="#fff" stroke="#070A12" stroke-width="'+f2(cam.S*.022)+'"/></g></g></svg>';
+  return s;
+}
+function vigFrame(v,cam,t){
+  var root=document.getElementById('vg-f'); if(!root) return;
+  var J={}, order=[];
+  var ox=v.ox||0;
+  v.figs.forEach(function(f){ var g=document.getElementById('vf-'+f.id), st=figAt(f,t); st.X+=ox; var r=figUpdate(g,st,cam); J[f.id]=r.W; order.push([r.depth,g]); });
+  function res(k){ if(k.p) return [k.p[0]+ox,k.p[1],k.p[2]]; var w=J[k.on]; return [(w.aL[2][0]+w.aR[2][0])/2,(w.aL[2][1]+w.aR[2][1])/2+.02,(w.aL[2][2]+w.aR[2][2])/2]; }
+  var bk=v.ball, a=bk[0], b=bk[bk.length-1], i;
+  if(t<=a[0]) b=a; else if(t>=b[0]) a=b; else for(i=1;i<bk.length;i++){ if(t<=bk[i][0]){ a=bk[i-1]; b=bk[i]; break; } }
+  var u=(a===b)?0:(t-a[0])/(b[0]-a[0]), pa=res(a[1]), pb=res(b[1]);
+  var bp=[pa[0]+(pb[0]-pa[0])*u, pa[1]+(pb[1]-pa[1])*u+(a[1].on!==b[1].on||(!a[1].on&&!b[1].on&&a!==b)?0:0), pa[2]+(pb[2]-pa[2])*u], sp=pr(bp,cam);
+  var bg=document.getElementById('vg-ball'); bg.setAttribute('transform','translate('+f2(sp[0])+' '+f2(sp[1])+')');
+  order.push([sp[2]-.25,bg]);
+  order.sort(function(x,y){ return y[0]-x[0]; }).forEach(function(o){ root.appendChild(o[1]); });
+}
+function stepAt(v,t){ var n=0; for(var i=0;i<v.steps.length;i++) if(t>=v.steps[i][0]) n=i; return n; }
+
+/* ------------------------------------------------------------------ */
+/* Terrain vu de dessus : pastilles pour nous, croix pour eux */
+function entSVG(e,k,me,below){
+  var r=4*k, tr=' transform="translate('+e.x+' '+e.y+')"';
+  if(e.k==='t'){ var a=f2(2.6*k), d='M-'+a+' -'+a+'L'+a+' '+a+'M'+a+' -'+a+'L-'+a+' '+a;
+    return '<g id="e-'+e.id+'" class="en th'+(e.gr?' gr':'')+'"'+tr+'><g class="in"><path d="'+d+'" stroke="#070A12" stroke-width="'+f2(2.7*k)+'" stroke-linecap="round" opacity=".55"/><path d="'+d+'" stroke="#FF4F6D" stroke-width="'+f2(1.5*k)+'" stroke-linecap="round"/></g></g>'; }
+  if(me){
+    return '<g id="e-toi" class="en toi"'+tr+'><circle r="'+f2(r*2)+'" fill="transparent"/><circle class="halo" r="'+f2(r*1.5)+'" fill="none" stroke="#FFC23D" stroke-width="'+f2(.7*k)+'"/>'+
+      '<g class="in"><circle r="'+f2(r*1.1)+'" fill="#FFC23D" stroke="#FFF1C8" stroke-width="'+f2(.6*k)+'"/><text y="'+f2(1.3*k)+'" text-anchor="middle" font-size="'+f2(3.6*k)+'" fill="#2A1D00" class="lb">'+POSTS[S.post].lab+'</text></g>'+
+      '<g transform="translate(0 '+f2(below?r*2.2+.7*k:-r*2.2)+')"><rect x="'+f2(-5.4*k)+'" y="'+f2(-2.7*k)+'" width="'+f2(10.8*k)+'" height="'+f2(4.7*k)+'" fill="#FFC23D"/><text y="'+f2(1.02*k)+'" text-anchor="middle" font-size="'+f2(3.4*k)+'" fill="#2A1D00" class="lb">TOI</text></g></g>';
+  }
+  var c=PC[e.po];
+  return '<g id="e-'+e.id+'" class="en us'+(e.gr?' gr':'')+'"'+tr+'><g class="in"><circle r="'+f2(r)+'" fill="#101A2C" stroke="'+c+'" stroke-width="'+f2(.75*k)+'"/><text y="'+f2(1.25*k)+'" text-anchor="middle" font-size="'+f2(3.5*k)+'" fill="'+c+'" class="lb">'+e.lab+'</text></g></g>';
+}
+function tvSVG(sc,opt){
+  var w=sc.win, k=w[2]/100, y, i, s='<svg class="tv'+(opt.ask?' ask':'')+'" id="tv" viewBox="'+w.join(' ')+'" role="img" aria-label="Le terrain vu de dessus. Ton équipe attaque vers le haut."'+(opt.ask&&sc.kind==='place'?' tabindex="0"':'')+'>';
+  for(y=0;y<90;y+=10) s+='<rect x="0" y="'+y+'" width="100" height="10" fill="'+((y/10)%2?'#0C2620':'#0A211C')+'"/>';
+  s+='<path d="M3.5 0V90M96.5 0V90" stroke="rgba(232,236,247,.38)" stroke-width="'+f2(.5*k)+'"/>';
+  var lc='rgba(199,206,223,.78)', fs=f2(3.4*k);
+  var cx=w[0]+w[2]/2, ty=f2(w[1]+4.7*k), by=f2(w[1]+w[3]-2*k), xa=f2(1.25*k);
+  s+='<path transform="translate('+f2(cx-13.2*k)+' '+f2(w[1]+3.55*k)+')" d="M-'+xa+' -'+xa+'L'+xa+' '+xa+'M'+xa+' -'+xa+'L-'+xa+' '+xa+'" stroke="#FF4F6D" stroke-width="'+f2(.8*k)+'" stroke-linecap="round"/><text x="'+f2(cx+2*k)+'" y="'+ty+'" text-anchor="middle" font-size="'+fs+'" fill="'+lc+'" class="lb" letter-spacing="'+f2(.4*k)+'">LEUR CAMP</text>';
+  s+='<circle cx="'+f2(cx-15.4*k)+'" cy="'+f2(w[1]+w[3]-3.15*k)+'" r="'+f2(1.35*k)+'" fill="none" stroke="#C7CEDF" stroke-width="'+f2(.7*k)+'"/><text x="'+f2(cx+2*k)+'" y="'+by+'" text-anchor="middle" font-size="'+fs+'" fill="'+lc+'" class="lb" letter-spacing="'+f2(.4*k)+'">NOTRE CAMP</text>';
+  if(sc.off){ s+='<path d="M3.5 '+sc.off+'H96.5" stroke="#38E8FF" stroke-width="'+f2(.45*k)+'" stroke-dasharray="'+f2(1.8*k)+' '+f2(1.4*k)+'" opacity=".85"/>'+(opt.ask?'<text x="95" y="'+f2(sc.off-1.5*k)+'" text-anchor="end" font-size="'+fs+'" fill="#38E8FF" class="lb">LIGNE DE HORS-JEU</text>':''); }
+  if(sc.ruck){ var r=sc.ruck; s+='<ellipse cx="'+r[0]+'" cy="'+r[1]+'" rx="'+r[2]+'" ry="'+r[3]+'" fill="rgba(232,236,247,.07)" stroke="rgba(232,236,247,.6)" stroke-width="'+f2(.4*k)+'" stroke-dasharray="'+f2(1.4*k)+' '+f2(1.2*k)+'"/><text x="'+r[4]+'" y="'+r[5]+'" text-anchor="'+r[6]+'" font-size="'+fs+'" fill="'+lc+'" class="lb">RUCK</text>'; }
+  if(sc.zone){ var z=sc.zone; s+='<rect id="zone" class="zone" x="'+z[0]+'" y="'+z[1]+'" width="'+z[2]+'" height="'+z[3]+'" fill="rgba(61,255,176,.16)" stroke="#3DFFB0" stroke-width="'+f2(.6*k)+'" stroke-dasharray="2 1.4" opacity="'+(opt.zone?1:0)+'"/>'; }
+  if(sc.dir&&opt.ask){ var d=sc.dir; s+='<path d="M'+d[0]+' '+d[1]+'L'+d[2]+' '+d[3]+'M'+(d[2]-1.6)+' '+(d[3]+1.9)+'L'+d[2]+' '+d[3]+'L'+(d[2]+1.6)+' '+(d[3]+1.9)+'" fill="none" stroke="#fff" stroke-width="'+f2(.8*k)+'" stroke-linecap="round" stroke-linejoin="round"/>'; }
+  sc.ents.forEach(function(e){ if(e.k==='t') s+=entSVG(e,k); });
+  sc.ents.forEach(function(e){ if(e.k==='u'&&e.id!=='toi') s+=entSVG(e,k); });
+  var tp=opt.toi; if(!tp){ var te=sc.ents.filter(function(e){ return e.id==='toi'; })[0]; if(te) tp=[te.x,te.y]; }
+  if(tp) s+=entSVG({k:'u',x:tp[0],y:tp[1]},k,true,sc.tagBelow);
+  s+='<g id="e-ball"><ellipse rx="'+f2(2*k)+'" ry="'+f2(1.35*k)+'" transform="rotate(-30)" fill="#fff" stroke="#070A12" stroke-width="'+f2(.4*k)+'"/></g>';
+  if(sc.anim) sc.anim.fl.forEach(function(f,i){ var tw=f2((f[4].length*2.2+3.2)*k); s+='<g id="fl-'+i+'" class="fl" opacity="0" transform="translate('+f[2]+' '+f[3]+')"><rect x="'+f2(-tw/2)+'" y="'+f2(-3*k)+'" width="'+tw+'" height="'+f2(5.2*k)+'" fill="rgba(7,10,18,.82)"/><text y="'+f2(.95*k)+'" text-anchor="middle" font-size="'+f2(3.3*k)+'" fill="#C7CEDF" font-style="italic" class="lb">'+f[4]+'</text></g>'; });
+  if(sc.anim&&sc.anim.sp) sc.anim.sp.forEach(function(b,i){ s+='<g id="sp-'+i+'" class="sp" opacity="0"><path fill="#F4F6FC" stroke="#070A12" stroke-width="'+f2(.35*k)+'" stroke-linejoin="round"/><text text-anchor="middle" font-size="'+f2(3.7*k)+'" fill="#0A0F1F" font-weight="800" class="lb">'+b[3]+'</text></g>'; });
+  return s+'</svg>';
+}
+function fitSp(sc){ var k=sc.win[2]/100, g=document.querySelectorAll('#tv .sp'); for(var i=0;i<g.length;i++){ var w=0; try{ w=g[i].lastChild.getComputedTextLength(); }catch(e){} g[i].dataset.w=f2((w>0?w:12*k)+3.8*k); } }
+function spPlace(el,p,dir,sc,who){
+  var k=sc.win[2]/100, W=sc.win, w=+el.dataset.w||16*k, h=5.6*k, isToi=who==='toi', tagUp=!sc.tagBelow;
+  var up=dir!=='d', gap=function(u){ return (isToi&&(u===tagUp))?13*k:5.8*k; };
+  if(up&&p[1]-gap(true)-h<W[1]+.5) up=false; else if(!up&&p[1]+gap(false)+h>W[1]+W[3]-.5) up=true;
+  var g=gap(up), sg=up?-1:1, y0=sg*g, y1=sg*(g+h), dx=0, L=p[0]-w/2, R=p[0]+w/2;
+  if(L<W[0]+.5) dx=W[0]+.5-L; else if(R>W[0]+W[2]-.5) dx=W[0]+W[2]-.5-R;
+  var x0=-w/2+dx, x1=w/2+dx, rr=1.8*k, tl=Math.max(x0+rr,Math.min(x1-rr-2*k,-1*k)), tr=tl+2*k, tip=sg*(g-1.5*k);
+  var d='M'+f2(x0+rr)+' '+f2(y0)+'H'+f2(tl)+'L0 '+f2(tip)+'L'+f2(tr)+' '+f2(y0)+'H'+f2(x1-rr)+'Q'+f2(x1)+' '+f2(y0)+' '+f2(x1)+' '+f2(y0+sg*rr)+
+        'V'+f2(y1-sg*rr)+'Q'+f2(x1)+' '+f2(y1)+' '+f2(x1-rr)+' '+f2(y1)+'H'+f2(x0+rr)+'Q'+f2(x0)+' '+f2(y1)+' '+f2(x0)+' '+f2(y1-sg*rr)+'V'+f2(y0+sg*rr)+'Q'+f2(x0)+' '+f2(y0)+' '+f2(x0+rr)+' '+f2(y0)+'Z';
+  el.firstChild.setAttribute('d',d); var tx=el.lastChild; tx.setAttribute('x',f2(dx)); tx.setAttribute('y',f2((y0+y1)/2+1.3*k));
+  el.setAttribute('transform','translate('+f2(p[0])+' '+f2(p[1])+')');
+}
+function fitFl(sc){ var k=sc.win[2]/100, g=document.querySelectorAll('#tv .fl'); for(var i=0;i<g.length;i++){ var tx=g[i].lastChild, rc=g[i].firstChild, w=0; try{ w=tx.getComputedTextLength(); }catch(e){} if(w>0){ w+=3.4*k; rc.setAttribute('x',f2(-w/2)); rc.setAttribute('width',f2(w)); } } }
+function trk(tr,t){
+  if(t<=tr[0][0]) return [tr[0][1],tr[0][2]];
+  for(var i=1;i<tr.length;i++){ if(t<=tr[i][0]){ var a=tr[i-1],b=tr[i],u=(t-a[0])/(b[0]-a[0]); u=u*u*(3-2*u); return [a[1]+(b[1]-a[1])*u,a[2]+(b[2]-a[2])*u]; } }
+  var l=tr[tr.length-1]; return [l[1],l[2]];
+}
+function tvFrame(sc,t,from){
+  var an=sc.anim, k=sc.win[2]/100, pos={}, i;
+  sc.ents.forEach(function(e){ pos[e.id]=an.tr[e.id]?trk(an.tr[e.id],Math.max(t,0)):[e.x,e.y]; });
+  var tt=an.tr.toi;
+  if(tt){ var ps=trk(tt,Math.max(t,0)); if(t<0&&from){ var u=1+t/PRE; u=u<0?0:u*u*(3-2*u); ps=[from[0]+(tt[0][1]-from[0])*u, from[1]+(tt[0][2]-from[1])*u]; } pos.toi=ps; }
+  for(var id in pos){ var el=document.getElementById('e-'+id); if(el) el.setAttribute('transform','translate('+f2(pos[id][0])+' '+f2(pos[id][1])+')'); }
+  function res(q){ return q.p?q.p:[pos[q.on][0]+2.7*k,pos[q.on][1]-2.3*k]; }
+  var bk=an.ball, a=bk[0], b=bk[bk.length-1], tb=Math.max(t,0);
+  if(tb<=a[0]) b=a; else if(tb>=b[0]) a=b; else for(i=1;i<bk.length;i++){ if(tb<=bk[i][0]){ a=bk[i-1]; b=bk[i]; break; } }
+  var ub=(a===b)?0:(tb-a[0])/(b[0]-a[0]), pa=res(a[1]), pb=res(b[1]);
+  var be=document.getElementById('e-ball'); if(be) be.setAttribute('transform','translate('+f2(pa[0]+(pb[0]-pa[0])*ub)+' '+f2(pa[1]+(pb[1]-pa[1])*ub)+')');
+  (an.ev||[]).forEach(function(e){ var el=document.getElementById('e-'+e[1]); if(el) el.classList.toggle(e[2],t>=e[0]); });
+  an.fl.forEach(function(f,i){ var el=document.getElementById('fl-'+i); if(el) el.setAttribute('opacity',(t>=f[0]&&t<=f[1]+.001)?1:0); });
+  (an.sp||[]).forEach(function(b,i){ var el=document.getElementById('sp-'+i); if(!el) return; var on=t>=b[0]&&t<=b[1]+.001; el.setAttribute('opacity',on?1:0);
+    if(!on) return; var p=pos[b[2]]||(b[2]==='toi'?(S.pos||sc.ideal):null); if(p) spPlace(el,p,b[4],sc,b[2]); });
+}
+function tvStatic(sc){
+  var k=sc.win[2]/100, be=document.getElementById('e-ball'); if(!be) return;
+  var p=sc.ball.p; if(!p){ var e=sc.ents.filter(function(x){ return x.id===sc.ball.on; })[0]; p=[e.x+2.7*k,e.y-2.3*k]; }
+  be.setAttribute('transform','translate('+p[0]+' '+p[1]+')');
+}
+
+/* ------------------------------------------------------------------ */
+/* État et écrans */
+var PRE=.55, SLOW=.6, GAP=.9;
+var S={scr:'pick',post:'l3',i:0,phase:'ask',pos:null,res:[null,null,null,null],fb:'',pick:null,view:'top',defi:false,auto:false,alt:false,round:0,ord:{}};
+var raf=0, tmo=0;
+function stop(){ if(raf) cancelAnimationFrame(raf); raf=0; clearTimeout(tmo); tmo=0; }
+var app=document.getElementById('app');
+
+var IC={
+  back:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>',
+  tap:'<svg class="tp" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="8.5"/></svg>',
+  play:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4l14 8-14 8z"/></svg>',
+  redo:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.6-5.9M4 4v5h5"/></svg>',
+  lock:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="1"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>',
+  claw:'<svg viewBox="0 0 64 64" aria-hidden="true" fill="none" stroke-linecap="round"><g stroke="#F2AA06" stroke-width="7"><path d="M17 10Q27 30 15 54"/><path d="M32 8Q42 30 30 56"/><path d="M47 10Q57 30 45 54"/></g><g stroke="#FFE9A8" stroke-width="2.4"><path d="M17 10Q27 30 15 54"/><path d="M32 8Q42 30 30 56"/><path d="M47 10Q57 30 45 54"/></g></svg>',
+  radar:'<svg viewBox="0 0 40 40" aria-hidden="true" fill="none" stroke="#F2AA06" stroke-width="2.6" stroke-linecap="round"><circle cx="20" cy="20" r="15"/><circle cx="20" cy="20" r="8"/><path d="M20 20L31 9"/><circle cx="20" cy="20" r="2.4" fill="#FFE9A8" stroke="none"/></svg>'
+};
+function star(on){ return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6-4.9-4.6 6.6-.8z" fill="'+(on?'#FFC23D':'#131B30')+'" stroke="'+(on?'#FFE9A8':'#34405F')+'" stroke-width="1.2" stroke-linejoin="round"/></svg>'; }
+function top(sub,kk){
+  return '<div class="hdw"><header class="top"><button class="bv" type="button" data-act="back" aria-label="Retour">'+IC.back+'</button>'+
+    '<div class="tt"><span class="k">'+(kk||'Mission · '+POSTS[S.post].name)+'</span><b>'+sub+'</b></div>'+
+    '<button class="bv hp" type="button" data-act="menu" aria-label="Aller à un écran"><span>?</span></button></header>'+
+    (EDUC&&(S.scr==='play'||S.scr==='end')?avisBar():'')+'</div>';
+}
+/* (v92) l'écran en cours, pour un avis : la situation (1 à 4) ou la fin (0), et la variante (situation 4 seulement) */
+function ici(){
+  var si=S.scr==='end'?0:S.i+1, raw=POSTS[S.post].sc[3];
+  return {poste:S.post, situation:si, variante:si===4&&!!S.alt&&!!raw.alt};
+}
+function cle(o){ return o.poste+'|'+o.situation+'|'+(o.variante?1:0); }
+function avisTxt(){ var a=MES[cle(ici())]; return a==='juste'?['juste','✓ Avis donné&nbsp;: c’est juste']:a==='revoir'?['revoir','Avis donné&nbsp;: à revoir']:['','Pas encore d’avis']; }
+function avisBar(){ var t=avisTxt(); return '<div class="eb"><span class="k">'+MQL+'</span><span class="ebs '+t[0]+'" id="ebs">'+t[1]+'</span><button class="ebb" type="button" data-act="avis">Mon avis</button></div>'; }
+function ebUp(){ var e=document.getElementById('ebs'); if(!e) return; var t=avisTxt(); e.className='ebs '+t[0]; e.innerHTML=t[1]; }
+function demanderAvis(){
+  var o=ici(), P=POSTS[S.post], sc=S.scr==='end'?null:SC[S.i];
+  o.mp='avis'; o.posteNom=P.name;
+  o.titre=P.name+' · '+(o.situation?'situation '+o.situation+(o.variante?' (variante)':''):'fin de l’épisode');
+  o.sous=sc?sc.tag:'Épisode 1 · Dans le jeu';
+  if(!versAppli(o)) toast('Ouvre cette page depuis l’appli pour donner ton avis.');
+}
+function fermer(){ if(!(EDUC&&versAppli({mp:'fermer'}))) toast(MQL+'\u00a0: retour à l’onglet Missions.'); }
+
+var EMB={
+  colonne:'<path d="M20 12H44M20 52H44M26 12V52M38 12V52"/>',
+  cible:'<circle cx="32" cy="32" r="20"/><circle cx="32" cy="32" r="8"/>',
+  griffe:'<path d="M17 10Q27 30 15 54"/><path d="M32 8Q42 30 30 56"/><path d="M47 10Q57 30 45 54"/>',
+  eclair:'<path d="M38 8L18 36H31L26 56L46 28H33Z"/>',
+  oeil:'<path d="M8 32Q32 9 56 32Q32 55 8 32Z"/><circle cx="32" cy="32" r="7"/>',
+  perce:'<path d="M8 32H54M42 20L56 32L42 44"/><path d="M28 10V22M28 42V54"/>',
+  aile:'<path d="M9 42Q26 14 55 11Q52 31 31 41Z"/><path d="M13 52Q31 49 44 37"/>',
+  rempart:'<path d="M12 52V22H20V30H28V22H36V30H44V22H52V52Z"/>'
+};
+function tint(hex,a){ var n=parseInt(hex.slice(1),16), c=[n>>16,(n>>8)&255,n&255].map(function(v){ return Math.round(v+(255-v)*a); }); return 'rgb('+c.join(',')+')'; }
+function emb(P){ return '<svg viewBox="0 0 64 64" aria-hidden="true" fill="none" stroke-linecap="round" stroke-linejoin="round"><g stroke="'+P.col+'" stroke-width="6.5">'+EMB[P.emb]+'</g><g stroke="'+tint(P.col,.72)+'" stroke-width="2.2">'+EMB[P.emb]+'</g></svg>'; }
+function build(){ SC=POSTS[S.post].sc.map(function(s){ return (S.alt&&s.alt)?mg(s,s.alt):s; }); }
+function setPost(id){ S.post=id; S.alt=false; S.round=0; S.ord={}; build(); app.style.setProperty('--poste',POSTS[id].col); S.res=[null,null,null,null]; S.defi=false; }
+function shuf(n){ var a=[],i,j,t; for(i=0;i<n;i++) a.push(i); for(i=n-1;i>0;i--){ j=Math.floor(Math.random()*(i+1)); t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
+
+function vPick(){
+  var h=top('Missions de poste · épisode 1',MQL);
+  h+='<main class="scr pick"><p class="k rose">'+MQL+'</p><h1 class="h1">Quel poste&nbsp;?</h1><p class="job">'+(EDUC?'Chaque enfant arrivera directement sur son poste. Ici, essaie-les tous et donne ton avis.':'Dans l’appli, chaque enfant arrivera directement sur son poste. Ici, tu peux les essayer tous.')+'</p><div class="pg">';
+  ORDER.forEach(function(id){ var p=POSTS[id]; h+='<button class="pt" type="button" data-act="post" data-p="'+id+'" style="--c:'+p.col+'"><span class="pa">'+p.lab+'</span><span class="pn"><b>'+p.name+'</b><span>'+p.nick+'</span></span></button>'; });
+  return h+'</div></main>';
+}
+function q3(P){
+  var D=[['Ballon libre au sol, tu es le premier&nbsp;?','Tu grattes&nbsp;: «&nbsp;J’ai&nbsp;!&nbsp;»'],['Un bord du ruck est vide&nbsp;?','Tu le gardes&nbsp;: «&nbsp;J’ai&nbsp;!&nbsp;»'],['Sinon&nbsp;:','dans la ligne, en face d’un attaquant libre.']],
+      A=[['Tu es le plus près du porteur&nbsp;?','Dans son Axe&nbsp;: «&nbsp;Axe&nbsp;!&nbsp;»'],['Il est plaqué&nbsp;?','Un seul protège. Tu aides seulement si ça pousse.'],['Sinon&nbsp;:','tu te replaces derrière le ballon.']];
+  function card(cls,k,L){ return '<div class="q3 '+cls+'"><p class="k">'+k+'</p><ol>'+L.map(function(x,i){ return '<li><i>'+(i+1)+'</i><p><b>'+x[0]+'</b> '+x[1]+'</p></li>'; }).join('')+'</ol></div>'; }
+  return '<h2 class="h2">Pour décider&nbsp;: 3 questions</h2>'+card('def','Quand ils ont le ballon',D)+card('att','Quand on a le ballon',A)+(P.note?'<p class="q3n">'+P.note+'</p>':'');
+}
+function vIntro(){
+  var P=POSTS[S.post];
+  return top('Épisode 1 · Dans le jeu')+
+  '<main class="scr intro">'+
+    '<p class="k rose">'+escH(PRENOM)+', aujourd’hui tu joues</p>'+
+    '<div class="hero"><div class="emb">'+emb(P)+'</div><div><h1 class="h1">'+P.nick+'</h1><span class="pp">'+P.name+'</span></div></div>'+
+    '<p class="job">'+P.job+'</p>'+
+    '<div class="stats"><div class="stat"><b>3’</b><span class="k">Durée</span></div><div class="stat"><b>4</b><span class="k">Situations</span></div><div class="stat g"><b>+60</b><span class="k">XP à gagner</span></div></div>'+
+    '<h2 class="h2">Tes 2 missions dans le jeu</h2>'+
+    '<div class="mi def"><p class="k">Quand ils ont le ballon</p><b>'+P.def[0]+'</b><p>'+P.def[1]+'</p></div>'+
+    '<div class="mi att"><p class="k">Quand on a le ballon</p><b>'+P.att[0]+'</b><p>'+P.att[1]+'</p></div>'+
+    q3(P)+
+    '<h2 class="h2">Le parcours</h2>'+
+    '<ol class="par"><li class="on"><span class="dm"><i>1</i></span><div><b>Dans le jeu</b><span>Cet épisode · 4 situations</span></div></li>'+
+      '<li><span class="dm"><i>2</i></span><div><b>Mêlée et remises en jeu</b><span>À débloquer</span></div></li>'+
+      '<li><span class="dm"><i>3</i></span><div><b>Le match dont tu es le héros</b><span>À débloquer</span></div></li></ol>'+
+  '</main>'+
+  '<div class="cta"><button class="pri" type="button" data-act="start">'+IC.play+'C’est parti&nbsp;!</button></div>';
+}
+
+var VL={place:{ok:'Bien placé',near:'Presque',no:'Pas là'},choice:{ok:'Bien joué',near:'Presque',no:'Pas cette fois'}};
+function nextBtn(){
+  var sc=SC[S.i];
+  if(S.done) return '<button class="pri" type="button" data-act="next" id="nxb">'+(S.i<3?'Suivant':'Terminer')+'</button>';
+  if(sc.vig&&!S.seenVig&&(S.topEnd||RM)) return '<button class="pri" type="button" data-act="view" data-v="vig" id="nxb">Suivant</button>';
+  return '<button class="pri wt" type="button" id="nxb" disabled><span>Regarde bien</span><i style="animation-duration:'+(S.wait||3)+'s"></i></button>';
+}
+function footUp(){ var b=document.getElementById('nxb'); if(b) b.outerHTML=nextBtn(); var t2=app.querySelector('.tab[data-v="vig"]'); if(t2) t2.disabled=!(S.topEnd||S.seenVig||RM); }
+function vPlay(){
+  var sc=SC[S.i], ph=S.phase, h=top('Situation '+(S.i+1)+' / 4',POSTS[S.post].name+' · épisode 1'), foot='';
+  h+='<main class="play'+(ph==='brief'?' brf':'')+'"><div class="pl-head"><div class="prog" role="img" aria-label="Situation '+(S.i+1)+' sur 4">';
+  for(var j=0;j<4;j++){ var c=j===S.i?'cur':(S.res[j]?(S.res[j]==='ok'?'ok':'done'):''); h+='<i class="'+c+'"></i>'; }
+  h+='</div><p class="k tag '+sc.side+'">'+sc.tag+'</p></div>';
+  if(ph==='brief'){
+    h+='<button class="brief" type="button" data-act="ready"><span class="bt" id="brief"><span class="ctx">'+sc.ctx+'</span><span class="q">'+sc.q+'</span></span></button>';
+    return h+'</main><div class="cta pl"><button class="pri" type="button" data-act="ready">'+(sc.kind==='place'?'Voir le terrain':'Voir la situation')+'</button></div>';
+  }
+  if(ph==='ask'){
+    h+='<div class="pl-q" id="plq"><p class="ctx">'+sc.ctx+'</p><h1 class="q">'+sc.q+'</h1></div>';
+    if(sc.kind==='place') h+='<div class="hint">'+IC.tap+'<span id="hint">'+(S.pos?'Tu peux encore bouger.':'Touche le terrain pour te placer.')+'</span></div>';
+  }else{
+    var r=S.res[S.i], fb=S.fb, body, good=sc.kind==='choice'?sc.choices.filter(function(c){ return c.v==='ok'; })[0]:null;
+    if(Array.isArray(fb)) body='<p><b class="fbk">'+(r==='near'?'Pas le meilleur':'Pourquoi pas')+'&nbsp;:</b> '+fb[0]+'</p><p><b class="fbk">Mieux&nbsp;:</b> '+(good?'«&nbsp;'+good.t+'&nbsp;». ':'')+fb[1]+'</p>';
+    else body='<p>'+fb+'</p>'+(good&&r!=='ok'?'<p><b class="fbk">Mieux&nbsp;:</b> «&nbsp;'+good.t+'&nbsp;».</p>':'');
+    h+='<div class="pl-q vd '+r+'" role="status"><div class="l1"><span class="chip">'+VL[sc.kind][r]+'</span>'+(r==='ok'&&!S.round?'<span class="xp">★ +'+XP+' XP</span>':'')+'</div>'+body+'</div>';
+    h+=sc.vig?'<div class="tabs"><button class="tab" type="button" data-act="view" data-v="top" aria-pressed="'+(S.view==='top')+'"><b>1</b>Vu du dessus</button><button class="tab" type="button" data-act="view" data-v="vig" aria-pressed="'+(S.view==='vig')+'"'+(S.topEnd||S.seenVig||RM?'':' disabled')+'><b>2</b>Sur le terrain</button></div>':'';
+  }
+  h+='<div class="stage'+(sc.kind==='choice'?' zm':'')+'" id="stage"></div>';
+  if(ph==='reveal'&&sc.anim.sp&&sc.anim.sp.length) h+='<p class="sph"><i></i>Dans les bulles&nbsp;: ce que vous vous dites sur le terrain.</p>';
+  if(ph==='ask'&&sc.kind==='place') foot='<button class="pri" type="button" data-act="valid" id="valid"'+(S.pos?'':' disabled')+'>Je me place ici</button>';
+  else if(ph==='ask'){ h+='<div class="chs">'; var od=S.ord[S.i]||(S.ord[S.i]=shuf(sc.choices.length)); od.forEach(function(ci){ var c=sc.choices[ci]; h+='<button class="ch" type="button" data-act="pick" data-k="'+c.k+'"><span class="th" data-th="'+c.k+'"></span><span class="tx"><b>'+c.t+'</b><span>'+c.s+'</span></span></button>'; }); h+='</div>'; }
+  else { h+='<div class="les"><p class="k">À retenir</p><p>'+sc.lesson+'</p></div>'; foot='<div class="row"><button class="sec" type="button" data-act="replay">'+IC.redo+'Revoir</button>'+nextBtn()+'</div>'; }
+  return h+'</main>'+(foot?'<div class="cta pl">'+foot+'</div>':'');
+}
+/* La question passe du grand format à l'en-tête, le terrain arrive dessous */
+function ready(){
+  var b=document.getElementById('brief'), r0=b?b.getBoundingClientRect():null;
+  S.phase='ask'; render(); scrollTop();
+  var q=document.getElementById('plq'), pl=app.querySelector('.play');
+  if(RM||!r0||!q) return;
+  var r1=q.getBoundingClientRect();
+  q.style.transformOrigin='0 0'; q.style.transform='translate('+(r0.left-r1.left)+'px,'+(r0.top-r1.top)+'px) scale(1.6)';
+  pl.classList.add('enter'); q.getBoundingClientRect();
+  q.style.transition='transform .6s cubic-bezier(.45,0,.2,1)'; q.style.transform='none';
+  setTimeout(function(){ q.style.transition=''; q.style.transformOrigin=''; q.style.transform=''; pl.classList.remove('enter'); },850);
+}
+
+function vEnd(){
+  var P=POSTS[S.post], n=S.res.filter(function(r){ return r==='ok'; }).length, h=top('Épisode terminé',P.name+' · épisode 1');
+  h+='<main class="scr end"><p class="k rose">Épisode 1 terminé</p><h1 class="h1">'+(n>=3?'Bien joué, '+escH(PRENOM)+'&nbsp;!':'C’est noté, '+escH(PRENOM)+'&nbsp;!')+'</h1>';
+  h+='<div class="stars" role="img" aria-label="'+n+' étoiles sur 4">'; for(var j=0;j<4;j++) h+=star(S.res[j]==='ok'); h+=(S.round?'<span class="sc rj">Rejoué · pas d’XP</span>':'<span class="sc">+'+(n*XP)+' XP</span>')+'</div>';
+  h+='<div class="pw">'+emb(P)+'<div><span class="k" style="color:var(--poste)">Pouvoir · '+P.nick+'</span><b>'+P.power+'</b><span>'+(n>=3?'Débloqué sur ta carte de poste.':'À débloquer avec 3 étoiles&nbsp;: rejoue l’épisode.')+'</span></div></div>';
+  h+='<h2 class="h2">Tes 3 repères</h2><ol class="rep">';
+  P.reps.forEach(function(r,i){ h+='<li style="--c:var(--'+(r[0]==='d'?'blue':'green')+')"><i>'+(i+1)+'</i><p><b>'+r[1]+'</b> '+r[2]+'</p></li>'; });
+  h+='</ol><div class="defi"><p class="k">Ton défi terrain</p><b>'+P.defi+'</b><p>Après le plateau, tu nous diras si tu l’as fait.</p><button class="tog" type="button" data-act="defi" aria-pressed="'+S.defi+'">'+(S.defi?'✓ Défi relevé':'Je relève le défi')+'</button></div>';
+  h+='<div class="nx">'+IC.lock+'<div><b>Épisode 2 · Mêlée et remises en jeu</b>À débloquer</div></div>';
+  h+='</main><div class="cta"><div class="row"><button class="sec" type="button" data-act="again">'+IC.redo+'Rejouer</button><button class="pri" type="button" data-act="quit">Missions</button></div></div>';
+  return h;
+}
+
+/* Petits schémas des choix : x adversaire, o copain, m toi, a flèche, b ballon, r ruck, t texte */
+function mini(ps){
+  var s='<svg viewBox="0 0 72 52" aria-hidden="true"><rect width="72" height="52" fill="#0B231E"/>';
+  ps.forEach(function(p){
+    var t=p[0], x=p[1], y=p[2];
+    if(t==='r') s+='<ellipse cx="'+x+'" cy="'+y+'" rx="13" ry="11" fill="rgba(232,236,247,.07)" stroke="rgba(232,236,247,.6)" stroke-width="1" stroke-dasharray="2.6 2.2"/>';
+    else if(t==='x') s+='<path d="M'+(x-3.2)+' '+(y-3.2)+'l6.4 6.4m0-6.4l-6.4 6.4" stroke="#FF4F6D" stroke-width="2.3" stroke-linecap="round"/>';
+    else if(t==='o') s+='<circle cx="'+x+'" cy="'+y+'" r="5.4" fill="#101A2C" stroke="'+(p[3]||'#9FB0D8')+'" stroke-width="1.4"/>';
+    else if(t==='m') s+='<circle cx="'+x+'" cy="'+y+'" r="6.8" fill="#FFC23D" stroke="#FFF1C8" stroke-width="1.2"/>';
+    else if(t==='b') s+='<ellipse cx="'+x+'" cy="'+y+'" rx="3.4" ry="2.3" transform="rotate(-30 '+x+' '+y+')" fill="#fff" stroke="#070A12" stroke-width=".5"/>';
+    else if(t==='t') s+='<text x="'+x+'" y="'+y+'" text-anchor="middle" font-size="15" fill="#E8ECF7" class="lb">'+p[3]+'</text>';
+    else if(t==='a'){ var x2=p[3], y2=p[4], a=Math.atan2(y2-y,x2-x), h=4.2, a1=a+2.5, a2=a-2.5;
+      s+='<path d="M'+x+' '+y+'L'+x2+' '+y2+'M'+f2(x2+h*Math.cos(a1))+' '+f2(y2+h*Math.sin(a1))+'L'+x2+' '+y2+'L'+f2(x2+h*Math.cos(a2))+' '+f2(y2+h*Math.sin(a2))+'" fill="none" stroke="#E8ECF7" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>'; }
+  });
+  return s+'</svg>';
+}
+/* Vignettes des choix : bonhommes pour la situation 2, schémas pour la situation 4 */
+function thumb(el){
+  var ch=SC[S.i].choices.filter(function(x){ return x.k===el.dataset.th; })[0], k=ch.th, cam, s, g;
+  if(Array.isArray(k)){ el.innerHTML=mini(k); return; }
+  if(k.charAt(0)==='t'){
+    var ty={'t-in':[29,27.5],'t-back':[47,43],'t-wide':[63.5,26.5]}[k];
+    s='<svg viewBox="0 0 72 52" aria-hidden="true"><rect width="72" height="52" fill="#0B231E"/><ellipse cx="29" cy="25" rx="15.5" ry="13" fill="rgba(232,236,247,.07)" stroke="rgba(232,236,247,.6)" stroke-width="1" stroke-dasharray="2.6 2.2"/>'+
+      '<circle cx="22.6" cy="26.5" r="6" fill="#101A2C" stroke="#F2AA06" stroke-width="1.3"/><circle cx="35.4" cy="26.5" r="6" fill="#101A2C" stroke="#FE8A00" stroke-width="1.3"/>'+
+      '<ellipse cx="29" cy="37" rx="3.6" ry="2.4" transform="rotate(-30 29 37)" fill="#fff" stroke="#070A12" stroke-width=".5"/>'+
+      '<path d="M14 4.5l5 5m0-5l-5 5M39 4.5l5 5m0-5l-5 5" stroke="#FF4F6D" stroke-width="2.2" stroke-linecap="round"/>'+
+      (k==='t-wide'?'<path d="M47 26.5h7m-3-3l3 3-3 3" fill="none" stroke="#E8ECF7" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>':'')+
+      '<circle cx="'+ty[0]+'" cy="'+ty[1]+'" r="7" fill="#FFC23D" stroke="#FFF1C8" stroke-width="1.2"/></svg>';
+    el.innerHTML=s; return;
+  }
+  var tall=k==='away'||k==='wait'; cam=mkCam(72,52,tall?25:33,tall?45:43,-32,22); cam.tag=false;
+  var st={jackal:{X:-.3,Z:0,th:0,pose:PO.jackal}, wait:{X:-.45,Z:0,th:0,pose:PO.stand}, away:{X:-.25,Z:0,th:180,pose:PO.run1}}[k];
+  var bw={jackal:[.42,.07,.02], wait:[.75,.07,.05], away:[1.0,.07,.1]}[k], bp=pr(bw,cam);
+  s='<svg viewBox="0 0 72 52" aria-hidden="true"><rect width="72" height="52" fill="#0B231E"/>'+
+    (k==='away'?'<path d="M22 9H8m5-4.5L8 9l5 4.5" fill="none" stroke="#E8ECF7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>':'')+
+    figMarkup('th-'+k,COL.me,true,cam)+'<g transform="translate('+f2(bp[0])+' '+f2(bp[1])+')"><ellipse rx="4" ry="2.6" transform="rotate(-24)" fill="#fff" stroke="#070A12" stroke-width=".6"/></g></svg>';
+  el.innerHTML=s;
+  figUpdate(el.querySelector('#th-'+k),st,cam);
+}
+
+function render(){
+  stop();
+  app.innerHTML = S.scr==='pick'?vPick():S.scr==='intro'?vIntro():S.scr==='end'?vEnd():vPlay();
+  if(S.scr==='play'){ var ths=app.querySelectorAll('[data-th]'); for(var i=0;i<ths.length;i++) thumb(ths[i]); drawStage(true); }
+}
+function scrollTop(){ try{ window.scrollTo(0,0); }catch(e){} }
+
+function drawStage(first){
+  stop();
+  var sc=SC[S.i], st=document.getElementById('stage'); if(!st) return;
+  if(S.phase!=='reveal'){
+    st.innerHTML=tvSVG(sc,{ask:true,toi:sc.kind==='place'?(S.pos||sc.start):null});
+    tvStatic(sc); if(sc.kind==='place') bindPlace(sc);
+    return;
+  }
+  if(S.view==='vig'&&sc.vig){
+    var v=VG[sc.vig], cam=camFor(sc);
+    st.innerHTML=vigSVG(v,cam)+'<div class="vleg"><span style="--c:#F2AA06"><i></i>toi</span><span style="--c:#38E8FF"><i></i>copain</span><span style="--c:#FF4F6D"><i></i>adversaire</span></div><div class="vcap" aria-live="polite"><b id="vn">1</b><span id="vt"></span></div>';
+    var last=-1, cap=function(t){ var n=stepAt(v,t); if(n!==last){ last=n; document.getElementById('vn').textContent=n+1; document.getElementById('vt').innerHTML=sc.vsteps?sc.vsteps[n]:v.steps[n][1]; } };
+    S.seenVig=true;
+    if(RM){ vigFrame(v,cam,v.key); cap(v.key); S.done=true; footUp(); return; }
+    S.wait=v.dur; footUp();
+    var t0=performance.now(), loop=function(now){ var e=(now-t0)/1000, t=e%(v.dur+1.1); if(t>v.dur) t=v.dur; vigFrame(v,cam,t); cap(t); if(!S.done&&e>=v.dur){ S.done=true; footUp(); } raf=requestAnimationFrame(loop); };
+    vigFrame(v,cam,0); cap(0); raf=requestAnimationFrame(loop);
+    return;
+  }
+  var from=(first&&sc.kind==='place')?S.pos:null, an=sc.anim;
+  st.innerHTML=tvSVG(sc,{ask:false,zone:true,toi:from||(an.tr.toi?[an.tr.toi[0][1],an.tr.toi[0][2]]:null)})+'<div class="pass" id="pass" hidden></div>';
+  fitFl(sc); fitSp(sc);
+  var end=function(){ S.topEnd=true; if(!sc.vig||S.seenVig) S.done=true; footUp(); };
+  if(RM){ tvFrame(sc,an.dur,null); end(); return; }
+  /* 1re fois : deux passages obligatoires (ralenti, puis plus vite). « Revoir » : un passage au ralenti. */
+  var rates=S.topEnd?[SLOW]:[SLOW,1], n=0, pre0=from?PRE:0, ps=document.getElementById('pass');
+  if(!S.topEnd){ S.wait=f2(pre0+.25+an.dur/SLOW+GAP+.25+an.dur); footUp(); }
+  var one=function(){
+    var rate=rates[n], fr=n===0?from:null, pre=n===0?pre0:0, s0=performance.now();
+    ps.hidden=false; ps.innerHTML=(rates.length>1?'<b>'+(n+1)+'</b>':'')+(rate<1?'Au ralenti':'Plus vite');
+    var step=function(now){
+      var e=(now-s0)/1000-.25, t=e<pre?e-pre:(e-pre)*rate;
+      tvFrame(sc,Math.min(t,an.dur),fr);
+      if(t<an.dur) raf=requestAnimationFrame(step);
+      else { raf=0; n++; if(n<rates.length) tmo=setTimeout(one,GAP*1000); else end(); }
+    };
+    tvFrame(sc,-pre,fr); raf=requestAnimationFrame(step);
+  };
+  one();
+}
+function camFor(sc){ return sc.kind==='choice'?mkCam(100,70,17,44):mkCam(100,90,20,55); }
+function setView(v){
+  S.view=v;
+  var tb=app.querySelectorAll('.tab'); for(var i=0;i<tb.length;i++) tb[i].setAttribute('aria-pressed',String(tb[i].dataset.v===v));
+  drawStage(false);
+}
+
+function bindPlace(sc){
+  var svg=document.getElementById('tv'), toi=document.getElementById('e-toi'), drag=false;
+  function pt(ev){ var p=svg.createSVGPoint(); p.x=ev.clientX; p.y=ev.clientY; var q=p.matrixTransform(svg.getScreenCTM().inverse()); return [Math.max(7,Math.min(93,q.x)),Math.max(11,Math.min(84,q.y))]; }
+  function set(p){
+    S.pos=[f2(p[0]),f2(p[1])]; toi.setAttribute('transform','translate('+S.pos[0]+' '+S.pos[1]+')');
+    var b=document.getElementById('valid'); if(b) b.disabled=false;
+    var h=document.getElementById('hint'); if(h) h.textContent='Tu peux encore bouger.';
+  }
+  svg.addEventListener('click',function(ev){ if(!drag) set(pt(ev)); });
+  toi.addEventListener('touchstart',function(ev){ if(ev.cancelable) ev.preventDefault(); },{passive:false});
+  toi.addEventListener('pointerdown',function(ev){ drag=true; try{ toi.setPointerCapture(ev.pointerId); }catch(e){} ev.preventDefault(); });
+  toi.addEventListener('pointermove',function(ev){ if(drag) set(pt(ev)); });
+  var up=function(){ setTimeout(function(){ drag=false; },30); };
+  toi.addEventListener('pointerup',up); toi.addEventListener('pointercancel',up);
+  svg.addEventListener('keydown',function(ev){
+    var d={ArrowLeft:[-2,0],ArrowRight:[2,0],ArrowUp:[0,-2],ArrowDown:[0,2]}[ev.key];
+    if(d){ ev.preventDefault(); var p=S.pos||sc.start; set([Math.max(7,Math.min(93,p[0]+d[0])),Math.max(11,Math.min(84,p[1]+d[1]))]); }
+    else if(ev.key==='Enter'&&S.pos){ ev.preventDefault(); answer(sc.judge(S.pos[0],S.pos[1])); }
+  });
+}
+function answer(r){
+  S.res[S.i]=r[0]; S.fb=r[1]; S.phase='reveal'; S.view='top'; S.seenVig=false; S.topEnd=false; S.done=false; S.wait=0;
+  render(); scrollTop();
+}
+
+var toastT=0;
+function toast(m){ var t=document.getElementById('toast'); t.textContent=m; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(function(){ t.hidden=true; },2400); }
+function go(scr,i){ S.scr=scr; S.i=i||0; S.phase='brief'; S.pos=null; S.pick=null; S.view='top'; render(); scrollTop(); }
+function menu(open){
+  var m=document.getElementById('menu');
+  if(!open){ m.hidden=true; m.innerHTML=''; return; }
+  var it=[['pick',0,'Changer de poste'],['intro',0,'Accroche · '+POSTS[S.post].name]];
+  SC.forEach(function(sc,i){ it.push(['play',i,'Situation '+(i+1)+' · '+sc.tag.toLowerCase()]); });
+  it.push(['end',0,'Fin de l’épisode']);
+  m.innerHTML='<div class="sheet" role="dialog" aria-modal="true" aria-label="Aller à un écran"><p class="k">'+MQL+'</p><p>Aller à un écran.'+(EDUC?'':' Rien n’est enregistré.')+'</p>'+
+    it.map(function(x){ var on=S.scr===x[0]&&(x[0]!=='play'||S.i===x[1]); return '<button class="mn'+(on?' on':'')+'" type="button" data-act="jump" data-s="'+x[0]+'" data-i="'+x[1]+'">'+x[2]+'</button>'; }).join('')+
+    '<button class="mn'+(S.alt?' on':'')+'" type="button" data-act="altv">'+(S.alt?'Variante affichée · revenir à la base':'Voir la variante de la situation 4')+'</button>'+
+    '<button class="sec" type="button" data-act="closemenu" style="margin-top:6px">Fermer</button></div>';
+  m.hidden=false;
+}
+
+document.addEventListener('click',function(ev){
+  var a=ev.target.closest('[data-act]');
+  if(!a){ if(ev.target.id==='menu') menu(false); return; }
+  if(a.disabled) return;
+  var k=a.dataset.act, sc=SC[S.i];
+  if(k==='menu') menu(true);
+  else if(k==='closemenu') menu(false);
+  else if(k==='jump'){ menu(false); if(a.dataset.s==='end'&&!S.res[0]) S.res=['ok','near','ok','ok']; go(a.dataset.s,+a.dataset.i); }
+  else if(k==='post'){ setPost(a.dataset.p); go('intro'); }
+  else if(k==='start'){ S.res=[null,null,null,null]; S.defi=false; S.ord={}; go('play',0); }
+  else if(k==='altv'){ S.alt=!S.alt; S.ord={}; build(); menu(false); if(S.scr==='pick') render(); else go(S.scr,S.i); }
+  else if(k==='back'){
+    if(S.scr==='pick') fermer();
+    else if(S.scr==='intro') go('pick');
+    else if(S.scr==='end') go('play',3);
+    else if(S.phase==='reveal'){ S.phase='ask'; S.pos=null; S.res[S.i]=null; render(); }
+    else if(S.phase==='ask'){ S.phase='brief'; S.pos=null; render(); }
+    else if(S.i>0) go('play',S.i-1); else go('intro');
+  }
+  else if(k==='ready') ready();
+  else if(k==='valid'){ if(S.pos) answer(sc.judge(S.pos[0],S.pos[1])); }
+  else if(k==='pick'){ var c=sc.choices.filter(function(x){ return x.k===a.dataset.k; })[0]; S.pick=c.k; answer([c.v,c.fb]); }
+  else if(k==='view') setView(a.dataset.v);
+  else if(k==='replay') drawStage(false);
+  else if(k==='next'){ if(S.i<3) go('play',S.i+1); else go('end'); }
+  else if(k==='defi'){ S.defi=!S.defi; a.setAttribute('aria-pressed',String(S.defi)); a.textContent=S.defi?'✓ Défi relevé':'Je relève le défi'; }
+  else if(k==='again'){ S.round++; S.alt=!S.alt; S.ord={}; build(); S.res=[null,null,null,null]; go('play',0); }
+  else if(k==='quit') fermer();
+  else if(k==='avis') demanderAvis();
+});
+document.addEventListener('keydown',function(ev){ if(ev.key==='Escape') menu(false); });
+
+window.MQ={unlock:function(){ S.done=true; S.seenVig=true; footUp(); },at:function(t){ stop(); var sc=SC[S.i]; if(S.view==='vig'&&sc.vig) vigFrame(VG[sc.vig],camFor(sc),t); else tvFrame(sc,t,null); },S:S,POSTS:POSTS,ORDER:ORDER,setPost:setPost,build:build,sc:function(){ return SC; },mini:mini,VG:VG,PO:PO,go:go,render:render,figMarkup:figMarkup,figUpdate:figUpdate,mkCam:mkCam,vigSVG:vigSVG,vigFrame:vigFrame,setView:setView,tvFrame:tvFrame};
+/* (v92) les messages de l'appli (même site seulement) : le prénom et mes avis ; un avis bien envoyé */
+window.addEventListener('message',function(ev){
+  if(ev.origin!==location.origin||ev.source!==window.parent) return;
+  var d=ev.data; if(!d||typeof d!=='object') return;
+  if(d.mp==='init'){
+    var pn=nomOk(d.prenom); if(pn&&pn!==PRENOM){ PRENOM=pn; if(S.scr==='intro'||S.scr==='end') render(); }
+    MES={}; (Array.isArray(d.mes)?d.mes:[]).forEach(function(x){ if(x&&(x.avis==='juste'||x.avis==='revoir')) MES[cle(x)]=x.avis; });
+    ebUp();
+  }else if(d.mp==='avisOk'&&d.retour&&typeof d.retour==='object'){
+    var r=d.retour; if(r.avis==='juste'||r.avis==='revoir') MES[cle(r)]=r.avis; ebUp();
+  }
+});
+(function(){
+  var p=ORDER.indexOf(QS.p)>=0?QS.p:'l3', s=QS.s, alt=QS.alt==='1';
+  setPost(p); if(alt){ S.alt=true; build(); }
+  if(ORDER.indexOf(QS.p)<0) render();
+  else if(/^[1-4]$/.test(s)) go('play',+s-1);
+  else if(s==='0'){ S.res=['ok','near','ok','ok']; go('end'); }
+  else go('intro');
+  if(EDUC) versAppli({mp:'pret'});
+})();
+window.MQ.ici=ici; window.MQ.MES=function(){ return MES; };
+})();
+</script>
+</body>
+</html>

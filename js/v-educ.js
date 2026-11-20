@@ -639,7 +639,9 @@ window.MC = window.MC || {};
   // Progrès › Missions
   // ======================================================================
   app.route('/educ/missions', function () {
-    return both().then(function (r) { app.refreshNav(); return paintMissions(r[0]); });
+    // (v92) et les avis des éducs sur les missions de poste (essai) : sans eux (réseau, serveur d'avant), la page s'affiche quand même
+    var rp = MC.mpRetours ? MC.mpRetours().catch(function () { return null; }) : null;
+    return Promise.all([both(), rp]).then(function (r) { app.refreshNav(); return paintMissions(r[0][0], r[1]); });
   }, { adult: 'e', nav: 'e:progres', bg: '#33122A' });
   function statsGroupe(gr, m) {
     var kids = actifs(gr), faits = 0, vus = 0, somme = 0, nq = (m.questions || []).length;
@@ -649,7 +651,7 @@ window.MC = window.MC || {};
     });
     return { kids: kids.length, faits: faits, vus: vus, moyenne: faits && nq ? Math.round(somme / faits * 10) / 10 : null, nq: nq };
   }
-  function paintMissions(gr) {
+  function paintMissions(gr, rp) {
     var kids = actifs(gr), groupe = '';
     MC.MISSIONS.forEach(function (Dx) {   // les 2 missions du jeu à 10 : le poste, les copains
       var f = kids.filter(function (p) { return M.etat({ missions: p.missions || [] }, Dx.id).faite; }).length;
@@ -671,6 +673,7 @@ window.MC = window.MC || {};
     var reussies = (gr.defmissions || []).filter(function (m) { return m.sorte === 'etoile' && m.statut === 'faite'; }).sort(function (a, b) { return (a.faiteLe || '') < (b.faiteLe || '') ? 1 : -1; });
     var sans = kids.filter(function (p) { var m = persoDe(gr, p.joueur.id); return !m || etatDe(gr, m).expiree; }).length;
     return '<main class="screen">' + MC.educBar(gr, 'Progrès') + MC.progresTabs('missions') +
+      (MC.mpSection ? MC.mpSection(rp) : '') +   // (v92) missions de poste : essai pour les éducs, et leurs retours
       '<section class="sec"><h2 class="h2">Pour le groupe</h2>' + (groupe ? '<ul class="list">' + groupe + '</ul>' : '<p class="small" style="margin:0">Pas encore de mission pour le groupe.</p>') + '</section>' +
       '<section class="sec"><div class="between"><h2 class="h2">Missions principales</h2><span class="small">1 à 3 étoiles par enfant</span></div>' +
       (ind ? '<ul class="list">' + ind + '</ul>' : '<p class="small" style="margin:0">Pas encore de mission principale.</p>') +

@@ -2334,3 +2334,38 @@ a.cpres-n{text-decoration:underline;text-underline-offset:2px}
 @media (max-width:1099px){.ctbp .ctbp-t,.ctb .cnreg-t{display:none}.ctbo{max-width:190px}.ctb{gap:6px}}
 .ctbinfo{margin:-4px 0 0;color:var(--soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ctbo-t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ===== v92 — Missions de poste, épisode 1 (essai pour les éducs) ===== */
+/* Progrès › Missions : l'entrée et les retours des éducs, par poste puis par situation */
+.mtag.mpt{border-color:var(--gold);color:var(--gold)}
+.mpret{border:1px solid var(--line);background:var(--panel2)}
+.mpret>summary{min-height:48px;display:flex;align-items:center;gap:8px;padding:0 12px;cursor:pointer;color:var(--cyan);font:700 13px/1.15 var(--f-hud);letter-spacing:.08em;text-transform:uppercase}
+.mpret[open]>summary{border-bottom:1px solid var(--line)}
+.mpgs{display:flex;flex-direction:column;gap:14px;padding:12px}
+.mpg{display:flex;flex-direction:column;gap:8px}
+.mpgh{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.mpgh b{font:700 15px/1.2 var(--f-hud);letter-spacing:.04em}
+.mppa{flex:none;display:inline-grid;place-items:center;width:32px;height:32px;border-radius:50%;border:2px solid var(--pc);color:var(--pc);font:700 12px/1 var(--f-hud)}
+.mpgc{display:flex;gap:10px;margin-left:auto;font:600 12px/1.2 var(--f-body)}
+.mpgc .j{color:var(--green);display:inline-flex;align-items:center;gap:3px}.mpgc .r{color:var(--orange)}
+.mps{border-left:3px solid var(--pc);padding-left:10px;display:flex;flex-direction:column;gap:6px}
+.mpsh{display:flex;align-items:center;justify-content:space-between;gap:10px;font:600 12px/1.2 var(--f-hud);letter-spacing:.1em;text-transform:uppercase;color:var(--soft)}
+.mpvoir{flex:none;display:inline-flex;align-items:center;gap:4px;min-height:44px;padding:0 4px 0 10px;color:var(--cyan);text-decoration:none;font:700 12px/1 var(--f-hud);letter-spacing:.1em}
+.mpl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.mpr{display:flex;flex-direction:column;gap:3px;padding:8px 10px;background:#0C1120;border:1px solid var(--line)}
+.mpra{display:inline-flex;align-items:center;gap:4px;font:700 11px/1.2 var(--f-hud);letter-spacing:.1em;text-transform:uppercase;color:var(--green)}
+.mpr.revoir .mpra{color:var(--orange)}
+.mprt{font-size:15px;line-height:1.4;color:var(--ink);overflow-wrap:anywhere}
+.mprq{font-size:12px;color:var(--dim)}
+/* l'épisode en plein écran : la page dans une iframe du même site, au-dessus de tout sauf les fenêtres et les messages */
+.mpfull{min-height:100vh;background:var(--bg)}
+.mpwrap{position:fixed;inset:0;z-index:35;margin:var(--vvt) 0 calc(-1 * var(--vvb));padding:var(--safe-t) 0 var(--safe-b);background:var(--bg)}
+.mpframe{display:block;width:100%;height:100%;border:0;background:var(--bg)}
+/* « Mon avis » */
+.mpctx{margin:0;display:flex;flex-direction:column;gap:2px}
+.mpctx b{font:700 15px/1.25 var(--f-hud);letter-spacing:.04em}
+.mpctx span{font-size:13px;color:var(--dim)}
+.mpav .mpch{min-height:52px}
+.mpav .mpch.juste{border-color:var(--line2);color:var(--soft)}.mpav .mpch.revoir{border-color:var(--line2);color:var(--soft)}
+.mpav .mpch.juste.on{border-color:var(--green);color:#04261B;background:var(--green)}
+.mpav .mpch.revoir.on{border-color:var(--orange);color:#2B1406;background:var(--orange)}

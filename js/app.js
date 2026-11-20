@@ -28,7 +28,7 @@ MC.app = (function () {
   function setAdult(a) {
     S.adult = a; S.cache = {}; lsSet('mc-adult', a);
     if (!a) {
-      lsSet('mc-fam', null); lsSet('mc-group', null); lsSet('mc-compos', null);
+      lsSet('mc-fam', null); lsSet('mc-group', null); lsSet('mc-compos', null); lsSet('mc-retoursmp', null);   // (v92) les avis des éducs
       // les brouillons de compo (ils citent des copains, secrets) ne restent pas sur l'appareil
       try { Object.keys(localStorage).forEach(function (k) { if (k.indexOf('mc-cdraft:') === 0) localStorage.removeItem(k); }); } catch (e) { }
     }
@@ -491,7 +491,7 @@ MC.app = (function () {
   // les séances et bilans guidés (rien à perdre en cours de saisie).
   var refreshers = [];
   function onRefresh(fn) { refreshers.push(fn); }
-  var NOPULL = /^\/(connexion|premiere|oubli|qui|adultes|adultes\/code|go\/[^/]+|tente\/[^/]+|bilan|bilan\/go|noter|echauffement|calme|guide|aide|reglages|bienvenue|bravo|mission\/bravo|mission\/quiz|mission\/copains|parent\/bienvenue|parent\/plus|notifs\/reglages|parent\/notifs\/reglages|educ\/(notifs\/reglages|bienvenue|evt-nouveau|missions\/nouvelle|encourager\/[^/]+|ajouter|compo\/[^/]+|avis\/[^/]+|terrain|skills\/journee|evt\/[^/]+\/presents|spond|reglages|outils|familles|educs))$/;
+  var NOPULL = /^\/(connexion|premiere|oubli|qui|adultes|adultes\/code|go\/[^/]+|tente\/[^/]+|bilan|bilan\/go|noter|echauffement|calme|guide|aide|reglages|bienvenue|bravo|mission\/bravo|mission\/quiz|mission\/copains|parent\/bienvenue|parent\/plus|notifs\/reglages|parent\/notifs\/reglages|educ\/(notifs\/reglages|bienvenue|evt-nouveau|missions\/nouvelle|missions\/postes|encourager\/[^/]+|ajouter|compo\/[^/]+|avis\/[^/]+|terrain|skills\/journee|evt\/[^/]+\/presents|spond|reglages|outils|familles|educs))$/;
   function pullable() {
     if (!current || !current.route || !painted) return false;
     var o = current.route.opts;
