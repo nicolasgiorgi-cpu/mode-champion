@@ -26,7 +26,6 @@
   var L = { torso: 29, neck: 4, head: 15, hr: 8, thigh: 23, shin: 23, up: 16, fo: 15, foot: 7, ffoot: 5 };
   var DIM = '#4A5578', LITE = '#8A93AD', BG = '#070A12', FILL = '#0D1324';
   var D2R = Math.PI / 180;
-  var uid = 0;
 
   /* ------------------------------------------------------------------ */
   /* Maths                                                               */
@@ -1067,52 +1066,69 @@
     };
   }
 
+  /* (v93) Le halo neon n'est plus un flou SVG (feGaussianBlur sur le bonhomme) : dans Safari (iPhone, iPad),
+     un trait qui bouge sous un filtre de flou ne fait pas effacer tout son halo d'une image a l'autre, et les
+     bras et les jambes laissaient une trainee derriere eux (bug WebKit 185074). Le halo est maintenant dessine
+     par deux copies plus larges et translucides de chaque partie du corps, sous le bonhomme : chaque trait est
+     redessine avec ses propres bords, rien ne reste derriere. Ne pas remettre de filtre sur le bonhomme.
+     Valeurs choisies pour rester proches de l'ancien flou (ecart-type 2.3). */
+  // de l'exterieur vers l'interieur : largeur en plus, opacite du calque. Opacite cumulee au bord du trait ~0.45, puis
+  // 0.32, 0.18 et 0.07 en s'eloignant (profil d'un flou gaussien), pour un halo doux et sans contour marque.
+  var HALO = [{ w: 9, o: 0.07 }, { w: 6, o: 0.12 }, { w: 3.5, o: 0.17 }, { w: 1.5, o: 0.19 }];
+
   function build(def, key, opts) {
     var color = opts.color || '#3DFFB0';
     var farC = def.view === 'front' ? color : (mix(color, BG, 0.45) || color);
     var farOp = def.view !== 'front' && !hex(color) ? 0.55 : 1;
-    var id = 'mcglow-' + (++uid) + '-' + Math.random().toString(36).slice(2, 7);
     var svg = mk('svg', { xmlns: NS, viewBox: '0 0 240 160', width: '100%', height: '100%',
       preserveAspectRatio: 'xMidYMid meet', role: 'img', focusable: 'false',
       'aria-label': opts.label || LABELS[key] || key });
     svg.style.display = 'block';
-    var defs = mk('defs', {}, svg);
-    var fl = mk('filter', { id: id, x: -20, y: -20, width: 280, height: 200, filterUnits: 'userSpaceOnUse' }, defs);
-    mk('feGaussianBlur', { 'in': 'SourceGraphic', stdDeviation: 2.3, result: 'b' }, fl);
-    var mg = mk('feMerge', {}, fl);
-    mk('feMergeNode', { 'in': 'b' }, mg);
-    mk('feMergeNode', { 'in': 'SourceGraphic' }, mg);
 
+    var rond = { fill: 'none', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' };
     var gBack = mk('g', {}, svg);
     var gMov = mk('g', {}, svg);
     var gFB = mk('g', {}, gMov);
-    var gFig = mk('g', { filter: 'url(#' + id + ')', fill: 'none', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, gMov);
+    // un calque par anneau du halo : son opacite s'applique au calque entier, les halos qui se croisent ne s'additionnent pas
+    var gHalo = HALO.map(function (h) { return mk('g', ext(rond, { 'class': 'mc-halo', opacity: h.o }), gMov); });
+    var gFig = mk('g', ext(rond, { 'class': 'mc-fig' }), gMov);
     var gFF = mk('g', {}, gMov);
     var gFront = mk('g', {}, svg);
     if (def.ground !== false) {
       mk('line', { x1: 6, y1: GY, x2: 234, y2: GY, stroke: DIM, 'stroke-width': 1.5, 'stroke-linecap': 'round' }, gBack);
     }
-    var parts = {
-      aF: mk('path', { stroke: farC, 'stroke-width': 5.5, opacity: farOp }, gFig),
-      lF: mk('path', { stroke: farC, 'stroke-width': 6, opacity: farOp }, gFig),
-      torso: mk('path', { stroke: color, 'stroke-width': 6.5 }, gFig),
-      head: mk('circle', { r: L.hr, stroke: color, 'stroke-width': 4.5, fill: color, 'fill-opacity': 0.18 }, gFig),
-      lN: mk('path', { stroke: color, 'stroke-width': 6 }, gFig),
-      aN: mk('path', { stroke: color, 'stroke-width': 5.5 }, gFig)
-    };
+    var SPEC = [
+      ['aF', 'path', { stroke: farC, 'stroke-width': 5.5, opacity: farOp }],
+      ['lF', 'path', { stroke: farC, 'stroke-width': 6, opacity: farOp }],
+      ['torso', 'path', { stroke: color, 'stroke-width': 6.5 }],
+      ['head', 'circle', { r: L.hr, stroke: color, 'stroke-width': 4.5, fill: color, 'fill-opacity': 0.18 }],
+      ['lN', 'path', { stroke: color, 'stroke-width': 6 }],
+      ['aN', 'path', { stroke: color, 'stroke-width': 5.5 }]
+    ];
+    var parts = {};
+    SPEC.forEach(function (sp) {
+      var els = gHalo.map(function (g, i) {
+        var at = ext(sp[2], { 'stroke-width': sp[2]['stroke-width'] + HALO[i].w, fill: 'none' });
+        delete at['fill-opacity'];
+        return mk(sp[1], at, g);
+      });
+      els.push(mk(sp[1], sp[2], gFig));
+      parts[sp[0]] = els;
+    });
+    function set(k, at, v) { var e = parts[k]; for (var i = 0; i < e.length; i++) { e[i].setAttribute(at, v); } }
     var P = propsAPI({ back: gBack, front: gFront, fback: gFB, ffront: gFF });
     var upd = def.props ? def.props(P, color) : null;
     var chrono = def.chrono ? chronoFactory(gFront, color) : null;
 
     function draw(J) {
-      parts.aF.setAttribute('d', pd([J.shF, J.aF.j, J.aF.e]));
-      parts.lF.setAttribute('d', legD(J.hipF, J.lF));
-      parts.lN.setAttribute('d', legD(J.hipN, J.lN));
-      parts.aN.setAttribute('d', pd([J.shN, J.aN.j, J.aN.e]));
-      parts.torso.setAttribute('d', J.front ?
+      set('aF', 'd', pd([J.shF, J.aF.j, J.aF.e]));
+      set('lF', 'd', legD(J.hipF, J.lF));
+      set('lN', 'd', legD(J.hipN, J.lN));
+      set('aN', 'd', pd([J.shN, J.aN.j, J.aN.e]));
+      set('torso', 'd', J.front ?
         pd([J.hip, J.nk]) + pd([J.hipF, J.hipN]) + pd([J.shF, J.shN]) : torsoD(J));
-      parts.head.setAttribute('cx', f1(J.head[0]));
-      parts.head.setAttribute('cy', f1(J.head[1]));
+      set('head', 'cx', f1(J.head[0]));
+      set('head', 'cy', f1(J.head[1]));
       gMov.setAttribute('opacity', f1(clamp(J.o, 0, 1)));
       // (v78) une pose « flip » est dessinee en miroir : le bonhomme court vers la gauche (le decor ne bouge pas)
       if (J.flip) { gMov.setAttribute('transform', 'matrix(-1 0 0 1 240 0)'); } else { gMov.removeAttribute('transform'); }
