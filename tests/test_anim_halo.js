@@ -35,9 +35,9 @@ keys.forEach(key => {
     tous(svg, el => {
       assert.ok(el.tagName !== 'filter' && el.tagName.indexOf('fe') !== 0, key + ' : pas d\'élément de filtre (' + el.tagName + ')');
       assert.ok(el.getAttribute('filter') == null, key + ' : pas d\'attribut filter');
-      assert.ok(!/filter/.test(el.getAttribute('style') || ''), key + ' : pas de filtre en style');
+      assert.ok(!/filter/.test(el.getAttribute('style') || '') && !el.style.filter, key + ' : pas de filtre en style');
     });
-    // le bonhomme et ses deux anneaux de halo, dans le même groupe qui bouge, les halos dessous
+    // le bonhomme et ses quatre anneaux de halo, dans le même groupe qui bouge, les halos dessous
     const halos = [], figs = [];
     tous(svg, el => {
       const c = el.getAttribute('class');
@@ -81,5 +81,5 @@ keys.forEach(key => {
 
 // le fichier ne remet pas de filtre : garde-fou contre un retour en arrière
 const src = fs.readFileSync(__dirname + '/../js/anims.js', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-assert.ok(!/feGaussianBlur|'filter'|filter:/.test(src), 'aucun filtre dans le code des animations');
+assert.ok(!/feGaussian|['"]filter['"]|\.filter\s*=|filter\s*:|url\(#/.test(src), 'aucun filtre dans le code des animations');
 console.log('test_anim_halo : OK (' + keys.length + ' animations)');

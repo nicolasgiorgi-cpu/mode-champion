@@ -1069,7 +1069,7 @@
   /* (v93) Le halo neon n'est plus un flou SVG (feGaussianBlur sur le bonhomme) : dans Safari (iPhone, iPad),
      un trait qui bouge sous un filtre de flou ne fait pas effacer tout son halo d'une image a l'autre, et les
      bras et les jambes laissaient une trainee derriere eux (bug WebKit 185074). Le halo est maintenant dessine
-     par deux copies plus larges et translucides de chaque partie du corps, sous le bonhomme : chaque trait est
+     par quatre copies plus larges et translucides de chaque partie du corps, sous le bonhomme : chaque trait est
      redessine avec ses propres bords, rien ne reste derriere. Ne pas remettre de filtre sur le bonhomme.
      Valeurs choisies pour rester proches de l'ancien flou (ecart-type 2.3). */
   // de l'exterieur vers l'interieur : largeur en plus, opacite du calque. Opacite cumulee au bord du trait ~0.45, puis

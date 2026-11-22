@@ -1,8 +1,9 @@
 # (v93) Les animations des exercices sans traînée : plus aucun filtre de flou sur le bonhomme (dans Safari, iPhone et
 # iPad, le halo d'un trait qui bouge sous un filtre n'était pas effacé et laissait une traînée derrière les bras et les
 # jambes). Le halo est dessiné par 4 copies plus larges et translucides de chaque partie du corps, qui le suivent.
-# Vérifié dans les écrans qui montrent des animations : fiche d'un exercice (grande démo + niveaux), échauffement
-# (petites animations en liste), « Je tente ».
+# Aucun filtre non plus sur un ancêtre (la carte de la séance du jour, sur l'Accueil, avait une ombre en filtre, coupée par
+# son clip-path : invisible, retirée). Vérifié dans les écrans qui montrent des animations : Accueil (séance du jour),
+# fiche d'un exercice (grande démo + niveaux), fiche du circuit, séance guidée, échauffement, « Je tente ».
 # Site de démo (sh tests/mkdemo.sh), puis : python3 tests/e2e_v93.py 390 844 · 1180 820 · 820 1180
 import sys, os
 from playwright.sync_api import sync_playwright
@@ -17,6 +18,12 @@ ETAT = """() => [...document.querySelectorAll('[data-anim] > svg')].map(svg => {
     anim: svg.parentNode.getAttribute('data-anim'),
     filtres: svg.querySelectorAll('filter, feGaussianBlur, [filter]').length,
     filtreCss: [...svg.querySelectorAll('*')].concat([svg]).filter(e => getComputedStyle(e).filter !== 'none').length,
+    // ni sur un ancêtre (la carte de la séance du jour avait une ombre en filtre)
+    ancetres: (() => { const r = []; for (let e = svg.parentElement; e && e !== document.documentElement; e = e.parentElement) {
+      const c = getComputedStyle(e);
+      if (c.filter !== 'none' || (c.backdropFilter && c.backdropFilter !== 'none') || (c.webkitBackdropFilter && c.webkitBackdropFilter !== 'none') || c.mixBlendMode !== 'normal')
+        r.push(e.tagName + '.' + (e.className && e.className.baseVal == null ? e.className : '') + ' ' + c.filter);
+    } return r; })(),
     halos: halos.length,
     dessous: !!fig && halos.every(h => h.parentNode === fig.parentNode && h.compareDocumentPosition(fig) === Node.DOCUMENT_POSITION_FOLLOWING),
     suit: !!fig && halos.every(h => h.children.length === fig.children.length && [...fig.children].every((p, i) => geo(h.children[i]) === geo(p))),
@@ -43,6 +50,7 @@ with sync_playwright() as p:
         check(nom + ' : des animations à l\'écran (%d)' % len(A), len(A) >= mini, A)
         if not A: return
         check(nom + ' : aucun filtre (ni SVG ni CSS) sur les animations', all(a['filtres'] == 0 and a['filtreCss'] == 0 for a in A), [(a['anim'], a['filtres'], a['filtreCss']) for a in A])
+        check(nom + ' : aucun filtre ni mélange sur leurs ancêtres', all(not a['ancetres'] for a in A), [(a['anim'], a['ancetres']) for a in A if a['ancetres']])
         check(nom + ' : 4 anneaux de halo, sous le bonhomme', all(a['halos'] == 4 and a['dessous'] for a in A), [(a['anim'], a['halos'], a['dessous']) for a in A])
         check(nom + ' : le halo a la forme exacte du bonhomme', all(a['suit'] for a in A), [a['anim'] for a in A if not a['suit']])
         pg.wait_for_timeout(700); B = ev(ETAT)
@@ -50,7 +58,10 @@ with sync_playwright() as p:
         check(nom + ' : elles bougent', len(bouge) >= 1, A[0]['anim'])
         check(nom + ' : … et le halo suit toujours (image suivante)', all(c['suit'] for c in B), [c['anim'] for c in B if not c['suit']])
 
+    ecran('Accueil (séance de Cros, lundi)', '#/semaine')
     ecran('Fiche des pompes', '#/exo/pompes', mini=2)
+    ecran('Fiche du circuit (petites animations)', '#/exo/circuit', mini=3)
+    ecran('Séance guidée de Cros', '#/go/cros')
     ecran('Échauffement', '#/echauffement', mini=3)
     ecran('Je tente · navette', '#/tente/navette', avant='[data-act="tnChaud"]')
     check('Pas de défilement de côté', ev('document.scrollingElement.scrollWidth <= document.documentElement.clientWidth + 1'))
